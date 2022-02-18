@@ -1,0 +1,68 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+
+\newcommand{\Keyword}[1]{\mathbf{#1}\ }
+
+\newcommand{\Let}{\Keyword{let}}
+\newcommand{\In}{\Keyword{in}}
+\newcommand{\Rec}{\Keyword{rec}}
+\newcommand{\If}{\Keyword{if}}
+\newcommand{\Then}{\Keyword{then}}
+\newcommand{\Else}{\Keyword{else}}
+
+\newcommand{\Unit}{\mathsf{Unit}}
+\newcommand{\Int}{\mathbb{Z}}
+\newcommand{\Nat}{\mathbb{N}}
+\newcommand{\String}{\mathbb{S}}
+\newcommand{\Bool}{\mathbb{B}}
+
+\newcommand{\Fun}[1]{\mathrm{#1}}
+\newcommand{\Var}[1]{#1}
+
+\newcommand{\LitString}[1]{\mathtt{\colorbox{black!10}{\vphantom{X}#1}}}
+\newcommand{\LitNum}[1]{#1}
+
+\newcommand{\Ref}[2]{\{#1\mid#2\}}
+
+\newcommand{\true}{\mathsf{true}}
+\newcommand{\false}{\mathsf{false}}
+
+%\newcommand\doubleplus{\ensuremath{\mathbin{+\mkern-10mu+}}}
+
+\begin{document}
+
+\begin{align*}
+&\Let \Fun{\varepsilon} = \LitString{} : \Ref{s:\String}{\mathrm{len}(s) = 0}\ \In\\
+&\Let \Fun{unit} = \bot : \Ref{\nu:\Unit}{\true}\ \In\\
+&\Let \Fun{eq_\mathbb{\,S}} = \bot : \Ref{s:\String}{\true} \to \Ref{t:\String}{\true} \to \Ref{b:\Bool}{b \Leftrightarrow s = t}\ \In \\
+&\Let \Fun{eq_\mathbb{\,N}} = \bot : \Ref{n:\Int}{n \geq 0} \to \Ref{m:\Int}{m \geq 0} \to \Ref{b:\Bool}{b \Leftrightarrow m = n}\ \In \\
+&\Let \Fun{drop} = \bot : \Ref{n:\Int}{n \geq 0} \to \Ref{s : \String}{\mathrm{len}(s) \geq n } \to \Ref{t:\String}{s = \underline{\star^n t}}\ \In \\
+&\Let \Fun{take} = \bot : \Ref{n:\Int}{n \geq 0} \to \Ref{s:\String}{\mathrm{len}(s) \geq n} \to \Ref{t:\String}{t = \star^n \land\ s = t\star^m \land\ m = \mathrm{len}(s)}\ \In \\
+\\
+&\Rec \Fun{empty} : \Ref{s:\String}{\true} \to \Ref{b:\Bool}{b \Leftrightarrow \mathrm{len}(s) = 0}\\
+&= \lambda x.\\
+&\quad \Let \Var{n} = \Fun{length}\ \Var{x}\ \In \\
+&\quad \Fun{eq_\mathbb{\,N}}\ \LitNum{0}\ \Var{n}\\
+&\In \\
+\\
+&\Rec \Fun{trim} : \Ref{s:\String}{\bigstar} \to \Ref{t:\String}{\bigstar}\\
+&= \lambda x.\\
+&\quad \Let \Var{b} = \Fun{empty}\ \Var{x}\ \In \\
+&\quad \If \Var{b}\ \Then\\
+&\quad\quad \varepsilon\\
+&\quad \Else\\
+&\quad\quad \Let \Var{y} = \Fun{take}\ \LitNum{1}\ \Var{x}\ \In\\
+&\quad\quad \Let \Var{x} = \Fun{eq_\mathbb{\,S}}\ \LitString{\textvisiblespace}\ \Var{y}\ \In\\
+&\quad\quad \If \Var{x}\ \Then\\
+&\quad\quad\quad \Let \Var{z} = \Fun{drop}\ \LitNum{1}\ \Var{x}\ \In\\
+&\quad\quad\quad \Fun{trim}\ \Var{z}\\
+&\quad\quad \Else\\
+&\quad\quad\quad x\\
+&\In\\
+\\
+&\Fun{unit}
+\end{align*}
+
+\end{document}

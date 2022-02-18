@@ -1,0 +1,49 @@
+cabal-version:      2.4
+name:               panini
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             Michael Schröder
+maintainer:         michael.schroeder@tuwien.ac.at
+
+-- A copyright notice.
+-- copyright:
+-- category:
+-- extra-source-files: CHANGELOG.md
+
+library
+  hs-source-dirs: src
+  exposed-modules:
+    Language.Panini.Syntax
+    Language.Panini.Parser
+    Language.Panini.Printer
+  build-depends:
+      base ^>=4.16
+    , containers
+    , text
+    , megaparsec == 9.2.*
+    , prettyprinter
+  default-language: GHC2021
+  default-extensions: 
+    DataKinds
+    ImportQualifiedPost
+
+executable panini
+  main-is: Main.hs
+  hs-source-dirs: app
+  build-depends:
+      base ^>=4.16
+    , panini  
+    , text
+    , megaparsec
+  default-language: GHC2021
