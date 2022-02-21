@@ -59,6 +59,10 @@ braces = between (symbol "{") (symbol "}")
 arrow :: Parser ()
 arrow = void $ symbol "->"
 
+-- | Parses a lambda.
+lambda :: Parser ()
+lambda = void $ symbol "\\"
+
 -- | Parses a string literal.
 stringLiteral :: Parser Text
 stringLiteral = Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"')) <?> "string"
@@ -105,9 +109,18 @@ name = label "name" $ do
 -------------------------------------------------------------------------------
 
 expr :: Parser Expr
-expr = choice
-  [ try $ If <$ keyword "if" <*> value <* keyword "then" <*> expr <* symbol "else" <*> expr
+expr = do
+  e1 <- expr1
+  e <- (foldl' App e1 <$> some (try value)) <|> pure e1
+  (Ann e <$ symbol ":" <*> type_) <|> pure e
+
+expr1 :: Parser Expr
+expr1 = choice
+  [ try $ parens expr
+  , try $ If <$ keyword "if" <*> value <* keyword "then" <*> expr <* symbol "else" <*> expr
   , try $ Rec <$ keyword "rec" <*> name <* symbol ":" <*> type_ <* symbol "=" <*> expr <* symbol "in" <*> expr
+  , try $ Let <$ keyword "let" <*> name <* symbol "=" <*> expr <* symbol "in" <*> expr
+  , try $ Lam <$ lambda <*> name <* symbol "." <*> expr
   , Val <$> value
   ]
 
@@ -123,25 +136,6 @@ constant = choice
   ]
 
 -------------------------------------------------------------------------------
-
-{-
-
-b                   ===   Base dummyName b (Known (PBool True))
-{x : b | r}         ===   Base x b r
-x : t1 -> t2        ===   Pi x t1 t2
-x : b -> t2         ===   Pi x (Base x b (Known (PBool True))) t2
-{x : b | r} -> t2   ===   Pi x (Base x b r) t2
-t1 -> t2            ===   Pi dummyName t1 t2
-
-
-
-b
-{x:b|r}
-x:b
-x:{y:b|r}
-x:(t1 -> t2)
-
--}
 
 type_ :: Parser Type
 type_ = do
@@ -177,97 +171,7 @@ baseType = choice
   , TyBool <$ keyword "bool"
   , TyInt <$ keyword "int"
   , TyString <$ keyword "string"
-  ]
+  ] <?> "base type"
 
 refinement :: Parser Refinement
 refinement = Unknown <$ symbol "?"
-
--- expr :: Parser Expr
--- expr = do
---   e0 <- expr0
---   e <- try (foldl' App e0 <$> some name) <|> pure e0
---   (Ann e <$ colon <*> type_) <|> pure e
-
--- expr0 :: Parser Expr
--- expr0 =
---   label "expression" $
---     choice
---       [ try (parens expr),
---         If <$ symbol "if" <*> name <* symbol "then" <*> expr <* symbol "else" <*> expr,
---         Let <$ symbol "let" <*> name <* symbol "=" <*> expr <* symbol "in" <*> expr,
---         Lam <$ lambda <*> name <* symbol "." <*> expr,
---         Con <$> constant <?> "constant",
---         Var <$> name <?> "variable"
---       ]
-
--- constant :: Parser Constant
--- constant =
---   choice
---     [ B <$> bool,
---       I <$> integerLiteral,
---       C <$> charLiteral,
---       S <$> stringLiteral
---     ]
-
--- -------------------------------------------------------------------------------
-
--- type_ :: Parser Type
--- type_ =
---   label "type" $
---     choice
---       [ try (parens (Pi <$> name <* colon <*> type0) <* arrow <*> type_),
---         try (Pi dummyName <$> type0 <* arrow <*> type_),
---         type0
---       ]
-
--- type0 :: Parser Type
--- type0 =
---   choice
---     [ try (parens type_)
--- --      Base <$> base <*> option Unknown refinement
---     ]
-
--- -- base :: Parser Base
--- -- base =
--- --   label "base type" $
--- --     choice
--- --       [ TyBool <$ symbol "bool",
--- --         TyInt <$ symbol "int",
--- --         TyChar <$ symbol "char",
--- --         TyString <$ symbol "string",
--- --         TyVar <$> name <?> "type variable"
--- --       ]
-
--- -------------------------------------------------------------------------------
-
--- refinement :: Parser Refinement
--- refinement = label "refinement" $ braces $ Unknown <$ symbol "?"
-
--- -------------------------------------------------------------------------------
-
-
--- integerLiteral :: Parser Integer
--- integerLiteral = label "integer" $ L.signed mempty (lexeme L.decimal)
-
--- charLiteral :: Parser Char
--- charLiteral = label "char" $ lexeme $ char '\'' >> L.charLiteral <* char '\''
-
-
--- lambda :: Parser ()
--- lambda = symbol "\\" <|> symbol "λ"
-
--- keyword :: Text -> Parser ()
--- keyword k = void $ lexeme $ string k <* notFollowedBy alphaNumChar
-
-
-
-
-
-
-
--- colon :: Parser ()
--- colon = symbol ":"
-
--- arrow :: Parser ()
--- arrow = symbol "->"
-
