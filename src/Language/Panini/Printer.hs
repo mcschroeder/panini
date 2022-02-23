@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Panini.Printer where
@@ -8,7 +7,56 @@ import Language.Panini.Syntax
 import Prettyprinter
 import Prettyprinter.Util (putDocW)
 
--- -------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- TODO
+
+name :: Name -> Doc ()
+name (Name n) = pretty n
+
+-------------------------------------------------------------------------------
+
+predicate :: Output -> Pred -> Doc ()
+predicate o = \case
+  PTrue -> "true"
+  PFalse -> "false"
+  PVar x -> name x
+  PInt c -> pretty c
+  PConj p1 p2 -> predicate o p1 <+> symConj o <+> predicate o p2
+  PDisj p1 p2 -> predicate o p1 <+> symDisj o <+> predicate o p2
+  PNeg p -> symNeg o <> predicate o p
+  POp op p1 p2 -> predicate o p1 <+> operator op <+> predicate o p2
+  PUf f ps -> name f <> tupled (map (predicate o) ps)
+
+data Output = ASCII | Unicode | LaTeX
+
+symNeg :: Output -> Doc()
+symNeg ASCII = "~"
+symNeg Unicode = "¬"
+symNeg LaTeX = "\\neg"
+
+symConj :: Output -> Doc ()
+symConj ASCII = "&"
+symConj Unicode = "∧"
+symConj LaTeX = "\\land"
+
+symDisj :: Output -> Doc ()
+symDisj ASCII = "|"
+symDisj Unicode = "∨"
+symDisj LaTeX = "\\lor"
+
+operator :: POp -> Doc ()
+operator = \case
+  Eq -> "="
+  Neq -> "/="
+  Leq -> "<="
+  Geq -> ">="
+  Lt -> "<"
+  Gt -> ">"
+  Add -> "+"
+  Sub -> "-"
+  Mul -> "*"
+  Div -> "/"
 
 -- data Ann = Keyword | Constant | Type | Refinement
 

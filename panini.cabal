@@ -32,11 +32,13 @@ library
     , containers
     , text
     , megaparsec == 9.2.*
+    , parser-combinators
     , prettyprinter
   default-language: GHC2021
   default-extensions: 
     DataKinds
     ImportQualifiedPost
+    LambdaCase
 
 executable panini
   main-is: Main.hs

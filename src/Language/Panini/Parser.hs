@@ -5,6 +5,7 @@
 module Language.Panini.Parser where
 
 import Control.Monad
+import Control.Monad.Combinators.Expr
 import Data.Char
 import Data.List (foldl', foldl1')
 import Data.List.NonEmpty qualified as NE
@@ -160,10 +161,10 @@ type1 = choice
     pure (x,t)
   namedBase = do
     (x,b) <- (,) <$> name <* symbol ":" <*> baseType
-    pure (x, Base x b (Known (PBool True)))
+    pure (x, Base x b (Known PTrue))
   base = do
     b <- baseType
-    pure (dummyName, Base dummyName b (Known (PBool True)))
+    pure (dummyName, Base dummyName b (Known PTrue))
 
 baseType :: Parser BaseType
 baseType = choice
@@ -174,4 +175,68 @@ baseType = choice
   ] <?> "base type"
 
 refinement :: Parser Refinement
-refinement = Unknown <$ symbol "?"
+refinement = (Unknown <$ symbol "?" <|> Known <$> predicate) <?> "refinement"
+
+-------------------------------------------------------------------------------
+
+predicate :: Parser Pred
+predicate = makeExprParser predTerm predOps
+
+predTerm :: Parser Pred
+predTerm = choice
+  [ parens predicate
+  , PTrue <$ symbol "true"
+  , PFalse <$ symbol "false"
+  , PInt <$> integerLiteral
+  , try predUf
+  , PVar <$> name
+  ]
+
+predUf :: Parser Pred
+predUf = PUf <$> name <*> parens (sepBy1 predicate (symbol ","))
+
+predOps :: [[Operator Parser Pred]]
+predOps =
+  [ [ Prefix (PNeg <$ symNeg) 
+    ]
+  , [ InfixL (POp Mul <$ symbol "*")
+    , InfixL (POp Div <$ symbol "/")
+    ]
+  , [ InfixL (POp Add <$ symbol "+")
+    , InfixL (POp Sub <$ symbol "-")
+    ]
+  , [ InfixL (POp Eq <$ symbol "=")
+    , InfixL (POp Lt <$ symbol "<")
+    , InfixL (POp Gt <$ symbol ">")
+    , InfixL (POp Neq <$ symNeq)
+    , InfixL (POp Leq <$ symLeq)
+    , InfixL (POp Geq <$ symGeq)
+    ]
+  , [ InfixL (PConj <$ symConj)
+    , InfixL (PDisj <$ symDisj) 
+    ]
+  ]
+
+-- | Parses a negation symbol.
+symNeg :: Parser ()
+symNeg = void $ symbol "~"
+
+-- | Parses a disequality symbol.
+symNeq :: Parser ()
+symNeq = void $ symbol "/="
+
+-- | Parsers a less-than-or-equal symbol.
+symLeq :: Parser ()
+symLeq = void $ symbol "<="
+
+-- | Parsers a greater-than-or-equal symbol.
+symGeq :: Parser ()
+symGeq = void $ symbol ">="
+
+-- | Parses a conjunction symbol.
+symConj :: Parser ()
+symConj = void $ symbol "&"
+
+-- | Parses a disjunction symbol.
+symDisj :: Parser ()
+symDisj = void $ symbol "|"

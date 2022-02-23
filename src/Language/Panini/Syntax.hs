@@ -21,13 +21,13 @@ isDummy _          = False
 -- Terms
 
 data Expr
-  = Val Value                -- ^ x
-  | App Expr Value           -- ^ e x
-  | Lam Name Expr            -- ^ \x. e
-  | Ann Expr Type            -- ^ e : t
-  | Let Name Expr Expr       -- ^ let x = e1 in e2  
-  | Rec Name Type Expr Expr  -- ^ rec x : t = e1 in e2
-  | If Value Expr Expr       -- ^ if x then e1 else e2    
+  = Val Value                -- x
+  | App Expr Value           -- e x
+  | Lam Name Expr            -- \x. e
+  | Ann Expr Type            -- e : t
+  | Let Name Expr Expr       -- let x = e1 in e2  
+  | Rec Name Type Expr Expr  -- rec x : t = e1 in e2
+  | If Value Expr Expr       -- if x then e1 else e2    
   deriving (Show, Read)
 
 data Value
@@ -46,8 +46,8 @@ data Constant
 -- Types
 
 data Type
-  = Base Name BaseType Refinement  -- ^ {x : t | r}
-  | Pi Name Type Type              -- ^ x : t1 -> t2
+  = Base Name BaseType Refinement  -- {x : t | r}
+  | Pi Name Type Type              -- x : t1 -> t2
   deriving (Show, Read)
 
 --                    t  ^=  {_ : t | true}
@@ -62,7 +62,7 @@ data BaseType
   deriving (Show, Read)
 
 data Refinement 
-  = Unknown           -- ^ ?
+  = Unknown           -- ?
   | Known Pred
   deriving (Show, Read)
 
@@ -70,15 +70,26 @@ data Refinement
 -- Predicates
 
 data Pred
-  = PVar Name                 -- ^ x,y,z,...
-  | PBool Bool                -- ^ true, false
-  | PInt Integer              -- ^ 0,-1,1,...
-  | PIntOp IntOp Pred Pred    -- ^ p1 + p2, p1 - p2, ...
-  | PConj Pred Pred           -- ^ p1 /\ p2
-  | PDisj Pred Pred           -- ^ p1 \/ p2
-  | PNeg Pred                 -- ^ -p1
-  | PFunc Name [Pred]         -- ^ f(p1,p2,...)
+  = PTrue              -- true
+  | PFalse             -- false
+  | PVar Name          -- x
+  | PInt Integer       -- c
+  | PConj Pred Pred    -- p1 & p2
+  | PDisj Pred Pred    -- p1 | p2
+  | PNeg Pred          -- ~p1
+  | POp POp Pred Pred  -- p1 o p2       (interpreted operator)
+  | PUf Name [Pred]    -- f(p1,p2,...)  (uninterpreted function)
   deriving (Show, Read)
 
-data IntOp = Plus | Minus | Times | Div
+data POp
+  = Eq   -- =
+  | Neq  -- /=
+  | Leq  -- <=
+  | Geq  -- >=
+  | Lt   -- <
+  | Gt   -- >
+  | Add  -- +
+  | Sub  -- -
+  | Mul  -- *
+  | Div  -- /
   deriving (Show, Read)
