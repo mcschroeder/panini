@@ -210,8 +210,8 @@ predOps =
     , InfixN (POp Leq <$ symLeq)
     , InfixN (POp Geq <$ symGeq)
     ]
-  , [ InfixR (PConj <$ symConj)
-    , InfixR (PDisj <$ symDisj) 
+  , [ InfixN (PConj <$ symConj)
+    , InfixN (PDisj <$ symDisj)
     ]
   ]
 

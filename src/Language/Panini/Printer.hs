@@ -107,8 +107,25 @@ pReft = \case
   Known p -> pPred p
 
 data Assoc = Prefix | InfixL | InfixN | InfixR
+type Fixity = (Assoc, Int)
 
-predFixity :: Pred -> Maybe (Assoc, Int)
+parensL :: Maybe Fixity -> Maybe Fixity -> Doc ann -> Doc ann
+parensL (Just (_     , m)) (Just (_, n)) d | m > n  = parens d
+parensL (Just (InfixR, m)) (Just (_, n)) d | m == n = parens d
+parensL _           _                    d          = d
+
+parensR :: Maybe Fixity -> Maybe Fixity -> Doc ann -> Doc ann
+parensR (Just (_     , m)) (Just (_, n)) d | m > n  = parens d
+parensR (Just (InfixL, m)) (Just (_, n)) d | m == n = parens d
+parensR _           _                    d          = d
+
+binOp :: (Maybe Fixity, Doc ann) -- ^ left argument 
+      -> (Maybe Fixity, Doc ann) -- ^ operator
+      -> (Maybe Fixity, Doc ann) -- ^ right argument
+      -> Doc ann
+binOp (f1, d1) (f0, d0) (f2, d2) = parensL f0 f1 d1 <+> d0 <+> parensR f0 f2 d2
+
+predFixity :: Pred -> Maybe Fixity
 predFixity = \case
   PNeg _ -> Just (Prefix, 5)
   POp Mul _ _ -> Just (InfixL, 4)
@@ -116,16 +133,14 @@ predFixity = \case
   POp Add _ _ -> Just (InfixL, 3)
   POp Sub _ _ -> Just (InfixL, 3)
   POp _ _ _ -> Just (InfixN, 2)
-  PConj _ _ -> Just (InfixR, 1)
-  PDisj _ _ -> Just (InfixR, 1)
+  PConj _ _ -> Just (InfixN, 1)
+  PDisj _ _ -> Just (InfixN, 1)
   _ -> Nothing
 
-needsParens :: Pred -> Pred -> Bool
-needsParens p0 p1 = 
+-- TODO: explicit parenthesis get lost! (here or in parser?)
 
--- TODO: insert parentheses, if necessary!
 pPred :: Pred -> Doc ()
-pPred p1 = case p0 of
+pPred p0 = case p0 of
   PTrue -> "true"
   PFalse -> "false"
   PVar x -> pName x
@@ -134,26 +149,13 @@ pPred p1 = case p0 of
   PUf f ps -> pName f <> parens (hsep $ punctuate "," $ map pPred ps)
   
   PNeg p
-    | 
-    | isBin p, prec p0 > prec p -> "~" <> parens (pPred p)
-
+    | Just _ <- predFixity p -> "~" <> parens (pPred p)
+    | otherwise              -> "~" <>         pPred p
+               
+  PConj p1 p2 -> binOp (predFixity p1, pPred p1) (predFixity p0, "&") (predFixity p2, pPred p2)
+  PDisj p1 p2 -> binOp (predFixity p1, pPred p1) (predFixity p0, "|") (predFixity p2, pPred p2)
+  POp o p1 p2 -> binOp (predFixity p1, pPred p1) (predFixity p0, pOp o) (predFixity p2, pPred p2)
   
-  
-             
-
-  PConj p1 p2 -> pPred p1 <+> "&" <+> pPred p2  
-  PDisj p1 p2 -> pPred p1 <+> "|" <+> pPred p2
-  POp o p1 p2 
-    | leftParen <- isBin p1 && (prec p0 > prec p1 || (prec p0 == prec p1 && assoc p0 == RightAssoc))
-    , rightParen <- isBin p2 && (prec p0 > prec p2 || (prec p0 == prec p2 && assoc p0 == LeftAssoc))
-
-  
-
-
-  POp o p1 p2 -> pPredParensL p0 p1 <+> pOp o <+> pPredParensR p0 p2
-
-  -> pPred p1 <+> pOp o <+> pPred p2
-
 pOp :: POp -> Doc ()
 pOp = \case
   Eq  -> "="
