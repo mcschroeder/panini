@@ -66,7 +66,7 @@ lambda = void $ symbol "\\"
 
 -- | Parses a string literal.
 stringLiteral :: Parser Text
-stringLiteral = Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"')) <?> "string"
+stringLiteral = Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"')) <* whitespace <?> "string"
 
 -- | Parses a (signed) integer literal.
 integerLiteral :: Parser Integer
@@ -126,15 +126,13 @@ expr1 = choice
   ]
 
 value :: Parser Value
-value = (Con <$> constant <|> Var <$> name) <?> "value"
-
-constant :: Parser Constant
-constant = choice
+value = choice
   [ Unit <$ keyword "unit"
   , B <$> boolLiteral
   , I <$> integerLiteral
   , S <$> stringLiteral
-  ]
+  , Var <$> name
+  ] <?> "value"
 
 -------------------------------------------------------------------------------
 
@@ -205,15 +203,15 @@ predOps =
   , [ InfixL (POp Add <$ symbol "+")
     , InfixL (POp Sub <$ symbol "-")
     ]
-  , [ InfixL (POp Eq <$ symbol "=")
-    , InfixL (POp Lt <$ symbol "<")
-    , InfixL (POp Gt <$ symbol ">")
-    , InfixL (POp Neq <$ symNeq)
-    , InfixL (POp Leq <$ symLeq)
-    , InfixL (POp Geq <$ symGeq)
+  , [ InfixN (POp Eq <$ symbol "=")
+    , InfixN (POp Lt <$ symbol "<")
+    , InfixN (POp Gt <$ symbol ">")
+    , InfixN (POp Neq <$ symNeq)
+    , InfixN (POp Leq <$ symLeq)
+    , InfixN (POp Geq <$ symGeq)
     ]
-  , [ InfixL (PConj <$ symConj)
-    , InfixL (PDisj <$ symDisj) 
+  , [ InfixR (PConj <$ symConj)
+    , InfixR (PDisj <$ symDisj) 
     ]
   ]
 

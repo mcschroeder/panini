@@ -29,6 +29,7 @@ library
     Language.Panini.Printer
   build-depends:
       base ^>=4.16
+    , ansi-terminal
     , containers
     , text
     , megaparsec == 9.2.*

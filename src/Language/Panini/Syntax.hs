@@ -8,7 +8,7 @@ import Data.Text (Text)
 -- Names
 
 newtype Name = Name Text
-  deriving (Show, Read)
+  deriving (Eq, Show, Read)
 
 dummyName :: Name
 dummyName = Name "_"
@@ -31,15 +31,11 @@ data Expr
   deriving (Show, Read)
 
 data Value
-  = Var Name
-  | Con Constant
-  deriving (Show, Read)
-
-data Constant
   = Unit
   | B Bool
   | I Integer
   | S Text
+  | Var Name
   deriving (Show, Read)
 
 ------------------------------------------------------------------------------
@@ -51,8 +47,8 @@ data Type
   deriving (Show, Read)
 
 --                    t  ^=  {_ : t | true}
---             t1 -> t2  ^=  (_ : t1) -> t2
--- { x : t1 | r } -> t2  ^=  (x : {x : t1 | r}) -> t2
+--             t1 -> t2  ^=  _ : t1 -> t2
+-- { x : t1 | r } -> t2  ^=  x : {x : t1 | r} -> t2
 
 data BaseType
   = TyUnit
@@ -64,7 +60,7 @@ data BaseType
 data Refinement 
   = Unknown           -- ?
   | Known Pred
-  deriving (Show, Read)
+  deriving (Eq, Show, Read)
 
 ------------------------------------------------------------------------------
 -- Predicates
@@ -79,7 +75,7 @@ data Pred
   | PNeg Pred          -- ~p1
   | POp POp Pred Pred  -- p1 o p2       (interpreted operator)
   | PUf Name [Pred]    -- f(p1,p2,...)  (uninterpreted function)
-  deriving (Show, Read)
+  deriving (Eq, Show, Read)
 
 data POp
   = Eq   -- =
@@ -92,4 +88,4 @@ data POp
   | Sub  -- -
   | Mul  -- *
   | Div  -- /
-  deriving (Show, Read)
+  deriving (Eq, Show, Read)

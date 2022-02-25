@@ -13,9 +13,16 @@ import Language.Panini.Syntax
 import System.Environment (getArgs)
 import System.IO
 import Text.Megaparsec
+import Text.Megaparsec (errorBundlePretty)
 
 main :: IO ()
 main = undefined
+
+test :: Text -> IO ()
+test s = do
+  case parse (expr <* eof) "" s of
+    Left bundle -> putStr (errorBundlePretty bundle)
+    Right x -> prettyPut x
 
 -- main :: IO ()
 -- main = do
