@@ -9,11 +9,11 @@ import Prettyprinter.Render.Text
 import System.Console.ANSI
 import Data.Text.IO qualified as Text
 
-ex1 :: Expr
-ex1 = Rec (Name "empty") (Pi (Name "s") (Base (Name "s") TyString (Known PTrue)) (Base (Name "b") TyBool (Known (POp Eq (PUf (Name "length") [PVar (Name "s")]) (PInt 0))))) (Val (Var (Name "bot"))) (Val Unit)
+-- ex1 :: Expr
+-- ex1 = Rec (Name "empty") (Pi (Name "s") (Base (Name "s") TyString (Known PTrue)) (Base (Name "b") TyBool (Known (POp Eq (PUf (Name "length") [PVar (Name "s")]) (PInt 0))))) (Val (Var (Name "bot"))) (Val Unit)
 
-ex2 :: Expr
-ex2 = Rec (Name "empty") (Pi (Name "s") (Base (Name "s") TyString (Known PTrue)) (Base (Name "b") TyBool (Known (POp Eq (PUf (Name "length") [PVar (Name "s")]) (PInt 0))))) (Lam (Name "x") (Let (Name "n") (App (Val (Var (Name "length"))) (Var (Name "x"))) (App (App (Val (Var (Name "eq_n"))) (I 0)) (Var (Name "n"))))) (Val Unit)
+-- ex2 :: Expr
+-- ex2 = Rec (Name "empty") (Pi (Name "s") (Base (Name "s") TyString (Known PTrue)) (Base (Name "b") TyBool (Known (POp Eq (PUf (Name "length") [PVar (Name "s")]) (PInt 0))))) (Lam (Name "x") (Let (Name "n") (App (Val (Var (Name "length"))) (Var (Name "x"))) (App (App (Val (Var (Name "eq_n"))) (I 0)) (Var (Name "n"))))) (Val Unit)
 
 -------------------------------------------------------------------------------
 
@@ -106,65 +106,71 @@ pReft = \case
   Unknown -> "?"
   Known p -> pPred p
 
-data Assoc = Prefix | InfixL | InfixN | InfixR
-type Fixity = (Assoc, Int)
-
-parensL :: Maybe Fixity -> Maybe Fixity -> Doc ann -> Doc ann
-parensL (Just (_     , m)) (Just (_, n)) d | m > n  = parens d
-parensL (Just (InfixR, m)) (Just (_, n)) d | m == n = parens d
-parensL _           _                    d          = d
-
-parensR :: Maybe Fixity -> Maybe Fixity -> Doc ann -> Doc ann
-parensR (Just (_     , m)) (Just (_, n)) d | m > n  = parens d
-parensR (Just (InfixL, m)) (Just (_, n)) d | m == n = parens d
-parensR _           _                    d          = d
-
-binOp :: (Maybe Fixity, Doc ann) -- ^ left argument 
-      -> (Maybe Fixity, Doc ann) -- ^ operator
-      -> (Maybe Fixity, Doc ann) -- ^ right argument
-      -> Doc ann
-binOp (f1, d1) (f0, d0) (f2, d2) = parensL f0 f1 d1 <+> d0 <+> parensR f0 f2 d2
-
-predFixity :: Pred -> Maybe Fixity
-predFixity = \case
-  PNeg _ -> Just (Prefix, 5)
-  POp Mul _ _ -> Just (InfixL, 4)
-  POp Div _ _ -> Just (InfixL, 4)
-  POp Add _ _ -> Just (InfixL, 3)
-  POp Sub _ _ -> Just (InfixL, 3)
-  POp _ _ _ -> Just (InfixN, 2)
-  PConj _ _ -> Just (InfixN, 1)
-  PDisj _ _ -> Just (InfixN, 1)
-  _ -> Nothing
-
--- TODO: explicit parenthesis get lost! (here or in parser?)
-
-pPred :: Pred -> Doc ()
+pPred :: Pred -> Doc ann
 pPred p0 = case p0 of
   PTrue -> "true"
   PFalse -> "false"
   PVar x -> pName x
   PInt c -> pretty c
-  
-  PUf f ps -> pName f <> parens (hsep $ punctuate "," $ map pPred ps)
-  
-  PNeg p
-    | Just _ <- predFixity p -> "~" <> parens (pPred p)
-    | otherwise              -> "~" <>         pPred p
-               
-  PConj p1 p2 -> binOp (predFixity p1, pPred p1) (predFixity p0, "&") (predFixity p2, pPred p2)
-  PDisj p1 p2 -> binOp (predFixity p1, pPred p1) (predFixity p0, "|") (predFixity p2, pPred p2)
-  POp o p1 p2 -> binOp (predFixity p1, pPred p1) (predFixity p0, pOp o) (predFixity p2, pPred p2)
-  
-pOp :: POp -> Doc ()
-pOp = \case
-  Eq  -> "="
-  Neq -> "/="
-  Leq -> "<="
-  Geq -> ">="
-  Lt  -> "<"
-  Gt  -> ">"
-  Add -> "+"
-  Sub -> "-"
-  Mul -> "*"
-  Div -> "/"
+  PFun f ps -> pName f <> tupled (map pPred ps)
+  PNot p1 -> prettyUnary p0 p1 "~"
+  PBin Mul p1 p2 -> prettyOp p0 p1 p2 "*"
+  PBin Div p1 p2 -> prettyOp p0 p1 p2 "/"
+  PBin Add p1 p2 -> prettyOp p0 p1 p2 "+"
+  PBin Sub p1 p2 -> prettyOp p0 p1 p2 "-"
+  PRel Neq p1 p2 -> prettyOp p0 p1 p2 "/="
+  PRel Eq p1 p2  -> prettyOp p0 p1 p2 "=="
+  PRel Leq p1 p2 -> prettyOp p0 p1 p2 "<="
+  PRel Lt p1 p2  -> prettyOp p0 p1 p2 "<"
+  PRel Geq p1 p2 -> prettyOp p0 p1 p2 ">="
+  PRel Gt p1 p2  -> prettyOp p0 p1 p2 ">"
+  PConj p1 p2    -> prettyOp p0 p1 p2 "/\\"
+  PDisj p1 p2    -> prettyOp p0 p1 p2 "\\/"
+  PImpl p1 p2    -> prettyOp p0 p1 p2 "==>"
+  PIff p1 p2     -> prettyOp p0 p1 p2 "<=>"
+
+prettyUnary :: Pred -> Pred -> Doc ann -> Doc ann
+prettyUnary o l docO = docO <> parensIf (pO > pL) (pPred l)
+ where
+   (pO, _) = fixity o
+   (pL, _) = fixity l
+
+prettyOp :: Pred -> Pred -> Pred -> Doc ann -> Doc ann
+prettyOp o l r docO = case a of
+  InfixL -> parensIf (pO > pL)  docL <+> docO <+> parensIf (pO >= pR) docR
+  InfixN -> parensIf (pO >= pL) docL <+> docO <+> parensIf (pO >= pR) docR
+  InfixR -> parensIf (pO >= pL) docL <+> docO <+> parensIf (pO > pR)  docR
+  _ -> error "expected infix op"
+ where
+   (pO, a) = fixity o
+   (pL, _) = fixity l
+   (pR, _) = fixity r
+   docL = pPred l
+   docR = pPred r
+
+parensIf :: Bool -> Doc ann -> Doc ann
+parensIf x = if x then parens else id
+
+class Fixity a where
+  fixity :: a -> (Int, Assoc)
+
+data Assoc = Prefix | InfixL | InfixN | InfixR
+  deriving (Eq, Show, Read)
+
+instance Fixity Pred where
+  fixity (PNot _)       = (7, Prefix)
+  fixity (PBin Mul _ _) = (6, InfixL)
+  fixity (PBin Div _ _) = (6, InfixL)
+  fixity (PBin Add _ _) = (5, InfixL)
+  fixity (PBin Sub _ _) = (5, InfixL)
+  fixity (PRel Eq _ _)  = (4, InfixN)
+  fixity (PRel Neq _ _) = (4, InfixN)
+  fixity (PRel Geq _ _) = (4, InfixN)
+  fixity (PRel Leq _ _) = (4, InfixN)
+  fixity (PRel Gt _ _)  = (4, InfixN)
+  fixity (PRel Lt _ _)  = (4, InfixN)
+  fixity (PConj _ _)    = (3, InfixR)
+  fixity (PDisj _ _)    = (2, InfixR)
+  fixity (PImpl _ _)    = (1, InfixN)
+  fixity (PIff _ _)     = (1, InfixN)
+  fixity _              = (9, InfixL)

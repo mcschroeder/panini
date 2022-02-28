@@ -186,55 +186,77 @@ predTerm = choice
   , PTrue <$ symbol "true"
   , PFalse <$ symbol "false"
   , PInt <$> integerLiteral
-  , try predUf
+  , try predFun
   , PVar <$> name
   ]
 
-predUf :: Parser Pred
-predUf = PUf <$> name <*> parens (sepBy1 predicate (symbol ","))
+predFun :: Parser Pred
+predFun = PFun <$> name <*> parens (sepBy1 predicate ",")
 
 predOps :: [[Operator Parser Pred]]
 predOps =
-  [ [ Prefix (PNeg <$ symNeg) 
+  [ [ prefix symNot PNot
     ]
-  , [ InfixL (POp Mul <$ symbol "*")
-    , InfixL (POp Div <$ symbol "/")
+  , [ infixL (op "*") (PBin Mul)
+    , infixL (op "/") (PBin Div)
     ]
-  , [ InfixL (POp Add <$ symbol "+")
-    , InfixL (POp Sub <$ symbol "-")
+  , [ infixL (op "+") (PBin Add)
+    , infixL (op "-") (PBin Sub)
     ]
-  , [ InfixN (POp Eq <$ symbol "=")
-    , InfixN (POp Lt <$ symbol "<")
-    , InfixN (POp Gt <$ symbol ">")
-    , InfixN (POp Neq <$ symNeq)
-    , InfixN (POp Leq <$ symLeq)
-    , InfixN (POp Geq <$ symGeq)
+  , [ infixN symNeq   (PRel Neq)
+    , infixN (op "=") (PRel Eq)
+    , infixN symLeq   (PRel Leq)
+    , infixN (op "<") (PRel Lt)
+    , infixN symGeq   (PRel Geq)
+    , infixN (op ">") (PRel Gt)
     ]
-  , [ InfixN (PConj <$ symConj)
-    , InfixN (PDisj <$ symDisj)
+  , [ infixR symConj PConj
+    ]
+  , [ infixR symDisj PDisj]
+  , [ infixN symImpl PImpl
+    , infixN symIff PIff
     ]
   ]
+ where
+  prefix p f = Prefix (f <$ p)
+  infixL p f = InfixL (f <$ p)
+  infixN p f = InfixN (f <$ p)
+  infixR p f = InfixR (f <$ p)
 
--- | Parses a negation symbol.
-symNeg :: Parser ()
-symNeg = void $ symbol "~"
+-- | Parses an operator symbol even if it overlaps with another operator symbol.
+op :: Text -> Parser Text
+op n = (lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
+ where
+   isOpSym c = c `elem` ['=', '<', '>', '/', '\\']
+
+-- | Parses a predicate negation symbol.
+symNot :: Parser ()
+symNot = void $ op "~"
 
 -- | Parses a disequality symbol.
 symNeq :: Parser ()
-symNeq = void $ symbol "/="
+symNeq = void $ op "/="
 
 -- | Parsers a less-than-or-equal symbol.
 symLeq :: Parser ()
-symLeq = void $ symbol "<="
+symLeq = void $ op "<="
 
 -- | Parsers a greater-than-or-equal symbol.
 symGeq :: Parser ()
-symGeq = void $ symbol ">="
+symGeq = void $ op ">="
 
 -- | Parses a conjunction symbol.
 symConj :: Parser ()
-symConj = void $ symbol "&"
+symConj = void $ op "/\\"
 
 -- | Parses a disjunction symbol.
 symDisj :: Parser ()
-symDisj = void $ symbol "|"
+symDisj = void $ op "\\/"
+
+-- | Parses an implication symbol.
+symImpl :: Parser ()
+symImpl = void $ op "==>"
+
+-- | Parses an if-and-only-if symbol..
+symIff :: Parser ()
+symIff = void $ op "<=>"

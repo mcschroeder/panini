@@ -66,26 +66,22 @@ data Refinement
 -- Predicates
 
 data Pred
-  = PTrue              -- true
-  | PFalse             -- false
-  | PVar Name          -- x
-  | PInt Integer       -- c
-  | PConj Pred Pred    -- p1 & p2
-  | PDisj Pred Pred    -- p1 | p2
-  | PNeg Pred          -- ~p1
-  | POp POp Pred Pred  -- p1 o p2       (interpreted operator)
-  | PUf Name [Pred]    -- f(p1,p2,...)  (uninterpreted function)
+  = PTrue               -- true
+  | PFalse              -- false
+  | PVar Name           -- x
+  | PInt Integer        -- c
+  | PBin Bop Pred Pred  -- p1 o p2
+  | PRel Rel Pred Pred  -- p1 R p2
+  | PConj Pred Pred     -- p1 /\ p2
+  | PDisj Pred Pred     -- p1 \/ p2
+  | PImpl Pred Pred     -- p1 ==> p2
+  | PIff Pred Pred      -- p1 <=> p2
+  | PNot Pred           -- ~p1
+  | PFun Name [Pred]    -- f(p1,p2,...)
   deriving (Eq, Show, Read)
 
-data POp
-  = Eq   -- =
-  | Neq  -- /=
-  | Leq  -- <=
-  | Geq  -- >=
-  | Lt   -- <
-  | Gt   -- >
-  | Add  -- +
-  | Sub  -- -
-  | Mul  -- *
-  | Div  -- /
+data Bop = Add | Sub | Mul | Div
+  deriving (Eq, Show, Read)
+
+data Rel = Eq | Neq | Geq | Leq | Gt | Lt
   deriving (Eq, Show, Read)
