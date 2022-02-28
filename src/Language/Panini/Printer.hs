@@ -9,12 +9,6 @@ import Prettyprinter.Render.Text
 import System.Console.ANSI
 import Data.Text.IO qualified as Text
 
--- ex1 :: Expr
--- ex1 = Rec (Name "empty") (Pi (Name "s") (Base (Name "s") TyString (Known PTrue)) (Base (Name "b") TyBool (Known (POp Eq (PUf (Name "length") [PVar (Name "s")]) (PInt 0))))) (Val (Var (Name "bot"))) (Val Unit)
-
--- ex2 :: Expr
--- ex2 = Rec (Name "empty") (Pi (Name "s") (Base (Name "s") TyString (Known PTrue)) (Base (Name "b") TyBool (Known (POp Eq (PUf (Name "length") [PVar (Name "s")]) (PInt 0))))) (Lam (Name "x") (Let (Name "n") (App (Val (Var (Name "length"))) (Var (Name "x"))) (App (App (Val (Var (Name "eq_n"))) (I 0)) (Var (Name "n"))))) (Val Unit)
-
 -------------------------------------------------------------------------------
 
 prettyPrint :: Int -> Expr -> Text
@@ -54,7 +48,7 @@ pValue = \case
   B True -> "true"
   B False -> "false"
   I c -> pretty c
-  S t -> dquotes $ pretty t   --- TODO: escape string
+  S t -> viaShow t
   Var x -> pName x
 
 -------------------------------------------------------------------------------
