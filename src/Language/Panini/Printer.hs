@@ -113,7 +113,7 @@ pPred p0 = case p0 of
   PBin Add p1 p2 -> prettyOp p0 p1 p2 "+"
   PBin Sub p1 p2 -> prettyOp p0 p1 p2 "-"
   PRel Neq p1 p2 -> prettyOp p0 p1 p2 "/="
-  PRel Eq p1 p2  -> prettyOp p0 p1 p2 "=="
+  PRel Eq p1 p2  -> prettyOp p0 p1 p2 "="
   PRel Leq p1 p2 -> prettyOp p0 p1 p2 "<="
   PRel Lt p1 p2  -> prettyOp p0 p1 p2 "<"
   PRel Geq p1 p2 -> prettyOp p0 p1 p2 ">="

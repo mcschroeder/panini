@@ -41,12 +41,13 @@ library
     ImportQualifiedPost
     LambdaCase
 
-executable panini
+executable pan
   main-is: Main.hs
   hs-source-dirs: app
   build-depends:
       base ^>=4.16
     , panini  
+    , haskeline
     , text
     , megaparsec
   default-language: GHC2021

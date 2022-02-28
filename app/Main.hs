@@ -1,42 +1,70 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Main where
 
 import Control.Monad
+import Control.Monad.IO.Class
+import Data.Bifunctor
+import Data.Char (isSpace)
+import Data.List
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.IO (getLine)
 import Data.Text.IO qualified as Text
 import Language.Panini.Parser
 import Language.Panini.Printer
 import Language.Panini.Syntax
+import System.Console.Haskeline
 import System.Environment (getArgs)
 import System.IO
 import Text.Megaparsec
 import Text.Megaparsec (errorBundlePretty)
 
 main :: IO ()
-main = undefined
+main = runInputT settings repl
+  where
+    settings = setComplete autocomplete defaultSettings
 
-test :: Text -> IO ()
-test s = do
-  case parse (expr <* eof) "" s of
-    Left bundle -> putStr (errorBundlePretty bundle)
-    Right x -> prettyPut x
+autocomplete :: CompletionFunc IO
+autocomplete = completeWord' Nothing isSpace $ \str -> do
+  if null str
+    then return []
+    else return $ map simpleCompletion $ filter (str `isPrefixOf`) commands
 
--- main :: IO ()
--- main = do
---   putStrLn "Panini"
---   let file = "examples/fac.pan"
---   src <- Text.readFile file
---   case parse (expr <* eof) file src of
---     Left bundle -> putStr (errorBundlePretty bundle)
---     Right e -> printExpr e
+commands :: [String]
+commands = [":quit", ":format"]
 
--- parserREPL :: IO ()
--- parserREPL =
---   forever $ parseTest (expr <* eof) =<< getLines ""
---   where
---     getLines s1 = do
---       s2 <- Text.getLine
---       if s2 == "" then return s1 else getLines (s1 <> s2)
+repl :: InputT IO ()
+repl = do
+  input0 <- getInputLine "Panini> "
+  case input0 of
+    Nothing -> return ()
+    Just (':':input) -> case parseCmd input of
+      Quit -> return ()
+      Format input -> do
+        case parse (expr <* eof) "<repl>" input of
+          Left bundle -> outputStrLn (errorBundlePretty bundle)
+          Right x -> liftIO $ prettyPut x
+        repl
+      UnknownCommand cmd -> do
+        outputStrLn $ "unknown command :" ++ Text.unpack cmd
+        repl
+    Just input -> do
+      outputStrLn input
+      repl
+
+data Command
+  = Quit
+  | Format Text
+  | UnknownCommand Text
+  deriving (Show, Read)
+
+parseCmd :: String -> Command
+parseCmd str = case Text.break isSpace $ Text.pack str of
+  (Text.toLower -> cmd, Text.stripStart -> input)
+    | Text.isPrefixOf cmd "quit" -> Quit
+    | Text.isPrefixOf cmd "format" -> Format input
+    | otherwise -> UnknownCommand cmd
