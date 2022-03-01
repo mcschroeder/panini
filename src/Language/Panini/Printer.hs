@@ -5,14 +5,50 @@ module Language.Panini.Printer (prettyPrint, prettyPut) where
 import Data.Text (Text)
 import Language.Panini.Syntax
 import Prettyprinter
-import Prettyprinter.Render.Text
+import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI
+import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 
 -------------------------------------------------------------------------------
 
+data Ann = Keyword | Symbol | Predicate
+
+kw :: Text -> Doc Ann
+kw = annotate Keyword . pretty
+
+sym :: Text -> Doc Ann
+sym = annotate Symbol . pretty
+
+kws :: Text -> Doc Ann
+kws = annotate Keyword . annotate Symbol . pretty
+
+render :: SimpleDocStream Ann -> Text
+render = renderSimplyDecorated id go . treeForm
+ where
+   go Keyword = sgr [SetConsoleIntensity BoldIntensity]
+   go Symbol = unicodify
+   go Predicate = sgr [SetColor Foreground Vivid Blue]
+
+sgr :: [SGR] -> Text -> Text
+sgr c t = Text.pack (setSGRCode c) <> t <> Text.pack (setSGRCode [Reset])
+
+unicodify :: Text -> Text
+unicodify = \case 
+  "/\\" -> "∧"
+  "\\/" -> "∨"
+  ">="  -> "≥"
+  "<="  -> "≤"
+  "~"   -> "¬"
+  "/="  -> "≠"
+  "==>" -> "⇒"
+  "<=>" -> "⇔"
+  "->"  -> "→" 
+  "\\" -> "λ"
+  x     -> x
+
 prettyPrint :: Int -> Expr -> Text
-prettyPrint w = renderStrict . layoutSmart opts . pExpr
+prettyPrint w = render . layoutSmart opts . pExpr
  where
    opts = defaultLayoutOptions { layoutPageWidth = AvailablePerLine w 1.0 }
 
@@ -32,17 +68,33 @@ pName (Name x) = pretty x
 
 -------------------------------------------------------------------------------
 
-pExpr :: Expr -> Doc ()
+pExpr :: Expr -> Doc Ann
 pExpr = \case
   Val x -> pValue x
   App e x -> pExpr e <+> pValue x    
-  Lam x e -> nest 2 $ "\\" <> pName x <> "." <\> pExpr e
-  Ann e t -> pExpr e <+> ":" <+> pType t
-  Let x e1 e2 -> "let" <+> pName x <+> "=" <+> pExpr e1 <+> "in" <\> pExpr e2
-  Rec x t e1 e2 -> "rec" <+> pName x <+> ":" <+> pType t <\> "=" <+> pExpr e1 <\> "in" <\> pExpr e2
-  If x e1 e2 -> "if" <+> pValue x <+> nest 2 ("then" <\> pExpr e1) <\> nest 2 ("else" <\> pExpr e2)
+  
+  Lam x e -> nest 2 $ 
+    kws "\\" <> pName x <> kws "." <\> 
+    pExpr e
+  
+  Ann e t -> pExpr e <+> kws ":" <+> pType t
+  
+  Let x e1 e2 -> 
+    kw "let" <+> pName x <+> kws "=" <+> pExpr e1 <> kw "in" <\> 
+    pExpr e2
+  
+  Rec x t e1 e2 -> 
+    kw "rec" <+> pName x <+> kws ":" <+> pType t <\> 
+    kws "=" <+> pExpr e1 <\> 
+    kw "in" <\> 
+    pExpr e2
+  
+  If x e1 e2 -> 
+    kw "if" <+> pValue x <+> 
+    nest 2 (kw "then" <\> pExpr e1) <\> 
+    nest 2 (kw "else" <\> pExpr e2)
 
-pValue :: Value -> Doc ()
+pValue :: Value -> Doc Ann
 pValue = \case
   Unit -> "unit"
   B True -> "true"
@@ -61,13 +113,13 @@ isT :: Refinement -> Bool
 isT (Known PTrue) = True
 isT _ = False
 
-arr :: Doc ann -> Doc ann -> Doc ann
-arr a b = a <+> "->" <+> b
+arr :: Doc Ann -> Doc Ann -> Doc Ann
+arr a b = a <+> sym "->" <+> b
 
-col :: Name -> Doc ann -> Doc ann
-col x a = pName x <> ":" <> a
+col :: Name -> Doc Ann -> Doc Ann
+col x a = pName x <> sym ":" <> a
 
-pType :: Type -> Doc ()
+pType :: Type -> Doc Ann
 pType = \case
   Pi x t1@(Base y t r) t2 
     | x == y, isT r, isDummy x ->         pBaseTy t `arr` pType t2
@@ -86,7 +138,7 @@ pType = \case
     | isT r, isDummy x ->                  pBaseTy t
     | otherwise        -> braces $ x `col` pBaseTy t <+> "|" <+> pReft r
 
-pBaseTy :: BaseType -> Doc ()
+pBaseTy :: BaseType -> Doc Ann
 pBaseTy = \case
   TyUnit -> "unit"
   TyBool -> "bool"
@@ -95,41 +147,41 @@ pBaseTy = \case
 
 -------------------------------------------------------------------------------
 
-pReft :: Refinement -> Doc ()
+pReft :: Refinement -> Doc Ann
 pReft = \case
-  Unknown -> "?"
-  Known p -> pPred p
+  Unknown -> sym "?"
+  Known p -> annotate Predicate $ pPred p
 
-pPred :: Pred -> Doc ann
+pPred :: Pred -> Doc Ann
 pPred p0 = case p0 of
   PTrue -> "true"
   PFalse -> "false"
   PVar x -> pName x
   PInt c -> pretty c
   PFun f ps -> pName f <> tupled (map pPred ps)
-  PNot p1 -> prettyUnary p0 p1 "~"
-  PBin Mul p1 p2 -> prettyOp p0 p1 p2 "*"
-  PBin Div p1 p2 -> prettyOp p0 p1 p2 "/"
-  PBin Add p1 p2 -> prettyOp p0 p1 p2 "+"
-  PBin Sub p1 p2 -> prettyOp p0 p1 p2 "-"
-  PRel Neq p1 p2 -> prettyOp p0 p1 p2 "/="
-  PRel Eq p1 p2  -> prettyOp p0 p1 p2 "="
-  PRel Leq p1 p2 -> prettyOp p0 p1 p2 "<="
-  PRel Lt p1 p2  -> prettyOp p0 p1 p2 "<"
-  PRel Geq p1 p2 -> prettyOp p0 p1 p2 ">="
-  PRel Gt p1 p2  -> prettyOp p0 p1 p2 ">"
-  PConj p1 p2    -> prettyOp p0 p1 p2 "/\\"
-  PDisj p1 p2    -> prettyOp p0 p1 p2 "\\/"
-  PImpl p1 p2    -> prettyOp p0 p1 p2 "==>"
-  PIff p1 p2     -> prettyOp p0 p1 p2 "<=>"
+  PNot p1 -> prettyUnary p0 p1 (sym "~")
+  PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
+  PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
+  PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
+  PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
+  PRel Neq p1 p2 -> prettyOp p0 p1 p2 (sym "/=")
+  PRel Eq p1 p2  -> prettyOp p0 p1 p2 (sym "=")
+  PRel Leq p1 p2 -> prettyOp p0 p1 p2 (sym "<=")
+  PRel Lt p1 p2  -> prettyOp p0 p1 p2 (sym "<")
+  PRel Geq p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
+  PRel Gt p1 p2  -> prettyOp p0 p1 p2 (sym ">")
+  PConj p1 p2    -> prettyOp p0 p1 p2 (sym "/\\")
+  PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
+  PImpl p1 p2    -> prettyOp p0 p1 p2 (sym "==>")
+  PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
 
-prettyUnary :: Pred -> Pred -> Doc ann -> Doc ann
+prettyUnary :: Pred -> Pred -> Doc Ann -> Doc Ann
 prettyUnary o l docO = docO <> parensIf (pO > pL) (pPred l)
  where
    (pO, _) = fixity o
    (pL, _) = fixity l
 
-prettyOp :: Pred -> Pred -> Pred -> Doc ann -> Doc ann
+prettyOp :: Pred -> Pred -> Pred -> Doc Ann -> Doc Ann
 prettyOp o l r docO = case a of
   InfixL -> parensIf (pO > pL)  docL <+> docO <+> parensIf (pO >= pR) docR
   InfixN -> parensIf (pO >= pL) docL <+> docO <+> parensIf (pO >= pR) docR

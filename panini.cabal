@@ -35,6 +35,7 @@ library
     , megaparsec == 9.2.*
     , parser-combinators
     , prettyprinter
+    , prettyprinter-ansi-terminal
   default-language: GHC2021
   default-extensions: 
     DataKinds
@@ -49,5 +50,5 @@ executable pan
     , panini  
     , haskeline
     , text
-    , megaparsec
+    , megaparsec    
   default-language: GHC2021
