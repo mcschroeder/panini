@@ -48,6 +48,8 @@ executable pan
   build-depends:
       base ^>=4.16
     , panini  
+    , directory
+    , filepath
     , haskeline
     , text
     , megaparsec    

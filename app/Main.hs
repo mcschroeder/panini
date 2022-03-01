@@ -22,12 +22,20 @@ import System.Environment (getArgs)
 import System.IO
 import Text.Megaparsec
 import Text.Megaparsec (errorBundlePretty)
+import System.Directory
+import System.FilePath
 
 main :: IO ()
-main = runInputT settings repl
-  where
-    settings = setComplete autocomplete defaultSettings
-
+main = do
+  configDir <- getXdgDirectory XdgConfig "panini"
+  createDirectoryIfMissing True configDir
+  let settings = Settings 
+        { complete = autocomplete
+        , historyFile = Just (configDir </> "pan_history")
+        , autoAddHistory = True
+        }
+  runInputT settings repl
+      
 autocomplete :: CompletionFunc IO
 autocomplete = completeWord' Nothing isSpace $ \str -> do
   if null str
