@@ -49,8 +49,14 @@ executable pan
       base ^>=4.16
     , panini  
     , directory
+    , extra
     , filepath
     , haskeline
     , text
     , megaparsec    
   default-language: GHC2021
+  default-extensions: 
+    DataKinds
+    ImportQualifiedPost
+    LambdaCase
+    ViewPatterns

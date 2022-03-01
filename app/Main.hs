@@ -1,11 +1,8 @@
-{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Main where
 
-import Control.Monad
+import Control.Monad.Extra
 import Control.Monad.IO.Class
 import Data.Bifunctor
 import Data.Char (isSpace)
@@ -25,6 +22,8 @@ import Text.Megaparsec (errorBundlePretty)
 import System.Directory
 import System.FilePath
 
+-------------------------------------------------------------------------------
+
 main :: IO ()
 main = do
   configDir <- getXdgDirectory XdgConfig "panini"
@@ -35,34 +34,17 @@ main = do
         , autoAddHistory = True
         }
   runInputT settings repl
-      
+
+-------------------------------------------------------------------------------
+
+commands :: [String]
+commands = [":quit", ":format"]
+
 autocomplete :: CompletionFunc IO
 autocomplete = completeWord' Nothing isSpace $ \str -> do
   if null str
     then return []
     else return $ map simpleCompletion $ filter (str `isPrefixOf`) commands
-
-commands :: [String]
-commands = [":quit", ":format"]
-
-repl :: InputT IO ()
-repl = do
-  input0 <- getInputLine "Panini> "
-  case input0 of
-    Nothing -> return ()
-    Just (':':input) -> case parseCmd input of
-      Quit -> return ()
-      Format input -> do
-        case parse (expr <* eof) "<repl>" input of
-          Left bundle -> outputStrLn (errorBundlePretty bundle)
-          Right x -> liftIO $ prettyPut x
-        repl
-      UnknownCommand cmd -> do
-        outputStrLn $ "unknown command :" ++ Text.unpack cmd
-        repl
-    Just input -> do
-      outputStrLn input
-      repl
 
 data Command
   = Quit
@@ -76,3 +58,36 @@ parseCmd str = case Text.break isSpace $ Text.pack str of
     | Text.isPrefixOf cmd "quit" -> Quit
     | Text.isPrefixOf cmd "format" -> Format input
     | otherwise -> UnknownCommand cmd
+
+repl :: InputT IO ()
+repl = getInputLine "Panini> " >>= \case
+  Just (':':input) -> case parseCmd input of
+    Quit               -> return ()
+    Format input       -> format input      >> repl
+    UnknownCommand cmd -> unknown cmd       >> repl    
+  Just input           -> outputStrLn input >> repl
+  Nothing              -> return ()
+
+-------------------------------------------------------------------------------
+
+format :: Text -> InputT IO ()
+format input = do
+  e <- parseExpr input
+  whenJust e printExpr
+
+unknown :: Text -> InputT IO ()
+unknown cmd = do
+  outputStrLn $ "unknown command :" ++ Text.unpack cmd
+
+-------------------------------------------------------------------------------
+
+parseExpr :: Text -> InputT IO (Maybe Expr)
+parseExpr input = case parse (expr <* eof) "<repl>" input of
+  Left bundle -> do
+    outputStrLn (errorBundlePretty bundle)
+    return Nothing
+  Right x -> return $ Just x
+
+printExpr :: Expr -> InputT IO ()
+printExpr = liftIO . prettyPut
+
