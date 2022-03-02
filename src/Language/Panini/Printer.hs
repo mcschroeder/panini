@@ -96,12 +96,12 @@ pExpr = \case
 
 pValue :: Value -> Doc Ann
 pValue = \case
-  Unit -> "unit"
+  U -> "unit"
   B True -> "true"
   B False -> "false"
   I c -> pretty c
   S t -> viaShow t
-  Var x -> pName x
+  V x -> pName x
 
 -------------------------------------------------------------------------------
 

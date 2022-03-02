@@ -126,13 +126,13 @@ expr1 = choice
   ]
 
 value :: Parser Value
-value = choice
-  [ Unit <$ keyword "unit"
+value = label "value" $ choice
+  [ U <$ keyword "unit"
   , B <$> boolLiteral
   , I <$> integerLiteral
   , S <$> stringLiteral
-  , Var <$> name
-  ] <?> "value"
+  , V <$> name
+  ]
 
 -------------------------------------------------------------------------------
 

@@ -31,11 +31,11 @@ data Expr
   deriving (Show, Read)
 
 data Value
-  = Unit
-  | B Bool
-  | I Integer
-  | S Text
-  | Var Name
+  = U          -- unit
+  | B Bool     -- true, false
+  | I Integer  -- 0, -1, 1, ...
+  | S Text     -- "lorem ipsum"
+  | V Name     -- x
   deriving (Show, Read)
 
 ------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ data BaseType
 
 data Refinement 
   = Unknown           -- ?
-  | Known Pred
+  | Known Pred        -- p
   deriving (Eq, Show, Read)
 
 ------------------------------------------------------------------------------
