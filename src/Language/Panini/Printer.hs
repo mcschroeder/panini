@@ -3,6 +3,7 @@
 module Language.Panini.Printer 
   ( PrintOptions(..)
   , printExpr
+  , printConstraint
   ) where
 
 import Data.Text (Text)
@@ -25,6 +26,9 @@ data PrintOptions = PrintOptions
 
 printExpr :: PrintOptions -> Expr -> Text
 printExpr opts = prettyPrint opts . pExpr
+
+printConstraint :: PrintOptions -> Con -> Text
+printConstraint opts = prettyPrint opts . pCon
 
 -------------------------------------------------------------------------------
 
@@ -59,6 +63,7 @@ unicodify Symbol = \case
   "<=>" -> "⇔"
   "->"  -> "→" 
   "\\"  -> "λ"
+  "forall " -> "∀"  -- note the extra space
   x     -> x
 unicodify _ = id
 
@@ -238,3 +243,25 @@ instance Fixity Pred where
   fixity (PImpl _ _)    = (1, InfixN)
   fixity (PIff _ _)     = (1, InfixN)
   fixity _              = (9, InfixL)
+
+-------------------------------------------------------------------------------
+
+pCon :: Con -> Doc Ann
+pCon = \case
+  CPred p -> parensIf (hasLogic p) (pPred p)
+  CConj c1 c2 -> pCon c1  <+> sym "/\\" <+> pCon c2 
+  CAll x b p c  -> 
+    sym "forall " <> pName x <> sym ":" <> pBaseTy b <> sym "." <+> pPred p <+>
+    sym "==>" <+>
+    pCon c    
+
+hasLogic :: Pred -> Bool
+hasLogic = \case
+  PConj _ _ -> True
+  PDisj _ _ -> True
+  PImpl _ _ -> True
+  PIff _ _ -> True
+  PBin _ p1 p2 -> hasLogic p1 && hasLogic p2
+  PRel _ p1 p2 -> hasLogic p1 && hasLogic p2
+  PNot p -> hasLogic p
+  _ -> False

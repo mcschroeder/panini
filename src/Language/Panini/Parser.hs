@@ -4,6 +4,7 @@
 
 module Language.Panini.Parser
   ( parseExpr
+  , parseConstraint
   ) where
 
 import Control.Monad
@@ -29,6 +30,9 @@ import Language.Panini.Syntax
 
 parseExpr :: FilePath -> Text -> Either String Expr
 parseExpr = parseA expr
+
+parseConstraint :: FilePath -> Text -> Either String Con
+parseConstraint = parseA constraint
 
 parseA :: Parser a -> FilePath -> Text -> Either String a
 parseA p fp = first errorBundlePretty . parse (p <* eof) fp
@@ -67,14 +71,6 @@ parens = between (symbol "(") (symbol ")")
 braces :: Parser a -> Parser a
 braces = between (symbol "{") (symbol "}")
 
--- | Parses an arrow.
-arrow :: Parser ()
-arrow = void $ symbol "->"
-
--- | Parses a lambda.
-lambda :: Parser ()
-lambda = void $ symbol "\\"
-
 -- | Parses a string literal.
 stringLiteral :: Parser Text
 stringLiteral = Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"')) <* whitespace <?> "string"
@@ -102,6 +98,7 @@ isReserved = flip elem
   , "rec", "let", "in"
   , "true", "false", "unit"
   , "bool", "int", "string"
+  , "forall"
   ]
 
 -- | Report a parse error at the given offset.
@@ -129,10 +126,23 @@ expr = do
 expr1 :: Parser Expr
 expr1 = choice
   [ try $ parens expr
-  , try $ If <$ keyword "if" <*> value <* keyword "then" <*> expr <* symbol "else" <*> expr
-  , try $ Rec <$ keyword "rec" <*> name <* symbol ":" <*> type_ <* symbol "=" <*> expr <* symbol "in" <*> expr
-  , try $ Let <$ keyword "let" <*> name <* symbol "=" <*> expr <* symbol "in" <*> expr
-  , try $ Lam <$ lambda <*> name <* symbol "." <*> expr
+  
+  , try $ If <$ keyword "if" <*> value 
+             <* keyword "then" <*> expr 
+             <* keyword "else" <*> expr
+  
+  , try $ Rec <$ keyword "rec" <*> name 
+              <* symbol ":" <*> type_ 
+              <* symbol "=" <*> expr 
+              <* keyword "in" <*> expr
+  
+  , try $ Let <$ keyword "let" <*> name 
+              <* symbol "=" <*> expr 
+              <* keyword "in" <*> expr
+  
+  , try $ Lam <$ lambda <*> name 
+              <* symbol "." <*> expr
+  
   , Val <$> value
   ]
 
@@ -188,24 +198,27 @@ refinement = (Unknown <$ symbol "?" <|> Known <$> predicate) <?> "refinement"
 
 -------------------------------------------------------------------------------
 
+-- | Parses a `Predicate`.
 predicate :: Parser Pred
-predicate = makeExprParser predTerm predOps
+predicate = makeExprParser predTerm (predOpsBase ++ predOpsLogic)
+
+-- | Parses a `Predicate` that does not contain logical connectives. 
+-- We need this to disambiguate within the `Constraint` parser.
+predicateNoLogic :: Parser Pred
+predicateNoLogic = makeExprParser predTerm predOpsBase
 
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  , PTrue <$ symbol "true"
-  , PFalse <$ symbol "false"
-  , PInt <$> integerLiteral
-  , try predFun
-  , PVar <$> name
+  ,       PTrue  <$  symbol "true"
+  ,       PFalse <$  symbol "false"
+  ,       PInt   <$> integerLiteral
+  , try $ PFun   <$> name <*> parens (sepBy1 predicate ",")
+  ,       PVar   <$> name
   ]
 
-predFun :: Parser Pred
-predFun = PFun <$> name <*> parens (sepBy1 predicate ",")
-
-predOps :: [[Operator Parser Pred]]
-predOps =
+predOpsBase :: [[Operator Parser Pred]]
+predOpsBase =
   [ [ prefix symNot PNot
     ]
   , [ infixL (op "*") (PBin Mul)
@@ -221,24 +234,61 @@ predOps =
     , infixN symGeq   (PRel Geq)
     , infixN (op ">") (PRel Gt)
     ]
-  , [ infixR symConj PConj
+  ]
+
+predOpsLogic :: [[Operator Parser Pred]]
+predOpsLogic =
+  [ [ infixR symConj PConj
     ]
-  , [ infixR symDisj PDisj]
+  , [ infixR symDisj PDisj
+    ]
   , [ infixN symImpl PImpl
     , infixN symIff PIff
     ]
   ]
- where
-  prefix p f = Prefix (f <$ p)
-  infixL p f = InfixL (f <$ p)
-  infixN p f = InfixN (f <$ p)
-  infixR p f = InfixR (f <$ p)
+
+prefix :: Functor m => m b -> (a -> a) -> Operator m a
+prefix p f = Prefix (f <$ p)
+
+infixL, infixN, infixR :: Functor m => m b -> (a -> a -> a) -> Operator m a
+infixL p f = InfixL (f <$ p)
+infixN p f = InfixN (f <$ p)
+infixR p f = InfixR (f <$ p)
 
 -- | Parses an operator symbol even if it overlaps with another operator symbol.
 op :: Text -> Parser Text
 op n = (lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
  where
    isOpSym c = c `elem` ['=', '<', '>', '/', '\\']
+
+-------------------------------------------------------------------------------
+
+constraint :: Parser Con
+constraint = makeExprParser conTerm conOps  
+
+conTerm :: Parser Con
+conTerm = choice
+  [ try $ CPred <$> embeddedPredicate
+  , CAll <$ symAll <*> name
+         <* symbol ":" <*> baseType 
+         <* symbol "." <*> embeddedPredicate
+         <* symImpl <*> constraint  
+  ]
+ where
+  embeddedPredicate = try (parens predicate) <|> predicateNoLogic
+
+conOps :: [[Operator Parser Con]]
+conOps = [[InfixR (CConj <$ symConj)]]
+
+-------------------------------------------------------------------------------
+
+-- | Parses an arrow.
+arrow :: Parser ()
+arrow = void $ symbol "->"
+
+-- | Parses a lambda.
+lambda :: Parser ()
+lambda = void $ symbol "\\"
 
 -- | Parses a predicate negation symbol.
 symNot :: Parser ()
@@ -268,6 +318,10 @@ symDisj = void $ op "\\/"
 symImpl :: Parser ()
 symImpl = void $ op "==>"
 
--- | Parses an if-and-only-if symbol..
+-- | Parses an if-and-only-if symbol.
 symIff :: Parser ()
 symIff = void $ op "<=>"
+
+-- | Parses a forall symbol/keyword.
+symAll :: Parser ()
+symAll = void $ keyword "forall"

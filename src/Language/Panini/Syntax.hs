@@ -85,3 +85,12 @@ data Bop = Add | Sub | Mul | Div
 
 data Rel = Eq | Neq | Geq | Leq | Gt | Lt
   deriving (Eq, Show, Read)
+
+------------------------------------------------------------------------------
+-- Constraints
+
+data Con
+  = CPred Pred                   -- p
+  | CConj Con Con                -- c1 /\ c2
+  | CAll Name BaseType Pred Con  -- forall x:b. p ==> c
+  deriving (Show, Read)
