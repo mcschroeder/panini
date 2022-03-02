@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Panini.Printer (prettyPrint, prettyPut) where
+module Language.Panini.Printer 
+  ( PrintOptions(..)
+  , printExpr
+  ) where
 
 import Data.Text (Text)
 import Language.Panini.Syntax
@@ -9,6 +12,55 @@ import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
+import Control.Monad
+import System.IO
+
+-------------------------------------------------------------------------------
+
+data PrintOptions = PrintOptions 
+  { ansiColors     :: Bool
+  , unicodeSymbols :: Bool
+  , fixedWidth     :: Maybe Int
+  }
+
+printExpr :: PrintOptions -> Expr -> Text
+printExpr opts = prettyPrint opts . pExpr
+
+-------------------------------------------------------------------------------
+
+prettyPrint :: PrintOptions -> Doc Ann -> Text
+prettyPrint o = 
+  renderSimplyDecorated renderT renderA . treeForm . layoutSmart layoutOpt
+ where
+  layoutOpt = defaultLayoutOptions { layoutPageWidth = pageWidth }
+  pageWidth = maybe Unbounded (\w -> AvailablePerLine w 1) o.fixedWidth
+  renderT = id
+  renderA = liftM2 (.) 
+      (if o.ansiColors     then colorize  else const id) 
+      (if o.unicodeSymbols then unicodify else const id)
+
+colorize :: Ann -> Text -> Text
+colorize = \case
+  Keyword   -> sgr [SetConsoleIntensity BoldIntensity]
+  Predicate -> sgr [SetColor Foreground Vivid Blue]
+  _         -> id
+ where
+  sgr c t = Text.pack (setSGRCode c) <> t <> Text.pack (setSGRCode [Reset])
+
+unicodify :: Ann -> Text -> Text
+unicodify Symbol = \case
+  "/\\" -> "∧"
+  "\\/" -> "∨"
+  ">="  -> "≥"
+  "<="  -> "≤"
+  "~"   -> "¬"
+  "/="  -> "≠"
+  "==>" -> "⇒"
+  "<=>" -> "⇔"
+  "->"  -> "→" 
+  "\\"  -> "λ"
+  x     -> x
+unicodify _ = id
 
 -------------------------------------------------------------------------------
 
@@ -22,40 +74,6 @@ sym = annotate Symbol . pretty
 
 kws :: Text -> Doc Ann
 kws = annotate Keyword . annotate Symbol . pretty
-
-render :: SimpleDocStream Ann -> Text
-render = renderSimplyDecorated id go . treeForm
- where
-   go Keyword = sgr [SetConsoleIntensity BoldIntensity]
-   go Symbol = unicodify
-   go Predicate = sgr [SetColor Foreground Vivid Blue]
-
-sgr :: [SGR] -> Text -> Text
-sgr c t = Text.pack (setSGRCode c) <> t <> Text.pack (setSGRCode [Reset])
-
-unicodify :: Text -> Text
-unicodify = \case 
-  "/\\" -> "∧"
-  "\\/" -> "∨"
-  ">="  -> "≥"
-  "<="  -> "≤"
-  "~"   -> "¬"
-  "/="  -> "≠"
-  "==>" -> "⇒"
-  "<=>" -> "⇔"
-  "->"  -> "→" 
-  "\\" -> "λ"
-  x     -> x
-
-prettyPrint :: Int -> Expr -> Text
-prettyPrint w = render . layoutSmart opts . pExpr
- where
-   opts = defaultLayoutOptions { layoutPageWidth = AvailablePerLine w 1.0 }
-
-prettyPut :: Expr -> IO ()
-prettyPut e = do
-  w <- maybe 80 snd <$> getTerminalSize
-  Text.putStrLn $ prettyPrint w e
 
 -- | Inserts a hard linebreak.
 (<\>) :: Doc ann -> Doc ann -> Doc ann

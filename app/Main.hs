@@ -11,16 +11,16 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO (getLine)
 import Data.Text.IO qualified as Text
+import System.Console.ANSI
+import System.Console.Haskeline
+import System.Directory
+import System.Environment (getArgs)
+import System.FilePath
+import System.IO
+
 import Language.Panini.Parser
 import Language.Panini.Printer
 import Language.Panini.Syntax
-import System.Console.Haskeline
-import System.Environment (getArgs)
-import System.IO
-import Text.Megaparsec
-import Text.Megaparsec (errorBundlePretty)
-import System.Directory
-import System.FilePath
 
 -------------------------------------------------------------------------------
 
@@ -71,9 +71,10 @@ repl = getInputLine "Panini> " >>= \case
 -------------------------------------------------------------------------------
 
 format :: Text -> InputT IO ()
-format input = do
-  e <- parseExpr input
-  whenJust e printExpr
+format input = 
+  case parseExpr "<repl>" input of
+    Left err -> outputStrLn err
+    Right ex -> outputExpr ex
 
 unknown :: Text -> InputT IO ()
 unknown cmd = do
@@ -81,13 +82,14 @@ unknown cmd = do
 
 -------------------------------------------------------------------------------
 
-parseExpr :: Text -> InputT IO (Maybe Expr)
-parseExpr input = case parse (expr <* eof) "<repl>" input of
-  Left bundle -> do
-    outputStrLn (errorBundlePretty bundle)
-    return Nothing
-  Right x -> return $ Just x
+outputExpr :: Expr -> InputT IO ()
+outputExpr e = do
+  opts <- getPrintOptions
+  let t = printExpr opts e
+  liftIO $ Text.putStrLn t
 
-printExpr :: Expr -> InputT IO ()
-printExpr = liftIO . prettyPut
-
+getPrintOptions :: InputT IO PrintOptions
+getPrintOptions = liftIO $ do
+  ansiColors <- hSupportsANSIColor stdout
+  fixedWidth <- fmap snd <$> getTerminalSize
+  return PrintOptions { unicodeSymbols = True, ansiColors, fixedWidth }    

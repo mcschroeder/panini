@@ -31,29 +31,29 @@ library
       base ^>=4.16
     , ansi-terminal
     , containers
-    , text
     , megaparsec == 9.2.*
     , parser-combinators
     , prettyprinter
-    , prettyprinter-ansi-terminal
+    , text
   default-language: GHC2021
   default-extensions: 
     DataKinds
     ImportQualifiedPost
     LambdaCase
+    OverloadedRecordDot
 
 executable pan
   main-is: Main.hs
   hs-source-dirs: app
   build-depends:
       base ^>=4.16
-    , panini  
+    , panini
+    , ansi-terminal
     , directory
     , extra
     , filepath
     , haskeline
     , text
-    , megaparsec    
   default-language: GHC2021
   default-extensions: 
     DataKinds
