@@ -2,13 +2,18 @@
 
 module Language.Panini.Syntax where
 
+import Data.String
 import Data.Text (Text)
+import Data.Text qualified as Text
 
 ------------------------------------------------------------------------------
 -- Names
 
 newtype Name = Name Text
   deriving (Eq, Show, Read)
+
+instance IsString Name where
+  fromString = Name . Text.pack
 
 dummyName :: Name
 dummyName = Name "_"
@@ -55,7 +60,7 @@ data BaseType
   | TyBool
   | TyInt
   | TyString
-  deriving (Show, Read)
+  deriving (Eq, Show, Read)
 
 data Refinement 
   = Unknown           -- ?
