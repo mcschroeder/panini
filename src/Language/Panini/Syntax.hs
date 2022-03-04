@@ -24,6 +24,15 @@ isDummy :: Name -> Bool
 isDummy (Name "_") = True
 isDummy _          = False
 
+-- | Returns a fresh name based on a given name, avoiding unwanted names.
+freshName :: Name -> [Name] -> Name
+freshName x ys = go (nextSubscript x)
+ where
+  go x'
+    | x' `elem` ys = go (nextSubscript x')
+    | otherwise    = x'
+
+-- | Given "x", returns "x1"; given "x1", returns "x2"; and so on.
 nextSubscript :: Name -> Name
 nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
   Left _      -> Name $ Text.append n "1"
