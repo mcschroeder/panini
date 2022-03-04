@@ -2,9 +2,11 @@
 
 module Language.Panini.Syntax where
 
+import Data.Char
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Read
 
 ------------------------------------------------------------------------------
 -- Names
@@ -21,6 +23,11 @@ dummyName = Name "_"
 isDummy :: Name -> Bool
 isDummy (Name "_") = True
 isDummy _          = False
+
+nextSubscript :: Name -> Name
+nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
+  Left _      -> Name $ Text.append n "1"
+  Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i+1)
 
 ------------------------------------------------------------------------------
 -- Terms

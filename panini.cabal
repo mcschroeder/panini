@@ -24,6 +24,7 @@ maintainer:         michael.schroeder@tuwien.ac.at
 library
   hs-source-dirs: src
   exposed-modules:
+    Language.Panini.Checker
     Language.Panini.Syntax
     Language.Panini.Parser
     Language.Panini.Printer
