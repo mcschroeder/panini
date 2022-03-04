@@ -3,6 +3,7 @@
 module Language.Panini.Printer 
   ( PrintOptions(..)
   , printExpr
+  , printType
   , printConstraint
   ) where
 
@@ -26,6 +27,9 @@ data PrintOptions = PrintOptions
 
 printExpr :: PrintOptions -> Expr -> Text
 printExpr opts = prettyPrint opts . pExpr
+
+printType :: PrintOptions -> Type -> Text
+printType opts = prettyPrint opts . pType
 
 printConstraint :: PrintOptions -> Con -> Text
 printConstraint opts = prettyPrint opts . pCon
