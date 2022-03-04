@@ -128,11 +128,7 @@ pValue = \case
 
 -------------------------------------------------------------------------------
 
-isPi :: Type -> Bool
-isPi (Pi _ _ _) = True
-isPi _ = False
-
-isT :: Refinement -> Bool
+isT :: Reft -> Bool
 isT (Known PTrue) = True
 isT _ = False
 
@@ -144,33 +140,33 @@ col x a = pName x <> sym ":" <> a
 
 pType :: Type -> Doc Ann
 pType = \case
-  Pi x t1@(Base y t r) t2 
-    | x == y, isT r, isDummy x ->         pBaseTy t `arr` pType t2
-    | x == y, isT r            -> x `col` pBaseTy t `arr` pType t2
-    | x == y                   ->         pType t1  `arr` pType t2
+  TFun x t1@(TBase v t r) t2 
+    | x == v, isT r, isDummy x ->         pBaseTy t `arr` pType t2
+    | x == v, isT r            -> x `col` pBaseTy t `arr` pType t2
+    | x == v                   ->         pType t1  `arr` pType t2
   
-  Pi x t1@(Pi _ _ _) t2 
+  TFun x t1@(TFun _ _ _) t2 
     | isDummy x ->         parens (pType t1) `arr` pType t2
     | otherwise -> x `col` parens (pType t1) `arr` pType t2
   
-  Pi x t1 t2     
+  TFun x t1 t2     
     | isDummy x ->         pType t1 `arr` pType t2
     | otherwise -> x `col` pType t1 `arr` pType t2
 
-  Base x t r 
-    | isT r, isDummy x ->                  pBaseTy t
-    | otherwise        -> braces $ x `col` pBaseTy t <+> "|" <+> pReft r
+  TBase v t r 
+    | isT r, isDummy v ->                  pBaseTy t
+    | otherwise        -> braces $ v `col` pBaseTy t <+> "|" <+> pReft r
 
-pBaseTy :: BaseType -> Doc Ann
+pBaseTy :: Base -> Doc Ann
 pBaseTy = \case
-  TyUnit -> "unit"
-  TyBool -> "bool"
-  TyInt -> "int"
-  TyString -> "string"
+  TUnit -> "unit"
+  TBool -> "bool"
+  TInt -> "int"
+  TString -> "string"
 
 -------------------------------------------------------------------------------
 
-pReft :: Refinement -> Doc Ann
+pReft :: Reft -> Doc Ann
 pReft = \case
   Unknown -> sym "?"
   Known p -> annotate Predicate $ pPred p

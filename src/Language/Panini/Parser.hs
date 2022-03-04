@@ -160,15 +160,15 @@ value = label "value" $ choice
 type_ :: Parser Type
 type_ = do
   (x, t1) <- type1
-  try (foldl' (Pi x) t1 <$> (arrow *> some type_)) <|> pure t1
+  try (foldl' (TFun x) t1 <$> (arrow *> some type_)) <|> pure t1
 
 type1 :: Parser (Name, Type)
 type1 = choice
   [ try nested       -- (t)
-  , try namedNested  -- x : (t)
-  , try namedReft    -- x : {y : b | r}
-  , try reft         -- {x : b | r}
-  , try namedBase    -- x : b
+  , try namedNested  -- x:(t)
+  , try namedReft    -- x:{v:b|r}
+  , try reft         -- {v:b|r}
+  , try namedBase    -- x:b
   , try base         -- b
   ]
  where
@@ -176,24 +176,25 @@ type1 = choice
   namedNested = (,) <$> name <* symbol ":" <*> parens type_
   namedReft   = (,) <$> name <* symbol ":" <*> (snd <$> reft)
   reft = do
-    t@(Base x b r) <- braces $ Base <$> name <* symbol ":" <*> baseType <* symbol "|" <*> refinement
-    pure (x,t)
+    t@(TBase v _ _) <- braces $ TBase <$> name <* symbol ":" <*> baseType 
+                                               <* symbol "|" <*> refinement
+    pure (v,t)
   namedBase = do
     (x,b) <- (,) <$> name <* symbol ":" <*> baseType
-    pure (x, Base x b (Known PTrue))
+    pure (x, TBase x b (Known PTrue))
   base = do
     b <- baseType
-    pure (dummyName, Base dummyName b (Known PTrue))
+    pure (dummyName, TBase dummyName b (Known PTrue))
 
-baseType :: Parser BaseType
+baseType :: Parser Base
 baseType = choice
-  [ TyUnit <$ keyword "unit"
-  , TyBool <$ keyword "bool"
-  , TyInt <$ keyword "int"
-  , TyString <$ keyword "string"
+  [ TUnit <$ keyword "unit"
+  , TBool <$ keyword "bool"
+  , TInt <$ keyword "int"
+  , TString <$ keyword "string"
   ] <?> "base type"
 
-refinement :: Parser Refinement
+refinement :: Parser Reft
 refinement = (Unknown <$ symbol "?" <|> Known <$> predicate) <?> "refinement"
 
 -------------------------------------------------------------------------------

@@ -24,7 +24,7 @@
 \newcommand{\LitString}[1]{\mathtt{\colorbox{black!10}{\vphantom{X}#1}}}
 \newcommand{\LitNum}[1]{#1}
 
-\newcommand{\Ref}[2]{\{#1\mid#2\}}
+\newcommand{\Ref}[3]{\{#1:#2\mid#3\}}
 
 \newcommand{\true}{\mathsf{true}}
 \newcommand{\false}{\mathsf{false}}
@@ -34,20 +34,20 @@
 \begin{document}
 
 \begin{align*}
-&\Let \Fun{\varepsilon} = \LitString{} : \Ref{s:\String}{\mathrm{len}(s) = 0}\ \In\\
-&\Let \Fun{unit} = \bot : \Ref{\nu:\Unit}{\true}\ \In\\
-&\Let \Fun{eq_\mathbb{\,S}} = \bot : \Ref{s:\String}{\true} \to \Ref{t:\String}{\true} \to \Ref{b:\Bool}{b \Leftrightarrow s = t}\ \In \\
-&\Let \Fun{eq_\mathbb{\,N}} = \bot : \Ref{n:\Int}{n \geq 0} \to \Ref{m:\Int}{m \geq 0} \to \Ref{b:\Bool}{b \Leftrightarrow m = n}\ \In \\
-&\Let \Fun{drop} = \bot : \Ref{n:\Int}{n \geq 0} \to \Ref{s : \String}{\mathrm{len}(s) \geq n } \to \Ref{t:\String}{s = \underline{\star^n t}}\ \In \\
-&\Let \Fun{take} = \bot : \Ref{n:\Int}{n \geq 0} \to \Ref{s:\String}{\mathrm{len}(s) \geq n} \to \Ref{t:\String}{t = \star^n \land\ s = t\star^m \land\ m = \mathrm{len}(s)}\ \In \\
+&\Let \Fun{\varepsilon} = \LitString{} : \Ref{s}{\String}{\mathrm{len}(s) = 0}\ \In\\
+&\Let \Fun{unit} = \bot : \Ref{\nu}{\Unit}{\true}\ \In\\
+&\Let \Fun{eq_\mathbb{\,S}} = \bot : \Ref{s}{\String}{\true} \to \Ref{t}{\String}{\true} \to \Ref{b}{\Bool}{b \Leftrightarrow s = t}\ \In \\
+&\Let \Fun{eq_\mathbb{\,N}} = \bot : \Ref{n}{\Int}{n \geq 0} \to \Ref{m}{\Int}{m \geq 0} \to \Ref{b}{\Bool}{b \Leftrightarrow m = n}\ \In \\
+&\Let \Fun{drop} = \bot : \Ref{n}{\Int}{n \geq 0} \to \Ref{s}{\String}{\mathrm{len}(s) \geq n } \to \Ref{t}{\String}{s = \underline{\star^n t}}\ \In \\
+&\Let \Fun{take} = \bot : \Ref{n}{\Int}{n \geq 0} \to \Ref{s}{\String}{\mathrm{len}(s) \geq n} \to \Ref{t}{\String}{t = \star^n \land\ s = t\star^m \land\ m = \mathrm{len}(s)}\ \In \\
 \\
-&\Rec \Fun{empty} : \Ref{s:\String}{\true} \to \Ref{b:\Bool}{b \Leftrightarrow \mathrm{len}(s) = 0}\\
+&\Rec \Fun{empty} : \Ref{s}{\String}{\true} \to \Ref{b}{\Bool}{b \Leftrightarrow \mathrm{len}(s) = 0}\\
 &= \lambda x.\\
 &\quad \Let \Var{n} = \Fun{length}\ \Var{x}\ \In \\
 &\quad \Fun{eq_\mathbb{\,N}}\ \LitNum{0}\ \Var{n}\\
 &\In \\
 \\
-&\Rec \Fun{trim} : \Ref{s:\String}{\bigstar} \to \Ref{t:\String}{\bigstar}\\
+&\Rec \Fun{trim} : \Ref{s}{\String}{\bigstar} \to \Ref{t}{\String}{\bigstar}\\
 &= \lambda x.\\
 &\quad \Let \Var{b} = \Fun{empty}\ \Var{x}\ \In \\
 &\quad \If \Var{b}\ \Then\\

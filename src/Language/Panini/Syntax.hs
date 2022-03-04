@@ -47,24 +47,24 @@ data Value
 -- Types
 
 data Type
-  = Base Name BaseType Refinement  -- {x : t | r}
-  | Pi Name Type Type              -- x : t1 -> t2
+  = TBase Name Base Reft  -- {v:b|r}
+  | TFun Name Type Type   -- x:t1 -> t2
   deriving (Show, Read)
 
---                    t  ^=  {_ : t | true}
---             t1 -> t2  ^=  _ : t1 -> t2
--- { x : t1 | r } -> t2  ^=  x : {x : t1 | r} -> t2
+--             b  ^=  {_:b|true}
+--      t1 -> t2  ^=  _:t1 -> t2
+-- {x:b|r} -> t2  ^=  x:{x:b|r} -> t2
 
-data BaseType
-  = TyUnit
-  | TyBool
-  | TyInt
-  | TyString
+data Base
+  = TUnit
+  | TBool
+  | TInt
+  | TString
   deriving (Eq, Show, Read)
 
-data Refinement 
-  = Unknown           -- ?
-  | Known Pred        -- p
+data Reft
+  = Unknown     -- ?
+  | Known Pred  -- p
   deriving (Eq, Show, Read)
 
 ------------------------------------------------------------------------------
@@ -95,7 +95,7 @@ data Rel = Eq | Neq | Geq | Leq | Gt | Lt
 -- Constraints
 
 data Con
-  = CPred Pred                   -- p
-  | CConj Con Con                -- c1 /\ c2
-  | CAll Name BaseType Pred Con  -- forall x:b. p ==> c
+  = CPred Pred               -- p
+  | CConj Con Con            -- c1 /\ c2
+  | CAll Name Base Pred Con  -- forall x:b. p ==> c
   deriving (Show, Read)
