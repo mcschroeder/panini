@@ -4,7 +4,7 @@ module Language.Panini.Printer
   ( PrintOptions(..)
   , printExpr
   , printType
-  , printConstraint
+  , printCon
   ) where
 
 import Data.Text (Text)
@@ -31,8 +31,8 @@ printExpr opts = prettyPrint opts . pExpr
 printType :: PrintOptions -> Type -> Text
 printType opts = prettyPrint opts . pType
 
-printConstraint :: PrintOptions -> Con -> Text
-printConstraint opts = prettyPrint opts . pCon
+printCon :: PrintOptions -> Con -> Text
+printCon opts = prettyPrint opts . pCon
 
 -------------------------------------------------------------------------------
 

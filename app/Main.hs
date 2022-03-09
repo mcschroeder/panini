@@ -18,6 +18,7 @@ import System.Environment (getArgs)
 import System.FilePath
 import System.IO
 
+import Language.Panini.Checker
 import Language.Panini.Parser
 import Language.Panini.Printer
 import Language.Panini.Syntax
@@ -38,7 +39,7 @@ main = do
 -------------------------------------------------------------------------------
 
 commands :: [String]
-commands = [":quit", ":format"]
+commands = [":quit", ":format", ":type"]
 
 autocomplete :: CompletionFunc IO
 autocomplete = completeWord' Nothing isSpace $ \str -> do
@@ -49,6 +50,7 @@ autocomplete = completeWord' Nothing isSpace $ \str -> do
 data Command
   = Quit
   | Format Text
+  | TypeCheck Text
   | UnknownCommand Text
   deriving (Show, Read)
 
@@ -57,6 +59,7 @@ parseCmd str = case Text.break isSpace $ Text.pack str of
   (Text.toLower -> cmd, Text.stripStart -> input)
     | Text.isPrefixOf cmd "quit" -> Quit
     | Text.isPrefixOf cmd "format" -> Format input
+    | Text.isPrefixOf cmd "type" -> TypeCheck input
     | otherwise -> UnknownCommand cmd
 
 repl :: InputT IO ()
@@ -64,6 +67,7 @@ repl = getInputLine "Panini> " >>= \case
   Just (':':input) -> case parseCmd input of
     Quit               -> return ()
     Format input       -> format input      >> repl
+    TypeCheck input    -> typeCheck input   >> repl
     UnknownCommand cmd -> unknown cmd       >> repl    
   Just input           -> outputStrLn input >> repl
   Nothing              -> return ()
@@ -75,6 +79,20 @@ format input =
   case parseExpr "<repl>" input of
     Left err -> outputStrLn err
     Right ex -> outputExpr ex
+
+typeCheck :: Text -> InputT IO ()
+typeCheck input =
+  case parseExpr "<repl>" input of
+    Left err1 -> outputStrLn err1
+    Right e -> do
+      let g0 = emptyCtx
+      case synth g0 e of
+        Left err2 -> outputStrLn (show err2)
+        Right (c,t) -> do
+          opts <- getPrintOptions
+          let conStr = printCon opts c
+          let typeStr = printType opts t
+          liftIO $ Text.putStrLn $ conStr <> "\n" <> typeStr
 
 unknown :: Text -> InputT IO ()
 unknown cmd = do

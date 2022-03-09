@@ -30,6 +30,9 @@ data TypeError
 
 newtype Ctx = Ctx (Map Name Type)
 
+emptyCtx :: Ctx
+emptyCtx = Ctx Map.empty
+
 lookupCtx :: Name -> Ctx -> TC Type
 lookupCtx x (Ctx m) = 
   maybe (failWith $ VarNotInScope x) return $ Map.lookup x m
