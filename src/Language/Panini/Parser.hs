@@ -181,10 +181,10 @@ type1 = choice
     pure (v,t)
   namedBase = do
     (x,b) <- (,) <$> name <* symbol ":" <*> baseType
-    pure (x, TBase x b (Known PTrue))
+    pure (x, TBase x b (Known pTrue))
   base = do
     b <- baseType
-    pure (dummyName, TBase dummyName b (Known PTrue))
+    pure (dummyName, TBase dummyName b (Known pTrue))
 
 baseType :: Parser Base
 baseType = choice
@@ -211,11 +211,11 @@ predicateNoLogic = makeExprParser predTerm predOpsBase
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  ,       PTrue  <$  symbol "true"
-  ,       PFalse <$  symbol "false"
-  ,       PInt   <$> integerLiteral
-  , try $ PFun   <$> name <*> parens (sepBy1 predicate ",")
-  ,       PVar   <$> name
+  , pTrue <$  symbol "true"
+  , pFalse <$  symbol "false"
+  , (PVal . I) <$> integerLiteral
+  , try $ PFun <$> name <*> parens (sepBy1 predicate ",")
+  , (PVal . V) <$> name
   ]
 
 predOpsBase :: [[Operator Parser Pred]]

@@ -133,7 +133,7 @@ pValue = \case
 -------------------------------------------------------------------------------
 
 isT :: Reft -> Bool
-isT (Known PTrue) = True
+isT (Known (PVal (B True))) = True
 isT _ = False
 
 arr :: Doc Ann -> Doc Ann -> Doc Ann
@@ -177,10 +177,7 @@ pReft = \case
 
 pPred :: Pred -> Doc Ann
 pPred p0 = case p0 of
-  PTrue -> "true"
-  PFalse -> "false"
-  PVar x -> pName x
-  PInt c -> pretty c
+  PVal x -> pValue x
   PFun f ps -> pName f <> tupled (map pPred ps)
   PNot p1 -> prettyUnary p0 p1 (sym "~")
   PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")

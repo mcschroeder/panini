@@ -12,7 +12,7 @@ import Data.Text.Read
 -- Names
 
 newtype Name = Name Text
-  deriving (Eq, Show, Read)
+  deriving (Eq, Ord, Show, Read)
 
 instance IsString Name where
   fromString = Name . Text.pack
@@ -39,6 +39,17 @@ nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
   Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i+1)
 
 ------------------------------------------------------------------------------
+-- Values
+
+data Value
+  = U          -- unit
+  | B Bool     -- true, false
+  | I Integer  -- 0, -1, 1, ...
+  | S Text     -- "lorem ipsum"
+  | V Name     -- x
+  deriving (Eq, Ord, Show, Read)
+
+------------------------------------------------------------------------------
 -- Terms
 
 data Expr
@@ -49,14 +60,6 @@ data Expr
   | Let Name Expr Expr       -- let x = e1 in e2  
   | Rec Name Type Expr Expr  -- rec x : t = e1 in e2
   | If Value Expr Expr       -- if x then e1 else e2    
-  deriving (Show, Read)
-
-data Value
-  = U          -- unit
-  | B Bool     -- true, false
-  | I Integer  -- 0, -1, 1, ...
-  | S Text     -- "lorem ipsum"
-  | V Name     -- x
   deriving (Show, Read)
 
 ------------------------------------------------------------------------------
@@ -83,14 +86,14 @@ data Reft
   | Known Pred  -- p
   deriving (Eq, Show, Read)
 
+simpleType :: Base -> Type
+simpleType b = TBase dummyName b (Known pTrue)
+
 ------------------------------------------------------------------------------
 -- Predicates
 
 data Pred
-  = PTrue               -- true
-  | PFalse              -- false
-  | PVar Name           -- x
-  | PInt Integer        -- c
+  = PVal Value          -- x
   | PBin Bop Pred Pred  -- p1 o p2
   | PRel Rel Pred Pred  -- p1 R p2
   | PConj Pred Pred     -- p1 /\ p2
@@ -107,6 +110,12 @@ data Bop = Add | Sub | Mul | Div
 data Rel = Eq | Neq | Geq | Leq | Gt | Lt
   deriving (Eq, Show, Read)
 
+pTrue :: Pred
+pTrue = PVal (B True)
+
+pFalse :: Pred
+pFalse = PVal (B True)
+
 ------------------------------------------------------------------------------
 -- Constraints
 
@@ -115,3 +124,6 @@ data Con
   | CConj Con Con            -- c1 /\ c2
   | CAll Name Base Pred Con  -- forall x:b. p ==> c
   deriving (Show, Read)
+
+cTrue :: Con
+cTrue = CPred pTrue
