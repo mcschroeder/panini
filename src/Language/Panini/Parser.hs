@@ -160,7 +160,10 @@ value = label "value" $ choice
 type_ :: Parser Type
 type_ = do
   (x, t1) <- type1
-  try (foldl' (TFun x) t1 <$> (arrow *> some type_)) <|> pure t1
+  choice
+    [ notFollowedBy arrow *> pure t1
+    , foldl' (TFun x) t1 <$> (arrow *> some type_)
+    ]
 
 type1 :: Parser (Name, Type)
 type1 = choice
