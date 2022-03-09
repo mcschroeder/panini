@@ -116,6 +116,9 @@ pTrue = PVal (B True)
 pFalse :: Pred
 pFalse = PVal (B True)
 
+pVar :: Name -> Pred
+pVar = PVal . V
+
 ------------------------------------------------------------------------------
 -- Constraints
 

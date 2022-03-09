@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Language.Panini.Checker where
 
 import Data.List
@@ -6,6 +8,8 @@ import Data.Map qualified as Map
 
 import Language.Panini.Substitution
 import Language.Panini.Syntax
+
+------------------------------------------------------------------------------
 
 -- | Type checker monad.
 type TC a = Either TypeError a
@@ -18,6 +22,7 @@ data TypeError
   | InvalidSubtyping Type Type
   | VarNotInScope Name
   | ExpectedFunType Expr Type
+  | NoSynth Expr
   deriving (Show, Read)
 
 ------------------------------------------------------------------------------
@@ -29,8 +34,10 @@ lookupCtx :: Name -> Ctx -> TC Type
 lookupCtx x (Ctx m) = 
   maybe (failWith $ VarNotInScope x) return $ Map.lookup x m
 
-------------------------------------------------------------------------------
+extendCtx :: Name -> Type -> Ctx -> Ctx
+extendCtx x t (Ctx m) = Ctx $ Map.insert x t m
 
+------------------------------------------------------------------------------
 {-| Type synthesis.
 
 @
@@ -43,6 +50,11 @@ lookupCtx x (Ctx m) =
   g(x) = t  
 ------------  SYN-VAR
  g |- x => t
+
+
+         g(x) = {v:b|p}  
+--------------------------------  SYN-SELF
+ g |- x => {v:b | p /\ v = x }
 
 
   g |- s |> t      g |- e <= t
@@ -59,14 +71,19 @@ lookupCtx x (Ctx m) =
 synth :: Ctx -> Expr -> TC (Con, Type)
 
 -- [SYN-PRIM]
--- [SYN-VAR]
-synth g (Val v) = (cTrue, ) <$> case v of
-  U   -> return $ simpleType TUnit
-  B _ -> return $ simpleType TBool
-  I _ -> return $ simpleType TInt
-  S _ -> return $ simpleType TString
-  V x -> lookupCtx x g
+synth g (Val U)     = return (cTrue, simpleType TUnit)
+synth g (Val (B _)) = return (cTrue, simpleType TBool)
+synth g (Val (I _)) = return (cTrue, simpleType TInt)
+synth g (Val (S _)) = return (cTrue, simpleType TString)
 
+-- [SYN-VAR]
+-- [SYN-SELF]
+synth g (Val (V x)) = lookupCtx x g >>= \t -> return (cTrue, self x t)
+ where
+  self x (TBase v b (Known p)) = 
+    TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x))))
+  self x t = t
+     
 -- [SYN-ANN]
 synth g (Ann e s) = do
   t <- fresh g s
@@ -75,30 +92,93 @@ synth g (Ann e s) = do
 
 -- [SYN-APP]
 synth g (App e y) = do
-  (c,f) <- synth g e
-  case f of
+  (c,t0) <- synth g e
+  case t0 of
     TFun x s t -> do
       c' <- check g (Val y) s
-      return (CConj c c', subst y x t)    
-    
-    _ -> failWith (ExpectedFunType e f)
+      return (CConj c c', subst y x t)
 
+    _ -> failWith $ ExpectedFunType e t0
+
+synth _ e = failWith $ NoSynth e
 
 ------------------------------------------------------------------------------
-
 {-| Type checking.
 
 @
 
+  g |- e => s      g |- s <: t
+--------------------------------  CHK-SYN
+          g |- e <= t
 
+
+  g, x:t1 |- e <= t2[x/y]
+---------------------------  CHK-LAM
+  g |- \x.e <= y:t1 -> t2
+
+
+  g |- e1 => t1      g, x:t1 |- e2 <= t2
+------------------------------------------  CHK-LET
+       g |- let x = e1 in e2 <= t2
+
+
+  g |- s1 |> t1      g, x:t1 |- e1 <= t1      g, x:t1 |- e2 <= t2
+-------------------------------------------------------------------  CHK-REC
+                g |- rec x : s1 = e1 in e2 <= t2
+
+
+  g |- x <= bool
+  y is fresh
+  g, y:{_:int |  x } |- e1 <= t
+  g, y:{_:int | ~x } |- e2 <= t
+----------------------------------  CHK-IF
+  g |- if x then e1 else e2 <= t
 
 @
 -}
 check :: Ctx -> Expr -> Type -> TC Con
-check = undefined
+
+-- [CHK-LAM]
+check g (Lam x e) (TFun y s t) = do
+  let g' = extendCtx x s g
+      t' = subst (V x) y t
+  c <- check g' e t'
+  return $ cImpl x s c
+
+check g (Lam x e) t = failWith $ ExpectedFunType (Lam x e) t
+
+-- [CHK-LET]
+check g (Let x e1 e2) t2 = do
+  (c1, t1) <- synth g e1
+  let g' = extendCtx x t1 g
+  c2 <- check g' e2 t2
+  return $ CConj c1 (cImpl x t1 c2)
+
+-- [CHK-REC]
+check g (Rec x s1 e1 e2) t2 = do
+  t1 <- fresh g s1
+  let g' = extendCtx x t1 g
+  c1 <- check g' e1 t1
+  c2 <- check g' e2 t2
+  return $ CConj c1 c2
+
+-- [CHK-IF]
+check g (If x e1 e2) t = do
+  _ <- check g (Val x) (simpleType TBool)
+  c1 <- check g e1 t
+  c2 <- check g e2 t
+  let y = freshName "y" (freeVars x ++ freeVars c1 ++ freeVars c2)
+  let yT = TBase dummyName TUnit $ Known $ PVal x
+  let yF = TBase dummyName TUnit $ Known $ PNot $ PVal x
+  return $ CConj (cImpl y yT c1) (cImpl y yF c2)
+
+-- [CHK-SYN]
+check g e t = do
+  (c, s) <- synth g e
+  c' <- sub s t
+  return $ CConj c c'
 
 ------------------------------------------------------------------------------
-
 {-| Hole Instantiation
 
 @
@@ -116,7 +196,6 @@ fresh _ t@(TBase v b (Known p)) = return t
 fresh _ _ = error "not implemented yet"
 
 ------------------------------------------------------------------------------
-
 {- | Subtyping.
 
 @
@@ -143,13 +222,13 @@ sub (TBase v1 b1 (Known p1)) (TBase v2 b2 (Known p2))
 sub (TFun x1 s1 t1) (TFun x2 s2 t2) = do
   cI <- sub s2 s1
   let t1' = subst (V x1) x2 t1
-  cO <- implCon x2 s2 <$> sub t1' t2
+  cO <- cImpl x2 s2 <$> sub t1' t2
   return $ CConj cI cO
 
 sub t1 t2 = failWith $ InvalidSubtyping t1 t2
 
 -- | Implication constraint @(x :: t) => c@.
-implCon :: Name -> Type -> Con -> Con
-implCon x t c = case t of
+cImpl :: Name -> Type -> Con -> Con
+cImpl x t c = case t of
   TBase v b (Known p) -> CAll x b (subst (V x) v p) c
   _                   -> c
