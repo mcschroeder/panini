@@ -189,12 +189,24 @@ check g e t = do
 ----------------------  INS-CONC
   {v:b|p} |> {v:b|p}
 
+
+  g |- s1 |> s2      g, x:s1 |- t1 |> t2
+------------------------------------------  INS-FUN
+      g |- x:s1 -> t1 |> x:s2 -> t2
+
 @
 -}
 fresh :: Ctx -> Type -> TC Type
 
 -- [INS-CONC]
 fresh _ t@(TBase v b (Known p)) = return t
+
+-- [INS-FUN]
+fresh g (TFun x s1 t1) = do
+  s2 <- fresh g s1
+  let g' = extendCtx x s1 g
+  t2 <- fresh g' t1
+  return $ TFun x s2 t2
 
 fresh _ _ = error "not implemented yet"
 
