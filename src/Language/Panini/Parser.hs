@@ -285,44 +285,44 @@ conOps = [[InfixR (CConj <$ symConj)]]
 
 -- | Parses an arrow.
 arrow :: Parser ()
-arrow = void $ symbol "->"
+arrow = void $ symbol "->" <|> symbol "→"
 
 -- | Parses a lambda.
 lambda :: Parser ()
-lambda = void $ symbol "\\"
+lambda = void $ symbol "\\" <|> symbol "λ"
 
 -- | Parses a predicate negation symbol.
 symNot :: Parser ()
-symNot = void $ op "~"
+symNot = void $ op "~" <|> symbol "¬"
 
 -- | Parses a disequality symbol.
 symNeq :: Parser ()
-symNeq = void $ op "/="
+symNeq = void $ op "/=" <|> symbol "≠"
 
 -- | Parsers a less-than-or-equal symbol.
 symLeq :: Parser ()
-symLeq = void $ op "<="
+symLeq = void $ op "<=" <|> symbol "≤"
 
 -- | Parsers a greater-than-or-equal symbol.
 symGeq :: Parser ()
-symGeq = void $ op ">="
+symGeq = void $ op ">=" <|> symbol "≥"
 
 -- | Parses a conjunction symbol.
 symConj :: Parser ()
-symConj = void $ op "/\\"
+symConj = void $ op "/\\" <|> symbol "∧"
 
 -- | Parses a disjunction symbol.
 symDisj :: Parser ()
-symDisj = void $ op "\\/"
+symDisj = void $ op "\\/" <|> symbol "∨"
 
 -- | Parses an implication symbol.
 symImpl :: Parser ()
-symImpl = void $ op "==>"
+symImpl = void $ op "==>" <|> symbol "⇒"
 
 -- | Parses an if-and-only-if symbol.
 symIff :: Parser ()
-symIff = void $ op "<=>"
+symIff = void $ op "<=>" <|> symbol "⇔"
 
 -- | Parses a forall symbol/keyword.
 symAll :: Parser ()
-symAll = void $ keyword "forall"
+symAll = void $ keyword "forall" <|> symbol "∀"

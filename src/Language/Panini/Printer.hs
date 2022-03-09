@@ -65,7 +65,7 @@ unicodify Symbol = \case
   "/="  -> "≠"
   "==>" -> "⇒"
   "<=>" -> "⇔"
-  "->"  -> "→" 
+  "->"  -> "→"
   "\\"  -> "λ"
   "forall " -> "∀"  -- note the extra space
   x     -> x
