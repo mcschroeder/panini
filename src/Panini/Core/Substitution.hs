@@ -91,7 +91,7 @@ instance Subable Pred where
     PImpl p1 p2 -> freeVars p1 ++ freeVars p2
     PIff p1 p2 -> freeVars p1 ++ freeVars p2
     PNot p1 -> freeVars p1
-    PFun f ps -> concatMap freeVars ps
+    PFun f ps -> [f] ++ concatMap freeVars ps
 
 instance Subable Con where
   subst x y = \case
