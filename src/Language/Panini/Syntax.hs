@@ -57,9 +57,10 @@ data Expr
   | App Expr Value           -- e x
   | Lam Name Expr            -- \x. e
   | Ann Expr Type            -- e : t
-  | Let Name Expr Expr       -- let x = e1 in e2  
+  | Let Name Expr Expr       -- let x = e1 in e2
   | Rec Name Type Expr Expr  -- rec x : t = e1 in e2
-  | If Value Expr Expr       -- if x then e1 else e2    
+  | If Value Expr Expr       -- if x then e1 else e2
+  | Ass Name Type Expr       -- assume x : t in e
   deriving (Show, Read)
 
 ------------------------------------------------------------------------------

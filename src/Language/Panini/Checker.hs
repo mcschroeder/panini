@@ -137,6 +137,11 @@ synth _ e = failWith $ NoSynth e
 ----------------------------------  CHK-IF
   g |- if x then e1 else e2 <= t
 
+
+       g, x:s |- e <= t
+-------------------------------  CHK-ASS
+  g |- assume x : s in e <= t
+
 @
 -}
 check :: Ctx -> Expr -> Type -> TC Con
@@ -174,6 +179,11 @@ check g (If x e1 e2) t = do
   let yT = TBase dummyName TUnit $ Known $ PVal x
   let yF = TBase dummyName TUnit $ Known $ PNot $ PVal x
   return $ CConj (cImpl y yT c1) (cImpl y yF c2)
+
+-- [CHK-ASS]
+check g (Ass x s e) t = do
+  let g' = extendCtx x s g
+  check g' e t
 
 -- [CHK-SYN]
 check g e t = do

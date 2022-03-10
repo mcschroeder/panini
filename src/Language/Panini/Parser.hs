@@ -126,6 +126,10 @@ expr = do
 expr1 :: Parser Expr
 expr1 = choice
   [ try $ parens expr
+
+  , try $ Ass <$ keyword "assume" <*> name
+              <* symbol ":" <*> type_
+              <* keyword "in" <*> expr
   
   , try $ If <$ keyword "if" <*> value 
              <* keyword "then" <*> expr 

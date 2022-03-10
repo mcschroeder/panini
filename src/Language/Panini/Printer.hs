@@ -121,6 +121,11 @@ pExpr = \case
     nest 2 (kw "then" <\> pExpr e1) <\> 
     nest 2 (kw "else" <\> pExpr e2)
 
+  Ass x t e ->
+    kw "assume" <+> pName x <+> kws ":" <+> pType t <\>
+    kw "in" <\>
+    pExpr e
+
 pValue :: Value -> Doc Ann
 pValue = \case
   U -> "unit"
