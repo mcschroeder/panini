@@ -2,7 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Language.Panini.Parser
+module Panini.Core.Parser
   ( parseExpr
   , parseConstraint
   ) where
@@ -24,7 +24,7 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
 
-import Language.Panini.Syntax
+import Panini.Core.Syntax
 
 -------------------------------------------------------------------------------
 

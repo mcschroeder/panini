@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Panini.Printer 
+module Panini.Core.Printer 
   ( PrintOptions(..)
   , printExpr
   , printType
@@ -8,7 +8,7 @@ module Language.Panini.Printer
   ) where
 
 import Data.Text (Text)
-import Language.Panini.Syntax
+import Panini.Core.Syntax
 import Prettyprinter
 import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI

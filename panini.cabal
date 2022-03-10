@@ -24,11 +24,11 @@ maintainer:         michael.schroeder@tuwien.ac.at
 library
   hs-source-dirs: src
   exposed-modules:
-    Language.Panini.Checker
-    Language.Panini.Parser
-    Language.Panini.Printer
-    Language.Panini.Substitution
-    Language.Panini.Syntax
+    Panini.Core.Checker
+    Panini.Core.Parser
+    Panini.Core.Printer
+    Panini.Core.Substitution
+    Panini.Core.Syntax
   build-depends:
       base ^>=4.16
     , ansi-terminal

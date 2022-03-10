@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Panini.Syntax where
+module Panini.Core.Syntax where
 
 import Data.Char
 import Data.String

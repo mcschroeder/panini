@@ -1,8 +1,8 @@
-module Language.Panini.Substitution where
+module Panini.Core.Substitution where
 
 import Data.List
 
-import Language.Panini.Syntax
+import Panini.Core.Syntax
 
 ------------------------------------------------------------------------------
 

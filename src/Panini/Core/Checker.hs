@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Panini.Checker where
+module Panini.Core.Checker where
 
 import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
 
-import Language.Panini.Substitution
-import Language.Panini.Syntax
+import Panini.Core.Substitution
+import Panini.Core.Syntax
 
 ------------------------------------------------------------------------------
 

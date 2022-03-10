@@ -18,10 +18,10 @@ import System.Environment (getArgs)
 import System.FilePath
 import System.IO
 
-import Language.Panini.Checker
-import Language.Panini.Parser
-import Language.Panini.Printer
-import Language.Panini.Syntax
+import Panini.Core.Checker
+import Panini.Core.Parser
+import Panini.Core.Printer
+import Panini.Core.Syntax
 
 -------------------------------------------------------------------------------
 
