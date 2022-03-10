@@ -1,24 +1,25 @@
 module Panini.REPL
   ( Panini,
-    PaniniState(..),
+    PaniniState (..),
     paniniInitState,
     repl,
-    replSettings 
+    replSettings,
   )
 where
 
+import Control.Monad.IO.Class
 import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
-import Data.List
+import Data.List (isPrefixOf)
 import Data.Text qualified as Text
+import Panini.Core.Checker
 import Panini.Core.Parser
 import Panini.Core.Printer
 import Panini.Core.Syntax
-import Panini.Core.Checker
-import System.Console.Haskeline
-import Control.Monad.IO.Class
 import System.Console.ANSI
+import System.Console.Haskeline
 import System.IO
+import Prelude
 
 -------------------------------------------------------------------------------
 
@@ -47,12 +48,11 @@ repl = do
       Right cmd -> case cmd of
         Quit -> outputStrLn byeMsg
         Format args -> format args >> repl
-        TypeCheck args -> typeCheck args >> repl 
-        Eval args -> outputStrLn args >> repl  -- TODO
-
+        TypeCheck args -> typeCheck args >> repl
+        Eval args -> outputStrLn args >> repl -- TODO
 
 format :: String -> InputT Panini ()
-format input = 
+format input =
   case parseExpr "<repl>" (Text.pack input) of
     Left err -> outputStrLn err
     Right ex -> outputExpr ex
@@ -65,7 +65,7 @@ typeCheck input =
       let g0 = emptyCtx
       case synth g0 e of
         Left err2 -> outputStrLn (show err2)
-        Right (c,t) -> do
+        Right (c, t) -> do
           opts <- getPrintOptions
           outputStrLn $ Text.unpack $ printCon opts c
           outputStrLn ""
@@ -81,7 +81,7 @@ getPrintOptions :: InputT Panini PrintOptions
 getPrintOptions = liftIO $ do
   ansiColors <- hSupportsANSIColor stdout
   fixedWidth <- fmap snd <$> getTerminalSize
-  return PrintOptions { unicodeSymbols = True, ansiColors, fixedWidth }
+  return PrintOptions {unicodeSymbols = True, ansiColors, fixedWidth}
 
 -------------------------------------------------------------------------------
 
@@ -90,7 +90,7 @@ data Command
   | Format String
   | TypeCheck String
   | Eval String
-  deriving (Show, Read)
+  deriving stock (Show, Read)
 
 parseCmd :: String -> Either String Command
 parseCmd (':' : input) = case break isSpace input of

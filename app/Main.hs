@@ -5,6 +5,7 @@ module Main where
 import Control.Monad.IO.Class
 import Control.Monad.Trans.State.Strict
 import Panini.REPL
+import Prelude
 import System.Console.Haskeline
 import System.Directory
 import System.FilePath

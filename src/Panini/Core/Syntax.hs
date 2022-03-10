@@ -7,12 +7,13 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read
+import Prelude
 
 ------------------------------------------------------------------------------
 -- Names
 
 newtype Name = Name Text
-  deriving (Eq, Ord, Show, Read)
+  deriving newtype (Eq, Ord, Show, Read)
 
 instance IsString Name where
   fromString = Name . Text.pack
@@ -36,7 +37,7 @@ freshName x ys = go (nextSubscript x)
 nextSubscript :: Name -> Name
 nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
   Left _      -> Name $ Text.append n "1"
-  Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i+1)
+  Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i + 1)
 
 ------------------------------------------------------------------------------
 -- Values
@@ -47,7 +48,7 @@ data Value
   | I Integer  -- 0, -1, 1, ...
   | S Text     -- "lorem ipsum"
   | V Name     -- x
-  deriving (Eq, Ord, Show, Read)
+  deriving stock (Eq, Ord, Show, Read)
 
 ------------------------------------------------------------------------------
 -- Terms
@@ -61,7 +62,7 @@ data Expr
   | Rec Name Type Expr Expr  -- rec x : t = e1 in e2
   | If Value Expr Expr       -- if x then e1 else e2
   | Ass Name Type Expr       -- assume x : t in e
-  deriving (Show, Read)
+  deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------
 -- Types
@@ -69,7 +70,7 @@ data Expr
 data Type
   = TBase Name Base Reft  -- {v:b|r}
   | TFun Name Type Type   -- x:t1 -> t2
-  deriving (Show, Read)
+  deriving stock (Show, Read)
 
 --             b  ^=  {_:b|true}
 --      t1 -> t2  ^=  _:t1 -> t2
@@ -80,12 +81,12 @@ data Base
   | TBool
   | TInt
   | TString
-  deriving (Eq, Show, Read)
+  deriving stock (Eq, Show, Read)
 
 data Reft
   = Unknown     -- ?
   | Known Pred  -- p
-  deriving (Eq, Show, Read)
+  deriving stock (Eq, Show, Read)
 
 simpleType :: Base -> Type
 simpleType b = TBase dummyName b (Known pTrue)
@@ -103,13 +104,13 @@ data Pred
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
-  deriving (Eq, Show, Read)
+  deriving stock (Eq, Show, Read)
 
 data Bop = Add | Sub | Mul | Div
-  deriving (Eq, Show, Read)
+  deriving stock (Eq, Show, Read)
 
 data Rel = Eq | Neq | Geq | Leq | Gt | Lt
-  deriving (Eq, Show, Read)
+  deriving stock (Eq, Show, Read)
 
 pTrue :: Pred
 pTrue = PVal (B True)
@@ -127,7 +128,7 @@ data Con
   = CPred Pred               -- p
   | CConj Con Con            -- c1 /\ c2
   | CAll Name Base Pred Con  -- forall x:b. p ==> c
-  deriving (Show, Read)
+  deriving stock (Show, Read)
 
 cTrue :: Con
 cTrue = CPred pTrue

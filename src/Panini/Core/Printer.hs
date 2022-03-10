@@ -7,15 +7,14 @@ module Panini.Core.Printer
   , printCon
   ) where
 
+import Control.Monad
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Panini.Core.Syntax
+import Prelude
 import Prettyprinter
 import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI
-import Data.Text qualified as Text
-import Data.Text.IO qualified as Text
-import Control.Monad
-import System.IO
 
 -------------------------------------------------------------------------------
 
@@ -40,8 +39,8 @@ prettyPrint :: PrintOptions -> Doc Ann -> Text
 prettyPrint o = 
   renderSimplyDecorated renderT renderA . treeForm . layoutSmart layoutOpt
  where
-  layoutOpt = defaultLayoutOptions { layoutPageWidth = pageWidth }
-  pageWidth = maybe Unbounded (\w -> AvailablePerLine w 1) o.fixedWidth
+  layoutOpt = defaultLayoutOptions { layoutPageWidth = pw }
+  pw = maybe Unbounded (\w -> AvailablePerLine w 1) o.fixedWidth
   renderT = id
   renderA = liftM2 (.) 
       (if o.ansiColors     then colorize  else const id) 
@@ -226,7 +225,7 @@ class Fixity a where
   fixity :: a -> (Int, Assoc)
 
 data Assoc = Prefix | InfixL | InfixN | InfixR
-  deriving (Eq, Show, Read)
+  deriving stock (Eq, Show, Read)
 
 instance Fixity Pred where
   fixity (PNot _)       = (7, Prefix)

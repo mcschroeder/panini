@@ -1,8 +1,8 @@
 module Panini.Core.Substitution where
 
-import Data.List
-
+import Data.List ((\\))
 import Panini.Core.Syntax
+import Prelude
 
 ------------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ instance Subable Type where
       | otherwise -> TFun n (subst x y t1) (subst x y t2)    -- (3)
 
   freeVars = \case
-    TBase v b r -> freeVars r \\ [v]
+    TBase v _ r -> freeVars r \\ [v]
     TFun x t1 t2 -> freeVars t1 ++ (freeVars t2 \\ [x])
 
 instance Subable Reft where
@@ -84,8 +84,8 @@ instance Subable Pred where
   freeVars = \case
     PVal (V n) -> [n]
     PVal _ -> []
-    PBin o p1 p2 -> freeVars p1 ++ freeVars p2
-    PRel r p1 p2 -> freeVars p1 ++ freeVars p2
+    PBin _ p1 p2 -> freeVars p1 ++ freeVars p2
+    PRel _ p1 p2 -> freeVars p1 ++ freeVars p2
     PConj p1 p2 -> freeVars p1 ++ freeVars p2
     PDisj p1 p2 -> freeVars p1 ++ freeVars p2
     PImpl p1 p2 -> freeVars p1 ++ freeVars p2

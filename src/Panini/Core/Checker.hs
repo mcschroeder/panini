@@ -2,12 +2,11 @@
 
 module Panini.Core.Checker where
 
-import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
-
 import Panini.Core.Substitution
 import Panini.Core.Syntax
+import Prelude
 
 ------------------------------------------------------------------------------
 
@@ -23,7 +22,7 @@ data TypeError
   | VarNotInScope Name
   | ExpectedFunType Expr Type
   | NoSynth Expr
-  deriving (Show, Read)
+  deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------
 -- Contexts
@@ -74,18 +73,21 @@ extendCtx x t (Ctx m) = Ctx $ Map.insert x t m
 synth :: Ctx -> Expr -> TC (Con, Type)
 
 -- [SYN-PRIM]
-synth g (Val U)     = return (cTrue, simpleType TUnit)
-synth g (Val (B _)) = return (cTrue, simpleType TBool)
-synth g (Val (I _)) = return (cTrue, simpleType TInt)
-synth g (Val (S _)) = return (cTrue, simpleType TString)
+synth _ (Val U)     = return (cTrue, simpleType TUnit)
+synth _ (Val (B _)) = return (cTrue, simpleType TBool)
+synth _ (Val (I _)) = return (cTrue, simpleType TInt)
+synth _ (Val (S _)) = return (cTrue, simpleType TString)
 
 -- [SYN-VAR]
 -- [SYN-SELF]
-synth g (Val (V x)) = lookupCtx x g >>= \t -> return (cTrue, self x t)
- where
-  self x (TBase v b (Known p)) = 
-    TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x))))
-  self x t = t
+synth g (Val (V x)) = do
+  t <- lookupCtx x g
+  case t of
+    TBase v b (Known p) -> do
+      let t' = TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x))))
+      return (cTrue, t')    
+    
+    _ -> return (cTrue, t)
      
 -- [SYN-ANN]
 synth g (Ann e s) = do
@@ -153,7 +155,7 @@ check g (Lam x e) (TFun y s t) = do
   c <- check g' e t'
   return $ cImpl x s c
 
-check g (Lam x e) t = failWith $ ExpectedFunType (Lam x e) t
+check _ (Lam x e) t = failWith $ ExpectedFunType (Lam x e) t
 
 -- [CHK-LET]
 check g (Let x e1 e2) t2 = do
@@ -209,7 +211,7 @@ check g e t = do
 fresh :: Ctx -> Type -> TC Type
 
 -- [INS-CONC]
-fresh _ t@(TBase v b (Known p)) = return t
+fresh _ t@(TBase _ _ (Known _)) = return t
 
 -- [INS-FUN]
 fresh g (TFun x s1 t1) = do
