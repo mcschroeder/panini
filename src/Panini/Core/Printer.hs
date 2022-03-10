@@ -83,9 +83,13 @@ sym = annotate Symbol . pretty
 kws :: Text -> Doc Ann
 kws = annotate Keyword . annotate Symbol . pretty
 
--- | Inserts a hard linebreak.
+-- | Inserts a linebreak.
 (<\>) :: Doc ann -> Doc ann -> Doc ann
-a <\> b = a <> hardline <> b
+a <\> b = a <> line <> b
+
+-- | Inserts a hard linebreak.
+(<\\>) :: Doc ann -> Doc ann -> Doc ann
+a <\\> b = a <> hardline <> b
 
 -------------------------------------------------------------------------------
 
@@ -99,30 +103,26 @@ pExpr = \case
   Val x -> pValue x
   App e x -> pExpr e <+> pValue x    
   
-  Lam x e -> nest 2 $ 
-    kws "\\" <> pName x <> kws "." <\> 
-    pExpr e
+  Lam x e -> nest 2 $ group $ kws "\\" <> pName x <> kws "." <\> pExpr e
   
   Ann e t -> pExpr e <+> kws ":" <+> pType t
-  
+
   Let x e1 e2 -> 
-    kw "let" <+> pName x <+> kws "=" <+> pExpr e1 <> kw "in" <\> 
+    kw "let" <+> pName x <+> kws "=" <+> group (pExpr e1 <\> kw "in") <\\>
     pExpr e2
   
   Rec x t e1 e2 -> 
     kw "rec" <+> pName x <+> kws ":" <+> pType t <\> 
-    kws "=" <+> pExpr e1 <\> 
-    kw "in" <\> 
+    kws "=" <+> group (pExpr e1 <\> kw "in") <\\>
     pExpr e2
   
-  If x e1 e2 -> 
+  If x e1 e2 -> group $
     kw "if" <+> pValue x <+> 
     nest 2 (kw "then" <\> pExpr e1) <\> 
     nest 2 (kw "else" <\> pExpr e2)
 
   Ass x t e ->
-    kw "assume" <+> pName x <+> kws ":" <+> pType t <\>
-    kw "in" <\>
+    kw "assume" <+> pName x <+> kws ":" <+> pType t <+> kw "in" <\\>
     pExpr e
 
 pValue :: Value -> Doc Ann
