@@ -2,112 +2,21 @@
 
 module Main where
 
-import Control.Monad.Extra
 import Control.Monad.IO.Class
-import Data.Bifunctor
-import Data.Char (isSpace)
-import Data.List
-import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.IO (getLine)
-import Data.Text.IO qualified as Text
-import System.Console.ANSI
+import Control.Monad.Trans.State.Strict
+import Panini.REPL
 import System.Console.Haskeline
 import System.Directory
-import System.Environment (getArgs)
 import System.FilePath
-import System.IO
-
-import Panini.Core.Checker
-import Panini.Core.Parser
-import Panini.Core.Printer
-import Panini.Core.Syntax
-
--------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
-  configDir <- getXdgDirectory XdgConfig "panini"
-  createDirectoryIfMissing True configDir
-  let settings = Settings 
-        { complete = autocomplete
-        , historyFile = Just (configDir </> "pan_history")
-        , autoAddHistory = True
-        }
-  runInputT settings repl
+  _ <- execStateT paniniMain paniniInitState
+  return ()
 
--------------------------------------------------------------------------------
-
-commands :: [String]
-commands = [":quit", ":format", ":type"]
-
-autocomplete :: CompletionFunc IO
-autocomplete = completeWord' Nothing isSpace $ \str -> do
-  if null str
-    then return []
-    else return $ map simpleCompletion $ filter (str `isPrefixOf`) commands
-
-data Command
-  = Quit
-  | Format Text
-  | TypeCheck Text
-  | UnknownCommand Text
-  deriving (Show, Read)
-
-parseCmd :: String -> Command
-parseCmd str = case Text.break isSpace $ Text.pack str of
-  (Text.toLower -> cmd, Text.stripStart -> input)
-    | Text.isPrefixOf cmd "quit" -> Quit
-    | Text.isPrefixOf cmd "format" -> Format input
-    | Text.isPrefixOf cmd "type" -> TypeCheck input
-    | otherwise -> UnknownCommand cmd
-
-repl :: InputT IO ()
-repl = getInputLine "Panini> " >>= \case
-  Just (':':input) -> case parseCmd input of
-    Quit               -> return ()
-    Format input       -> format input      >> repl
-    TypeCheck input    -> typeCheck input   >> repl
-    UnknownCommand cmd -> unknown cmd       >> repl    
-  Just input           -> outputStrLn input >> repl
-  Nothing              -> return ()
-
--------------------------------------------------------------------------------
-
-format :: Text -> InputT IO ()
-format input = 
-  case parseExpr "<repl>" input of
-    Left err -> outputStrLn err
-    Right ex -> outputExpr ex
-
-typeCheck :: Text -> InputT IO ()
-typeCheck input =
-  case parseExpr "<repl>" input of
-    Left err1 -> outputStrLn err1
-    Right e -> do
-      let g0 = emptyCtx
-      case synth g0 e of
-        Left err2 -> outputStrLn (show err2)
-        Right (c,t) -> do
-          opts <- getPrintOptions
-          let conStr = printCon opts c
-          let typeStr = printType opts t
-          liftIO $ Text.putStrLn $ conStr <> "\n" <> typeStr
-
-unknown :: Text -> InputT IO ()
-unknown cmd = do
-  outputStrLn $ "unknown command :" ++ Text.unpack cmd
-
--------------------------------------------------------------------------------
-
-outputExpr :: Expr -> InputT IO ()
-outputExpr e = do
-  opts <- getPrintOptions
-  let t = printExpr opts e
-  liftIO $ Text.putStrLn t
-
-getPrintOptions :: InputT IO PrintOptions
-getPrintOptions = liftIO $ do
-  ansiColors <- hSupportsANSIColor stdout
-  fixedWidth <- fmap snd <$> getTerminalSize
-  return PrintOptions { unicodeSymbols = True, ansiColors, fixedWidth }    
+paniniMain :: Panini ()
+paniniMain = do
+  configDir <- liftIO $ getXdgDirectory XdgConfig "panini"
+  liftIO $ createDirectoryIfMissing True configDir
+  let historyFile = configDir </> "repl_history"
+  runInputT (replSettings (Just historyFile)) repl

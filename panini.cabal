@@ -29,33 +29,35 @@ library
     Panini.Core.Printer
     Panini.Core.Substitution
     Panini.Core.Syntax
+    Panini.REPL
   build-depends:
       base ^>=4.16
     , ansi-terminal
     , containers
+    , haskeline
     , megaparsec == 9.2.*
     , parser-combinators
     , prettyprinter
     , text
+    , transformers
   default-language: GHC2021
   default-extensions: 
     DataKinds
     ImportQualifiedPost
     LambdaCase
     OverloadedRecordDot
+    ViewPatterns
 
 executable pan
   main-is: Main.hs
   hs-source-dirs: app
   build-depends:
-      base ^>=4.16
     , panini
-    , ansi-terminal
+    , base
     , directory
-    , extra
     , filepath
     , haskeline
-    , text
+    , transformers
   default-language: GHC2021
   default-extensions: 
     DataKinds
