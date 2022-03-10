@@ -5,12 +5,14 @@ module Panini.Core.Printer
   , printExpr
   , printType
   , printCon
+  , printTypeError
   ) where
 
 import Control.Monad
 import Data.List (intersperse)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Panini.Core.Checker
 import Panini.Core.Syntax
 import Prelude
 import Prettyprinter
@@ -34,6 +36,13 @@ printType opts = prettyPrint opts . pType
 printCon :: PrintOptions -> Con -> Text
 printCon opts = prettyPrint opts . annotate Predicate . pCon
 
+printTypeError :: PrintOptions -> FilePath -> TypeError -> Text
+printTypeError opts fp err = 
+  let loc = pretty fp <> ":"
+      typ = annotate Error "error:"
+      str = annotate Message (loc <+> typ) <\\> pTypeError err
+  in prettyPrint opts $ nest 2 str
+
 -------------------------------------------------------------------------------
 
 prettyPrint :: PrintOptions -> Doc Ann -> Text
@@ -51,6 +60,8 @@ colorize :: Ann -> Text -> Text
 colorize = \case
   Keyword   -> sgr [SetConsoleIntensity BoldIntensity]
   Predicate -> sgr [SetColor Foreground Vivid Blue]
+  Message   -> sgr [SetConsoleIntensity BoldIntensity]
+  Error     -> sgr [SetColor Foreground Vivid Red]
   _         -> id
  where
   sgr c t = Text.pack (setSGRCode c) <> t <> Text.pack (setSGRCode [Reset])
@@ -73,7 +84,7 @@ unicodify _ = id
 
 -------------------------------------------------------------------------------
 
-data Ann = Keyword | Symbol | Predicate
+data Ann = Keyword | Symbol | Predicate | Message | Error
 
 kw :: Text -> Doc Ann
 kw = annotate Keyword . pretty
@@ -267,3 +278,35 @@ hasLogic = \case
   PRel _ p1 p2 -> hasLogic p1 && hasLogic p2
   PNot p -> hasLogic p
   _ -> False
+
+-------------------------------------------------------------------------------
+
+pTypeError :: TypeError -> Doc Ann
+pTypeError = bullets . \case
+
+  InvalidSubtypingBase (t1,b1) (t2,b2) ->
+    [ pBaseTy b1 <+> msg "is not a subtype of" <+> pBaseTy b2
+    , group $ nest 4 (msg "Therefore," <\> pType t1) <\> 
+              nest 4 (msg "is not a subtype of" <\> pType t2)
+    ]
+
+  InvalidSubtyping t1 t2 ->
+    [ pType t1 <+> msg "is not a subtype of" <+> pType t2]
+
+  VarNotInScope n -> [msg "Variable not in scope:" <+> pName n]
+  
+  ExpectedFunType e t -> 
+    [ pType t <+> msg "is not a function type"
+    , group $ nest 4 $ msg "Expected a function type for expression:" <\> pExpr e
+    ]
+
+  NoSynth e ->
+    [ nest 4 $ group $ msg "Can't synthesize type for expression:" <\> 
+      pExpr e
+    ]
+
+msg :: Text -> Doc Ann
+msg = annotate Message . pretty
+
+bullets :: [Doc ann] -> Doc ann
+bullets = mconcat . intersperse "\n" . map ("•" <+>)

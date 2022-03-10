@@ -62,11 +62,13 @@ typeCheck input =
   case parseExpr "<repl>" (Text.pack input) of
     Left err1 -> outputStrLn err1
     Right e -> do
+      opts <- getPrintOptions
       let g0 = emptyCtx
       case synth g0 e of
-        Left err2 -> outputStrLn (show err2)
+        Left err2 -> do
+          outputStrLn ""
+          outputStrLn $ Text.unpack $ printTypeError opts "<repl>" err2
         Right (c, t) -> do
-          opts <- getPrintOptions
           outputStrLn $ Text.unpack $ printCon opts c
           outputStrLn ""
           outputStrLn $ Text.unpack $ printType opts t

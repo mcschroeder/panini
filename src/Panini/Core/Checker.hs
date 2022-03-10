@@ -17,7 +17,7 @@ failWith :: TypeError -> TC a
 failWith = Left
 
 data TypeError
-  = InvalidSubtypingBase Base Base
+  = InvalidSubtypingBase (Type,Base) (Type,Base)
   | InvalidSubtyping Type Type
   | VarNotInScope Name
   | ExpectedFunType Expr Type
@@ -241,9 +241,9 @@ fresh _ _ = error "not implemented yet"
 sub :: Type -> Type -> TC Con
 
 -- [SUB-BASE]
-sub (TBase v1 b1 (Known p1)) (TBase v2 b2 (Known p2))
+sub t1@(TBase v1 b1 (Known p1)) t2@(TBase v2 b2 (Known p2))
   | b1 == b2  = return $ CAll v1 b1 p1 (CPred $ subst (V v1) v2 p2)
-  | otherwise = failWith $ InvalidSubtypingBase b1 b2
+  | otherwise = failWith $ InvalidSubtypingBase (t1,b1) (t2,b2)
 
 -- [SUB-FUN]
 sub (TFun x1 s1 t1) (TFun x2 s2 t2) = do
