@@ -8,6 +8,7 @@ module Panini.Core.Printer
   ) where
 
 import Control.Monad
+import Data.List (intersperse)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Core.Syntax
@@ -182,7 +183,7 @@ pReft = \case
 pPred :: Pred -> Doc Ann
 pPred p0 = case p0 of
   PVal x -> pValue x
-  PFun f ps -> pName f <> tupled (map pPred ps)
+  PFun f ps -> pName f <> (parens $ mconcat $ intersperse "," $ map pPred ps)
   PNot p1 -> prettyUnary p0 p1 (sym "~")
   PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
   PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
