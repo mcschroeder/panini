@@ -32,7 +32,7 @@ printType :: PrintOptions -> Type -> Text
 printType opts = prettyPrint opts . pType
 
 printCon :: PrintOptions -> Con -> Text
-printCon opts = prettyPrint opts . pCon
+printCon opts = prettyPrint opts . annotate Predicate . pCon
 
 -------------------------------------------------------------------------------
 
