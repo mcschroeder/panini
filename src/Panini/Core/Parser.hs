@@ -216,11 +216,8 @@ predicateNoLogic = makeExprParser predTerm predOpsBase
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  , pTrue <$  symbol "true"
-  , pFalse <$  symbol "false"
-  , (PVal . I) <$> integerLiteral
-  , try $ PFun <$> name <*> parens (sepBy1 predicate ",")
-  , (PVal . V) <$> name
+  , try $ PVal <$> value <* notFollowedBy "("
+  , PFun <$> name <*> parens (sepBy1 predicate ",")
   ]
 
 predOpsBase :: [[Operator Parser Pred]]
