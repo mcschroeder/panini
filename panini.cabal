@@ -25,6 +25,8 @@ library
   hs-source-dirs: src
   exposed-modules:
     Panini.Checker
+    Panini.Elaborator
+    Panini.Error
     Panini.Parser
     Panini.Printer
     Panini.Substitution

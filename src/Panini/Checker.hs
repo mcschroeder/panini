@@ -4,6 +4,7 @@ module Panini.Checker where
 
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Panini.Error
 import Panini.Substitution
 import Panini.Syntax
 import Prelude
@@ -11,33 +12,13 @@ import Prelude
 ------------------------------------------------------------------------------
 
 -- | Type checker monad.
-type TC a = Either TypeError a
+type TC a = Either Error a
 
-failWith :: TypeError -> TC a
+failWith :: Error -> TC a
 failWith = Left
 
-data TypeError
-  = InvalidSubtypingBase (Type,Base) (Type,Base)
-  | InvalidSubtyping Type Type
-  | VarNotInScope Name
-  | ExpectedFunType Expr Type
-  | NoSynth Expr
-  deriving stock (Show, Read)
-
-------------------------------------------------------------------------------
--- Contexts
-
-newtype Ctx = Ctx (Map Name Type)
-
-emptyCtx :: Ctx
-emptyCtx = Ctx Map.empty
-
-lookupCtx :: Name -> Ctx -> TC Type
-lookupCtx x (Ctx m) = 
-  maybe (failWith $ VarNotInScope x) return $ Map.lookup x m
-
-extendCtx :: Name -> Type -> Ctx -> Ctx
-extendCtx x t (Ctx m) = Ctx $ Map.insert x t m
+-- | Typing context (Gamma)
+type Ctx = Map Name Type
 
 ------------------------------------------------------------------------------
 {-| Type synthesis.
@@ -81,13 +62,12 @@ synth _ (Val (S _)) = return (cTrue, simpleType TString)
 -- [SYN-VAR]
 -- [SYN-SELF]
 synth g (Val (V x)) = do
-  t <- lookupCtx x g
-  case t of
-    TBase v b (Known p) -> do
+  case Map.lookup x g of
+    Just (TBase v b (Known p)) -> do
       let t' = TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x))))
       return (cTrue, t')    
-    
-    _ -> return (cTrue, t)
+    Just t -> return (cTrue, t)
+    Nothing -> failWith $ VarNotInScope x
      
 -- [SYN-ANN]
 synth g (Ann e s) = do
@@ -105,7 +85,7 @@ synth g (App e y) = do
 
     _ -> failWith $ ExpectedFunType e t0
 
-synth _ e = failWith $ NoSynth e
+synth _ e = failWith $ CantSynth e
 
 ------------------------------------------------------------------------------
 {-| Type checking.
@@ -150,7 +130,7 @@ check :: Ctx -> Expr -> Type -> TC Con
 
 -- [CHK-LAM]
 check g (Lam x e) (TFun y s t) = do
-  let g' = extendCtx x s g
+  let g' = Map.insert x s g
       t' = subst (V x) y t
   c <- check g' e t'
   return $ cImpl x s c
@@ -160,14 +140,14 @@ check _ (Lam x e) t = failWith $ ExpectedFunType (Lam x e) t
 -- [CHK-LET]
 check g (Let x e1 e2) t2 = do
   (c1, t1) <- synth g e1
-  let g' = extendCtx x t1 g
+  let g' = Map.insert x t1 g
   c2 <- check g' e2 t2
   return $ CConj c1 (cImpl x t1 c2)
 
 -- [CHK-REC]
 check g (Rec x s1 e1 e2) t2 = do
   t1 <- fresh g s1
-  let g' = extendCtx x t1 g
+  let g' = Map.insert x t1 g
   c1 <- check g' e1 t1
   c2 <- check g' e2 t2
   return $ CConj c1 c2
@@ -184,7 +164,7 @@ check g (If x e1 e2) t = do
 
 -- [CHK-ASS]
 check g (Ass x s e) t = do
-  let g' = extendCtx x s g
+  let g' = Map.insert x s g
   check g' e t
 
 -- [CHK-SYN]
@@ -216,7 +196,7 @@ fresh _ t@(TBase _ _ (Known _)) = return t
 -- [INS-FUN]
 fresh g (TFun x s1 t1) = do
   s2 <- fresh g s1
-  let g' = extendCtx x s1 g
+  let g' = Map.insert x s1 g
   t2 <- fresh g' t1
   return $ TFun x s2 t2
 
@@ -243,7 +223,7 @@ sub :: Type -> Type -> TC Con
 -- [SUB-BASE]
 sub t1@(TBase v1 b1 (Known p1)) t2@(TBase v2 b2 (Known p2))
   | b1 == b2  = return $ CAll v1 b1 p1 (CPred $ subst (V v1) v2 p2)
-  | otherwise = failWith $ InvalidSubtypingBase (t1,b1) (t2,b2)
+  | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
 
 -- [SUB-FUN]
 sub (TFun x1 s1 t1) (TFun x2 s2 t2) = do
@@ -252,7 +232,7 @@ sub (TFun x1 s1 t1) (TFun x2 s2 t2) = do
   cO <- cImpl x2 s2 <$> sub t1' t2
   return $ CConj cI cO
 
-sub t1 t2 = failWith $ InvalidSubtyping t1 t2
+sub t1 t2 = failWith $ InvalidSubtype t1 t2
 
 -- | Implication constraint @(x :: t) => c@.
 cImpl :: Name -> Type -> Con -> Con

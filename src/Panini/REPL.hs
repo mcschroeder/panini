@@ -1,19 +1,21 @@
 module Panini.REPL
-  ( Panini,
-    PaniniState (..),
-    paniniInitState,
-    repl,
+  ( repl,
     replSettings,
   )
 where
 
+import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
+import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Checker
+import Panini.Elaborator
 import Panini.Parser
 import Panini.Printer
 import Panini.Syntax
@@ -21,20 +23,6 @@ import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
 import Prelude
-import Control.Monad
-import Control.Monad.Trans.Class
-
--------------------------------------------------------------------------------
-
--- | Panini REPL monad.
-type Panini = StateT PaniniState IO
-
--- | Global state for Panini REPL.
-data PaniniState = PaniniState
-  {}
-
-paniniInitState :: PaniniState
-paniniInitState = PaniniState {}
 
 -------------------------------------------------------------------------------
 
@@ -52,7 +40,7 @@ repl = do
         Quit -> outputStrLn byeMsg
         Format args -> format args >> repl
         TypeCheck args -> typeCheck args >> repl
-        Eval arg -> evalDecl arg >> repl -- TODO
+        Eval arg -> evalDecl arg >> repl
         Load args -> loadModules args >> repl
 
 format :: String -> InputT Panini ()
@@ -67,27 +55,29 @@ typeCheck input =
     Left err1 -> outputStrLn err1
     Right e -> do
       opts <- getPrintOptions
-      let g0 = emptyCtx
+      let g0 = Map.empty      
       case synth g0 e of
         Left err2 -> do
           outputStrLn ""
-          outputStrLn $ Text.unpack $ printTypeError opts "<repl>" err2
+          outputStrLn $ Text.unpack $ printError opts "<repl>" err2
         Right (c, t) -> do
           outputStrLn $ Text.unpack $ printCon opts c
           outputStrLn ""
           outputStrLn $ Text.unpack $ printType opts t
-
-elabProg :: Prog -> Panini ()
-elabProg = undefined
 
 evalDecl :: String -> InputT Panini ()
 evalDecl input =
   case parseDecl "<repl>" (Text.pack input) of
     Left err1 -> outputStrLn err1
     Right decl -> do
-      opts <- getPrintOptions
-      outputStrLn $ Text.unpack $ printDecl opts decl
-      outputStrLn ""
+      ps <- lift get
+      res <- liftIO $ runExceptT $ execStateT (elabDecl decl) ps
+      case res of
+        Left err2 -> do
+          opts <- getPrintOptions
+          outputStrLn $ Text.unpack $ printError opts "<repl>" err2
+        Right ps' -> do
+          lift $ put ps'
 
 -- TODO: add state to Panini monad
 loadModules :: [String] -> InputT Panini ()
@@ -96,9 +86,9 @@ loadModules ms = forM_ ms $ \m -> do
   case parseProg m src of
     Left err1 -> outputStrLn err1
     Right prog -> do
-      --lift $ elabProg prog
+      -- lift $ elabProg prog
       opts <- getPrintOptions
-      outputStrLn $ Text.unpack $ printProg opts prog 
+      outputStrLn $ Text.unpack $ printProg opts prog
       outputStrLn ""
   return ()
 
