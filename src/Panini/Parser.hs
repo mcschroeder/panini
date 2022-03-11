@@ -2,7 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Panini.Core.Parser
+module Panini.Parser
   ( parseProg
   , parseDecl
   , parseExpr
@@ -19,7 +19,7 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
-import Panini.Core.Syntax
+import Panini.Syntax
 import Prelude
 import Text.Megaparsec
 import Text.Megaparsec.Char

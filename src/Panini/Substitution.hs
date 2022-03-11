@@ -1,7 +1,7 @@
-module Panini.Core.Substitution where
+module Panini.Substitution where
 
 import Data.List ((\\))
-import Panini.Core.Syntax
+import Panini.Syntax
 import Prelude
 
 ------------------------------------------------------------------------------

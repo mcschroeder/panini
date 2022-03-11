@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Panini.Core.Printer 
+module Panini.Printer 
   ( PrintOptions(..)
   , printProg
   , printDecl
@@ -14,8 +14,8 @@ import Control.Monad
 import Data.List (intersperse)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Panini.Core.Checker
-import Panini.Core.Syntax
+import Panini.Checker
+import Panini.Syntax
 import Prelude
 import Prettyprinter
 import Prettyprinter.Render.Util.SimpleDocTree

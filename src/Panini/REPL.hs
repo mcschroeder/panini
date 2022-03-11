@@ -13,10 +13,10 @@ import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
-import Panini.Core.Checker
-import Panini.Core.Parser
-import Panini.Core.Printer
-import Panini.Core.Syntax
+import Panini.Checker
+import Panini.Parser
+import Panini.Printer
+import Panini.Syntax
 import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
@@ -52,7 +52,7 @@ repl = do
         Quit -> outputStrLn byeMsg
         Format args -> format args >> repl
         TypeCheck args -> typeCheck args >> repl
-        Eval args -> outputStrLn args >> repl -- TODO
+        Eval arg -> evalDecl arg >> repl -- TODO
         Load args -> loadModules args >> repl
 
 format :: String -> InputT Panini ()
@@ -80,6 +80,16 @@ typeCheck input =
 elabProg :: Prog -> Panini ()
 elabProg = undefined
 
+evalDecl :: String -> InputT Panini ()
+evalDecl input =
+  case parseDecl "<repl>" (Text.pack input) of
+    Left err1 -> outputStrLn err1
+    Right decl -> do
+      opts <- getPrintOptions
+      outputStrLn $ Text.unpack $ printDecl opts decl
+      outputStrLn ""
+
+-- TODO: add state to Panini monad
 loadModules :: [String] -> InputT Panini ()
 loadModules ms = forM_ ms $ \m -> do
   src <- liftIO $ Text.readFile m

@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Panini.Core.Checker where
+module Panini.Checker where
 
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Panini.Core.Substitution
-import Panini.Core.Syntax
+import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 ------------------------------------------------------------------------------
