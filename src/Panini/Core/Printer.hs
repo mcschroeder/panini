@@ -2,6 +2,8 @@
 
 module Panini.Core.Printer 
   ( PrintOptions(..)
+  , printProg
+  , printDecl
   , printExpr
   , printType
   , printCon
@@ -26,6 +28,12 @@ data PrintOptions = PrintOptions
   , unicodeSymbols :: Bool
   , fixedWidth     :: Maybe Int
   }
+
+printProg :: PrintOptions -> Prog -> Text
+printProg opts = prettyPrint opts . pProg
+
+printDecl :: PrintOptions -> Decl -> Text
+printDecl opts = prettyPrint opts . pDecl
 
 printExpr :: PrintOptions -> Expr -> Text
 printExpr opts = prettyPrint opts . pExpr
@@ -107,6 +115,16 @@ a <\\> b = a <> hardline <> b
 
 pName :: Name -> Doc ann
 pName (Name x) = pretty x
+
+-------------------------------------------------------------------------------
+
+pProg :: Prog -> Doc Ann
+pProg = vcat . map pDecl
+
+pDecl :: Decl -> Doc Ann
+pDecl = \case
+  Assume x t -> kw "assume" <+> pName x <+> kws ":" <+> pType t
+  Define x e -> kw "define" <+> pName x <+> kws "=" <+> pExpr e
 
 -------------------------------------------------------------------------------
 

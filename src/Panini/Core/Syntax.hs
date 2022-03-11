@@ -40,15 +40,14 @@ nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
   Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i + 1)
 
 ------------------------------------------------------------------------------
--- Values
+-- Top-level declarations
 
-data Value
-  = U          -- unit
-  | B Bool     -- true, false
-  | I Integer  -- 0, -1, 1, ...
-  | S Text     -- "lorem ipsum"
-  | V Name     -- x
-  deriving stock (Eq, Ord, Show, Read)
+type Prog = [Decl]
+
+data Decl
+  = Assume Name Type   -- assume x : t
+  | Define Name Expr   -- define x = e
+  deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------
 -- Terms
@@ -63,6 +62,17 @@ data Expr
   | If Value Expr Expr       -- if x then e1 else e2
   | Ass Name Type Expr       -- assume x : t in e
   deriving stock (Show, Read)
+
+------------------------------------------------------------------------------
+-- Values
+
+data Value
+  = U          -- unit
+  | B Bool     -- true, false
+  | I Integer  -- 0, -1, 1, ...
+  | S Text     -- "lorem ipsum"
+  | V Name     -- x
+  deriving stock (Eq, Ord, Show, Read)
 
 ------------------------------------------------------------------------------
 -- Types

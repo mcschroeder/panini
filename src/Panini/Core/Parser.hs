@@ -3,7 +3,9 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Panini.Core.Parser
-  ( parseExpr
+  ( parseProg
+  , parseDecl
+  , parseExpr
   , parseConstraint
   ) where
 
@@ -25,6 +27,12 @@ import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
 
 -------------------------------------------------------------------------------
+
+parseProg :: FilePath -> Text -> Either String Prog
+parseProg = parseA (many decl)
+
+parseDecl :: FilePath -> Text -> Either String Decl
+parseDecl = parseA decl
 
 parseExpr :: FilePath -> Text -> Either String Expr
 parseExpr = parseA expr
@@ -97,6 +105,7 @@ isReserved = flip elem
   , "true", "false", "unit"
   , "bool", "int", "string"
   , "forall"
+  , "assume", "define"
   ]
 
 -- | Report a parse error at the given offset.
@@ -112,6 +121,14 @@ name = label "name" $ do
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
     else pure $ Name $ Text.pack ident
+
+-------------------------------------------------------------------------------
+
+decl :: Parser Decl
+decl = choice
+  [ Assume <$ keyword "assume" <*> name <* symbol ":" <*> type_ 
+  , Define <$ keyword "define" <*> name <* symbol "=" <*> expr
+  ]
 
 -------------------------------------------------------------------------------
 

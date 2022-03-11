@@ -12,6 +12,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
 import Data.Text qualified as Text
+import Data.Text.IO qualified as Text
 import Panini.Core.Checker
 import Panini.Core.Parser
 import Panini.Core.Printer
@@ -20,6 +21,8 @@ import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
 import Prelude
+import Control.Monad
+import Control.Monad.Trans.Class
 
 -------------------------------------------------------------------------------
 
@@ -50,6 +53,7 @@ repl = do
         Format args -> format args >> repl
         TypeCheck args -> typeCheck args >> repl
         Eval args -> outputStrLn args >> repl -- TODO
+        Load args -> loadModules args >> repl
 
 format :: String -> InputT Panini ()
 format input =
@@ -73,6 +77,21 @@ typeCheck input =
           outputStrLn ""
           outputStrLn $ Text.unpack $ printType opts t
 
+elabProg :: Prog -> Panini ()
+elabProg = undefined
+
+loadModules :: [String] -> InputT Panini ()
+loadModules ms = forM_ ms $ \m -> do
+  src <- liftIO $ Text.readFile m
+  case parseProg m src of
+    Left err1 -> outputStrLn err1
+    Right prog -> do
+      --lift $ elabProg prog
+      opts <- getPrintOptions
+      outputStrLn $ Text.unpack $ printProg opts prog 
+      outputStrLn ""
+  return ()
+
 outputExpr :: Expr -> InputT Panini ()
 outputExpr e = do
   opts <- getPrintOptions
@@ -92,6 +111,7 @@ data Command
   | Format String
   | TypeCheck String
   | Eval String
+  | Load [String]
   deriving stock (Show, Read)
 
 parseCmd :: String -> Either String Command
@@ -100,6 +120,7 @@ parseCmd (':' : input) = case break isSpace input of
     | cmd `isPrefixOf` "quit" -> Right Quit
     | cmd `isPrefixOf` "format" -> Right (Format args)
     | cmd `isPrefixOf` "type" -> Right (TypeCheck args)
+    | cmd `isPrefixOf` "load" -> Right $ Load (words args)
     | otherwise -> Left ("unknown command :" ++ cmd)
 parseCmd input = Right (Eval input)
 

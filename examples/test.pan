@@ -1,26 +1,26 @@
-type nat = { n : int | n >= 0 } in
-let eq_string = bot : s:string -> t:string -> {b:bool | b <=> s = t} in
-let eq_nat = bot : (n : nat) -> (m : nat) -> { b : bool | b <=> m = n } in
-let drop = bot : (n : nat) -> (s : string) -> { t : string | s = \Sigma^n <> t } in
-let take = bot : (n : nat) -> { s : string | |s| >= n } -> { t : string | t = \Sigma^n && s = t\Sigma^* } in
-let length = bot : (s : string) -> { n: nat | n = |s| } in
-rec empty : s:string -> {b : bool | b <=> length(s) = 0}
-= \x. 
-  let n = length x in 
+assume eq_string : s:string -> t:string -> {b:bool | b <=> s = t}
+assume eq_nat : {n:int | n >= 0} -> {m:int | n >= 0} -> {b:bool | b <=> m = n}
+assume drop : {n:int | n >= 0} -> s:string -> {t:string | s = "Sigma^n ++ t"}
+assume length : s:string -> { n:int | n >= 0 /\ n = length(s) }
+
+assume take :
+  {n:int | n >= 0} ->
+  { s:string | length(s) >= n } -> 
+  { t:string | t = "Sigma^n" /\ s = "t ++ Sigma^*" }
+
+assume empty : s:string -> {b : bool | b <=> length(s) = 0}
+define empty = \x. 
+  let n = length x in
   eq_nat 0 n
-in
-rec trim : {s : string | ?} -> {t : string | ?}
-= \x.
+
+assume trim : s:string -> {t:string | ?}
+define trim = \x.
   let b = empty x in
-  if b then 
-    epsilon
-  else
+  if b then epsilon else
     let y = take 1 x in
     let p = eq_string " " y in
-    if p then
+    if p then 
       let z = drop 1 x in
       trim z
-    else 
-      x
-in
-unit
+    else x
+      
