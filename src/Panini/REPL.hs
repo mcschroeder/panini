@@ -7,22 +7,23 @@ where
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
-import Data.Map qualified as Map
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Checker
 import Panini.Elaborator
 import Panini.Parser
+import Panini.Error
 import Panini.Printer
 import Panini.Syntax
 import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
 import Prelude
+import Control.Monad.Trans.Except
 
 -------------------------------------------------------------------------------
 
@@ -37,79 +38,48 @@ repl = do
     Just input -> case parseCmd input of
       Left err -> outputStrLn err >> repl
       Right cmd -> case cmd of
-        Quit -> outputStrLn byeMsg
-        Format args -> format args >> repl
-        TypeCheck args -> typeCheck args >> repl
-        Eval arg -> evalDecl arg >> repl
-        Load args -> loadModules args >> repl
+        Quit        -> outputStrLn byeMsg
+        Format s    -> formatInput s      >> repl
+        TypeSynth s -> synthesizeType s   >> repl
+        Load fs     -> loadFiles fs       >> repl
+        Eval expr   -> evaluateInput expr >> repl
 
-format :: String -> InputT Panini ()
-format input =
-  case parseExpr "<repl>" (Text.pack input) of
-    Left err -> outputStrLn err
-    Right ex -> outputExpr ex
+formatInput :: String -> InputT Panini ()
+formatInput = mapM_ output . parseInput @Expr
 
-typeCheck :: String -> InputT Panini ()
-typeCheck input =
-  case parseExpr "<repl>" (Text.pack input) of
-    Left err1 -> outputStrLn err1
-    Right e -> do
-      opts <- getPrintOptions
-      let g0 = Map.empty      
-      case synth g0 e of
-        Left err2 -> do
-          outputStrLn ""
-          outputStrLn $ Text.unpack $ printError opts "<repl>" err2
-        Right (c, t) -> do
-          outputStrLn $ Text.unpack $ printCon opts c
-          outputStrLn ""
-          outputStrLn $ Text.unpack $ printType opts t
+synthesizeType :: String -> InputT Panini ()
+synthesizeType input = do
+  g <- lift $ gets pan_types
+  case synth g =<< parseInput input of
+    Left err -> output err
+    Right (vc, t) -> do
+      output vc
+      output t
 
-evalDecl :: String -> InputT Panini ()
-evalDecl input =
-  case parseDecl "<repl>" (Text.pack input) of
-    Left err1 -> outputStrLn err1
-    Right decl -> do
-      ps <- lift get
-      res <- liftIO $ runExceptT $ execStateT (elabDecl decl) ps
-      case res of
-        Left err2 -> do
-          opts <- getPrintOptions
-          outputStrLn $ Text.unpack $ printError opts "<repl>" err2
-        Right ps' -> do
-          lift $ put ps'
+evaluateInput :: String -> InputT Panini ()
+evaluateInput input = do
+  res <- lift $ tryError $ elabDecl =<< lift (except $ parseInput input)  
+  case res of
+    Left err -> output err
+    Right () -> return ()
 
--- TODO: add state to Panini monad
-loadModules :: [String] -> InputT Panini ()
-loadModules ms = forM_ ms $ \m -> do
-  src <- liftIO $ Text.readFile m
-  case parseProg m src of
-    Left err1 -> outputStrLn err1
+loadFiles :: [FilePath] -> InputT Panini ()
+loadFiles fs = forM_ fs $ \f -> do
+  src <- liftIO $ Text.readFile f
+  case parseProg f src of
+    Left err1 -> output err1
     Right prog -> do
-      -- lift $ elabProg prog
-      opts <- getPrintOptions
-      outputStrLn $ Text.unpack $ printProg opts prog
-      outputStrLn ""
-  return ()
-
-outputExpr :: Expr -> InputT Panini ()
-outputExpr e = do
-  opts <- getPrintOptions
-  let t = printExpr opts e
-  outputStrLn $ Text.unpack t
-
-getPrintOptions :: InputT Panini PrintOptions
-getPrintOptions = liftIO $ do
-  ansiColors <- hSupportsANSIColor stdout
-  fixedWidth <- fmap snd <$> getTerminalSize
-  return PrintOptions {unicodeSymbols = True, ansiColors, fixedWidth}
+      res <- lift $ tryError $ elabProg prog
+      case res of
+        Left err2 -> output err2
+        Right () -> return ()
 
 -------------------------------------------------------------------------------
 
 data Command
   = Quit
   | Format String
-  | TypeCheck String
+  | TypeSynth String
   | Eval String
   | Load [String]
   deriving stock (Show, Read)
@@ -119,7 +89,7 @@ parseCmd (':' : input) = case break isSpace input of
   (map toLower -> cmd, dropWhile isSpace -> args)
     | cmd `isPrefixOf` "quit" -> Right Quit
     | cmd `isPrefixOf` "format" -> Right (Format args)
-    | cmd `isPrefixOf` "type" -> Right (TypeCheck args)
+    | cmd `isPrefixOf` "type" -> Right (TypeSynth args)
     | cmd `isPrefixOf` "load" -> Right $ Load (words args)
     | otherwise -> Left ("unknown command :" ++ cmd)
 parseCmd input = Right (Eval input)
@@ -142,3 +112,38 @@ autocomplete = completeWord' Nothing isSpace $ \str -> do
     else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
   where
     cmds = [":quit", ":format", ":type"]
+
+-------------------------------------------------------------------------------
+
+class Inputable a where
+  parseInput :: String -> Either Error a
+
+instance Inputable Expr where
+  parseInput = parseExpr "<repl>" . Text.pack
+
+instance Inputable Decl where
+  parseInput = parseDecl "<repl>" . Text.pack
+
+-------------------------------------------------------------------------------
+
+class Outputable a where
+  renderOutput :: PrintOptions -> a -> Text
+
+instance Outputable Expr where
+  renderOutput = printExpr
+
+instance Outputable Con where
+  renderOutput = printCon
+
+instance Outputable Type where
+  renderOutput = printType
+
+instance Outputable Error where
+  renderOutput opts = printError opts "<repl>"
+
+output :: Outputable a => a -> InputT Panini ()
+output x = do
+  ansiColors <- liftIO $ hSupportsANSIColor stdout
+  fixedWidth <- liftIO $ fmap snd <$> getTerminalSize
+  let opts = PrintOptions {unicodeSymbols = True, ansiColors, fixedWidth}
+  outputStrLn $ Text.unpack $ renderOutput opts x

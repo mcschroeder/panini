@@ -11,5 +11,7 @@ data Error
   | InvalidSubtype Type Type
   | ExpectedFunType Expr Type
   | CantSynth Expr
+  | ParserError String
   deriving stock (Show, Read)
 
+-- TODO: add source location information to errors

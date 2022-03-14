@@ -327,6 +327,8 @@ pError = bullets . \case
       pExpr e
     ]
 
+  ParserError e -> [pretty e]
+
 msg :: Text -> Doc Ann
 msg = annotate Message . pretty
 

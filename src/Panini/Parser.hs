@@ -19,6 +19,7 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
+import Panini.Error
 import Panini.Syntax
 import Prelude
 import Text.Megaparsec
@@ -28,20 +29,20 @@ import Text.Printf
 
 -------------------------------------------------------------------------------
 
-parseProg :: FilePath -> Text -> Either String Prog
+parseProg :: FilePath -> Text -> Either Error Prog
 parseProg = parseA (many decl)
 
-parseDecl :: FilePath -> Text -> Either String Decl
+parseDecl :: FilePath -> Text -> Either Error Decl
 parseDecl = parseA decl
 
-parseExpr :: FilePath -> Text -> Either String Expr
+parseExpr :: FilePath -> Text -> Either Error Expr
 parseExpr = parseA expr
 
-parseConstraint :: FilePath -> Text -> Either String Con
+parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint
 
-parseA :: Parser a -> FilePath -> Text -> Either String a
-parseA p fp = first errorBundlePretty . parse (p <* eof) fp
+parseA :: Parser a -> FilePath -> Text -> Either Error a
+parseA p fp = first (ParserError . errorBundlePretty) . parse (p <* eof) fp
 
 -------------------------------------------------------------------------------
 

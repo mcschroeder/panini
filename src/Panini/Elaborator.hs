@@ -23,6 +23,9 @@ throwError = lift . throwE
 catchError :: Panini a -> (Error -> Panini a) -> Panini a
 catchError = liftCatch catchE
 
+tryError :: Panini a -> Panini (Either Error a)
+tryError m = catchError (Right <$> m) (return . Left)
+
 -- | Elaborator state.
 data PanState = PanState
   { pan_types :: Ctx            -- ^ global typing context (Gamma)
@@ -41,7 +44,7 @@ initState = PanState
 -------------------------------------------------------------------------------
 
 elabProg :: Prog -> Panini ()
-elabProg = undefined
+elabProg = mapM_ elabDecl
 
 elabDecl :: Decl -> Panini ()
 elabDecl (Assume x t) = do
@@ -62,3 +65,6 @@ elabDecl (Define x e) = do
         vc <- lift $ except $ check gamma e t
         modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
         modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
+
+solve :: Panini ()
+solve = undefined
