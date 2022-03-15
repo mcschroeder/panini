@@ -2,16 +2,22 @@
 
 module Panini.Printer 
   ( PrintOptions(..)
+  , prettyPrint
   , printProg
   , printDecl
   , printExpr
   , printType
   , printCon
   , printError
+  , pTypeCtx
+  , pTermCtx
+  , pConCtx
   ) where
 
 import Control.Monad
 import Data.List (intersperse)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Error
@@ -110,6 +116,23 @@ a <\> b = a <> line <> b
 -- | Inserts a hard linebreak.
 (<\\>) :: Doc ann -> Doc ann -> Doc ann
 a <\\> b = a <> hardline <> b
+
+-------------------------------------------------------------------------------
+
+pTypeCtx :: Map Name Type -> Doc Ann
+pTypeCtx = vcat . map go . Map.toList
+  where
+    go (x,t) = pName x <+> sym ":" <+> pType t    
+
+pTermCtx :: Map Name Expr -> Doc Ann
+pTermCtx = vcat . map go . Map.toList
+  where
+    go (x,e) = pName x <+> sym "=" <+> pExpr e
+
+pConCtx :: Map Name Con -> Doc Ann
+pConCtx = vcat . map go . Map.toList
+  where
+    go (x,c) = pName x <+> "requires" <+> annotate Predicate (pCon c)
 
 -------------------------------------------------------------------------------
 

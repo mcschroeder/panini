@@ -11,6 +11,8 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -43,6 +45,7 @@ repl = do
         TypeSynth s -> synthesizeType s   >> repl
         Load fs     -> loadFiles fs       >> repl
         Eval expr   -> evaluateInput expr >> repl
+        Show        -> showState          >> repl
 
 formatInput :: String -> InputT Elab ()
 formatInput = mapM_ output . parseInput @Expr
@@ -74,6 +77,16 @@ loadFiles fs = forM_ fs $ \f -> do
         Left err2 -> output err2
         Right () -> return ()
 
+showState :: InputT Elab ()
+showState = do
+  ElabState{pan_types, pan_terms, pan_vcs} <- lift get
+  outputStrLn "\ntyping context"
+  output pan_types
+  outputStrLn "\nterm context"
+  output pan_terms
+  outputStrLn "\nverification conditions"
+  output pan_vcs
+
 -------------------------------------------------------------------------------
 
 data Command
@@ -82,6 +95,7 @@ data Command
   | TypeSynth String
   | Eval String
   | Load [String]
+  | Show
   deriving stock (Show, Read)
 
 parseCmd :: String -> Either String Command
@@ -91,6 +105,7 @@ parseCmd (':' : input) = case break isSpace input of
     | cmd `isPrefixOf` "format" -> Right (Format args)
     | cmd `isPrefixOf` "type" -> Right (TypeSynth args)
     | cmd `isPrefixOf` "load" -> Right $ Load (words args)
+    | cmd `isPrefixOf` "show" -> Right Show
     | otherwise -> Left ("unknown command :" ++ cmd)
 parseCmd input = Right (Eval input)
 
@@ -111,7 +126,7 @@ autocomplete = completeWord' Nothing isSpace $ \str -> do
     then return []
     else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
   where
-    cmds = [":quit", ":format", ":type"]
+    cmds = [":quit", ":format", ":type", ":load", ":show"]
 
 -------------------------------------------------------------------------------
 
@@ -140,6 +155,15 @@ instance Outputable Type where
 
 instance Outputable Error where
   renderOutput opts = printError opts "<repl>"
+
+instance Outputable (Map Name Type) where
+  renderOutput opts = prettyPrint opts . pTypeCtx
+
+instance Outputable (Map Name Expr) where
+  renderOutput opts = prettyPrint opts . pTermCtx
+
+instance Outputable (Map Name Con) where
+  renderOutput opts = prettyPrint opts . pConCtx
 
 output :: Outputable a => a -> InputT Elab ()
 output x = do
