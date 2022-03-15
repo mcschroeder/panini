@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Panini.Checker where
+module Panini.TypeChecker where
 
 import Data.Map (Map)
 import Data.Map qualified as Map

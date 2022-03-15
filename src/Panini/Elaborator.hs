@@ -5,9 +5,9 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Panini.Checker
 import Panini.Error
 import Panini.Syntax
+import Panini.TypeChecker
 import Prelude
 
 -------------------------------------------------------------------------------

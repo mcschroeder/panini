@@ -7,23 +7,23 @@ where
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
-import Panini.Checker
 import Panini.Elaborator
-import Panini.Parser
 import Panini.Error
+import Panini.Parser
 import Panini.Printer
 import Panini.Syntax
+import Panini.TypeChecker
+import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
-import Prelude
-import Control.Monad.Trans.Except
 
 -------------------------------------------------------------------------------
 
