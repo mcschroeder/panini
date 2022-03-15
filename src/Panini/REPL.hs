@@ -28,7 +28,7 @@ import System.IO
 -------------------------------------------------------------------------------
 
 -- | Panini REPL.
-repl :: InputT Panini ()
+repl :: InputT Elab ()
 repl = do
   let prompt = "Panini> "
   let byeMsg = "byeee 👋"
@@ -44,10 +44,10 @@ repl = do
         Load fs     -> loadFiles fs       >> repl
         Eval expr   -> evaluateInput expr >> repl
 
-formatInput :: String -> InputT Panini ()
+formatInput :: String -> InputT Elab ()
 formatInput = mapM_ output . parseInput @Expr
 
-synthesizeType :: String -> InputT Panini ()
+synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do
   g <- lift $ gets pan_types
   case synth g =<< parseInput input of
@@ -56,14 +56,14 @@ synthesizeType input = do
       output vc
       output t
 
-evaluateInput :: String -> InputT Panini ()
+evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
   res <- lift $ tryError $ elabDecl =<< lift (except $ parseInput input)  
   case res of
     Left err -> output err
     Right () -> return ()
 
-loadFiles :: [FilePath] -> InputT Panini ()
+loadFiles :: [FilePath] -> InputT Elab ()
 loadFiles fs = forM_ fs $ \f -> do
   src <- liftIO $ Text.readFile f
   case parseProg f src of
@@ -97,7 +97,7 @@ parseCmd input = Right (Eval input)
 -------------------------------------------------------------------------------
 
 -- | Panini REPL settings with working autocomplete.
-replSettings :: Maybe FilePath -> Settings Panini
+replSettings :: Maybe FilePath -> Settings Elab
 replSettings histFile =
   Settings
     { complete = autocomplete,
@@ -105,7 +105,7 @@ replSettings histFile =
       autoAddHistory = True
     }
 
-autocomplete :: CompletionFunc Panini
+autocomplete :: CompletionFunc Elab
 autocomplete = completeWord' Nothing isSpace $ \str -> do
   if null str
     then return []
@@ -141,7 +141,7 @@ instance Outputable Type where
 instance Outputable Error where
   renderOutput opts = printError opts "<repl>"
 
-output :: Outputable a => a -> InputT Panini ()
+output :: Outputable a => a -> InputT Elab ()
 output x = do
   ansiColors <- liftIO $ hSupportsANSIColor stdout
   fixedWidth <- liftIO $ fmap snd <$> getTerminalSize
