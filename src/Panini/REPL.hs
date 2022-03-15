@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Panini.REPL
   ( repl,
     replSettings,
@@ -11,9 +13,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf)
-import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Elaborator
@@ -48,44 +48,44 @@ repl = do
         Show        -> showState          >> repl
 
 formatInput :: String -> InputT Elab ()
-formatInput = mapM_ output . parseInput @Expr
+formatInput = mapM_ outputPretty . parseInput @Expr
 
 synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do
   g <- lift $ gets pan_types
   case synth g =<< parseInput input of
-    Left err -> output err
+    Left err -> outputPretty $ ErrorLoc "<repl>" err
     Right (vc, t) -> do
-      output vc
-      output t
+      outputPretty vc
+      outputPretty t
 
 evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
   res <- lift $ tryError $ elabDecl =<< lift (except $ parseInput input)  
   case res of
-    Left err -> output err
+    Left err -> outputPretty $ ErrorLoc "<repl>" err
     Right () -> return ()
 
 loadFiles :: [FilePath] -> InputT Elab ()
 loadFiles fs = forM_ fs $ \f -> do
   src <- liftIO $ Text.readFile f
   case parseProg f src of
-    Left err1 -> output err1
+    Left err1 -> outputPretty $ ErrorLoc "<repl>" err1
     Right prog -> do
       res <- lift $ tryError $ elabProg prog
       case res of
-        Left err2 -> output err2
+        Left err2 -> outputPretty $ ErrorLoc "<repl>" err2
         Right () -> return ()
 
 showState :: InputT Elab ()
 showState = do
   ElabState{pan_types, pan_terms, pan_vcs} <- lift get
   outputStrLn "\ntyping context"
-  output pan_types
+  mapM_ outputPretty $ Map.toList pan_types
   outputStrLn "\nterm context"
-  output pan_terms
+  mapM_ outputPretty $ Map.toList pan_terms
   outputStrLn "\nverification conditions"
-  output pan_vcs
+  mapM_ outputPretty $ Map.toList pan_vcs
 
 -------------------------------------------------------------------------------
 
@@ -141,33 +141,9 @@ instance Inputable Decl where
 
 -------------------------------------------------------------------------------
 
-class Outputable a where
-  renderOutput :: PrintOptions -> a -> Text
-
-instance Outputable Expr where
-  renderOutput = printExpr
-
-instance Outputable Con where
-  renderOutput = printCon
-
-instance Outputable Type where
-  renderOutput = printType
-
-instance Outputable Error where
-  renderOutput opts = printError opts "<repl>"
-
-instance Outputable (Map Name Type) where
-  renderOutput opts = prettyPrint opts . pTypeCtx
-
-instance Outputable (Map Name Expr) where
-  renderOutput opts = prettyPrint opts . pTermCtx
-
-instance Outputable (Map Name Con) where
-  renderOutput opts = prettyPrint opts . pConCtx
-
-output :: Outputable a => a -> InputT Elab ()
-output x = do
+outputPretty :: Pretty a => a -> InputT Elab ()
+outputPretty x = do
   ansiColors <- liftIO $ hSupportsANSIColor stdout
   fixedWidth <- liftIO $ fmap snd <$> getTerminalSize
-  let opts = PrintOptions {unicodeSymbols = True, ansiColors, fixedWidth}
-  outputStrLn $ Text.unpack $ renderOutput opts x
+  let opts = RenderOptions {unicodeSymbols = True, ansiColors, fixedWidth}
+  outputStrLn $ Text.unpack $ renderDoc opts $ pretty x

@@ -1,104 +1,83 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Panini.Printer 
-  ( PrintOptions(..)
-  , prettyPrint
-  , printProg
-  , printDecl
-  , printExpr
-  , printType
-  , printCon
-  , printError
-  , pTypeCtx
-  , pTermCtx
-  , pConCtx
+  ( Pretty(..)
+  , RenderOptions(..)
+  , renderDoc
+  , ErrorLoc(..)
   ) where
 
 import Control.Monad
 import Data.List (intersperse)
-import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Error
 import Panini.Syntax
 import Prelude
-import Prettyprinter
+import Prettyprinter hiding (Pretty(..))
+import Prettyprinter qualified
 import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI
 
 -------------------------------------------------------------------------------
 
-data PrintOptions = PrintOptions 
+data Ann = Keyword | Symbol | Predicate | Message | Error
+
+-- | Our custom pretty-printing class, fixing `Doc` annotations to `Ann`.
+class Pretty a where
+  pretty :: a -> Doc Ann
+
+instance Pretty Text where pretty = Prettyprinter.pretty
+instance Pretty String where pretty = Prettyprinter.pretty
+instance Pretty Integer where pretty = Prettyprinter.pretty
+
+instance (Pretty a, Pretty b) => Pretty (a, b) where 
+  pretty (a,b) = "(" <> pretty a <> "," <+> pretty b <> ")"
+
+-------------------------------------------------------------------------------
+
+data RenderOptions = RenderOptions 
   { ansiColors     :: Bool
   , unicodeSymbols :: Bool
   , fixedWidth     :: Maybe Int
   }
 
-printProg :: PrintOptions -> Prog -> Text
-printProg opts = prettyPrint opts . pProg
-
-printDecl :: PrintOptions -> Decl -> Text
-printDecl opts = prettyPrint opts . pDecl
-
-printExpr :: PrintOptions -> Expr -> Text
-printExpr opts = prettyPrint opts . pExpr
-
-printType :: PrintOptions -> Type -> Text
-printType opts = prettyPrint opts . pType
-
-printCon :: PrintOptions -> Con -> Text
-printCon opts = prettyPrint opts . annotate Predicate . pCon
-
-printError :: PrintOptions -> FilePath -> Error -> Text
-printError opts fp err = 
-  let loc = pretty fp <> ":"
-      typ = annotate Error "error:"
-      str = annotate Message (loc <+> typ) <\\> pError err
-  in prettyPrint opts $ nest 2 str
-
--------------------------------------------------------------------------------
-
-prettyPrint :: PrintOptions -> Doc Ann -> Text
-prettyPrint o = 
+renderDoc :: RenderOptions -> Doc Ann -> Text
+renderDoc opts = 
   renderSimplyDecorated renderT renderA . treeForm . layoutSmart layoutOpt
  where
   layoutOpt = defaultLayoutOptions { layoutPageWidth = pw }
-  pw = maybe Unbounded (\w -> AvailablePerLine w 1) o.fixedWidth
+  pw = maybe Unbounded (\w -> AvailablePerLine w 1) opts.fixedWidth
   renderT = id
   renderA = liftM2 (.) 
-      (if o.ansiColors     then colorize  else const id) 
-      (if o.unicodeSymbols then unicodify else const id)
+      (if opts.ansiColors     then colorize  else const id) 
+      (if opts.unicodeSymbols then unicodify else const id)
 
-colorize :: Ann -> Text -> Text
-colorize = \case
-  Keyword   -> sgr [SetConsoleIntensity BoldIntensity]
-  Predicate -> sgr [SetColor Foreground Vivid Blue]
-  Message   -> sgr [SetConsoleIntensity BoldIntensity]
-  Error     -> sgr [SetColor Foreground Vivid Red]
-  _         -> id
- where
+  colorize = \case
+    Keyword   -> sgr [SetConsoleIntensity BoldIntensity]
+    Predicate -> sgr [SetColor Foreground Vivid Blue]
+    Message   -> sgr [SetConsoleIntensity BoldIntensity]
+    Error     -> sgr [SetColor Foreground Vivid Red]
+    _         -> id
+ 
   sgr c t = Text.pack (setSGRCode c) <> t <> Text.pack (setSGRCode [Reset])
 
-unicodify :: Ann -> Text -> Text
-unicodify Symbol = \case
-  "/\\" -> "∧"
-  "\\/" -> "∨"
-  ">="  -> "≥"
-  "<="  -> "≤"
-  "~"   -> "¬"
-  "/="  -> "≠"
-  "==>" -> "⇒"
-  "<=>" -> "⇔"
-  "->"  -> "→"
-  "\\"  -> "λ"
-  "forall " -> "∀"  -- note the extra space
-  x     -> x
-unicodify _ = id
+  unicodify Symbol = \case
+    "/\\" -> "∧"
+    "\\/" -> "∨"
+    ">="  -> "≥"
+    "<="  -> "≤"
+    "~"   -> "¬"
+    "/="  -> "≠"
+    "==>" -> "⇒"
+    "<=>" -> "⇔"
+    "->"  -> "→"
+    "\\"  -> "λ"
+    "forall " -> "∀"  -- note the extra space
+    x     -> x
+  unicodify _ = id
 
 -------------------------------------------------------------------------------
-
-data Ann = Keyword | Symbol | Predicate | Message | Error
 
 kw :: Text -> Doc Ann
 kw = annotate Keyword . pretty
@@ -119,73 +98,50 @@ a <\\> b = a <> hardline <> b
 
 -------------------------------------------------------------------------------
 
-pTypeCtx :: Map Name Type -> Doc Ann
-pTypeCtx = vcat . map go . Map.toList
-  where
-    go (x,t) = pName x <+> sym ":" <+> pType t    
-
-pTermCtx :: Map Name Expr -> Doc Ann
-pTermCtx = vcat . map go . Map.toList
-  where
-    go (x,e) = pName x <+> sym "=" <+> pExpr e
-
-pConCtx :: Map Name Con -> Doc Ann
-pConCtx = vcat . map go . Map.toList
-  where
-    go (x,c) = pName x <+> "requires" <+> annotate Predicate (pCon c)
+instance Pretty Name where
+  pretty (Name x) = pretty x
 
 -------------------------------------------------------------------------------
 
-pName :: Name -> Doc ann
-pName (Name x) = pretty x
+instance Pretty Prog where
+  pretty = vcat . map pretty
+
+instance Pretty Decl where
+  pretty (Assume x t) = kw "assume" <+> pretty x <+> kws ":" <+> pretty t
+  pretty (Define x e) = kw "define" <+> pretty x <+> kws "=" <+> pretty e
 
 -------------------------------------------------------------------------------
 
-pProg :: Prog -> Doc Ann
-pProg = vcat . map pDecl
-
-pDecl :: Decl -> Doc Ann
-pDecl = \case
-  Assume x t -> kw "assume" <+> pName x <+> kws ":" <+> pType t
-  Define x e -> kw "define" <+> pName x <+> kws "=" <+> pExpr e
-
--------------------------------------------------------------------------------
-
-pExpr :: Expr -> Doc Ann
-pExpr = \case
-  Val x -> pValue x
-  App e x -> pExpr e <+> pValue x    
+instance Pretty Expr where
+  pretty (Val x) = pretty x
+  pretty (App e x) = pretty e <+> pretty x  
+  pretty (Lam x e) = nest 2 $ group $ kws "\\" <> pretty x <> kws "." <\> pretty e
+  pretty (Ann e t) = pretty e <+> kws ":" <+> pretty t
+  pretty (Let x e1 e2) = 
+    kw "let" <+> pretty x <+> kws "=" <+> group (pretty e1 <\> kw "in") <\\> 
+    pretty e2
   
-  Lam x e -> nest 2 $ group $ kws "\\" <> pName x <> kws "." <\> pExpr e
+  pretty (Rec x t e1 e2) =
+    kw "rec" <+> pretty x <+> kws ":" <+> pretty t <\> 
+    kws "=" <+> group (pretty e1 <\> kw "in") <\\>
+    pretty e2
   
-  Ann e t -> pExpr e <+> kws ":" <+> pType t
+  pretty (If x e1 e2) = group $
+    kw "if" <+> pretty x <+> 
+    nest 2 (kw "then" <\> pretty e1) <\> 
+    nest 2 (kw "else" <\> pretty e2)
 
-  Let x e1 e2 -> 
-    kw "let" <+> pName x <+> kws "=" <+> group (pExpr e1 <\> kw "in") <\\>
-    pExpr e2
-  
-  Rec x t e1 e2 -> 
-    kw "rec" <+> pName x <+> kws ":" <+> pType t <\> 
-    kws "=" <+> group (pExpr e1 <\> kw "in") <\\>
-    pExpr e2
-  
-  If x e1 e2 -> group $
-    kw "if" <+> pValue x <+> 
-    nest 2 (kw "then" <\> pExpr e1) <\> 
-    nest 2 (kw "else" <\> pExpr e2)
+  pretty (Ass x t e) =
+    kw "assume" <+> pretty x <+> kws ":" <+> pretty t <+> kw "in" <\\>
+    pretty e
 
-  Ass x t e ->
-    kw "assume" <+> pName x <+> kws ":" <+> pType t <+> kw "in" <\\>
-    pExpr e
-
-pValue :: Value -> Doc Ann
-pValue = \case
-  U -> "unit"
-  B True -> "true"
-  B False -> "false"
-  I c -> pretty c
-  S t -> viaShow t
-  V x -> pName x
+instance Pretty Value where
+  pretty U = "unit"
+  pretty (B True) = "true"
+  pretty (B False) = "false"
+  pretty (I c) = pretty c
+  pretty (S t) = viaShow t
+  pretty (V x) = pretty x
 
 -------------------------------------------------------------------------------
 
@@ -197,63 +153,60 @@ arr :: Doc Ann -> Doc Ann -> Doc Ann
 arr a b = a <+> sym "->" <+> b
 
 col :: Name -> Doc Ann -> Doc Ann
-col x a = pName x <> sym ":" <> a
+col x a = pretty x <> sym ":" <> a
 
-pType :: Type -> Doc Ann
-pType = \case
-  TFun x t1@(TBase v t r) t2 
-    | x == v, isT r, isDummy x ->         pBaseTy t `arr` pType t2
-    | x == v, isT r            -> x `col` pBaseTy t `arr` pType t2
-    | x == v                   ->         pType t1  `arr` pType t2
+instance Pretty Type where
+  pretty (TFun x t1@(TBase v t r) t2)
+    | x == v, isT r, isDummy x =         pretty t  `arr` pretty t2
+    | x == v, isT r            = x `col` pretty t  `arr` pretty t2
+    | x == v                   =         pretty t1 `arr` pretty t2
   
-  TFun x t1@(TFun _ _ _) t2 
-    | isDummy x ->         parens (pType t1) `arr` pType t2
-    | otherwise -> x `col` parens (pType t1) `arr` pType t2
+  pretty (TFun x t1@(TFun _ _ _) t2)
+    | isDummy x =         parens (pretty t1) `arr` pretty t2
+    | otherwise = x `col` parens (pretty t1) `arr` pretty t2
   
-  TFun x t1 t2     
-    | isDummy x ->         pType t1 `arr` pType t2
-    | otherwise -> x `col` pType t1 `arr` pType t2
+  pretty (TFun x t1 t2)
+    | isDummy x =         pretty t1 `arr` pretty t2
+    | otherwise = x `col` pretty t1 `arr` pretty t2
 
-  TBase v t r 
-    | isT r, isDummy v ->                  pBaseTy t
-    | otherwise        -> braces $ v `col` pBaseTy t <+> "|" <+> pReft r
+  pretty (TBase v t r)
+    | isT r, isDummy v =                  pretty t
+    | otherwise        = braces $ v `col` pretty t <+> "|" <+> pretty r
 
-pBaseTy :: Base -> Doc Ann
-pBaseTy = \case
-  TUnit -> "unit"
-  TBool -> "bool"
-  TInt -> "int"
-  TString -> "string"
+instance Pretty Base where
+  pretty TUnit = "unit"
+  pretty TBool = "bool"
+  pretty TInt = "int"
+  pretty TString = "string"
 
 -------------------------------------------------------------------------------
 
-pReft :: Reft -> Doc Ann
-pReft = \case
-  Unknown -> sym "?"
-  Known p -> annotate Predicate $ pPred p
+instance Pretty Reft where
+  pretty Unknown = sym "?"
+  pretty (Known p) = pretty p
 
-pPred :: Pred -> Doc Ann
-pPred p0 = case p0 of
-  PVal x -> pValue x
-  PFun f ps -> pName f <> (parens $ mconcat $ intersperse "," $ map pPred ps)
-  PNot p1 -> prettyUnary p0 p1 (sym "~")
-  PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
-  PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
-  PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
-  PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
-  PRel Neq p1 p2 -> prettyOp p0 p1 p2 (sym "/=")
-  PRel Eq p1 p2  -> prettyOp p0 p1 p2 (sym "=")
-  PRel Leq p1 p2 -> prettyOp p0 p1 p2 (sym "<=")
-  PRel Lt p1 p2  -> prettyOp p0 p1 p2 (sym "<")
-  PRel Geq p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
-  PRel Gt p1 p2  -> prettyOp p0 p1 p2 (sym ">")
-  PConj p1 p2    -> prettyOp p0 p1 p2 (sym "/\\")
-  PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
-  PImpl p1 p2    -> prettyOp p0 p1 p2 (sym "==>")
-  PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
+instance Pretty Pred where
+  pretty p0 = annotate Predicate $ case p0 of
+    PVal x -> pretty x
+    PFun f ps -> pretty f <> (parens $ mconcat $ intersperse "," $ map pretty ps)
+    PNot p1 -> prettyUnary p0 p1 (sym "~")
+    PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
+    PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
+    PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
+    PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
+    PRel Neq p1 p2 -> prettyOp p0 p1 p2 (sym "/=")
+    PRel Eq p1 p2  -> prettyOp p0 p1 p2 (sym "=")
+    PRel Leq p1 p2 -> prettyOp p0 p1 p2 (sym "<=")
+    PRel Lt p1 p2  -> prettyOp p0 p1 p2 (sym "<")
+    PRel Geq p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
+    PRel Gt p1 p2  -> prettyOp p0 p1 p2 (sym ">")
+    PConj p1 p2    -> prettyOp p0 p1 p2 (sym "/\\")
+    PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
+    PImpl p1 p2    -> prettyOp p0 p1 p2 (sym "==>")
+    PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
 
 prettyUnary :: Pred -> Pred -> Doc Ann -> Doc Ann
-prettyUnary o l docO = docO <> parensIf (pO > pL) (pPred l)
+prettyUnary o l docO = docO <> parensIf (pO > pL) (pretty l)
  where
    (pO, _) = fixity o
    (pL, _) = fixity l
@@ -268,8 +221,8 @@ prettyOp o l r docO = case a of
    (pO, a) = fixity o
    (pL, _) = fixity l
    (pR, _) = fixity r
-   docL = pPred l
-   docR = pPred r
+   docL = pretty l
+   docR = pretty r
 
 parensIf :: Bool -> Doc ann -> Doc ann
 parensIf x = if x then parens else id
@@ -300,14 +253,14 @@ instance Fixity Pred where
 
 -------------------------------------------------------------------------------
 
-pCon :: Con -> Doc Ann
-pCon = \case
-  CPred p -> parensIf (hasLogic p) (pPred p)
-  CConj c1 c2 -> pCon c1  <+> sym "/\\" <+> pCon c2 
-  CAll x b p c  -> 
-    sym "forall " <> pName x <> sym ":" <> pBaseTy b <> sym "." <+> pPred p <+>
-    sym "==>" <+>
-    pCon c    
+instance Pretty Con where
+  pretty = annotate Predicate . \case
+    CPred p -> parensIf (hasLogic p) (pretty p)
+    CConj c1 c2 -> pretty c1  <+> sym "/\\" <+> pretty c2 
+    CAll x b p c ->
+      sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p <+>
+      sym "==>" <+>
+      pretty c    
 
 hasLogic :: Pred -> Bool
 hasLogic = \case
@@ -322,35 +275,44 @@ hasLogic = \case
 
 -------------------------------------------------------------------------------
 
-pError :: Error -> Doc Ann
-pError = bullets . \case
-  AlreadyDefined x ->
-    [ pName x <+> "is already defined" ]
+-- TODO: replace with proper location annotations
+data ErrorLoc = ErrorLoc FilePath Error
+instance Pretty ErrorLoc where
+  pretty (ErrorLoc fp err) =
+    let loc = pretty fp <> ":"
+        typ = annotate Error "error:"
+        str = annotate Message (loc <+> typ) <\\> pretty err
+    in nest 2 str
 
-  InvalidSubtypeBase (t1,b1) (t2,b2) ->
-    [ pBaseTy b1 <+> msg "is not a subtype of" <+> pBaseTy b2
-    , group $ nest 4 (msg "Therefore," <\> pType t1) <\> 
-              nest 4 (msg "is not a subtype of" <\> pType t2)
-    ]
+instance Pretty Error where
+  pretty = bullets . \case
+    AlreadyDefined x ->
+      [ pretty x <+> "is already defined" ]
 
-  InvalidSubtype t1 t2 ->
-    [ pType t1 <+> msg "is not a subtype of" <+> pType t2 ]
+    InvalidSubtypeBase (t1,b1) (t2,b2) ->
+      [ pretty b1 <+> msg "is not a subtype of" <+> pretty b2
+      , group $ nest 4 (msg "Therefore," <\> pretty t1) <\> 
+                nest 4 (msg "is not a subtype of" <\> pretty t2)
+      ]
 
-  VarNotInScope n -> [ msg "Variable not in scope:" <+> pName n ]
+    InvalidSubtype t1 t2 ->
+      [ pretty t1 <+> msg "is not a subtype of" <+> pretty t2 ]
 
-  MissingType n -> [ msg "Missing type definition for" <+> pName n ]
+    VarNotInScope n -> [ msg "Variable not in scope:" <+> pretty n ]
+
+    MissingType n -> [ msg "Missing type definition for" <+> pretty n ]
   
-  ExpectedFunType e t -> 
-    [ pType t <+> msg "is not a function type"
-    , group $ nest 4 $ msg "Expected a function type for expression:" <\> pExpr e
-    ]
+    ExpectedFunType e t -> 
+      [ pretty t <+> msg "is not a function type"
+      , group $ nest 4 $ msg "Expected a function type for expression:" <\> pretty e
+      ]
 
-  CantSynth e ->
-    [ nest 4 $ group $ msg "Can't synthesize type for expression:" <\> 
-      pExpr e
-    ]
+    CantSynth e ->
+      [ nest 4 $ group $ msg "Can't synthesize type for expression:" <\> 
+        pretty e
+      ]
 
-  ParserError e -> [pretty e]
+    ParserError e -> [pretty e]
 
 msg :: Text -> Doc Ann
 msg = annotate Message . pretty
