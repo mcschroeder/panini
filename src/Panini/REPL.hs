@@ -54,7 +54,7 @@ synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do
   g <- lift $ gets pan_types
   case synth g =<< parseInput input of
-    Left err -> outputPretty $ ErrorLoc "<repl>" err
+    Left err -> outputPretty err
     Right (vc, t) -> do
       outputPretty vc
       outputPretty t
@@ -63,18 +63,18 @@ evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
   res <- lift $ tryError $ elabDecl =<< lift (except $ parseInput input)  
   case res of
-    Left err -> outputPretty $ ErrorLoc "<repl>" err
+    Left err -> outputPretty err
     Right () -> return ()
 
 loadFiles :: [FilePath] -> InputT Elab ()
 loadFiles fs = forM_ fs $ \f -> do
   src <- liftIO $ Text.readFile f
   case parseProg f src of
-    Left err1 -> outputPretty $ ErrorLoc "<repl>" err1
+    Left err1 -> outputPretty err1
     Right prog -> do
       res <- lift $ tryError $ elabProg prog
       case res of
-        Left err2 -> outputPretty $ ErrorLoc "<repl>" err2
+        Left err2 -> outputPretty err2
         Right () -> return ()
 
 showState :: InputT Elab ()

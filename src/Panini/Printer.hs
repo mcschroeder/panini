@@ -4,7 +4,6 @@ module Panini.Printer
   ( Pretty(..)
   , RenderOptions(..)
   , renderDoc
-  , ErrorLoc(..)
   ) where
 
 import Control.Monad
@@ -30,6 +29,7 @@ class Pretty a where
 instance Pretty Text where pretty = Prettyprinter.pretty
 instance Pretty String where pretty = Prettyprinter.pretty
 instance Pretty Integer where pretty = Prettyprinter.pretty
+instance Pretty Int where pretty = Prettyprinter.pretty
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where 
   pretty (a,b) = "(" <> pretty a <> "," <+> pretty b <> ")"
@@ -99,7 +99,7 @@ a <\\> b = a <> hardline <> b
 -------------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name x) = pretty x
+  pretty (Name _ x) = pretty x
 
 -------------------------------------------------------------------------------
 
@@ -275,47 +275,69 @@ hasLogic = \case
 
 -------------------------------------------------------------------------------
 
--- TODO: replace with proper location annotations
-data ErrorLoc = ErrorLoc FilePath Error
-instance Pretty ErrorLoc where
-  pretty (ErrorLoc fp err) =
-    let loc = pretty fp <> ":"
-        typ = annotate Error "error:"
-        str = annotate Message (loc <+> typ) <\\> pretty err
-    in nest 2 str
-
 instance Pretty Error where
-  pretty = bullets . \case
-    AlreadyDefined x ->
-      [ pretty x <+> "is already defined" ]
+  pretty err = 
+    let header = pretty (getPV err) <> ":" <+> annotate Error "error:"
+    in nest 2 $ annotate Message header <\\> prettyErr err
 
-    InvalidSubtypeBase (t1,b1) (t2,b2) ->
-      [ pretty b1 <+> msg "is not a subtype of" <+> pretty b2
-      , group $ nest 4 (msg "Therefore," <\> pretty t1) <\> 
-                nest 4 (msg "is not a subtype of" <\> pretty t2)
-      ]
-
-    InvalidSubtype t1 t2 ->
-      [ pretty t1 <+> msg "is not a subtype of" <+> pretty t2 ]
-
-    VarNotInScope n -> [ msg "Variable not in scope:" <+> pretty n ]
-
-    MissingType n -> [ msg "Missing type definition for" <+> pretty n ]
+prettyErr :: Error -> Doc Ann
+prettyErr = \case
+  AlreadyDefined x -> pretty x <+> msg "is already defined"
   
-    ExpectedFunType e t -> 
-      [ pretty t <+> msg "is not a function type"
-      , group $ nest 4 $ msg "Expected a function type for expression:" <\> pretty e
-      ]
+  VarNotInScope n -> msg "Variable not in scope:" <+> pretty n
+  
+  MissingType n -> msg "Missing type definition for" <+> pretty n
+  
+  InvalidSubtypeBase (t1,b1) (t2,b2) -> bullets
+    [ pretty b1 <+> msg "is not a subtype of" <+> pretty b2
+    , group $ nest 4 (msg "Therefore," <\> pretty t1) <\> 
+              nest 4 (msg "is not a subtype of" <\> pretty t2)
+    ]
+  InvalidSubtype t1 t2 ->
+    pretty t1 <+> msg "is not a subtype of" <+> pretty t2
+  
+  ExpectedFunType e t -> bullets
+    [ pretty t <+> msg "is not a function type"
+    , group $ nest 4 $ msg "Expected a function type for expression:" <\> pretty e
+    ]
 
-    CantSynth e ->
-      [ nest 4 $ group $ msg "Can't synthesize type for expression:" <\> 
-        pretty e
-      ]
+  CantSynth e -> 
+    nest 4 $ group $ msg "Can't synthesize type for expression:" <\> pretty e
 
-    ParserError e -> [pretty e]
+  ParserError (FromSource loc) l e -> pretty e <\\> wavyDiagnostic loc l
+
+  ParserError _ _ e -> pretty e
 
 msg :: Text -> Doc Ann
 msg = annotate Message . pretty
 
 bullets :: [Doc ann] -> Doc ann
 bullets = mconcat . intersperse "\n" . map ("•" <+>)
+
+wavyDiagnostic :: SrcLoc -> String -> Doc Ann
+wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) sline =
+  padding      <> "|\n" <> 
+  lineNumber' <> " | "  <> pretty sline <> "\n" <> 
+  padding      <> "| " <> rpadding <> pointer <> "\n"
+  where
+    rpadding = pretty $ if pointerLen > 0 then replicate rpshift ' ' else ""
+    pointerLen = if rpshift + elen > slineLen then slineLen - rpshift + 1 else elen
+    pointer = annotate Error $ pretty $ replicate pointerLen '^'
+    lineNumber = show l1
+    lineNumber' = pretty lineNumber
+    padding = pretty $ replicate (length lineNumber + 1) ' '
+    rpshift = c1 - 1
+    slineLen = length sline     
+    elen = if l1 == l2 then c2 - c1 else 1
+
+-------------------------------------------------------------------------------
+
+instance Pretty PV where
+  pretty UnknownPV = "<unknown location>"
+  pretty (FromSource s) = pretty s
+
+instance Pretty SrcLoc where
+  pretty (SrcLoc f (l1, c1) (l2, c2))
+    | l1 == l2, c1 == c2 = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1
+    | l1 == l2           = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1 <> "-" <> pretty c2
+    | otherwise          = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1 <> "-" <> pretty l2 <> ":" <> pretty c2

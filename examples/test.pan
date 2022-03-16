@@ -10,7 +10,7 @@ assume take :
 
 assume empty : s:string -> {b : bool | b <=> length(s) = 0}
 define empty = \x. 
-  let n = length x in
+  let n  length x in
   eq_nat 0 n
 
 assume trim : s:string -> {t:string | ?}

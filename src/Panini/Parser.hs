@@ -26,6 +26,7 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
+import Data.List.NonEmpty qualified as NE
 
 -------------------------------------------------------------------------------
 
@@ -42,7 +43,32 @@ parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint
 
 parseA :: Parser a -> FilePath -> Text -> Either Error a
-parseA p fp = first (ParserError . errorBundlePretty) . parse (p <* eof) fp
+parseA p fp = first transformErrorBundle . parse (p <* eof) fp
+
+transformErrorBundle :: ParseErrorBundle Text Void -> Error
+transformErrorBundle b = ParserError pv line er
+  where
+    pv = FromSource loc
+    (loc, line) = deconstructFirstError b
+    e = NE.head $ b.bundleErrors
+    er = parseErrorTextPretty e
+
+deconstructFirstError :: ParseErrorBundle Text Void -> (SrcLoc, String)
+deconstructFirstError b = (loc, line)
+  where
+    pst = b.bundlePosState
+    e = NE.head $ b.bundleErrors
+    (msline, pst') = reachOffset (errorOffset e) pst
+    epos = pstateSourcePos pst'
+    elen = case e of
+            TrivialError _ (Just (Tokens ts)) _ -> length ts
+            _ -> 1
+    line = case msline of
+            Nothing -> ""
+            Just sline -> sline
+    begin = (unPos epos.sourceLine, unPos epos.sourceColumn)
+    end = (unPos epos.sourceLine, unPos epos.sourceColumn + elen)
+    loc = SrcLoc epos.sourceName begin end
 
 -------------------------------------------------------------------------------
 
@@ -113,15 +139,33 @@ isReserved = flip elem
 failWithOffset :: Int -> String -> Parser a
 failWithOffset o = parseError . FancyError o . Set.singleton . ErrorFail
 
+-- | Construct a `SrcLoc` span out of beginning and end `SourcePos`.
+mkSrcLoc :: SourcePos -> SourcePos -> SrcLoc
+mkSrcLoc b e = SrcLoc 
+  { file = b.sourceName
+  , begin = (unPos b.sourceLine, unPos b.sourceColumn)
+  , end = (unPos e.sourceLine, unPos e.sourceColumn)
+  }
+
+-- | Return the result of a parser together with a `SrcLoc` of the consumed input.
+withSrcLoc :: Parser a -> Parser (a, SrcLoc)
+withSrcLoc p = do
+  begin <- getSourcePos
+  x <- p
+  end <- getSourcePos
+  return (x, mkSrcLoc begin end)
+
 -------------------------------------------------------------------------------
 
 name :: Parser Name
-name = label "name" $ do  
+name = label "name" $ do
   o <- getOffset
-  ident <- lexeme $ (:) <$> identBeginChar <*> many identChar  
+  (ident, loc) <- withSrcLoc $ (:) <$> identBeginChar <*> many identChar
+  whitespace
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
-    else pure $ Name $ Text.pack ident
+    else do      
+      pure $ Name (FromSource loc) $ Text.pack ident
 
 -------------------------------------------------------------------------------
 

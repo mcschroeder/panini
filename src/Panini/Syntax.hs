@@ -10,20 +10,52 @@ import Data.Text.Read
 import Prelude
 
 ------------------------------------------------------------------------------
+-- Source location information
+
+-- | A location in a source file.
+data SrcLoc = SrcLoc
+  { file  :: FilePath    -- ^ source file
+  , begin :: (Int, Int)  -- ^ (line, colum)
+  , end   :: (Int, Int)  -- ^ (line, column)
+  }
+  deriving stock (Eq, Ord, Show, Read)
+
+-- | Provenance information: where something comes from.
+data PV
+  = FromSource SrcLoc
+  | UnknownPV
+  deriving stock (Eq, Ord, Show, Read)
+
+-- | Types with provenance information.
+class HasProvenance a where
+  getPV :: a -> PV
+
+------------------------------------------------------------------------------
 -- Names
 
-newtype Name = Name Text
-  deriving newtype (Eq, Ord, Show, Read)
+-- | A name for something, e.g. a variable or a binder.
+data Name = Name PV Text
+  deriving stock (Show, Read)
+
+instance HasProvenance Name where
+  getPV (Name pv _) = pv
+
+-- | Equality between names ignores provenance.
+instance Eq Name where
+  Name _ a == Name _ b = a == b
+
+-- | Ordering between names ignores provenance.
+instance Ord Name where
+  Name _ a <= Name _ b = a <= b
 
 instance IsString Name where
-  fromString = Name . Text.pack
+  fromString = Name UnknownPV . Text.pack
 
 dummyName :: Name
-dummyName = Name "_"
+dummyName = "_"
 
 isDummy :: Name -> Bool
-isDummy (Name "_") = True
-isDummy _          = False
+isDummy n = n == dummyName
 
 -- | Returns a fresh name based on a given name, avoiding unwanted names.
 freshName :: Name -> [Name] -> Name
@@ -35,9 +67,9 @@ freshName x ys = go (nextSubscript x)
 
 -- | Given "x", returns "x1"; given "x1", returns "x2"; and so on.
 nextSubscript :: Name -> Name
-nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
-  Left _      -> Name $ Text.append n "1"
-  Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i + 1)
+nextSubscript (Name _ n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
+  Left _      -> Name UnknownPV $ Text.append n "1"
+  Right (i,_) -> Name UnknownPV $ Text.append n $ Text.pack $ show (i + 1)
 
 ------------------------------------------------------------------------------
 -- Top-level declarations
