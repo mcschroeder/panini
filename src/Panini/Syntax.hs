@@ -23,7 +23,7 @@ data SrcLoc = SrcLoc
 -- | Provenance information: where something comes from.
 data PV
   = FromSource SrcLoc
-  | UnknownPV
+  | NoPV
   deriving stock (Eq, Ord, Show, Read)
 
 -- | Types with provenance information.
@@ -49,7 +49,7 @@ instance Ord Name where
   Name _ a <= Name _ b = a <= b
 
 instance IsString Name where
-  fromString = Name UnknownPV . Text.pack
+  fromString = Name NoPV . Text.pack
 
 dummyName :: Name
 dummyName = "_"
@@ -68,8 +68,8 @@ freshName x ys = go (nextSubscript x)
 -- | Given "x", returns "x1"; given "x1", returns "x2"; and so on.
 nextSubscript :: Name -> Name
 nextSubscript (Name _ n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
-  Left _      -> Name UnknownPV $ Text.append n "1"
-  Right (i,_) -> Name UnknownPV $ Text.append n $ Text.pack $ show (i + 1)
+  Left _      -> Name NoPV $ Text.append n "1"
+  Right (i,_) -> Name NoPV $ Text.append n $ Text.pack $ show (i + 1)
 
 ------------------------------------------------------------------------------
 -- Top-level declarations

@@ -346,7 +346,7 @@ wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
 -------------------------------------------------------------------------------
 
 instance Pretty PV where
-  pretty UnknownPV = "<unknown location>"
+  pretty NoPV = "<unknown location>"
   pretty (FromSource s) = pretty s
 
 instance Pretty SrcLoc where
