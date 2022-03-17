@@ -20,7 +20,7 @@ import System.Console.ANSI
 
 -------------------------------------------------------------------------------
 
-data Ann = Keyword | Symbol | Predicate | Message | Error
+data Ann = Keyword | Symbol | Predicate | Message | Error | Margin
 
 -- | Our custom pretty-printing class, fixing `Doc` annotations to `Ann`.
 class Pretty a where
@@ -58,6 +58,7 @@ renderDoc opts =
     Predicate -> sgr [SetColor Foreground Vivid Blue]
     Message   -> sgr [SetConsoleIntensity BoldIntensity]
     Error     -> sgr [SetColor Foreground Vivid Red]
+    Margin    -> sgr [SetColor Foreground Dull Blue]
     _         -> id
  
   sgr c t = Text.pack (setSGRCode c) <> t <> Text.pack (setSGRCode [Reset])
@@ -75,6 +76,7 @@ renderDoc opts =
     "\\"  -> "λ"
     "forall " -> "∀"  -- note the extra space
     x     -> x
+  unicodify Margin = Text.replace "|" "│"
   unicodify _ = id
 
 -------------------------------------------------------------------------------
@@ -276,60 +278,71 @@ hasLogic = \case
 -------------------------------------------------------------------------------
 
 instance Pretty Error where
-  pretty err = 
-    let header = pretty (getPV err) <> ":" <+> annotate Error "error:"
-    in nest 2 $ annotate Message header <\\> prettyErr err
+  pretty err = case prettyOffendingLine err of
+    Just offLine -> nest 2 (header <\\> message) <\\> offLine
+    Nothing      -> nest 2 (header <\\> message)
+    where
+      annM    = annotate Message
+      annE    = annotate Error
+      header  = annM $ pretty (getPV err) <> ":" <+> annE "error:"
+      message = prettyErrorMessage err
 
-prettyErr :: Error -> Doc Ann
-prettyErr = \case
-  AlreadyDefined x -> pretty x <+> msg "is already defined"
-  
-  VarNotInScope n -> msg "Variable not in scope:" <+> pretty n
-  
-  MissingType n -> msg "Missing type definition for" <+> pretty n
+prettyErrorMessage :: Error -> Doc Ann
+prettyErrorMessage = \case
+  AlreadyDefined x -> pretty x <+> msg "is already defined"    
+  VarNotInScope n -> msg "Variable not in scope:" <+> pretty n  
+  MissingType n -> msg "Missing type definition for" <+> pretty n  
   
   InvalidSubtypeBase (t1,b1) (t2,b2) -> bullets
     [ pretty b1 <+> msg "is not a subtype of" <+> pretty b2
     , group $ nest 4 (msg "Therefore," <\> pretty t1) <\> 
-              nest 4 (msg "is not a subtype of" <\> pretty t2)
-    ]
-  InvalidSubtype t1 t2 ->
-    pretty t1 <+> msg "is not a subtype of" <+> pretty t2
+      nest 4 (msg "is not a subtype of" <\> pretty t2)
+    ]  
+  
+  InvalidSubtype t1 t2 -> 
+    pretty t1 <+> msg "is not a subtype of" <+> pretty t2  
   
   ExpectedFunType e t -> bullets
     [ pretty t <+> msg "is not a function type"
-    , group $ nest 4 $ msg "Expected a function type for expression:" <\> pretty e
+    , group $ nest 4 $ msg "Expected a function type for expression:" <\> 
+      pretty e
     ]
 
   CantSynth e -> 
-    nest 4 $ group $ msg "Can't synthesize type for expression:" <\> pretty e
+    group $ nest 4 $ msg "Can't synthesize type for expression:" <\> pretty e
 
-  ParserError (FromSource loc) l e -> pretty e <\\> wavyDiagnostic loc l
+  ParserError _ _ e -> msg $ Text.stripEnd e
 
-  ParserError _ _ e -> pretty e
-
-msg :: Text -> Doc Ann
-msg = annotate Message . pretty
-
-bullets :: [Doc ann] -> Doc ann
-bullets = mconcat . intersperse "\n" . map ("•" <+>)
-
-wavyDiagnostic :: SrcLoc -> String -> Doc Ann
-wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) sline =
-  padding      <> "|\n" <> 
-  lineNumber' <> " | "  <> pretty sline <> "\n" <> 
-  padding      <> "| " <> rpadding <> pointer <> "\n"
   where
-    rpadding = pretty $ if pointerLen > 0 then replicate rpshift ' ' else ""
-    pointerLen = if rpshift + elen > slineLen then slineLen - rpshift + 1 else elen
-    pointer = annotate Error $ pretty $ replicate pointerLen '^'
-    lineNumber = show l1
-    lineNumber' = pretty lineNumber
-    padding = pretty $ replicate (length lineNumber + 1) ' '
-    rpshift = c1 - 1
-    slineLen = length sline     
-    elen = if l1 == l2 then c2 - c1 else 1
+    msg     = annotate Message . pretty @Text
+    bullets = mconcat . intersperse "\n" . map ("•" <+>)
 
+prettyOffendingLine :: Error -> Maybe (Doc Ann)
+prettyOffendingLine = \case
+  ParserError (FromSource loc) l _ -> Just $ wavyDiagnostic loc l
+  _ -> Nothing
+
+wavyDiagnostic :: SrcLoc -> Text -> Doc Ann
+wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
+  annM (mPadding   <+> "|") <\\>
+  annM (lineNumber <+> "|") <+> offendingLine <\\>
+  annM (mPadding   <+> "|") <+> errorPointer
+  where
+    annM           = annotate Margin
+    annE           = annotate Error
+    mPadding       = pretty $ replicate (length (show l1)) ' '
+    lineNumber     = pretty $ show l1
+    offendingLine  = pretty lineL <> annE (pretty lineE) <> pretty lineR
+    errorPointer   = pretty pPadding <> annE (pretty pointer)
+    (lineL, s')    = Text.splitAt (c1 - 1) s
+    (lineE, lineR) = Text.splitAt eLen s'
+    pointer        = replicate pLen '^'
+    pPadding       = if pLen > 0 then replicate pShift ' ' else ""
+    pLen           = if pShift + eLen > sLen then sLen - pShift + 1 else eLen
+    pShift         = c1 - 1
+    eLen           = if l1 == l2 then c2 - c1 else 1
+    sLen           = Text.length s
+    
 -------------------------------------------------------------------------------
 
 instance Pretty PV where
@@ -338,6 +351,8 @@ instance Pretty PV where
 
 instance Pretty SrcLoc where
   pretty (SrcLoc f (l1, c1) (l2, c2))
-    | l1 == l2, c1 == c2 = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1
-    | l1 == l2           = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1 <> "-" <> pretty c2
-    | otherwise          = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1 <> "-" <> pretty l2 <> ":" <> pretty c2
+    | l1 == l2, c1 == c2 = flc
+    | l1 == l2           = flc <> "-" <> pretty c2
+    | otherwise          = flc <> "-" <> pretty l2 <> ":" <> pretty c2
+    where
+      flc = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1

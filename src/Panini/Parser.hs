@@ -27,6 +27,7 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
 import Data.List.NonEmpty qualified as NE
+import Data.Maybe
 
 -------------------------------------------------------------------------------
 
@@ -46,29 +47,23 @@ parseA :: Parser a -> FilePath -> Text -> Either Error a
 parseA p fp = first transformErrorBundle . parse (p <* eof) fp
 
 transformErrorBundle :: ParseErrorBundle Text Void -> Error
-transformErrorBundle b = ParserError pv line er
+transformErrorBundle b = ParserError (FromSource loc) offendingLine errMsg
   where
-    pv = FromSource loc
-    (loc, line) = deconstructFirstError b
-    e = NE.head $ b.bundleErrors
-    er = parseErrorTextPretty e
+    firstError    = NE.head $ b.bundleErrors
+    errMsg        = Text.pack $ parseErrorTextPretty firstError
+    offendingLine = Text.pack $ fromMaybe "" msline
+    (msline, pst) = reachOffset (errorOffset firstError) b.bundlePosState
 
-deconstructFirstError :: ParseErrorBundle Text Void -> (SrcLoc, String)
-deconstructFirstError b = (loc, line)
-  where
-    pst = b.bundlePosState
-    e = NE.head $ b.bundleErrors
-    (msline, pst') = reachOffset (errorOffset e) pst
-    epos = pstateSourcePos pst'
-    elen = case e of
-            TrivialError _ (Just (Tokens ts)) _ -> length ts
-            _ -> 1
-    line = case msline of
-            Nothing -> ""
-            Just sline -> sline
-    begin = (unPos epos.sourceLine, unPos epos.sourceColumn)
-    end = (unPos epos.sourceLine, unPos epos.sourceColumn + elen)
-    loc = SrcLoc epos.sourceName begin end
+    loc = SrcLoc fn (l1,c1) (l2,c2)
+    fn = pst.pstateSourcePos.sourceName
+    l1 = unPos pst.pstateSourcePos.sourceLine
+    c1 = unPos pst.pstateSourcePos.sourceColumn
+    l2 = unPos pst.pstateSourcePos.sourceLine
+    c2 = unPos pst.pstateSourcePos.sourceColumn + errLen
+
+    errLen = case firstError of
+      TrivialError _ (Just (Tokens ts)) _ -> length ts 
+      _                                   -> 1
 
 -------------------------------------------------------------------------------
 

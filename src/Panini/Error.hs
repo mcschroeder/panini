@@ -1,5 +1,6 @@
 module Panini.Error where
 
+import Data.Text (Text)
 import Panini.Syntax
 import Prelude
 
@@ -11,7 +12,7 @@ data Error
   | InvalidSubtype Type Type
   | ExpectedFunType Expr Type
   | CantSynth Expr
-  | ParserError PV String String  -- ^ provenance offendingLine errorMsg
+  | ParserError PV Text Text  -- ^ provenance offendingLine errorMsg
   deriving stock (Show, Read)
 
 instance HasProvenance Error where

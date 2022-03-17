@@ -15,7 +15,7 @@ import Prelude
 -- | A location in a source file.
 data SrcLoc = SrcLoc
   { file  :: FilePath    -- ^ source file
-  , begin :: (Int, Int)  -- ^ (line, colum)
+  , begin :: (Int, Int)  -- ^ (line, column)
   , end   :: (Int, Int)  -- ^ (line, column)
   }
   deriving stock (Eq, Ord, Show, Read)
