@@ -11,6 +11,7 @@ import Data.List (intersperse)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Error
+import Panini.Provenance
 import Panini.Syntax
 import Prelude
 import Prettyprinter hiding (Pretty(..))
@@ -278,14 +279,15 @@ hasLogic = \case
 -------------------------------------------------------------------------------
 
 instance Pretty Error where
-  pretty err = case prettyOffendingLine err of
-    Just offLine -> nest 2 (header <\\> message) <\\> offLine
-    Nothing      -> nest 2 (header <\\> message)
+  pretty e = case getPV e of
+    FromSource loc (Just src) -> message (pretty loc) <\\> source loc src
+    FromSource loc Nothing    -> message (pretty loc)
+    NoPV                      -> message "<unknown location>"
     where
-      annM    = annotate Message
-      annE    = annotate Error
-      header  = annM $ pretty (getPV err) <> ":" <+> annE "error:"
-      message = prettyErrorMessage err
+      message o  = nest 2 (header o <\\> reason)
+      header o   = annotate Message (o <> ":" <+> annotate Error "error:")
+      reason     = prettyErrorMessage e
+      source l s = wavyDiagnostic l s
 
 prettyErrorMessage :: Error -> Doc Ann
 prettyErrorMessage = \case
@@ -311,16 +313,11 @@ prettyErrorMessage = \case
   CantSynth e -> 
     group $ nest 4 $ msg "Can't synthesize type for expression:" <\> pretty e
 
-  ParserError _ _ e -> msg $ Text.stripEnd e
+  ParserError _ e -> msg $ Text.stripEnd e
 
   where
     msg     = annotate Message . pretty @Text
     bullets = mconcat . intersperse "\n" . map ("•" <+>)
-
-prettyOffendingLine :: Error -> Maybe (Doc Ann)
-prettyOffendingLine = \case
-  ParserError (FromSource loc) l _ -> Just $ wavyDiagnostic loc l
-  _ -> Nothing
 
 wavyDiagnostic :: SrcLoc -> Text -> Doc Ann
 wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
@@ -344,10 +341,6 @@ wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
     sLen           = Text.length s
     
 -------------------------------------------------------------------------------
-
-instance Pretty PV where
-  pretty NoPV = "<unknown location>"
-  pretty (FromSource s) = pretty s
 
 instance Pretty SrcLoc where
   pretty (SrcLoc f (l1, c1) (l2, c2))

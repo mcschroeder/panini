@@ -7,28 +7,8 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read
+import Panini.Provenance
 import Prelude
-
-------------------------------------------------------------------------------
--- Source location information
-
--- | A location in a source file.
-data SrcLoc = SrcLoc
-  { file  :: FilePath    -- ^ source file
-  , begin :: (Int, Int)  -- ^ (line, column)
-  , end   :: (Int, Int)  -- ^ (line, column)
-  }
-  deriving stock (Eq, Ord, Show, Read)
-
--- | Provenance information: where something comes from.
-data PV
-  = FromSource SrcLoc
-  | NoPV
-  deriving stock (Eq, Ord, Show, Read)
-
--- | Types with provenance information.
-class HasProvenance a where
-  getPV :: a -> PV
 
 ------------------------------------------------------------------------------
 -- Names
@@ -39,6 +19,7 @@ data Name = Name PV Text
 
 instance HasProvenance Name where
   getPV (Name pv _) = pv
+  setPV pv (Name _ x) = Name pv x
 
 -- | Equality between names ignores provenance.
 instance Eq Name where

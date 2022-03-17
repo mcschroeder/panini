@@ -19,6 +19,7 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
+import Panini.Provenance
 import Panini.Error
 import Panini.Syntax
 import Prelude
@@ -47,11 +48,11 @@ parseA :: Parser a -> FilePath -> Text -> Either Error a
 parseA p fp = first transformErrorBundle . parse (p <* eof) fp
 
 transformErrorBundle :: ParseErrorBundle Text Void -> Error
-transformErrorBundle b = ParserError (FromSource loc) offendingLine errMsg
+transformErrorBundle b = ParserError (FromSource loc (Just offLine)) errMsg
   where
     firstError    = NE.head $ b.bundleErrors
     errMsg        = Text.pack $ parseErrorTextPretty firstError
-    offendingLine = Text.pack $ fromMaybe "" msline
+    offLine       = Text.pack $ fromMaybe "" msline
     (msline, pst) = reachOffset (errorOffset firstError) b.bundlePosState
 
     loc = SrcLoc fn (l1,c1) (l2,c2)
@@ -160,7 +161,7 @@ name = label "name" $ do
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
     else do      
-      pure $ Name (FromSource loc) $ Text.pack ident
+      pure $ Name (FromSource loc Nothing) $ Text.pack ident
 
 -------------------------------------------------------------------------------
 

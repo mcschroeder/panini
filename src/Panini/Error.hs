@@ -1,6 +1,7 @@
 module Panini.Error where
 
 import Data.Text (Text)
+import Panini.Provenance
 import Panini.Syntax
 import Prelude
 
@@ -12,7 +13,7 @@ data Error
   | InvalidSubtype Type Type
   | ExpectedFunType Expr Type
   | CantSynth Expr
-  | ParserError PV Text Text  -- ^ provenance offendingLine errorMsg
+  | ParserError PV Text
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
@@ -23,4 +24,13 @@ instance HasProvenance Error where
   getPV (InvalidSubtype _t _) = NoPV --getPV t
   getPV (ExpectedFunType _e _) = NoPV --getPV e
   getPV (CantSynth _e) = NoPV --getPV e
-  getPV (ParserError pv _ _) = pv
+  getPV (ParserError pv _) = pv
+
+  setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
+  setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
+  setPV pv (MissingType x) = MissingType (setPV pv x)
+  setPV _ e@(InvalidSubtypeBase (_t,_) _) = e -- TODO
+  setPV _ e@(InvalidSubtype _t _) = e -- TODO
+  setPV _ e@(ExpectedFunType _e _) = e -- TODO
+  setPV _ e@(CantSynth _e) = e -- TODO
+  setPV pv (ParserError _ e) = ParserError pv e

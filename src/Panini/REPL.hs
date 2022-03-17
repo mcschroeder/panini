@@ -20,6 +20,7 @@ import Panini.Elaborator
 import Panini.Error
 import Panini.Parser
 import Panini.Printer
+import Panini.Provenance
 import Panini.Syntax
 import Panini.TypeChecker
 import Prelude
@@ -63,7 +64,9 @@ evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
   res <- lift $ tryError $ elabDecl =<< lift (except $ parseInput input)  
   case res of
-    Left err -> outputPretty err
+    Left err -> do
+      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
+      outputPretty err'
     Right () -> return ()
 
 loadFiles :: [FilePath] -> InputT Elab ()
@@ -74,7 +77,9 @@ loadFiles fs = forM_ fs $ \f -> do
     Right prog -> do
       res <- lift $ tryError $ elabProg prog
       case res of
-        Left err2 -> outputPretty err2
+        Left err2 -> do
+          err2' <- liftIO $ updatePV addSourceLines err2
+          outputPretty err2'
         Right () -> return ()
 
 showState :: InputT Elab ()
@@ -140,6 +145,11 @@ instance Inputable Decl where
   parseInput = parseDecl "<repl>" . Text.pack
 
 -------------------------------------------------------------------------------
+
+addSourceLinesREPL :: String -> PV -> IO PV
+addSourceLinesREPL input (FromSource loc Nothing)
+  | loc.file == "<repl>" = pure $ FromSource loc (Just $ Text.pack input)
+addSourceLinesREPL _ pv = addSourceLines pv
 
 outputPretty :: Pretty a => a -> InputT Elab ()
 outputPretty x = do
