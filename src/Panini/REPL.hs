@@ -47,6 +47,7 @@ repl = do
         Load fs     -> loadFiles fs       >> repl
         Eval expr   -> evaluateInput expr >> repl
         Show        -> showState          >> repl
+        Forget xs   -> forgetVars xs    >> repl
 
 formatInput :: String -> InputT Elab ()
 formatInput = mapM_ outputPretty . parseInput @Expr
@@ -92,6 +93,18 @@ showState = do
   outputStrLn "\nverification conditions"
   mapM_ outputPretty $ Map.toList pan_vcs
 
+forgetVars :: [String] -> InputT Elab ()
+forgetVars xs = do
+  forM_ xs $ \x -> do
+    let n = Name NoPV (Text.pack x)
+    lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
+    lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
+    lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
+
+
+-- TODO: number repl lines
+-- TODO: error source /= var name source (previous vs current definition)
+
 -------------------------------------------------------------------------------
 
 data Command
@@ -101,6 +114,7 @@ data Command
   | Eval String
   | Load [String]
   | Show
+  | Forget [String]
   deriving stock (Show, Read)
 
 parseCmd :: String -> Either String Command
@@ -111,6 +125,7 @@ parseCmd (':' : input) = case break isSpace input of
     | cmd `isPrefixOf` "type" -> Right (TypeSynth args)
     | cmd `isPrefixOf` "load" -> Right $ Load (words args)
     | cmd `isPrefixOf` "show" -> Right Show
+    | cmd == "forget"         -> Right $ Forget (words args)
     | otherwise -> Left ("unknown command :" ++ cmd)
 parseCmd input = Right (Eval input)
 
