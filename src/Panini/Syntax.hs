@@ -61,7 +61,6 @@ data Expr
   | Let Name Expr Expr       -- let x = e1 in e2
   | Rec Name Type Expr Expr  -- rec x : t = e1 in e2
   | If Value Expr Expr       -- if x then e1 else e2
-  | Ass Name Type Expr       -- assume x : t in e
   deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------

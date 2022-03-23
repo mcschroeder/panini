@@ -134,10 +134,6 @@ instance Pretty Expr where
     nest 2 (kw "then" <\> pretty e1) <\> 
     nest 2 (kw "else" <\> pretty e2)
 
-  pretty (Ass x t e) =
-    kw "assume" <+> pretty x <+> kws ":" <+> pretty t <+> kw "in" <\\>
-    pretty e
-
 instance Pretty Value where
   pretty U = "unit"
   pretty (B True) = "true"
