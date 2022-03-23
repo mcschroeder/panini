@@ -40,25 +40,25 @@ instance Subable Type where
   subst x y = \case
     -- In a refined base type {n:b|r}, the value variable n names the
     -- value of type b that is being refined. Thus, we take n to be bound in r.    
-    TBase n b r
-      | y == n -> TBase n b r                              -- (1)
+    TBase n b r pv
+      | y == n -> TBase n b r pv                           -- (1)
       | x == V n -> let n' = freshName n (y : freeVars r)  -- (2)
                         r' = subst (V n') n r
-                    in TBase n' b (subst x y r')
-      | otherwise -> TBase n b (subst x y r)               -- (3)
+                    in TBase n' b (subst x y r') pv
+      | otherwise -> TBase n b (subst x y r) pv            -- (3)
 
     -- In a dependent function type n:t1 -> t2, the name n binds t1 in t2. 
     -- Note that t1 might itself contain (free) occurrences of n.
-    TFun n t1 t2
-      | y == n -> TFun n (subst x y t1) t2                   -- (1)
+    TFun n t1 t2 pv
+      | y == n -> TFun n (subst x y t1) t2 pv                -- (1)
       | x == V n -> let n'  = freshName n (y : freeVars t2)  -- (2)
                         t2' = subst (V n') n t2
-                    in TFun n' (subst x y t1) (subst x y t2')
-      | otherwise -> TFun n (subst x y t1) (subst x y t2)    -- (3)
+                    in TFun n' (subst x y t1) (subst x y t2') pv
+      | otherwise -> TFun n (subst x y t1) (subst x y t2) pv -- (3)
 
   freeVars = \case
-    TBase v _ r -> freeVars r \\ [v]
-    TFun x t1 t2 -> freeVars t1 ++ (freeVars t2 \\ [x])
+    TBase v _ r _ -> freeVars r \\ [v]
+    TFun x t1 t2 _ -> freeVars t1 ++ (freeVars t2 \\ [x])
 
 instance Subable Reft where
   subst x y = \case

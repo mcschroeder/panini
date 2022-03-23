@@ -90,8 +90,8 @@ data Value
 -- Types
 
 data Type
-  = TBase Name Base Reft  -- {v:b|r}
-  | TFun Name Type Type   -- x:t1 -> t2
+  = TBase Name Base Reft PV  -- {v:b|r}
+  | TFun Name Type Type PV   -- x:t1 -> t2
   deriving stock (Show, Read)
 
 --             b  ^=  {_:b|true}
@@ -111,7 +111,13 @@ data Reft
   deriving stock (Eq, Show, Read)
 
 simpleType :: Base -> Type
-simpleType b = TBase dummyName b (Known pTrue)
+simpleType b = TBase dummyName b (Known pTrue) NoPV
+
+instance HasProvenance Type where
+  getPV (TBase _ _ _ pv) = pv
+  getPV (TFun _ _ _ pv) = pv
+  setPV pv (TBase v b r _) = TBase v b r pv
+  setPV pv (TFun x t1 t2 _) = TFun x t1 t2 pv
 
 ------------------------------------------------------------------------------
 -- Predicates

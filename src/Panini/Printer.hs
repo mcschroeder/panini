@@ -155,20 +155,20 @@ col :: Name -> Doc Ann -> Doc Ann
 col x a = pretty x <> sym ":" <> a
 
 instance Pretty Type where
-  pretty (TFun x t1@(TBase v t r) t2)
+  pretty (TFun x t1@(TBase v t r _) t2 _)
     | x == v, isT r, isDummy x =         pretty t  `arr` pretty t2
     | x == v, isT r            = x `col` pretty t  `arr` pretty t2
     | x == v                   =         pretty t1 `arr` pretty t2
   
-  pretty (TFun x t1@(TFun _ _ _) t2)
+  pretty (TFun x t1@(TFun _ _ _ _) t2 _)
     | isDummy x =         parens (pretty t1) `arr` pretty t2
     | otherwise = x `col` parens (pretty t1) `arr` pretty t2
   
-  pretty (TFun x t1 t2)
+  pretty (TFun x t1 t2 _)
     | isDummy x =         pretty t1 `arr` pretty t2
     | otherwise = x `col` pretty t1 `arr` pretty t2
 
-  pretty (TBase v t r)
+  pretty (TBase v t r _)
     | isT r, isDummy v =                  pretty t
     | otherwise        = braces $ v `col` pretty t <+> "|" <+> pretty r
 

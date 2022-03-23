@@ -96,10 +96,6 @@ keyword kw = void $ lexeme (string kw <* notFollowedBy identChar)
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
--- | Parses something between curly braces
-braces :: Parser a -> Parser a
-braces = between (symbol "{") (symbol "}")
-
 -- | Parses a string literal.
 stringLiteral :: Parser Text
 stringLiteral = Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"')) <* whitespace <?> "string"
@@ -135,33 +131,32 @@ isReserved = flip elem
 failWithOffset :: Int -> String -> Parser a
 failWithOffset o = parseError . FancyError o . Set.singleton . ErrorFail
 
--- | Construct a `SrcLoc` span out of beginning and end `SourcePos`.
-mkSrcLoc :: SourcePos -> SourcePos -> SrcLoc
-mkSrcLoc b e = SrcLoc 
-  { file = b.sourceName
-  , begin = (unPos b.sourceLine, unPos b.sourceColumn)
-  , end = (unPos e.sourceLine, unPos e.sourceColumn)
-  }
+-- | Construct a `FromSource` provenance out of beginning and end `SourcePos`.
+mkPV :: SourcePos -> SourcePos -> PV
+mkPV b e = FromSource (SrcLoc b.sourceName b' e') Nothing
+  where
+    b' = (unPos b.sourceLine, unPos b.sourceColumn)
+    e' = (unPos e.sourceLine, unPos e.sourceColumn)
 
--- | Return the result of a parser together with a `SrcLoc` of the consumed input.
-withSrcLoc :: Parser a -> Parser (a, SrcLoc)
-withSrcLoc p = do
+-- | Return the result of a parser together with a `PV` of the consumed input.
+withPV :: Parser a -> Parser (a, PV)
+withPV p = do
   begin <- getSourcePos
   x <- p
   end <- getSourcePos
-  return (x, mkSrcLoc begin end)
+  return (x, mkPV begin end)
 
 -------------------------------------------------------------------------------
 
 name :: Parser Name
 name = label "name" $ do
   o <- getOffset
-  (ident, loc) <- withSrcLoc $ (:) <$> identBeginChar <*> many identChar
+  (ident, pv) <- withPV $ (:) <$> identBeginChar <*> many identChar
   whitespace
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
     else do      
-      pure $ Name (Text.pack ident) (FromSource loc Nothing)
+      pure $ Name (Text.pack ident) pv
 
 -------------------------------------------------------------------------------
 
@@ -228,10 +223,14 @@ value = label "value" $ choice
 
 type_ :: Parser Type
 type_ = do
+  begin <- getSourcePos
   (x, t1) <- type1
-  choice
+  choice 
     [ notFollowedBy arrow *> pure t1
-    , foldl' (TFun x) t1 <$> (arrow *> some type_)
+    , do
+        t2 <- arrow *> type_
+        end <- getSourcePos
+        return $ TFun x t1 t2 (mkPV begin end)
     ]
 
 type1 :: Parser (Name, Type)
@@ -248,15 +247,27 @@ type1 = choice
   namedNested = (,) <$> name <* symbol ":" <*> parens type_
   namedReft   = (,) <$> name <* symbol ":" <*> (snd <$> reft)
   reft = do
-    t@(TBase v _ _) <- braces $ TBase <$> name <* symbol ":" <*> baseType 
-                                               <* symbol "|" <*> refinement
-    pure (v,t)
-  namedBase = do
-    (x,b) <- (,) <$> name <* symbol ":" <*> baseType
-    pure (x, TBase x b (Known pTrue))
-  base = do
+    begin <- getSourcePos
+    symbol "{"
+    v <- name
+    symbol ":"
     b <- baseType
-    pure (dummyName, TBase dummyName b (Known pTrue))
+    symbol "|"
+    r <- refinement
+    void "}"
+    end <- getSourcePos
+    whitespace
+    pure (v, TBase v b r (mkPV begin end))
+  namedBase = do
+    begin <- getSourcePos
+    x <- name
+    symbol ":"
+    b <- baseType
+    end <- getSourcePos
+    pure (x, TBase x b (Known pTrue) (mkPV begin end))
+  base = do
+    (b, pv) <- withPV baseType
+    pure (dummyName, TBase dummyName b (Known pTrue) pv)
 
 baseType :: Parser Base
 baseType = choice

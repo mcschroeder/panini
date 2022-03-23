@@ -50,7 +50,12 @@ repl = do
         Forget xs   -> forgetVars xs    >> repl
 
 formatInput :: String -> InputT Elab ()
-formatInput = mapM_ outputPretty . parseInput @Term
+formatInput input = do
+  case parseTerm "<repl>" $ Text.pack input of
+    Left err -> do
+      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
+      outputPretty err'
+    Right e -> outputPretty e
 
 synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do

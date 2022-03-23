@@ -5,6 +5,7 @@ module Panini.TypeChecker where
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Panini.Error
+import Panini.Provenance
 import Panini.Substitution
 import Panini.Syntax
 import Prelude
@@ -63,8 +64,8 @@ synth _ (Val (S _)) = return (cTrue, simpleType TString)
 -- [SYN-SELF]
 synth g (Val (V x)) = do
   case Map.lookup x g of
-    Just (TBase v b (Known p)) -> do
-      let t' = TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x))))
+    Just (TBase v b (Known p) _) -> do
+      let t' = TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x)))) NoPV
       return (cTrue, t')    
     Just t -> return (cTrue, t)
     Nothing -> failWith $ VarNotInScope x
@@ -79,7 +80,7 @@ synth g (Ann e s) = do
 synth g (App e y) = do
   (c,t0) <- synth g e
   case t0 of
-    TFun x s t -> do
+    TFun x s t _ -> do
       c' <- check g (Val y) s
       return (CConj c c', subst y x t)
 
@@ -125,7 +126,7 @@ synth _ e = failWith $ CantSynth e
 check :: Ctx -> Term -> Type -> TC Con
 
 -- [CHK-LAM]
-check g (Lam x e) (TFun y s t) = do
+check g (Lam x e) (TFun y s t _) = do
   let g' = Map.insert x s g
       t' = subst (V x) y t
   c <- check g' e t'
@@ -154,8 +155,8 @@ check g (If x e1 e2) t = do
   c1 <- check g e1 t
   c2 <- check g e2 t
   let y = freshName "y" (freeVars x ++ freeVars c1 ++ freeVars c2)
-  let yT = TBase dummyName TUnit $ Known $ PVal x
-  let yF = TBase dummyName TUnit $ Known $ PNot $ PVal x
+  let yT = TBase dummyName TUnit (Known $ PVal x) NoPV
+  let yF = TBase dummyName TUnit (Known $ PNot $ PVal x) NoPV
   return $ CConj (cImpl y yT c1) (cImpl y yF c2)
 
 -- [CHK-SYN]
@@ -182,14 +183,14 @@ check g e t = do
 fresh :: Ctx -> Type -> TC Type
 
 -- [INS-CONC]
-fresh _ t@(TBase _ _ (Known _)) = return t
+fresh _ t@(TBase _ _ (Known _) _) = return t
 
 -- [INS-FUN]
-fresh g (TFun x s1 t1) = do
+fresh g (TFun x s1 t1 _) = do
   s2 <- fresh g s1
   let g' = Map.insert x s1 g
   t2 <- fresh g' t1
-  return $ TFun x s2 t2
+  return $ TFun x s2 t2 NoPV
 
 fresh _ _ = error "not implemented yet"
 
@@ -212,12 +213,12 @@ fresh _ _ = error "not implemented yet"
 sub :: Type -> Type -> TC Con
 
 -- [SUB-BASE]
-sub t1@(TBase v1 b1 (Known p1)) t2@(TBase v2 b2 (Known p2))
+sub t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
   | b1 == b2  = return $ CAll v1 b1 p1 (CPred $ subst (V v1) v2 p2)
   | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
 
 -- [SUB-FUN]
-sub (TFun x1 s1 t1) (TFun x2 s2 t2) = do
+sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   cI <- sub s2 s1
   let t1' = subst (V x1) x2 t1
   cO <- cImpl x2 s2 <$> sub t1' t2
@@ -228,5 +229,5 @@ sub t1 t2 = failWith $ InvalidSubtype t1 t2
 -- | Implication constraint @(x :: t) => c@.
 cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
-  TBase v b (Known p) -> CAll x b (subst (V x) v p) c
-  _                   -> c
+  TBase v b (Known p) _ -> CAll x b (subst (V x) v p) c
+  _                     -> c

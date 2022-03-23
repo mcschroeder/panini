@@ -16,7 +16,7 @@ define empty = \x.
 assume trim : s:string -> {t:string | ?}
 define trim = \x.
   let b = empty x in
-  if b then epsilon else
+  if b then "" else
     let y = take 1 x in
     let p = eq_string " " y in
     if p then 
