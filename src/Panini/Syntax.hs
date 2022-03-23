@@ -14,11 +14,23 @@ import Prelude
 -- Names
 
 -- | A name for something, e.g. a variable or a binder.
-data Name = Name Text
-  deriving stock (Eq, Ord, Show, Read)
+data Name = Name Text PV
+  deriving stock (Show, Read)
+
+instance HasProvenance Name where
+  getPV (Name _ pv) = pv
+  setPV pv (Name x _) = Name x pv
+
+-- | Equality between names ignores provenance.
+instance Eq Name where
+  Name a _ == Name b _ = a == b
+
+-- | Ordering between names ignores provenance.
+instance Ord Name where
+  Name a _ <= Name b _ = a <= b
 
 instance IsString Name where
-  fromString = Name . Text.pack
+  fromString s = Name (Text.pack s) NoPV
 
 dummyName :: Name
 dummyName = "_"
@@ -36,9 +48,9 @@ freshName x ys = go (nextSubscript x)
 
 -- | Given "x", returns "x1"; given "x1", returns "x2"; and so on.
 nextSubscript :: Name -> Name
-nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
-  Left _      -> Name $ Text.append n "1"
-  Right (i,_) -> Name $ Text.append n $ Text.pack $ show (i + 1)
+nextSubscript (Name n _) = case decimal @Int $ Text.takeWhileEnd isDigit n of
+  Left _      -> Name (Text.append n "1") NoPV
+  Right (i,_) -> Name (Text.append n $ Text.pack $ show (i + 1)) NoPV
 
 ------------------------------------------------------------------------------
 -- Top-level declarations
@@ -46,8 +58,8 @@ nextSubscript (Name n) = case decimal @Int $ Text.takeWhileEnd isDigit n of
 type Prog = [Decl]
 
 data Decl
-  = Assume PV Name Type   -- assume x : t
-  | Define PV Name Term   -- define x = e
+  = Assume Name Type   -- assume x : t
+  | Define Name Term   -- define x = e
   deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------

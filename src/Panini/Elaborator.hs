@@ -48,18 +48,18 @@ elabProg :: Prog -> Elab ()
 elabProg = mapM_ elabDecl
 
 elabDecl :: Decl -> Elab ()
-elabDecl (Assume pv x t) = do
+elabDecl (Assume x t) = do
   gamma <- gets pan_types
   case Map.lookup x gamma of
-    Just _ -> throwError $ AlreadyDefined x pv 
+    Just _ -> throwError $ AlreadyDefined x
     Nothing -> do
       modify' $ \ps -> ps { pan_types = Map.insert x t (pan_types ps)}
 
-elabDecl (Define pv x e) = do
+elabDecl (Define x e) = do
   gamma <- gets pan_types
   terms <- gets pan_terms
   case Map.lookup x terms of
-    Just _ -> throwError $ AlreadyDefined x pv
+    Just _ -> throwError $ AlreadyDefined x
     Nothing -> case Map.lookup x gamma of
       Nothing -> throwError $ MissingType x
       Just t -> do

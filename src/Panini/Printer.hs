@@ -102,7 +102,7 @@ a <\\> b = a <> hardline <> b
 -------------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name x) = pretty x
+  pretty (Name x _) = pretty x
 
 -------------------------------------------------------------------------------
 
@@ -110,8 +110,8 @@ instance Pretty Prog where
   pretty = vcat . map pretty
 
 instance Pretty Decl where
-  pretty (Assume _ x t) = kw "assume" <+> pretty x <+> kws ":" <+> pretty t
-  pretty (Define _ x e) = kw "define" <+> pretty x <+> kws "=" <+> pretty e
+  pretty (Assume x t) = kw "assume" <+> pretty x <+> kws ":" <+> pretty t
+  pretty (Define x e) = kw "define" <+> pretty x <+> kws "=" <+> pretty e
 
 -------------------------------------------------------------------------------
 
@@ -287,7 +287,7 @@ instance Pretty Error where
 
 prettyErrorMessage :: Error -> Doc Ann
 prettyErrorMessage = \case
-  AlreadyDefined x _ -> pretty x <+> msg "is already defined"    
+  AlreadyDefined x -> pretty x <+> msg "is already defined"    
   VarNotInScope n -> msg "Variable not in scope:" <+> pretty n  
   MissingType n -> msg "Missing type definition for" <+> pretty n  
   

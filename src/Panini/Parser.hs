@@ -156,12 +156,12 @@ withSrcLoc p = do
 name :: Parser Name
 name = label "name" $ do
   o <- getOffset
-  ident <- (:) <$> identBeginChar <*> many identChar
+  (ident, loc) <- withSrcLoc $ (:) <$> identBeginChar <*> many identChar
   whitespace
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
     else do      
-      pure $ Name $ Text.pack ident
+      pure $ Name (Text.pack ident) (FromSource loc Nothing)
 
 -------------------------------------------------------------------------------
 
@@ -171,18 +171,18 @@ decl = choice [assume, define]
 assume :: Parser Decl
 assume = do
   keyword "assume"
-  (x, loc) <- withSrcLoc name
+  x <- name
   symbol ":"
   t <- type_
-  return $ Assume (FromSource loc Nothing) x t
+  return $ Assume x t
 
 define :: Parser Decl
 define = do
   keyword "define"
-  (x, loc) <- withSrcLoc name
+  x <- name
   symbol "="
   e <- term
-  return $ Define (FromSource loc Nothing) x e
+  return $ Define x e
 
 -------------------------------------------------------------------------------
 
