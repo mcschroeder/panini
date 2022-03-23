@@ -96,7 +96,7 @@ showState = do
 forgetVars :: [String] -> InputT Elab ()
 forgetVars xs = do
   forM_ xs $ \x -> do
-    let n = Name NoPV (Text.pack x)
+    let n = Name $ Text.pack x
     lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
     lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
     lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }

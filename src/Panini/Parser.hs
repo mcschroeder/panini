@@ -82,15 +82,15 @@ lexeme = L.lexeme whitespace
 --
 -- >>> parseTest (symbol "a") "ab"
 -- "a"
-symbol :: Text -> Parser Text
-symbol = L.symbol whitespace
+symbol :: Text -> Parser ()
+symbol = void . L.symbol whitespace
 
 -- | Parses a keyword.
 --
 -- >>> parseTest (keyword "a") "ab"
 -- unexpected 'b'
-keyword :: Text -> Parser Text
-keyword kw = lexeme (string kw <* notFollowedBy identChar)
+keyword :: Text -> Parser ()
+keyword kw = void $ lexeme (string kw <* notFollowedBy identChar)
 
 -- | Parses something between parentheses.
 parens :: Parser a -> Parser a
@@ -156,20 +156,33 @@ withSrcLoc p = do
 name :: Parser Name
 name = label "name" $ do
   o <- getOffset
-  (ident, loc) <- withSrcLoc $ (:) <$> identBeginChar <*> many identChar
+  ident <- (:) <$> identBeginChar <*> many identChar
   whitespace
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
     else do      
-      pure $ Name (FromSource loc Nothing) $ Text.pack ident
+      pure $ Name $ Text.pack ident
 
 -------------------------------------------------------------------------------
 
 decl :: Parser Decl
-decl = choice
-  [ Assume <$ keyword "assume" <*> name <* symbol ":" <*> type_ 
-  , Define <$ keyword "define" <*> name <* symbol "=" <*> expr
-  ]
+decl = choice [assume, define]
+
+assume :: Parser Decl
+assume = do
+  keyword "assume"
+  (x, loc) <- withSrcLoc name
+  symbol ":"
+  t <- type_
+  return $ Assume (FromSource loc Nothing) x t
+
+define :: Parser Decl
+define = do
+  keyword "define"
+  (x, loc) <- withSrcLoc name
+  symbol "="
+  e <- expr
+  return $ Define (FromSource loc Nothing) x e
 
 -------------------------------------------------------------------------------
 
@@ -317,8 +330,8 @@ infixN p f = InfixN (f <$ p)
 infixR p f = InfixR (f <$ p)
 
 -- | Parses an operator symbol even if it overlaps with another operator symbol.
-op :: Text -> Parser Text
-op n = (lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
+op :: Text -> Parser ()
+op n = (void . lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
  where
    isOpSym c = c `elem` ['=', '<', '>', '/', '\\']
 
@@ -345,44 +358,44 @@ conOps = [[InfixR (CConj <$ symConj)]]
 
 -- | Parses an arrow.
 arrow :: Parser ()
-arrow = void $ symbol "->" <|> symbol "→"
+arrow = symbol "->" <|> symbol "→"
 
 -- | Parses a lambda.
 lambda :: Parser ()
-lambda = void $ symbol "\\" <|> symbol "λ"
+lambda = symbol "\\" <|> symbol "λ"
 
 -- | Parses a predicate negation symbol.
 symNot :: Parser ()
-symNot = void $ op "~" <|> symbol "¬"
+symNot = op "~" <|> symbol "¬"
 
 -- | Parses a disequality symbol.
 symNeq :: Parser ()
-symNeq = void $ op "/=" <|> symbol "≠"
+symNeq = op "/=" <|> symbol "≠"
 
 -- | Parsers a less-than-or-equal symbol.
 symLeq :: Parser ()
-symLeq = void $ op "<=" <|> symbol "≤"
+symLeq = op "<=" <|> symbol "≤"
 
 -- | Parsers a greater-than-or-equal symbol.
 symGeq :: Parser ()
-symGeq = void $ op ">=" <|> symbol "≥"
+symGeq = op ">=" <|> symbol "≥"
 
 -- | Parses a conjunction symbol.
 symConj :: Parser ()
-symConj = void $ op "/\\" <|> symbol "∧"
+symConj = op "/\\" <|> symbol "∧"
 
 -- | Parses a disjunction symbol.
 symDisj :: Parser ()
-symDisj = void $ op "\\/" <|> symbol "∨"
+symDisj = op "\\/" <|> symbol "∨"
 
 -- | Parses an implication symbol.
 symImpl :: Parser ()
-symImpl = void $ op "==>" <|> symbol "⇒"
+symImpl = op "==>" <|> symbol "⇒"
 
 -- | Parses an if-and-only-if symbol.
 symIff :: Parser ()
-symIff = void $ op "<=>" <|> symbol "⇔"
+symIff = op "<=>" <|> symbol "⇔"
 
 -- | Parses a forall symbol/keyword.
 symAll :: Parser ()
-symAll = void $ keyword "forall" <|> symbol "∀"
+symAll = keyword "forall" <|> symbol "∀"
