@@ -80,7 +80,8 @@ instance Subable Pred where
     PImpl p1 p2 -> PImpl (subst x y p1) (subst x y p2)
     PIff p1 p2 -> PIff (subst x y p1) (subst x y p2)
     PNot p1 -> PNot (subst x y p1)
-    PFun f ps -> PFun f (map (subst x y) ps)
+    PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
+    PHorn k xs -> PHorn k (map (subst x y) xs)  -- TODO: what about k?
   freeVars = \case
     PVal (V n) -> [n]
     PVal _ -> []
@@ -92,6 +93,7 @@ instance Subable Pred where
     PIff p1 p2 -> freeVars p1 ++ freeVars p2
     PNot p1 -> freeVars p1
     PFun f ps -> [f] ++ concatMap freeVars ps
+    PHorn _ xs -> concatMap freeVars xs  -- TODO: is k free?
 
 instance Subable Con where
   subst x y = \case

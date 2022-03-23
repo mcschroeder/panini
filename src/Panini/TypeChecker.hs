@@ -171,6 +171,10 @@ check g e t = do
 
 @
 
+------------------------------------- INS-HOLE
+  xs:ts |- {v:b|?} |> {v:b|k(v,xs)}
+
+
 ----------------------  INS-CONC
   {v:b|p} |> {v:b|p}
 
@@ -183,17 +187,21 @@ check g e t = do
 -}
 fresh :: Ctx -> Type -> TC Type
 
+-- [INS-HOLE]
+fresh g (TBase v b Unknown pv) = do
+  let xs = Map.keys g
+  let p = PHorn (Name "k0" NoPV) (map V (v:xs))  -- TODO: fresh horn var
+  return $ TBase v b (Known p) (Derived pv "INS-HOLE")
+
 -- [INS-CONC]
 fresh _ t@(TBase _ _ (Known _) _) = return t
 
 -- [INS-FUN]
-fresh g (TFun x s1 t1 _) = do
+fresh g (TFun x s1 t1 pv) = do
   s2 <- fresh g s1
   let g' = Map.insert x s1 g
   t2 <- fresh g' t1
-  return $ TFun x s2 t2 NoPV
-
-fresh _ _ = error "not implemented yet"
+  return $ TFun x s2 t2 (Derived pv "INS-FUN")
 
 ------------------------------------------------------------------------------
 {- | Subtyping.

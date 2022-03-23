@@ -187,7 +187,8 @@ instance Pretty Reft where
 instance Pretty Pred where
   pretty p0 = annotate Predicate $ case p0 of
     PVal x -> pretty x
-    PFun f ps -> pretty f <> (parens $ mconcat $ intersperse "," $ map pretty ps)
+    PFun f ps -> pretty f <> funargs ps
+    PHorn k xs -> pretty k <> funargs xs
     PNot p1 -> prettyUnary p0 p1 (sym "~")
     PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
     PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
@@ -203,6 +204,9 @@ instance Pretty Pred where
     PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
     PImpl p1 p2    -> prettyOp p0 p1 p2 (sym "==>")
     PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
+
+funargs :: Pretty a => [a] -> Doc Ann
+funargs = parens . mconcat . intersperse "," . map pretty
 
 prettyUnary :: Pred -> Pred -> Doc Ann -> Doc Ann
 prettyUnary o l docO = docO <> parensIf (pO > pL) (pretty l)

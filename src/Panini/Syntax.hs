@@ -153,6 +153,7 @@ data Pred
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
+  | PHorn Name [Value]  -- k(x1,x2,...)
   deriving stock (Eq, Show, Read)
 
 data Bop = Add | Sub | Mul | Div
