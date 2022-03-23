@@ -47,20 +47,20 @@ type Prog = [Decl]
 
 data Decl
   = Assume PV Name Type   -- assume x : t
-  | Define PV Name Expr   -- define x = e
+  | Define PV Name Term   -- define x = e
   deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------
 -- Terms
 
-data Expr
+data Term
   = Val Value                -- x
-  | App Expr Value           -- e x
-  | Lam Name Expr            -- \x. e
-  | Ann Expr Type            -- e : t
-  | Let Name Expr Expr       -- let x = e1 in e2
-  | Rec Name Type Expr Expr  -- rec x : t = e1 in e2
-  | If Value Expr Expr       -- if x then e1 else e2
+  | App Term Value           -- e x
+  | Lam Name Term            -- \x. e
+  | Ann Term Type            -- e : t
+  | Let Name Term Term       -- let x = e1 in e2
+  | Rec Name Type Term Term  -- rec x : t = e1 in e2
+  | If Value Term Term       -- if x then e1 else e2
   deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 module Panini.Parser
   ( parseProg
   , parseDecl
-  , parseExpr
+  , parseTerm
   , parseConstraint
   ) where
 
@@ -38,8 +38,8 @@ parseProg = parseA (many decl)
 parseDecl :: FilePath -> Text -> Either Error Decl
 parseDecl = parseA decl
 
-parseExpr :: FilePath -> Text -> Either Error Expr
-parseExpr = parseA expr
+parseTerm :: FilePath -> Text -> Either Error Term
+parseTerm = parseA term
 
 parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint
@@ -181,36 +181,36 @@ define = do
   keyword "define"
   (x, loc) <- withSrcLoc name
   symbol "="
-  e <- expr
+  e <- term
   return $ Define (FromSource loc Nothing) x e
 
 -------------------------------------------------------------------------------
 
-expr :: Parser Expr
-expr = do
-  e1 <- expr1
+term :: Parser Term
+term = do
+  e1 <- term1
   e <- (foldl' App e1 <$> some (try value)) <|> pure e1
   (Ann e <$ symbol ":" <*> type_) <|> pure e
 
-expr1 :: Parser Expr
-expr1 = choice
-  [ try $ parens expr
+term1 :: Parser Term
+term1 = choice
+  [ try $ parens term
 
   , try $ If <$ keyword "if" <*> value 
-             <* keyword "then" <*> expr 
-             <* keyword "else" <*> expr
+             <* keyword "then" <*> term 
+             <* keyword "else" <*> term
   
   , try $ Rec <$ keyword "rec" <*> name 
               <* symbol ":" <*> type_ 
-              <* symbol "=" <*> expr 
-              <* keyword "in" <*> expr
+              <* symbol "=" <*> term 
+              <* keyword "in" <*> term
   
   , try $ Let <$ keyword "let" <*> name 
-              <* symbol "=" <*> expr 
-              <* keyword "in" <*> expr
+              <* symbol "=" <*> term 
+              <* keyword "in" <*> term
   
   , try $ Lam <$ lambda <*> name 
-              <* symbol "." <*> expr
+              <* symbol "." <*> term
   
   , Val <$> value
   ]

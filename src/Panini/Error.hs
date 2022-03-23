@@ -11,8 +11,8 @@ data Error
   | MissingType Name
   | InvalidSubtypeBase (Type,Base) (Type,Base)
   | InvalidSubtype Type Type
-  | ExpectedFunType Expr Type
-  | CantSynth Expr
+  | ExpectedFunType Term Type
+  | CantSynth Term
   | ParserError PV Text
   deriving stock (Show, Read)
 

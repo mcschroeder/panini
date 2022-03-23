@@ -115,7 +115,7 @@ instance Pretty Decl where
 
 -------------------------------------------------------------------------------
 
-instance Pretty Expr where
+instance Pretty Term where
   pretty (Val x) = pretty x
   pretty (App e x) = pretty e <+> pretty x  
   pretty (Lam x e) = nest 2 $ group $ kws "\\" <> pretty x <> kws "." <\> pretty e

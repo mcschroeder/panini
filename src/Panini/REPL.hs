@@ -45,12 +45,12 @@ repl = do
         Format s    -> formatInput s      >> repl
         TypeSynth s -> synthesizeType s   >> repl
         Load fs     -> loadFiles fs       >> repl
-        Eval expr   -> evaluateInput expr >> repl
+        Eval term   -> evaluateInput term >> repl
         Show        -> showState          >> repl
         Forget xs   -> forgetVars xs    >> repl
 
 formatInput :: String -> InputT Elab ()
-formatInput = mapM_ outputPretty . parseInput @Expr
+formatInput = mapM_ outputPretty . parseInput @Term
 
 synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do
@@ -153,8 +153,8 @@ autocomplete = completeWord' Nothing isSpace $ \str -> do
 class Inputable a where
   parseInput :: String -> Either Error a
 
-instance Inputable Expr where
-  parseInput = parseExpr "<repl>" . Text.pack
+instance Inputable Term where
+  parseInput = parseTerm "<repl>" . Text.pack
 
 instance Inputable Decl where
   parseInput = parseDecl "<repl>" . Text.pack

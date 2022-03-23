@@ -30,7 +30,7 @@ tryError m = catchError (Right <$> m) (return . Left)
 -- | Elaborator state.
 data ElabState = ElabState
   { pan_types :: Ctx            -- ^ global typing context (Gamma)
-  , pan_terms :: Map Name Expr  -- ^ top-level functions
+  , pan_terms :: Map Name Term  -- ^ top-level functions
   , pan_vcs :: Map Name Con     -- ^ verification conditions
   }
 

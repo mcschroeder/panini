@@ -51,7 +51,7 @@ type Ctx = Map Name Type
 
 @
 -}
-synth :: Ctx -> Expr -> TC (Con, Type)
+synth :: Ctx -> Term -> TC (Con, Type)
 
 -- [SYN-PRIM]
 synth _ (Val U)     = return (cTrue, simpleType TUnit)
@@ -122,7 +122,7 @@ synth _ e = failWith $ CantSynth e
 
 @
 -}
-check :: Ctx -> Expr -> Type -> TC Con
+check :: Ctx -> Term -> Type -> TC Con
 
 -- [CHK-LAM]
 check g (Lam x e) (TFun y s t) = do
