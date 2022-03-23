@@ -96,18 +96,6 @@ keyword kw = void $ lexeme (string kw <* notFollowedBy identChar)
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
--- | Parses a string literal.
-stringLiteral :: Parser Text
-stringLiteral = Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"')) <* whitespace <?> "string"
-
--- | Parses a (signed) integer literal.
-integerLiteral :: Parser Integer
-integerLiteral = L.signed whitespace (lexeme L.decimal) <?> "integer"
-
--- | Parses a boolean literal.
-boolLiteral :: Parser Bool
-boolLiteral = True <$ keyword "true" <|> False <$ keyword "false"
-
 -- | Parses a character that is valid at the beginning of an identifier.
 identBeginChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
 identBeginChar = satisfy (\x -> isAlpha x || x == '_')
@@ -145,6 +133,11 @@ withPV p = do
   x <- p
   end <- getSourcePos
   return (x, mkPV begin end)
+
+addPV :: Parser (PV -> a) -> Parser a
+addPV p = do
+  (a0, pv) <- withPV p
+  return $ a0 pv
 
 -------------------------------------------------------------------------------
 
@@ -212,12 +205,29 @@ term1 = choice
 
 value :: Parser Value
 value = label "value" $ choice
-  [ U <$ keyword "unit"
-  , B <$> boolLiteral
-  , I <$> integerLiteral
-  , S <$> stringLiteral
+  [ (addPV $ U <$ string "unit") <* whitespace
+  , boolLit
+  , intLit
+  , stringLit
   , V <$> name
   ]
+  where
+    boolLit = do
+      (x, pv) <- withPV $ True <$ string "true" <|> False <$ string "false"
+      whitespace
+      return $ B x pv
+    
+    intLit = label "integer" $ do
+      (x, pv) <- withPV $ L.signed empty L.decimal
+      whitespace
+      return $ I x pv
+    
+    stringLit = label "string" $ do
+      begin <- getSourcePos
+      x <- Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+      end <- getSourcePos 
+      whitespace
+      return $ S x (mkPV begin end)
 
 -------------------------------------------------------------------------------
 

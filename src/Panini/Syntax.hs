@@ -79,12 +79,33 @@ data Term
 -- Values
 
 data Value
-  = U          -- unit
-  | B Bool     -- true, false
-  | I Integer  -- 0, -1, 1, ...
-  | S Text     -- "lorem ipsum"
-  | V Name     -- x
-  deriving stock (Eq, Ord, Show, Read)
+  = U PV          -- unit
+  | B Bool PV     -- true, false
+  | I Integer PV  -- 0, -1, 1, ...
+  | S Text PV     -- "lorem ipsum"
+  | V Name        -- x
+  deriving stock (Show, Read)
+
+-- | Equality between values ignores provenance.
+instance Eq Value where
+  U   _ == U   _ = True
+  B a _ == B b _ = a == b
+  I a _ == I b _ = a == b
+  S a _ == S b _ = a == b
+  V a   == V b   = a == b
+  _     == _     = False
+
+instance HasProvenance Value where
+  getPV (U pv) = pv
+  getPV (B _ pv) = pv
+  getPV (I _ pv) = pv
+  getPV (S _ pv) = pv
+  getPV (V x) = getPV x
+  setPV pv (U _) = U pv
+  setPV pv (B x _) = B x pv
+  setPV pv (I x _) = I x pv
+  setPV pv (S x _) = S x pv
+  setPV pv (V x) = V (setPV pv x)
 
 ------------------------------------------------------------------------------
 -- Types
@@ -110,8 +131,8 @@ data Reft
   | Known Pred  -- p
   deriving stock (Eq, Show, Read)
 
-simpleType :: Base -> Type
-simpleType b = TBase dummyName b (Known pTrue) NoPV
+simpleType :: Base -> PV -> Type
+simpleType b = TBase dummyName b (Known pTrue)
 
 instance HasProvenance Type where
   getPV (TBase _ _ _ pv) = pv
@@ -141,10 +162,10 @@ data Rel = Eq | Neq | Geq | Leq | Gt | Lt
   deriving stock (Eq, Show, Read)
 
 pTrue :: Pred
-pTrue = PVal (B True)
+pTrue = PVal (B True NoPV)
 
 pFalse :: Pred
-pFalse = PVal (B True)
+pFalse = PVal (B True NoPV)
 
 pVar :: Name -> Pred
 pVar = PVal . V

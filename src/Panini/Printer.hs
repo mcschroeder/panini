@@ -135,17 +135,17 @@ instance Pretty Term where
     nest 2 (kw "else" <\> pretty e2)
 
 instance Pretty Value where
-  pretty U = "unit"
-  pretty (B True) = "true"
-  pretty (B False) = "false"
-  pretty (I c) = pretty c
-  pretty (S t) = viaShow t
+  pretty (U _) = "unit"
+  pretty (B True _) = "true"
+  pretty (B False _) = "false"
+  pretty (I c _) = pretty c
+  pretty (S t _) = viaShow t
   pretty (V x) = pretty x
 
 -------------------------------------------------------------------------------
 
 isT :: Reft -> Bool
-isT (Known (PVal (B True))) = True
+isT (Known (PVal (B True _))) = True
 isT _ = False
 
 arr :: Doc Ann -> Doc Ann -> Doc Ann
@@ -275,15 +275,19 @@ hasLogic = \case
 -------------------------------------------------------------------------------
 
 instance Pretty Error where
-  pretty e = case getPV e of
-    FromSource loc (Just src) -> message (pretty loc) <\\> source loc src
-    FromSource loc Nothing    -> message (pretty loc)
-    NoPV                      -> message "<unknown location>"
+  pretty e = case prettyLoc $ getPV e of
+    (loc, Just src) -> message loc <\\> src
+    (loc, Nothing ) -> message loc
     where
       message o  = nest 2 (header o <\\> reason)
       header o   = annotate Message (o <> ":" <+> annotate Error "error:")
       reason     = prettyErrorMessage e
-      source l s = wavyDiagnostic l s
+
+prettyLoc :: PV -> (Doc Ann, Maybe (Doc Ann))
+prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))
+prettyLoc (FromSource l Nothing) = (pretty l, Nothing)
+prettyLoc (Derived pv _) = prettyLoc pv
+prettyLoc NoPV = ("<unknown location>", Nothing)
 
 prettyErrorMessage :: Error -> Doc Ann
 prettyErrorMessage = \case

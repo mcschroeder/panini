@@ -28,6 +28,8 @@ data SrcLoc = SrcLoc
 data PV
   = FromSource SrcLoc (Maybe Text) 
     -- ^ Location in source file, with optional source lines.
+  | Derived PV String
+    -- ^ Derivation from original (e.g., type synthesis or variable renaming).
   | NoPV 
     -- ^ Most likely machine-generated data.
   deriving stock (Show, Read)
@@ -49,6 +51,9 @@ updatePV f a = do
 addSourceLines :: PV -> IO PV
 addSourceLines (FromSource loc Nothing) = 
   FromSource loc . Just <$> readSrcLocLines loc
+addSourceLines (Derived pv x) = do
+  pv' <- addSourceLines pv
+  return $ Derived pv' x
 addSourceLines x = pure x
 
 -- | Returns the *lines* touched by the given `SrcLoc`.

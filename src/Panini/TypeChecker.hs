@@ -55,17 +55,18 @@ type Ctx = Map Name Type
 synth :: Ctx -> Term -> TC (Con, Type)
 
 -- [SYN-PRIM]
-synth _ (Val U)     = return (cTrue, simpleType TUnit)
-synth _ (Val (B _)) = return (cTrue, simpleType TBool)
-synth _ (Val (I _)) = return (cTrue, simpleType TInt)
-synth _ (Val (S _)) = return (cTrue, simpleType TString)
+synth _ (Val (U   pv)) = return (cTrue, simpleType TUnit   (Derived pv "SYN-PRIM"))
+synth _ (Val (B _ pv)) = return (cTrue, simpleType TBool   (Derived pv "SYN-PRIM"))
+synth _ (Val (I _ pv)) = return (cTrue, simpleType TInt    (Derived pv "SYN-PRIM"))
+synth _ (Val (S _ pv)) = return (cTrue, simpleType TString (Derived pv "SYN-PRIM"))
 
 -- [SYN-VAR]
 -- [SYN-SELF]
 synth g (Val (V x)) = do
   case Map.lookup x g of
-    Just (TBase v b (Known p) _) -> do
-      let t' = TBase v b (Known (PConj p (PRel Eq (pVar v) (pVar x)))) NoPV
+    Just (TBase v b (Known p) pv) -> do
+      let r' = Known (PConj p (PRel Eq (pVar v) (pVar x)))
+      let t' = TBase v b r' (Derived pv "SYN-SELF")
       return (cTrue, t')    
     Just t -> return (cTrue, t)
     Nothing -> failWith $ VarNotInScope x
@@ -151,7 +152,7 @@ check g (Rec x s1 e1 e2) t2 = do
 
 -- [CHK-IF]
 check g (If x e1 e2) t = do
-  _ <- check g (Val x) (simpleType TBool)
+  _ <- check g (Val x) (simpleType TBool NoPV)
   c1 <- check g e1 t
   c2 <- check g e2 t
   let y = freshName "y" (freeVars x ++ freeVars c1 ++ freeVars c2)
