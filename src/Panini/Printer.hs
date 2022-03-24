@@ -258,22 +258,22 @@ instance Fixity Pred where
 
 instance Pretty Con where
   pretty = annotate Predicate . \case
-    CPred p -> parensIf (hasLogic p) (pretty p)
-    CConj c1 c2 -> pretty c1  <+> sym "/\\" <+> pretty c2 
-    CAll x b p c ->
+    CPred p -> parensIf (hasImpl p) (pretty p)
+    CConj c1 c2 -> pretty c1 <+> sym "/\\" <+> pretty c2 
+    CAll x b p c -> parens $
       sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p <+>
       sym "==>" <+>
-      pretty c    
+      pretty c
 
-hasLogic :: Pred -> Bool
-hasLogic = \case
-  PConj _ _ -> True
-  PDisj _ _ -> True
+hasImpl :: Pred -> Bool
+hasImpl = \case
+  PConj p1 p2 -> hasImpl p1 || hasImpl p2
+  PDisj p1 p2 -> hasImpl p1 || hasImpl p2
   PImpl _ _ -> True
   PIff _ _ -> True
-  PBin _ p1 p2 -> hasLogic p1 && hasLogic p2
-  PRel _ p1 p2 -> hasLogic p1 && hasLogic p2
-  PNot p -> hasLogic p
+  PBin _ p1 p2 -> hasImpl p1 || hasImpl p2
+  PRel _ p1 p2 -> hasImpl p1 || hasImpl p2
+  PNot p -> hasImpl p
   _ -> False
 
 -------------------------------------------------------------------------------
