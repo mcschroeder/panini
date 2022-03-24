@@ -182,3 +182,9 @@ data Con
 
 cTrue :: Con
 cTrue = CPred pTrue
+
+-- | Smart constructor for `CConj`, eliminates redundant true values.
+cAnd :: Con -> Con -> Con
+cAnd (CPred (PVal (B True _))) c2 = c2
+cAnd c1 (CPred (PVal (B True _))) = c1
+cAnd c1 c2 = CConj c1 c2

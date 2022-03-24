@@ -83,7 +83,7 @@ synth g (App e y) = do
   case t0 of
     TFun x s t _ -> do
       c' <- check g (Val y) s
-      return (CConj c c', subst y x t)
+      return (c `cAnd` c', subst y x t)
 
     _ -> failWith $ ExpectedFunType e t0
 
@@ -140,7 +140,7 @@ check g (Let x e1 e2) t2 = do
   (c1, t1) <- synth g e1
   let g' = Map.insert x t1 g
   c2 <- check g' e2 t2
-  return $ CConj c1 (cImpl x t1 c2)
+  return $ c1 `cAnd` (cImpl x t1 c2)
 
 -- [CHK-REC]
 check g (Rec x s1 e1 e2) t2 = do
@@ -148,7 +148,7 @@ check g (Rec x s1 e1 e2) t2 = do
   let g' = Map.insert x t1 g
   c1 <- check g' e1 t1
   c2 <- check g' e2 t2
-  return $ CConj c1 c2
+  return $ c1 `cAnd` c2
 
 -- [CHK-IF]
 check g (If x e1 e2) t = do
@@ -158,13 +158,13 @@ check g (If x e1 e2) t = do
   let y = freshName "y" (freeVars x ++ freeVars c1 ++ freeVars c2)
   let yT = TBase dummyName TUnit (Known $ PVal x) NoPV
   let yF = TBase dummyName TUnit (Known $ PNot $ PVal x) NoPV
-  return $ CConj (cImpl y yT c1) (cImpl y yF c2)
+  return $ (cImpl y yT c1) `cAnd` (cImpl y yF c2)
 
 -- [CHK-SYN]
 check g e t = do
   (c, s) <- synth g e
   c' <- sub s t
-  return $ CConj c c'
+  return $ c `cAnd` c'
 
 ------------------------------------------------------------------------------
 {-| Hole Instantiation
@@ -231,7 +231,7 @@ sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   cI <- sub s2 s1
   let t1' = subst (V x2) x1 t1
   cO <- cImpl x2 s2 <$> sub t1' t2
-  return $ CConj cI cO
+  return $ cI `cAnd` cO
 
 sub t1 t2 = failWith $ InvalidSubtype t1 t2
 
