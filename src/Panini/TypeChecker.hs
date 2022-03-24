@@ -229,7 +229,7 @@ sub t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
 -- [SUB-FUN]
 sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   cI <- sub s2 s1
-  let t1' = subst (V x1) x2 t1
+  let t1' = subst (V x2) x1 t1
   cO <- cImpl x2 s2 <$> sub t1' t2
   return $ CConj cI cO
 
