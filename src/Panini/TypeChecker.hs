@@ -221,17 +221,20 @@ fresh g (TFun x s1 t1 pv) = do
 -}
 sub :: Type -> Type -> TC Con
 
+sub t1@(TBase _ b1 _ _) t2@(TBase _ b2 _ _) | b1 /= b2 = 
+  failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
+
 -- [SUB-BASE]
-sub t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
-  | b1 == b2  = return $ CAll v1 b1 p1 (CPred $ subst (V v1) v2 p2)
-  | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
+sub (TBase v1 b (Known p1) _) (TBase v2 _ (Known p2) _) = do
+  let p2' = CPred $ subst (V v1) v2 p2
+  return $ CAll v1 b p1 p2'
 
 -- [SUB-FUN]
 sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   cI <- sub s2 s1
   let t1' = subst (V x2) x1 t1
-  cO <- cImpl x2 s2 <$> sub t1' t2
-  return $ cI `cAnd` cO
+  cO <- sub t1' t2
+  return $ cI `cAnd` cImpl x2 s2 cO
 
 sub t1 t2 = failWith $ InvalidSubtype t1 t2
 
