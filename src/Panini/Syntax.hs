@@ -131,9 +131,6 @@ data Reft
   | Known Pred  -- p
   deriving stock (Eq, Show, Read)
 
-simpleType :: Base -> PV -> Type
-simpleType b = TBase dummyName b (Known pTrue)
-
 instance HasProvenance Type where
   getPV (TBase _ _ _ pv) = pv
   getPV (TFun _ _ _ pv) = pv
@@ -170,6 +167,9 @@ pFalse = PVal (B True NoPV)
 
 pVar :: Name -> Pred
 pVar = PVal . V
+
+pEq :: Pred -> Pred -> Pred
+pEq = PRel Eq
 
 ------------------------------------------------------------------------------
 -- Constraints

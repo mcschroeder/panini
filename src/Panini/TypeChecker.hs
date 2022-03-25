@@ -54,12 +54,6 @@ type Ctx = Map Name Type
 -}
 synth :: Ctx -> Term -> TC (Con, Type)
 
--- [SYN-PRIM]
-synth _ (Val (U   pv)) = return (cTrue, simpleType TUnit   (Derived pv "SYN-PRIM"))
-synth _ (Val (B _ pv)) = return (cTrue, simpleType TBool   (Derived pv "SYN-PRIM"))
-synth _ (Val (I _ pv)) = return (cTrue, simpleType TInt    (Derived pv "SYN-PRIM"))
-synth _ (Val (S _ pv)) = return (cTrue, simpleType TString (Derived pv "SYN-PRIM"))
-
 -- [SYN-VAR]
 -- [SYN-SELF]
 synth g (Val (V x)) = do
@@ -70,7 +64,18 @@ synth g (Val (V x)) = do
       return (cTrue, t')    
     Just t -> return (cTrue, t)
     Nothing -> failWith $ VarNotInScope x
-     
+
+-- [SYN-PRIM]
+synth g (Val (U pv)) = synth g (Val (I 0 pv))
+synth _ (Val c) = case c of
+  B _ _ -> return (cTrue, primType TBool)
+  I _ _ -> return (cTrue, primType TInt)
+  S _ _ -> return (cTrue, primType TString)
+  where
+    primType b = TBase v b (Known (pVar v `pEq` PVal c)) pv
+    v = dummyName
+    pv = Derived (getPV c) "SYN-PRIM"
+
 -- [SYN-ANN]
 synth g (Ann e s) = do
   t <- fresh g s
@@ -152,7 +157,7 @@ check g (Rec x s1 e1 e2) t2 = do
 
 -- [CHK-IF]
 check g (If x e1 e2) t = do
-  _ <- check g (Val x) (simpleType TBool NoPV)
+  _ <- check g (Val x) (TBase dummyName TBool (Known pTrue) NoPV)
   c1 <- check g e1 t
   c2 <- check g e2 t
   let y = freshName "y" (freeVars x ++ freeVars c1 ++ freeVars c2)
