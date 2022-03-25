@@ -29,6 +29,7 @@ library
     Panini.Parser
     Panini.Printer
     Panini.REPL
+    Panini.SMT
     Panini.Substitution
     Panini.Syntax
     Panini.TypeChecker

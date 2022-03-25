@@ -21,6 +21,7 @@ import Panini.Error
 import Panini.Parser
 import Panini.Printer
 import Panini.Provenance
+import Panini.SMT
 import Panini.Syntax
 import Panini.TypeChecker
 import Prelude
@@ -96,7 +97,11 @@ showState = do
   outputStrLn "\nterm context"
   mapM_ outputPretty $ Map.toList pan_terms
   outputStrLn "\nverification conditions"
-  mapM_ outputPretty $ Map.toList pan_vcs
+  -- mapM_ outputPretty $ Map.toList pan_vcs
+  forM_ (Map.toList pan_vcs) $ \(x,vc) -> do
+    outputPretty x
+    outputPretty vc
+    outputPretty $ printSMTLib2 vc
 
 forgetVars :: [String] -> InputT Elab ()
 forgetVars xs = do
