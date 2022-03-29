@@ -66,8 +66,8 @@ synth g (Val (V x)) = do
     Nothing -> failWith $ VarNotInScope x
 
 -- [SYN-PRIM]
-synth g (Val (U pv)) = synth g (Val (I 0 pv))
 synth _ (Val c) = case c of
+  U   _ -> return (cTrue, primType TUnit)
   B _ _ -> return (cTrue, primType TBool)
   I _ _ -> return (cTrue, primType TInt)
   S _ _ -> return (cTrue, primType TString)
