@@ -36,9 +36,10 @@ repl :: InputT Elab ()
 repl = do
   let prompt = "Panini> "
   let byeMsg = "byeee 👋"
-  x <- getInputLine prompt
+  x <- fmap (dropWhile isSpace) <$> getInputLine prompt
   case x of
     Nothing -> outputStrLn byeMsg
+    Just "" -> repl
     Just input -> case parseCmd input of
       Left err -> outputStrLn err >> repl
       Right cmd -> case cmd of
@@ -48,7 +49,7 @@ repl = do
         Load fs     -> loadFiles fs       >> repl
         Eval term   -> evaluateInput term >> repl
         Show        -> showState          >> repl
-        Forget xs   -> forgetVars xs    >> repl
+        Forget xs   -> forgetVars xs      >> repl
 
 formatInput :: String -> InputT Elab ()
 formatInput input = do
