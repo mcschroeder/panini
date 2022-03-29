@@ -174,6 +174,9 @@ instance Inputable Decl where
 addSourceLinesREPL :: String -> PV -> IO PV
 addSourceLinesREPL input (FromSource loc Nothing)
   | loc.file == "<repl>" = pure $ FromSource loc (Just $ Text.pack input)
+addSourceLinesREPL input (Derived pv x) = do
+  pv' <- addSourceLinesREPL input pv
+  return $ Derived pv' x
 addSourceLinesREPL _ pv = addSourceLines pv
 
 outputPretty :: Pretty a => a -> InputT Elab ()
