@@ -104,7 +104,7 @@ instance Subable Con where
       | x == V n -> let n' = freshName n (y : freeVars p ++ freeVars c)  -- (2)
                         p' = subst (V n') n p
                         c' = subst (V n') n c
-                    in CAll n' b p' c'
+                    in CAll n' b (subst x y p') (subst x y c')
       | otherwise -> CAll n b (subst x y p) (subst x y c)                -- (3)
   
   freeVars = \case
