@@ -59,8 +59,10 @@ synth :: Ctx -> Term -> TC (Con, Type)
 synth g (Val (V x)) = do
   case Map.lookup x g of
     Just (TBase v b (Known p) pv) -> do
-      let r' = Known (PConj p (PRel Eq (pVar v) (pVar x)))
-      let t' = TBase v b r' (Derived pv "SYN-SELF")
+      let v' = if v == x then freshName v (freeVars p) else v
+          p' = subst (V v') v p
+          r' = Known (PConj p' (PRel Eq (pVar v') (pVar x)))
+          t' = TBase v' b r' (Derived pv "SYN-SELF")
       return (cTrue, t')    
     Just t -> return (cTrue, t)
     Nothing -> failWith $ VarNotInScope x
