@@ -171,6 +171,12 @@ pVar = PVal . V
 pEq :: Pred -> Pred -> Pred
 pEq = PRel Eq
 
+-- | Smart constructor for `PConj`, eliminates redundant true values.
+pAnd :: Pred -> Pred -> Pred
+pAnd (PVal (B True _)) p2 = p2
+pAnd p1 (PVal (B True _)) = p1
+pAnd p1 p2 = PConj p1 p2
+
 ------------------------------------------------------------------------------
 -- Constraints
 

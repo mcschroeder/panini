@@ -61,7 +61,7 @@ synth g (Val (V x)) = do
     Just (TBase v b (Known p) pv) -> do
       let v' = if v == x then freshName v (freeVars p) else v
           p' = subst (V v') v p
-          r' = Known (PConj p' (PRel Eq (pVar v') (pVar x)))
+          r' = Known (p' `pAnd` (pVar v' `pEq` pVar x))
           t' = TBase v' b r' (Derived pv "SYN-SELF")
       return (cTrue, t')    
     Just t -> return (cTrue, t)
