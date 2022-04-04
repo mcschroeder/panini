@@ -259,13 +259,21 @@ instance Fixity Pred where
 instance Pretty Con where
   pretty = annotate Predicate . \case
     CPred p -> parensIf (hasImpl p) (pretty p)
-    CConj c1 c2 -> pretty c1 <+> sym "/\\" <\> pretty c2
+
+    CConj c1 c2
+      | isPred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
+      | otherwise -> pretty c1 <+> sym "/\\" <\> pretty c2
     
-    CImpl c1 c2@(CPred _) ->          pretty c1 <+> sym "==>" <+> pretty c2
-    CImpl c1 c2           -> nest 2 $ pretty c1 <+> sym "==>" <\> pretty c2
+    CImpl c1 c2
+      | isPred c2 ->          parens $ pretty c1 <+> sym "==>" <+> pretty c2
+      | otherwise -> nest 2 $ parens $ pretty c1 <+> sym "==>" <\> pretty c2
     
     CAll x b c -> parens $ 
       sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty c
+
+isPred :: Con -> Bool
+isPred (CPred _) = True
+isPred _         = False
 
 hasImpl :: Pred -> Bool
 hasImpl = \case

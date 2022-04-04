@@ -360,6 +360,7 @@ constraint = makeExprParser conTerm conOps
 conTerm :: Parser Con
 conTerm = choice
   [ try $ CPred <$> embeddedPredicate
+  , parens constraint
   , CAll <$ symAll <*> name
          <* symbol ":" <*> baseType 
          <* symbol "." <*> constraint
@@ -368,7 +369,12 @@ conTerm = choice
   embeddedPredicate = try (parens predicate) <|> predicateNoLogic
 
 conOps :: [[Operator Parser Con]]
-conOps = [[InfixR (CConj <$ symConj)]]
+conOps = 
+  [ [ InfixR (CConj <$ symConj)
+    ]
+  , [ InfixN (CImpl <$ symImpl)
+    ]
+  ]
 
 -------------------------------------------------------------------------------
 
