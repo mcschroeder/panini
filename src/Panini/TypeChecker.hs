@@ -22,36 +22,8 @@ failWith = Left
 type Ctx = Map Name Type
 
 ------------------------------------------------------------------------------
-{-| Type synthesis.
 
-@
-
-  prim(c) = t
----------------  SYN-PRIM
-  g |- c => t
-
-
-  g(x) = t  
-------------  SYN-VAR
- g |- x => t
-
-
-         g(x) = {v:b|p}  
---------------------------------  SYN-SELF
- g |- x => {v:b | p /\ v = x }
-
-
-  g |- s |> t      g |- e <= t
---------------------------------  SYN-ANN
-        g |- e : s => t
-
-
-  g |- e => x:s -> t      g |- y <= s  
----------------------------------------  SYN-APP
-           g |- e y => t[y/x]
-
-@
--}
+-- | Synthesize type of term (↗).
 synth :: Ctx -> Term -> TC (Con, Type)
 
 -- [SYN-VAR]
@@ -97,40 +69,8 @@ synth g (App e y) = do
 synth _ e = failWith $ CantSynth e
 
 ------------------------------------------------------------------------------
-{-| Type checking.
 
-@
-
-  g |- e => s      g |- s <: t
---------------------------------  CHK-SYN
-          g |- e <= t
-
-
-  g, x:t1 |- e <= t2[x/y]
----------------------------  CHK-LAM
-  g |- \x.e <= y:t1 -> t2
-
-
-  g |- e1 => t1      g, x:t1 |- e2 <= t2
-------------------------------------------  CHK-LET
-       g |- let x = e1 in e2 <= t2
-
-
-  g |- s1 |> t1      g, x:t1 |- e1 <= t1      g, x:t1 |- e2 <= t2
--------------------------------------------------------------------  CHK-REC
-                g |- rec x : s1 = e1 in e2 <= t2
-
-
-  g |- x <= bool
-  y is fresh
-  g, y:{_:int |  x } |- e1 <= t
-  g, y:{_:int | ~x } |- e2 <= t
-----------------------------------  CHK-IF
-  g |- if x then e1 else e2 <= t
-
-
-@
--}
+-- | Check type of term (↙).
 check :: Ctx -> Term -> Type -> TC Con
 
 -- [CHK-LAM]
@@ -171,24 +111,8 @@ check g e t = do
   return $ c `cAnd` c'
 
 ------------------------------------------------------------------------------
-{-| Hole Instantiation
 
-@
-
-------------------------------------- INS-HOLE
-  xs:ts |- {v:b|?} |> {v:b|k(v,xs)}
-
-
-----------------------  INS-CONC
-  {v:b|p} |> {v:b|p}
-
-
-  g |- s1 |> s2      g, x:s1 |- t1 |> t2
-------------------------------------------  INS-FUN
-      g |- x:s1 -> t1 |> x:s2 -> t2
-
-@
--}
+-- | Hole instantiation (▷).
 fresh :: Ctx -> Type -> TC Type
 
 -- [INS-HOLE]
@@ -208,21 +132,8 @@ fresh g (TFun x s1 t1 pv) = do
   return $ TFun x s2 t2 (Derived pv "INS-FUN")
 
 ------------------------------------------------------------------------------
-{- | Subtyping.
 
-@
-
-  g |- forall v1:b. p1 => p2[v1/v2]
--------------------------------------  SUB-BASE
-     g |- {v1:b|p1} <: {v2:b|p2}
-
-
-  g |- s2 <: s1      g, x2:s2 |- t1[x2/x1] <: t2
---------------------------------------------------  SUB-FUN
-          g |- x1:s1 -> t1 <: x2:s2 -> t2
-
-@
--}
+-- | Subtyping (<:).
 sub :: Type -> Type -> TC Con
 
 -- [SUB-BASE]
@@ -238,6 +149,8 @@ sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   return $ cI `cAnd` cImpl x2 s2 cO
 
 sub t1 t2 = failWith $ InvalidSubtype t1 t2
+
+------------------------------------------------------------------------------
 
 -- | Implication constraint @(x :: t) => c@.
 cImpl :: Name -> Type -> Con -> Con
