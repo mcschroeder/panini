@@ -116,10 +116,10 @@ check g e t = do
 fresh :: Ctx -> Type -> TC Type
 
 -- [INS-HOLE]
-fresh g (TBase v b Unknown pv) = do
-  let xs = Map.keys g
-  let p = PHorn (Name "k0" NoPV) (map V (v:xs))  -- TODO: fresh horn var
-  return $ TBase v b (Known p) (Derived pv "INS-HOLE")
+fresh _g (TBase _v _b Unknown _pv) = error "holes not yet implemented"  -- do
+  -- let xs = Map.keys g
+  -- let p = PHorn (Name "k0" NoPV) (map V (v:xs))  -- TODO: fresh horn var
+  -- return $ TBase v b (Known p) (Derived pv "INS-HOLE")
 
 -- [INS-CONC]
 fresh _ t@(TBase _ _ (Known _) _) = return t
