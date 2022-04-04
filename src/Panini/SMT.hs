@@ -31,10 +31,10 @@ sexpr  = parens . foldr1 (<+>)
 instance SMTLib2 Con where
   encode (CPred p) = encode p
   encode (CConj c1 c2) = sexpr ["and", encode c1, encode c2]
-  encode (CAll x b p c) = sexpr ["forall", parens sort, impl] 
+  encode (CImpl c1 c2) = sexpr ["=>", encode c1, encode c2]
+  encode (CAll x b c) = sexpr ["forall", parens sort, encode c] 
     where
       sort = sexpr [encode x, encode b]
-      impl = sexpr ["=>", encode p, encode c]
 
 instance SMTLib2 Pred where
   encode (PVal v) = encode v

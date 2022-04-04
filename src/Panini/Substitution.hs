@@ -99,18 +99,19 @@ instance Subable Con where
   subst x y = \case
     CPred p -> CPred (subst x y p)
     CConj c1 c2 -> CConj (subst x y c1) (subst x y c2)
-    CAll n b p c
-      | y == n -> CAll n b p c                                           -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars p ++ freeVars c)  -- (2)
-                        p' = subst (V n') n p
+    CImpl c1 c2 -> CImpl (subst x y c1) (subst x y c2)
+    CAll n b c
+      | y == n -> CAll n b c                               -- (1)
+      | x == V n -> let n' = freshName n (y : freeVars c)  -- (2)
                         c' = subst (V n') n c
-                    in CAll n' b (subst x y p') (subst x y c')
-      | otherwise -> CAll n b (subst x y p) (subst x y c)                -- (3)
+                    in CAll n' b (subst x y c')
+      | otherwise -> CAll n b (subst x y c)                -- (3)
   
   freeVars = \case
     CPred p -> freeVars p
     CConj c1 c2 -> freeVars c1 ++ freeVars c2
-    CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
+    CImpl c1 c2 -> freeVars c1 ++ freeVars c2
+    CAll n _ c -> freeVars c \\ [n]
 
 instance Subable Value where
   subst x y (V n) | y == n = x

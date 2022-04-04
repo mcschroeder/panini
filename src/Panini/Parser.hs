@@ -362,8 +362,7 @@ conTerm = choice
   [ try $ CPred <$> embeddedPredicate
   , CAll <$ symAll <*> name
          <* symbol ":" <*> baseType 
-         <* symbol "." <*> embeddedPredicate
-         <* symImpl <*> constraint  
+         <* symbol "." <*> constraint
   ]
  where
   embeddedPredicate = try (parens predicate) <|> predicateNoLogic

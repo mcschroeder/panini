@@ -181,9 +181,10 @@ pAnd p1 p2 = PConj p1 p2
 -- Constraints
 
 data Con
-  = CPred Pred               -- p
-  | CConj Con Con            -- c1 /\ c2
-  | CAll Name Base Pred Con  -- forall x:b. p ==> c
+  = CPred Pred          -- p
+  | CConj Con Con       -- c1 /\ c2
+  | CImpl Con Con       -- c1 ==> c2
+  | CAll Name Base Con  -- forall x:b. c
   deriving stock (Show, Read)
 
 cTrue :: Con

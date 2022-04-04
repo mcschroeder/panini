@@ -162,10 +162,7 @@ check g (If x e1 e2) t = do
   _ <- check g (Val x) (TBase dummyName TBool (Known pTrue) NoPV)
   c1 <- check g e1 t
   c2 <- check g e2 t
-  let y = freshName "y" (freeVars x ++ freeVars c1 ++ freeVars c2)
-  let yT = TBase dummyName TUnit (Known $ PVal x) NoPV
-  let yF = TBase dummyName TUnit (Known $ PNot $ PVal x) NoPV
-  return $ (cImpl y yT c1) `cAnd` (cImpl y yF c2)
+  return $ CImpl (CPred (PVal x)) c1 `cAnd` CImpl (CPred (PNot (PVal x))) c2
 
 -- [CHK-SYN]
 check g e t = do
@@ -245,5 +242,5 @@ sub t1 t2 = failWith $ InvalidSubtype t1 t2
 -- | Implication constraint @(x :: t) => c@.
 cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> CAll x b (subst (V x) v p) c
+  TBase v b (Known p) _ -> CAll x b $ CImpl (CPred $ subst (V x) v p) c
   _                     -> c
