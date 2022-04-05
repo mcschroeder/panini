@@ -11,8 +11,10 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Bifunctor
 import Data.Char (isSpace, toLower)
-import Data.List (isPrefixOf)
+import Data.Function
+import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -33,23 +35,50 @@ import System.IO
 
 -- | Panini REPL.
 repl :: InputT Elab ()
-repl = do
-  let prompt = "Panini> "
-  let byeMsg = "byeee 👋"
-  x <- fmap (dropWhile isSpace) <$> getInputLine prompt
-  case x of
-    Nothing -> outputStrLn byeMsg
-    Just "" -> repl
-    Just input -> case parseCmd input of
-      Left err -> outputStrLn err >> repl
-      Right cmd -> case cmd of
-        Quit        -> outputStrLn byeMsg
-        Format s    -> formatInput s      >> repl
-        TypeSynth s -> synthesizeType s   >> repl
-        Load fs     -> loadFiles fs       >> repl
-        Eval term   -> evaluateInput term >> repl
-        Show        -> showState          >> repl
-        Forget xs   -> forgetVars xs      >> repl
+repl = loop
+  where
+    prompt = "Panini> "
+    byeMsg = "byeee 👋"
+    multiMsg    = "╭── Entering multi-line mode. Press ⌃D to finish."
+    multiPrompt = "│ "
+    multiMsgEnd = "╰──"
+
+    loop = do
+      minput <- fmap (dropWhile isSpace) <$> getInputLine prompt
+      handleInput minput
+
+    loopMultiline xs = do
+      minput <- getInputLine multiPrompt
+      case minput of
+        Just x  -> loopMultiline (x:xs)
+        Nothing -> do
+          outputStrLn multiMsgEnd
+          handleInput $ Just $ unlines $ reverse xs
+
+    handleInput = \case
+      Nothing -> outputStrLn byeMsg
+      Just "" -> loop
+      Just (':':(splitCmd -> (cmd,args)))
+        | cmd `isPrefixOf` "quit"  -> handleInput Nothing
+        | cmd `isPrefixOf` "paste" -> outputStrLn multiMsg >> loopMultiline []
+        | Just f <- lookup cmd commandPrefixes -> f args >> loop
+        | otherwise -> outputStrLn ("unknown command :" ++ cmd) >> loop
+      Just input -> evaluateInput input >> loop
+
+    splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
+    
+    commandPrefixes = map head $ groupBy ((==) `on` fst) $ sortOn fst $ concat
+                    $ map (uncurry zip . bimap (tail . inits) repeat) commands
+    
+
+commands :: [(String, String -> InputT Elab ())]
+commands = 
+  [ ("format", formatInput)
+  , ("type", synthesizeType)
+  , ("load", loadFiles . words)
+  , ("show", const showState)
+  , ("forget", forgetVars . words)
+  ]
 
 formatInput :: String -> InputT Elab ()
 formatInput input = do
@@ -63,14 +92,16 @@ synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do
   g <- lift $ gets pan_types
   case synth g =<< parseInput input of
-    Left err -> outputPretty err
+    Left err -> do
+      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
+      outputPretty err'
     Right (vc, t) -> do
       outputPretty vc
       outputPretty t
 
 evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
-  res <- lift $ tryError $ elabDecl =<< lift (except $ parseInput input)  
+  res <- lift $ tryError $ elabProg =<< lift (except $ parseInput input) 
   case res of
     Left err -> do
       err' <- liftIO $ updatePV (addSourceLinesREPL input) err
@@ -113,32 +144,7 @@ forgetVars xs = do
     lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
 
 
--- TODO: number repl lines
 -- TODO: error source /= var name source (previous vs current definition)
-
--------------------------------------------------------------------------------
-
-data Command
-  = Quit
-  | Format String
-  | TypeSynth String
-  | Eval String
-  | Load [String]
-  | Show
-  | Forget [String]
-  deriving stock (Show, Read)
-
-parseCmd :: String -> Either String Command
-parseCmd (':' : input) = case break isSpace input of
-  (map toLower -> cmd, dropWhile isSpace -> args)
-    | cmd `isPrefixOf` "quit" -> Right Quit
-    | cmd `isPrefixOf` "format" -> Right (Format args)
-    | cmd `isPrefixOf` "type" -> Right (TypeSynth args)
-    | cmd `isPrefixOf` "load" -> Right $ Load (words args)
-    | cmd `isPrefixOf` "show" -> Right Show
-    | cmd == "forget"         -> Right $ Forget (words args)
-    | otherwise -> Left ("unknown command :" ++ cmd)
-parseCmd input = Right (Eval input)
 
 -------------------------------------------------------------------------------
 
@@ -157,7 +163,7 @@ autocomplete = completeWord' Nothing isSpace $ \str -> do
     then return []
     else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
   where
-    cmds = [":quit", ":format", ":type", ":load", ":show"]
+    cmds = [":quit", ":paste"] ++ map ((':':) . fst) commands
 
 -------------------------------------------------------------------------------
 
@@ -170,15 +176,23 @@ instance Inputable Term where
 instance Inputable Decl where
   parseInput = parseDecl "<repl>" . Text.pack
 
+instance Inputable Prog where
+  parseInput = parseProg "<repl>" . Text.pack
+
 -------------------------------------------------------------------------------
 
 addSourceLinesREPL :: String -> PV -> IO PV
-addSourceLinesREPL input (FromSource loc Nothing)
-  | loc.file == "<repl>" = pure $ FromSource loc (Just $ Text.pack input)
+addSourceLinesREPL input (FromSource loc Nothing) | loc.file == "<repl>" = do
+  let src = head $ lines $ extractLines loc.begin loc.end input
+  pure $ FromSource loc (Just $ Text.pack src)
 addSourceLinesREPL input (Derived pv x) = do
   pv' <- addSourceLinesREPL input pv
   return $ Derived pv' x
 addSourceLinesREPL _ pv = addSourceLines pv
+
+extractLines :: (Int,Int) -> (Int,Int) -> String -> String
+extractLines (l1,_) (l2,_) = 
+  unlines . take (l2 + 1 - l1) . drop (l1 - 1) . lines
 
 outputPretty :: Pretty a => a -> InputT Elab ()
 outputPretty x = do
