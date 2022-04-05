@@ -157,13 +157,22 @@ replSettings histFile =
       autoAddHistory = True
     }
 
+-- TODO: improve this hacky implementation
 autocomplete :: CompletionFunc Elab
-autocomplete = completeWord' Nothing isSpace $ \str -> do
-  if null str
-    then return []
-    else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
+autocomplete = fallbackCompletion completeCommands completeFiles
   where
+    completeCommands = completeWord' Nothing isSpace $ \str -> do
+      if null str
+        then return []
+        else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
+
     cmds = [":quit", ":paste"] ++ map ((':':) . fst) commands
+
+    completeFiles (r,s) = case splitCmd (reverse r) of
+      (":load", _) -> completeFilename (r,s)
+      _ -> pure (r,[])
+    
+    splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
 
 -------------------------------------------------------------------------------
 
