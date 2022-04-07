@@ -50,7 +50,8 @@ freshName x ys = go (nextSubscript x)
 nextSubscript :: Name -> Name
 nextSubscript (Name n _) = case decimal @Int $ Text.takeWhileEnd isDigit n of
   Left _      -> Name (Text.append n "1") NoPV
-  Right (i,_) -> Name (Text.append n $ Text.pack $ show (i + 1)) NoPV
+  Right (i,_) -> Name (Text.dropWhileEnd isDigit n <> i') NoPV
+                   where i' = Text.pack $ show (i + 1) 
 
 ------------------------------------------------------------------------------
 -- Top-level declarations
