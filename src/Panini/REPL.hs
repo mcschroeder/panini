@@ -90,8 +90,9 @@ formatInput input = do
 
 synthesizeType :: String -> InputT Elab ()
 synthesizeType input = do
+  e <- lift $ lift $ except $ parseInput input  
   g <- lift $ gets pan_types
-  case synth g =<< parseInput input of
+  case runTC $ synth g e of
     Left err -> do
       err' <- liftIO $ updatePV (addSourceLinesREPL input) err
       outputPretty err'
@@ -133,6 +134,7 @@ showState = do
   forM_ (Map.toList pan_vcs) $ \(x,vc) -> do
     outputPretty x
     outputPretty vc
+    -- mapM_ outputPretty (flat vc)
     outputPretty $ printSMTLib2 vc
 
 forgetVars :: [String] -> InputT Elab ()

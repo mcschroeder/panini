@@ -63,9 +63,11 @@ elabDecl (Define x e) = do
     Nothing -> case Map.lookup x gamma of
       Nothing -> throwError $ MissingType x
       Just t -> do
-        t' <- lift $ except $ fresh gamma t
-        let gamma' = Map.insert x t' gamma
-        vc <- lift $ except $ check gamma' e t'
+        (t', vc) <- lift $ except $ runTC $ do          
+          t' <- fresh gamma t
+          let gamma' = Map.insert x t' gamma
+          vc <- check gamma' e t'
+          return (t',vc)
         modify' $ \ps -> ps {pan_types = Map.insert x t' (pan_types ps)}
         modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
         modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}

@@ -2,8 +2,11 @@
 
 module Panini.TypeChecker where
 
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Text qualified as Text
 import Panini.Error
 import Panini.Provenance
 import Panini.Substitution
@@ -13,10 +16,20 @@ import Prelude
 ------------------------------------------------------------------------------
 
 -- | Type checker monad.
-type TC a = Either Error a
+type TC a = StateT TCState (Either Error) a
+
+data TCState = TCState
+  { tcHornCount :: !Int
+  }
+
+runTC :: TC a -> Either Error a
+runTC m = do
+  let s0 = TCState 0
+  (x,_) <- runStateT m s0
+  return x
 
 failWith :: Error -> TC a
-failWith = Left
+failWith = lift . Left
 
 -- | Typing context (Gamma)
 type Ctx = Map Name Type
@@ -117,10 +130,13 @@ check g e t = do
 fresh :: Ctx -> Type -> TC Type
 
 -- [INS-HOLE]
-fresh _g (TBase _v _b Unknown _pv) = error "holes not yet implemented"  -- do
-  -- let xs = Map.keys g
-  -- let p = PHorn (Name "k0" NoPV) (map V (v:xs))  -- TODO: fresh horn var
-  -- return $ TBase v b (Known p) (Derived pv "INS-HOLE")
+fresh g (TBase v b Unknown pv) = do
+  i <- gets tcHornCount
+  modify' (\s -> s { tcHornCount = s.tcHornCount + 1})
+  let k = Text.pack $ "k" ++ show i
+  let xs = map fst $ filter (isBaseType . snd) $ Map.toList g
+  let p = PHorn (Name k NoPV) (map V (v:xs))
+  return $ TBase v b (Known p) (Derived pv "INS-HOLE")
 
 -- [INS-CONC]
 fresh _ t@(TBase _ _ (Known _) _) = return t
