@@ -120,6 +120,10 @@ data Type
 --      t1 -> t2  ^=  _:t1 -> t2
 -- {x:b|r} -> t2  ^=  x:{x:b|r} -> t2
 
+isBaseType :: Type -> Bool
+isBaseType (TBase _ _ _ _) = True
+isBaseType _ = False
+
 data Base
   = TUnit
   | TBool
@@ -182,10 +186,9 @@ pAnd p1 p2 = PConj p1 p2
 -- Constraints
 
 data Con
-  = CPred Pred          -- p
-  | CConj Con Con       -- c1 /\ c2
-  | CImpl Con Con       -- c1 ==> c2
-  | CAll Name Base Con  -- forall x:b. c
+  = CPred Pred               -- p
+  | CConj Con Con            -- c1 /\ c2
+  | CAll Name Base Pred Con  -- forall x:b. p ==> c
   deriving stock (Show, Read)
 
 cTrue :: Con

@@ -2,14 +2,82 @@
 
 module Panini.SMT
   ( printSMTLib2
+  -- , solve
   ) where
 
+import Data.List (partition)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
+import Panini.Substitution
 import Panini.Syntax
 import Prelude
+
+------------------------------------------------------------------------------
+
+-- -- | Solve a Horn constraint given a set of candidates.
+-- solve :: Con -> [Pred] -> IO Bool
+-- solve c q = do
+--   let cs = flat c
+--   let (csk,csp) = partition horny cs
+--   --let s0 = 
+--   s <- fixpoint csk s0
+--   smtValid (map (applyC s) csp)
+
+-- -- | Flatten a Horn constraint into a set of flat constraints each of which is
+-- -- of the form ∀x1:b1. p1 ⇒ ∀x2:b2. p2 ⇒ ... ⇒ p' where p' is either a single
+-- -- Horn application κ(ȳ) or a concrete predicate free of Horn variables.
+-- flat :: Con -> [Con]
+-- flat (CPred p) = [CPred p]
+-- flat (CConj p1 p2) = flat p1 ++ flat p2
+-- flat (CAll x b p c) = [CAll x b p c' | c' <- flat c]
+
+-- -- | Whether or not a flat constraint has a Horn application in its head.
+-- horny :: Con -> Bool
+-- horny (CPred p)
+--   | PHorn _ _ <- p = True
+--   | otherwise      = False
+-- horny (CAll _ _ _ c) = horny c
+-- horny (CConj _ _) = error "expected flat constraint"
+
+-- getHornVars = undefined
+
+-- smtValid :: [Con] -> IO Bool
+-- smtValid = undefined
+
+-- -- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn
+-- -- variables parameters x̄.
+-- type Assignment = Map Name ([Name], Pred)
+
+-- -- | Apply a Horn assignment σ to a predicate, replacing each Horn application
+-- -- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
+-- apply :: Assignment -> Pred -> Pred
+-- apply s = \case
+--   PVal x       -> PVal x
+--   PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
+--   PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
+--   PConj p1 p2  -> PConj (apply s p1) (apply s p2)
+--   PDisj p1 p2  -> PDisj (apply s p1) (apply s p2)
+--   PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
+--   PIff p1 p2   -> PIff (apply s p1) (apply s p2)
+--   PNot p       -> PNot (apply s p)
+--   PFun f ps    -> PFun f (map (apply s) ps)
+--   PHorn k xs   -> case Map.lookup k s of
+--     Just (ys,p) -> substN xs ys p
+--     Nothing     -> PHorn k xs
+--   where
+--     substN :: [Value] -> [Name] -> Pred -> Pred
+--     substN (x:xs) (y:ys) = substN xs ys . subst x y
+--     substN _ _ = id
+
+-- applyC :: Assignment -> Con -> Con
+-- applyC s = \case
+--   CPred p      -> CPred (apply s p)
+--   CConj c1 c2  -> CConj (applyC s c1) (applyC s c2)
+--   CAll x b p c -> CAll x b (apply s p) (applyC s c)
 
 ------------------------------------------------------------------------------
 
@@ -31,10 +99,10 @@ sexpr  = parens . foldr1 (<+>)
 instance SMTLib2 Con where
   encode (CPred p) = encode p
   encode (CConj c1 c2) = sexpr ["and", encode c1, encode c2]
-  encode (CImpl c1 c2) = sexpr ["=>", encode c1, encode c2]
-  encode (CAll x b c) = sexpr ["forall", parens sort, encode c] 
+  encode (CAll x b p c) = sexpr ["forall", parens sort, impl] 
     where
       sort = sexpr [encode x, encode b]
+      impl = sexpr ["=>", encode p, encode c]
 
 instance SMTLib2 Pred where
   encode (PVal v) = encode v

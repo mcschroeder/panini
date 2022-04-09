@@ -263,17 +263,19 @@ instance Pretty Con where
     CConj c1 c2
       | isPred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
       | otherwise -> pretty c1 <+> sym "/\\" <\> pretty c2
-    
-    CImpl c1 c2
-      | isPred c2 ->          parens $ pretty c1 <+> sym "==>" <+> pretty c2
-      | otherwise -> nest 2 $ parens $ pretty c1 <+> sym "==>" <\> pretty c2
-    
-    CAll x b c -> parens $ 
-      sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty c
+        
+    CAll x b p c
+      | isPred c  ->          parens $ forall_ <+> pretty c
+      | otherwise -> nest 2 $ parens $ forall_ <\> pretty c
+      where
+        forall_ = 
+          sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> 
+          pretty p <+> sym "==>"
 
 isPred :: Con -> Bool
-isPred (CPred _) = True
-isPred _         = False
+isPred (CPred _)     = True
+isPred (CConj c1 c2) = isPred c1 && isPred c2
+isPred _             = False
 
 hasImpl :: Pred -> Bool
 hasImpl = \case

@@ -363,7 +363,8 @@ conTerm = choice
   , parens constraint
   , CAll <$ symAll <*> name
          <* symbol ":" <*> baseType 
-         <* symbol "." <*> constraint
+         <* symbol "." <*> predicate
+         <* symImpl <*> constraint
   ]
  where
   embeddedPredicate = try (parens predicate) <|> predicateNoLogic
@@ -371,8 +372,6 @@ conTerm = choice
 conOps :: [[Operator Parser Con]]
 conOps = 
   [ [ InfixR (CConj <$ symConj)
-    ]
-  , [ InfixN (CImpl <$ symImpl)
     ]
   ]
 

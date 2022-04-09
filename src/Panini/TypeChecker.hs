@@ -102,7 +102,8 @@ check g (If x e1 e2) t = do
   _ <- check g (Val x) (TBase dummyName TBool (Known pTrue) NoPV)
   c1 <- check g e1 t
   c2 <- check g e2 t
-  return $ CImpl (CPred (PVal x)) c1 `cAnd` CImpl (CPred (PNot (PVal x))) c2
+  let y = freshName "y" (freeVars c1 ++ freeVars c2 ++ freeVars x)
+  return $ CAll y TInt (PVal x) c1 `cAnd` CAll y TInt (PNot (PVal x)) c2
 
 -- [CHK-SYN]
 check g e t = do
@@ -137,8 +138,9 @@ fresh g (TFun x s1 t1 pv) = do
 sub :: Type -> Type -> TC Con
 
 -- [SUB-BASE]
-sub t1@(TBase v1 b1 (Known _) _) t2@(TBase v2 b2 (Known p2) _)
-  | b1 == b2  = return $ cImpl v1 t1 $ CPred $ subst (V v1) v2 p2
+sub t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
+  | b1 == b2  = let p2' = subst (V v1) v2 p2
+                in return $ CAll v1 b1 p1 (CPred p2')
   | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
 
 -- [SUB-FUN]
@@ -155,5 +157,5 @@ sub t1 t2 = failWith $ InvalidSubtype t1 t2
 -- | Implication constraint @(x :: t) => c@.
 cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> CAll x b $ CImpl (CPred $ subst (V x) v p) c
+  TBase v b (Known p) _ -> CAll x b (subst (V x) v p) c
   _                     -> c
