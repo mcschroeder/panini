@@ -2,13 +2,16 @@
 
 module Panini.SMT
   ( printSMTLib2
-  -- , solve
+  , solve
   ) where
 
+import Control.Monad
 import Data.List (partition)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.String
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
@@ -16,68 +19,130 @@ import Panini.Substitution
 import Panini.Syntax
 import Prelude
 
+import Panini.Printer
+
 ------------------------------------------------------------------------------
 
--- -- | Solve a Horn constraint given a set of candidates.
--- solve :: Con -> [Pred] -> IO Bool
--- solve c q = do
---   let cs = flat c
---   let (csk,csp) = partition horny cs
---   --let s0 = 
---   s <- fixpoint csk s0
---   smtValid (map (applyC s) csp)
+-- | Solve a Horn constraint given a set of candidates.
+solve :: Con -> [Pred] -> IO Bool
+solve c q = do
+  let cs = flat c
+  let (csk,csp) = partition horny cs
+  let s0 = Map.fromList $ map (\(k,xs) -> (k,(xs,pTrue))) $ getHornVars csk
+  s <- fixpoint csk s0
+  smtValid (map (applyC s) csp)
 
--- -- | Flatten a Horn constraint into a set of flat constraints each of which is
--- -- of the form ∀x1:b1. p1 ⇒ ∀x2:b2. p2 ⇒ ... ⇒ p' where p' is either a single
--- -- Horn application κ(ȳ) or a concrete predicate free of Horn variables.
--- flat :: Con -> [Con]
--- flat (CPred p) = [CPred p]
--- flat (CConj p1 p2) = flat p1 ++ flat p2
--- flat (CAll x b p c) = [CAll x b p c' | c' <- flat c]
+getHornVars :: [Con] -> [(Name,[Name])]
+getHornVars = map (f . getFlatHead)
+  where
+    f (PHorn k xs) = (k, g 0 xs)
+    f _ = error "expected flat constraint"
 
--- -- | Whether or not a flat constraint has a Horn application in its head.
--- horny :: Con -> Bool
--- horny (CPred p)
---   | PHorn _ _ <- p = True
---   | otherwise      = False
--- horny (CAll _ _ _ c) = horny c
--- horny (CConj _ _) = error "expected flat constraint"
+    g !i (_:xs) = (fromString $ "x" ++ show i) : g (i + 1) xs
+    g _ [] = []
 
--- getHornVars = undefined
+-- | Flatten a Horn constraint into a set of flat constraints each of which is
+-- of the form ∀x1:b1. p1 ⇒ ∀x2:b2. p2 ⇒ ... ⇒ pn where pn is either a single
+-- Horn application κ(ȳ) or a concrete predicate free of Horn variables.
+flat :: Con -> [Con]
+flat (CPred p) = [CPred p]
+flat (CConj p1 p2) = flat p1 ++ flat p2
+flat (CAll x b p c) = [CAll x b p c' | c' <- flat c]
 
--- smtValid :: [Con] -> IO Bool
--- smtValid = undefined
+-- | Whether or not a flat constraint has a Horn application in its head.
+horny :: Con -> Bool
+horny (CPred p)
+  | PHorn _ _ <- p = True
+  | otherwise      = False
+horny (CAll _ _ _ c) = horny c
+horny (CConj _ _) = error "expected flat constraint"
 
--- -- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn
--- -- variables parameters x̄.
--- type Assignment = Map Name ([Name], Pred)
+-- | Iteratively weaken a candidate solution until an assignment satisfying all
+-- given (flat) constraints is found.
+fixpoint :: [Con] -> Assignment -> IO Assignment
+fixpoint cs s = do  
+  r <- take 1 <$> filterM ((not <$>) . smtValid . pure . applyC s) cs
+  case r of
+    [c] -> do
+      s' <- weaken s c
+      fixpoint cs s'
+    _ -> return s
 
--- -- | Apply a Horn assignment σ to a predicate, replacing each Horn application
--- -- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
--- apply :: Assignment -> Pred -> Pred
--- apply s = \case
---   PVal x       -> PVal x
---   PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
---   PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
---   PConj p1 p2  -> PConj (apply s p1) (apply s p2)
---   PDisj p1 p2  -> PDisj (apply s p1) (apply s p2)
---   PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
---   PIff p1 p2   -> PIff (apply s p1) (apply s p2)
---   PNot p       -> PNot (apply s p)
---   PFun f ps    -> PFun f (map (apply s) ps)
---   PHorn k xs   -> case Map.lookup k s of
---     Just (ys,p) -> substN xs ys p
---     Nothing     -> PHorn k xs
---   where
---     substN :: [Value] -> [Name] -> Pred -> Pred
---     substN (x:xs) (y:ys) = substN xs ys . subst x y
---     substN _ _ = id
+-- | Weaken a Horn assignment to satisfy a given (flat) constraint.
+weaken :: Assignment -> Con -> IO Assignment
+weaken s c =
+  case getFlatHead c of
+    PHorn k xs -> case Map.lookup k s of
+      Nothing -> error $ "expected Horn assignment for " ++ show k
+      Just (ys,q0) -> do
+        let c' = mapFlatBody (apply s) c
+        let keep q = smtValid [mapFlatHead (const (substN xs ys q)) c']
+        qs' <- foldr PConj pTrue <$> filterM keep (explode q0)
+        return $ Map.insert k (ys,qs') s
 
--- applyC :: Assignment -> Con -> Con
--- applyC s = \case
---   CPred p      -> CPred (apply s p)
---   CConj c1 c2  -> CConj (applyC s c1) (applyC s c2)
---   CAll x b p c -> CAll x b (apply s p) (applyC s c)
+    _ -> error "expected Horn variable at head of flat constraint"
+
+explode :: Pred -> [Pred]
+explode (PConj p1 p2) = explode p1 ++ explode p2 
+explode p = [p]
+
+getFlatHead :: Con -> Pred
+getFlatHead (CAll _ _ _ q) = getFlatHead q
+getFlatHead (CPred p) = p
+getFlatHead _  = error "expected flat constraint"
+
+mapFlatBody :: (Pred -> Pred) -> Con -> Con
+mapFlatBody f (CAll x b p q)
+  | CAll _ _ _ _ <- q = CAll x b (f p) (mapFlatBody f q)
+  | otherwise         = CAll x b (f p) q
+mapFlatBody _ _ = error "expected flat constraint"
+
+mapFlatHead :: (Pred -> Pred) -> Con -> Con
+mapFlatHead f (CAll x b p q) = CAll x b p (mapFlatHead f q)
+mapFlatHead f (CPred p) = CPred (f p)
+mapFlatHead _ _ = error "expected flat constraint"
+
+
+
+-- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn
+-- variables parameters x̄.
+type Assignment = Map Name ([Name], Pred)
+
+-- | Apply a Horn assignment σ to a predicate, replacing each Horn application
+-- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
+apply :: Assignment -> Pred -> Pred
+apply s = \case
+  PVal x       -> PVal x
+  PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
+  PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
+  PConj p1 p2  -> PConj (apply s p1) (apply s p2)
+  PDisj p1 p2  -> PDisj (apply s p1) (apply s p2)
+  PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
+  PIff p1 p2   -> PIff (apply s p1) (apply s p2)
+  PNot p       -> PNot (apply s p)
+  PFun f ps    -> PFun f (map (apply s) ps)
+  PHorn k xs   -> case Map.lookup k s of
+    Just (ys,p) -> substN xs ys p
+    Nothing     -> PHorn k xs
+
+substN :: [Value] -> [Name] -> Pred -> Pred
+substN (x:xs) (y:ys) = substN xs ys . subst x y
+substN _ _ = id
+
+applyC :: Assignment -> Con -> Con
+applyC s = \case
+  CPred p      -> CPred (apply s p)
+  CConj c1 c2  -> CConj (applyC s c1) (applyC s c2)
+  CAll x b p c -> CAll x b (apply s p) (applyC s c)
+
+------------------------------------------------------------------------------
+
+smtValid :: [Con] -> IO Bool
+smtValid cs = do
+  let opts = RenderOptions {unicodeSymbols = True, ansiColors = False, fixedWidth = Nothing}
+  mapM_ (putStrLn . Text.unpack . renderDoc opts . pretty) cs
+  --mapM_ putStrLn $ map (Text.unpack . printSMTLib2) cs
+  return True
 
 ------------------------------------------------------------------------------
 

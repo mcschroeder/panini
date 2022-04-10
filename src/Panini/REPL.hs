@@ -135,7 +135,11 @@ showState = do
     outputPretty x
     outputPretty vc
     -- mapM_ outputPretty (flat vc)
-    outputPretty $ printSMTLib2 vc
+    --outputPretty $ printSMTLib2 vc
+
+    outputStrLn "---"
+    r <- liftIO $ Panini.SMT.solve vc []
+    outputStrLn (show r)
 
 forgetVars :: [String] -> InputT Elab ()
 forgetVars xs = do
