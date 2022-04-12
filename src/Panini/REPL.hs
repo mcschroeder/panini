@@ -139,7 +139,12 @@ showState = do
 
     outputStrLn "---"
     r <- liftIO $ Panini.SMT.solve vc []
-    outputStrLn (show r)
+    case r of
+      Nothing -> outputStrLn "UNSAT"
+      Just s -> do
+        outputStrLn "SAT"
+        forM_ (Map.toList s) $ \(k,(xs,p)) -> do
+          outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
 
 forgetVars :: [String] -> InputT Elab ()
 forgetVars xs = do

@@ -6,6 +6,7 @@ module Panini.SMT
   ) where
 
 import Control.Monad
+import Data.Bifunctor
 import Data.List (partition)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -19,18 +20,44 @@ import Panini.Substitution
 import Panini.Syntax
 import Prelude
 
-import Panini.Printer
-
 ------------------------------------------------------------------------------
 
 -- | Solve a Horn constraint given a set of candidates.
-solve :: Con -> [Pred] -> IO Bool
+solve :: Con -> [Pred] -> IO (Maybe Assignment)
 solve c q = do
   let cs = flat c
   let (csk,csp) = partition horny cs
-  let s0 = Map.fromList $ map (\(k,xs) -> (k,(xs,pTrue))) $ getHornVars csk
+  --let s0 = Map.fromList $ map (\(k,xs) -> (k,(xs,pTrue))) $ getHornVars csk
+  let s0 = extractCandidateAssignment csk
+  putStrLn $ show s0
   s <- fixpoint csk s0
-  smtValid (map (applyC s) csp)
+  r <- smtValid (map (applyC s) csp)
+  if r then return (Just s) else return Nothing
+
+extractCandidateAssignment :: [Con] -> Assignment
+extractCandidateAssignment = 
+  Map.fromListWith (\(xs,p1) (_,p2) -> (xs, p1 `pAnd` p2)) . map extractCandidate
+
+extractCandidate :: Con -> (Name, ([Name],Pred))
+extractCandidate = renameHornVarArgs . go []
+  where
+    go ps (CAll _ _ p c) = go (p:ps) c
+    go ps (CPred (PHorn k xs)) = (k, (v2n xs, foldr pAnd pTrue ps))
+    go _ _ = error "expected flat horn constraint"
+
+    v2n [] = []
+    v2n (V n:xs) = n:v2n xs
+    v2n _ = error "expected all Horn var arguments to be variables"
+
+renameHornVarArgs :: (Name, ([Name], Pred)) -> (Name, ([Name], Pred))
+renameHornVarArgs (k,(xs0,p0)) = let (p,zs) = go xs0 p0 [] in (k,(zs,p))
+  where
+    go [] p zs = (p, reverse zs)
+    go (x:xs) p zs = 
+      let z = freshName "z" (xs ++ freeVars p)
+          p' = subst (V z) x p
+      in go xs p' (z:zs)
+    
 
 getHornVars :: [Con] -> [(Name,[Name])]
 getHornVars = map (f . getFlatHead)
@@ -38,7 +65,7 @@ getHornVars = map (f . getFlatHead)
     f (PHorn k xs) = (k, g 0 xs)
     f _ = error "expected flat constraint"
 
-    g !i (_:xs) = (fromString $ "x" ++ show i) : g (i + 1) xs
+    g !i (_:xs) = (fromString $ "z" ++ show @Int i) : g (i + 1) xs
     g _ [] = []
 
 -- | Flatten a Horn constraint into a set of flat constraints each of which is
@@ -139,10 +166,9 @@ applyC s = \case
 
 smtValid :: [Con] -> IO Bool
 smtValid cs = do
-  let opts = RenderOptions {unicodeSymbols = True, ansiColors = False, fixedWidth = Nothing}
-  mapM_ (putStrLn . Text.unpack . renderDoc opts . pretty) cs
-  --mapM_ putStrLn $ map (Text.unpack . printSMTLib2) cs
-  return True
+  mapM_ putStrLn $ map (Text.unpack . printSMTLib2) cs
+  putStr "valid? "
+  readLn  
 
 ------------------------------------------------------------------------------
 
