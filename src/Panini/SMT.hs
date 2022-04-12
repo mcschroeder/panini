@@ -6,19 +6,23 @@ module Panini.SMT
   ) where
 
 import Control.Monad
-import Data.Bifunctor
-import Data.List (partition)
+import Data.List (partition, dropWhileEnd)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
+import Panini.Provenance
 import Panini.Substitution
 import Panini.Syntax
 import Prelude
+import System.Process
+import Data.Char
+import System.Exit
 
 ------------------------------------------------------------------------------
 
@@ -28,7 +32,15 @@ solve c q = do
   let cs = flat c
   let (csk,csp) = partition horny cs
   --let s0 = Map.fromList $ map (\(k,xs) -> (k,(xs,pTrue))) $ getHornVars csk
-  let s0 = extractCandidateAssignment csk
+  --let s0 = extractCandidateAssignment csk
+  let qs = [ PRel Leq (pVar "z1") (PVal (I 0 NoPV))
+           , PRel Geq (pVar "z1") (PVal (I 0 NoPV))
+           , PRel Leq (pVar "z2") (PVal (I 0 NoPV))
+           , PRel Geq (pVar "z2") (PVal (I 0 NoPV))
+           , PRel Leq (pVar "z1") (pVar "z2")
+           , PRel Geq (pVar "z2") (pVar "z1")
+           ]
+  let s0 = Map.fromList [("k0", (["z1","z2"], foldr pAnd pTrue qs))]
   putStrLn $ show s0
   s <- fixpoint csk s0
   r <- smtValid (map (applyC s) csp)
@@ -166,9 +178,16 @@ applyC s = \case
 
 smtValid :: [Con] -> IO Bool
 smtValid cs = do
-  mapM_ putStrLn $ map (Text.unpack . printSMTLib2) cs
-  putStr "valid? "
-  readLn  
+  let foralls = map (Text.unpack . printSMTLib2) cs
+  let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
+  let query = unlines $ asserts ++ ["(check-sat)"]
+  (code, output, _) <- readProcessWithExitCode "z3" ["-smt2", "-in"] query
+  case code of
+    ExitSuccess -> case dropWhileEnd isSpace output of
+      "sat" -> return True
+      "unsat" -> return False
+      x -> error x    
+    ExitFailure _ -> error output
 
 ------------------------------------------------------------------------------
 

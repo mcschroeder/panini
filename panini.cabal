@@ -45,6 +45,7 @@ library
     , megaparsec == 9.2.*
     , parser-combinators
     , prettyprinter
+    , process
     , text
     , transformers
 
