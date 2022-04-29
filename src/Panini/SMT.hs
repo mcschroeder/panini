@@ -179,8 +179,13 @@ applyC s = \case
 smtValid :: [Con] -> IO Bool
 smtValid cs = do
   let foralls = map (Text.unpack . printSMTLib2) cs
+  let declares = 
+        [ "(declare-fun length (String) Int)"
+        , "(declare-fun substring (String Int Int) String)"
+        ]
   let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
-  let query = unlines $ asserts ++ ["(check-sat)"]
+  let query = unlines $ declares ++ asserts ++ ["(check-sat)"]
+  putStrLn query
   (code, output, _) <- readProcessWithExitCode "z3" ["-smt2", "-in"] query
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of

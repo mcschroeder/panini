@@ -7,9 +7,9 @@ assume match :
   (s:string) -> 
   {i:int|i >= 0 /\ i < length(s)} -> 
   (t:string) -> 
-  {b:bool|b <=> index(s,i) = t}
+  {b:bool|b <=> substring(s,i,1) = t}
 
-assume foo : string -> unit
+assume foo : {s:string|?} -> unit
 define foo = \s.
   let i0 = 0 in
   rec L1 : int -> unit = \i1.
