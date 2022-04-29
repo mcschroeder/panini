@@ -253,7 +253,12 @@ type1 = choice
   , try base         -- b
   ]
  where
-  nested      = parens $ (,) <$> pure dummyName <*> type_
+  nested = parens $ do
+    t <- type_
+    case t of
+      TBase x _ _ _-> pure (x, t)
+      TFun _ _ _ _ -> pure (dummyName, t)
+
   namedNested = (,) <$> name <* symbol ":" <*> parens type_
   namedReft   = (,) <$> name <* symbol ":" <*> (snd <$> reft)
   reft = do
