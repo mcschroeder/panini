@@ -134,9 +134,8 @@ showState = do
   forM_ (Map.toList pan_vcs) $ \(x,vc) -> do
     outputPretty x
     outputPretty vc
-    -- mapM_ outputPretty (flat vc)
-    --outputPretty $ printSMTLib2 vc
-
+    outputStrLn "---"
+    mapM_ outputPretty (flat vc)
     outputStrLn "---"
     r <- liftIO $ Panini.SMT.solve vc []
     case r of

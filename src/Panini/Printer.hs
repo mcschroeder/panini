@@ -211,13 +211,14 @@ instance Pretty Pred where
       | isSimplePred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
       | otherwise       -> pretty c1 <+> sym "/\\" <\> pretty c2
         
-    PAll x b c -> parens $ forall_ <+> pretty c
+    PAll xbs c -> parens $ forall_ <+> pretty c
       where
-        forall_ = 
-          sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "."
+        forall_ = sym "forall " <> sorts xbs <> sym "."
+        sorts = mconcat . intersperse ", " . map sort_
+        sort_ (x,b) = pretty x <> sym ":" <> pretty b
 
 isSimplePred :: Pred -> Bool
-isSimplePred (PAll _ _ _) = False
+isSimplePred (PAll _ _) = False
 isSimplePred (PImpl _ c) = isSimplePred c
 isSimplePred (PConj c1 c2) = isSimplePred c1 && isSimplePred c2
 isSimplePred _     = True

@@ -156,8 +156,9 @@ data Pred
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
   | PHorn Name [Value]  -- k(x1,x2,...)
-  | PAll Name Base Pred  -- forall x:b. p
+  | PAll [(Name,Base)] Pred  -- forall xs:bs. p
   deriving stock (Eq, Show, Read)
+
 
 data Bop = Add | Sub | Mul | Div
   deriving stock (Eq, Show, Read)

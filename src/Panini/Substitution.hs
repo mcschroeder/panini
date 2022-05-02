@@ -70,13 +70,7 @@ instance Subable Reft where
 
 instance Subable Pred where  
   subst x y = \case
-    PAll n b p
-      | y == n -> PAll n b p                               -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars p)  -- (2)
-                        p' = subst (V n') n p
-                    in PAll n' b (subst x y p')
-      | otherwise -> PAll n b (subst x y p)                -- (3)
-
+    PAll ns p -> substPAll x y ns p
     PVal v -> PVal (subst x y v)
     PBin o p1 p2 -> PBin o (subst x y p1) (subst x y p2)
     PRel r p1 p2 -> PRel r (subst x y p1) (subst x y p2)
@@ -88,7 +82,7 @@ instance Subable Pred where
     PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
     PHorn k xs -> PHorn k (map (subst x y) xs)  -- TODO: what about k?
   freeVars = \case
-    PAll n _ p -> freeVars p \\ [n]
+    PAll ns p -> freeVars p \\ map fst ns
     PVal (V n) -> [n]
     PVal _ -> []
     PBin _ p1 p2 -> freeVars p1 ++ freeVars p2
@@ -100,6 +94,18 @@ instance Subable Pred where
     PNot p1 -> freeVars p1
     PFun f ps -> [f] ++ concatMap freeVars ps
     PHorn _ xs -> concatMap freeVars xs  -- TODO: is k free?
+
+-- note: this assumes all bindings in PAll are unique
+substPAll :: Value -> Name -> [(Name,Base)] -> Pred -> Pred
+substPAll x y ns0 p = go [] ns0
+  where
+    go ms ((n,b):ns)
+      | y == n = PAll (ms ++ (n,b):ns) p                                 -- (1)
+      | x == V n = let n' = freshName n (y : freeVars p ++ map fst ns0)  -- (2)
+                       p' = subst (V n') n p
+                   in PAll (ms ++ (n',b):ns) (subst x y p')
+      | otherwise = go (ms ++ [(n,b)]) ns
+    go ms [] = PAll ms (subst x y p)                                     -- (3)
 
 instance Subable Value where
   subst x y (V n) | y == n = x

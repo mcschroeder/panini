@@ -306,9 +306,10 @@ predTerm = choice
   ]
   where
     predAll = 
-      PAll <$ symAll <*> name
-           <* symbol ":" <*> baseType 
+      PAll <$ symAll <*> sepBy1 predSort (symbol ",")
            <* symbol "." <*> predicate
+
+    predSort = (,) <$> name <* symbol ":" <*> baseType
 
 predOps :: [[Operator Parser Pred]]
 predOps =
