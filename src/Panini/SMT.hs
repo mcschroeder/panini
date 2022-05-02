@@ -84,14 +84,14 @@ solve c _q = do
 -- of the form ∀x1:b1. p1 ⇒ ∀x2:b2. p2 ⇒ ... ⇒ pn where pn is either a single
 -- Horn application κ(ȳ) or a concrete predicate free of Horn variables.
 flat :: Pred -> [Pred]
-flat (PAll x b p c) = [PAll x b p c' | c' <- flat c]
+flat (PAll x b (PImpl p c)) = [PAll x b (PImpl p c') | c' <- flat c]
 flat (PConj p1 p2) = flat p1 ++ flat p2
 flat p = [p]
 
 -- | Whether or not a flat constraint has a Horn application in its head.
 horny :: Pred -> Bool
 horny (PHorn _ _) = True
-horny (PAll _ _ _ c) = horny c
+horny (PAll _ _ (PImpl _ c)) = horny c
 horny _ = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
@@ -124,17 +124,17 @@ explode (PConj p1 p2) = explode p1 ++ explode p2
 explode p = [p]
 
 getFlatHead :: Pred -> Pred
-getFlatHead (PAll _ _ _ q) = getFlatHead q
+getFlatHead (PAll _ _ (PImpl _ q)) = getFlatHead q
 getFlatHead p = p
 
 mapFlatBody :: (Pred -> Pred) -> Pred -> Pred
-mapFlatBody f (PAll x b p q)
-  | PAll _ _ _ _ <- q = PAll x b (f p) (mapFlatBody f q)
-  | otherwise         = PAll x b (f p) q
+mapFlatBody f (PAll x b (PImpl p q))
+  | PAll _ _ _ <- q = PAll x b (PImpl (f p) (mapFlatBody f q))
+  | otherwise       = PAll x b (PImpl (f p) q)
 mapFlatBody _ _ = error "expected flat constraint"
 
 mapFlatHead :: (Pred -> Pred) -> Pred -> Pred
-mapFlatHead f (PAll x b p q) = PAll x b p (mapFlatHead f q)
+mapFlatHead f (PAll x b (PImpl p q)) = PAll x b (PImpl p (mapFlatHead f q))
 mapFlatHead f p = f p
 
 
@@ -146,7 +146,7 @@ type Assignment = Map Name ([Name], Pred)
 -- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
 apply :: Assignment -> Pred -> Pred
 apply s = \case
-  PAll x b p c -> PAll x b (apply s p) (apply s c)
+  PAll x b p   -> PAll x b (apply s p)
   PVal x       -> PVal x
   PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
   PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
@@ -212,10 +212,9 @@ instance SMTLib2 Pred where
   encode (PNot p) = sexpr ["not", encode p]
   encode (PFun x ps) = sexpr (encode x : map encode ps)
   encode (PHorn x vs) = sexpr (encode x : map encode vs)
-  encode (PAll x b p c) = sexpr ["forall", parens sort, impl] 
+  encode (PAll x b p) = sexpr ["forall", parens sort, encode p] 
     where
       sort = sexpr [encode x, encode b]
-      impl = sexpr ["=>", encode p, encode c]
 
 instance SMTLib2 Name where
   encode (Name n _) = LB.fromText n

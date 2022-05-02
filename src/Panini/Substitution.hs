@@ -70,13 +70,12 @@ instance Subable Reft where
 
 instance Subable Pred where  
   subst x y = \case
-    PAll n b p c
-      | y == n -> PAll n b p c                             -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars c)  -- (2)
+    PAll n b p
+      | y == n -> PAll n b p                               -- (1)
+      | x == V n -> let n' = freshName n (y : freeVars p)  -- (2)
                         p' = subst (V n') n p
-                        c' = subst (V n') n c
-                    in PAll n' b (subst x y p') (subst x y c')
-      | otherwise -> PAll n b (subst x y p) (subst x y c)  -- (3)
+                    in PAll n' b (subst x y p')
+      | otherwise -> PAll n b (subst x y p)                -- (3)
 
     PVal v -> PVal (subst x y v)
     PBin o p1 p2 -> PBin o (subst x y p1) (subst x y p2)
@@ -89,7 +88,7 @@ instance Subable Pred where
     PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
     PHorn k xs -> PHorn k (map (subst x y) xs)  -- TODO: what about k?
   freeVars = \case
-    PAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
+    PAll n _ p -> freeVars p \\ [n]
     PVal (V n) -> [n]
     PVal _ -> []
     PBin _ p1 p2 -> freeVars p1 ++ freeVars p2

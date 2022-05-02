@@ -155,7 +155,7 @@ sub :: Type -> Type -> TC Pred
 -- [SUB-BASE]
 sub t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
   | b1 == b2  = let p2' = subst (V v1) v2 p2
-                in return $ PAll v1 b1 p1 p2'
+                in return $ PAll v1 b1 $ PImpl p1 p2'
   | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
 
 -- [SUB-FUN]
@@ -172,5 +172,5 @@ sub t1 t2 = failWith $ InvalidSubtype t1 t2
 -- | Implication constraint @(x :: t) => c@.
 cImpl :: Name -> Type -> Pred -> Pred
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> PAll x b (subst (V x) v p) c
+  TBase v b (Known p) _ -> PAll x b $ PImpl (subst (V x) v p) c
   _                     -> c

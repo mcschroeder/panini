@@ -201,20 +201,26 @@ instance Pretty Pred where
     PRel Geq p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
     PRel Gt p1 p2  -> prettyOp p0 p1 p2 (sym ">")
     PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
-    PImpl p1 p2    -> prettyOp p0 p1 p2 (sym "==>")
     PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
 
+    PImpl p1 p2
+      | isSimplePred p2 -> prettyOp p0 p1 p2 (sym "==>")
+      | otherwise -> nest 2 $ pretty p1 <+> sym "==>" <\> pretty p2
+
     PConj c1 c2
-      | isPred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
-      | otherwise -> pretty c1 <+> sym "/\\" <\> pretty c2
+      | isSimplePred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
+      | otherwise       -> pretty c1 <+> sym "/\\" <\> pretty c2
         
-    PAll x b p c
-      | isPred c  ->          parens $ forall_ <+> pretty c
-      | otherwise -> nest 2 $ parens $ forall_ <\> pretty c
+    PAll x b c -> parens $ forall_ <+> pretty c
       where
         forall_ = 
-          sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> 
-          pretty p <+> sym "==>"
+          sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "."
+
+isSimplePred :: Pred -> Bool
+isSimplePred (PAll _ _ _) = False
+isSimplePred (PImpl _ c) = isSimplePred c
+isSimplePred (PConj c1 c2) = isSimplePred c1 && isSimplePred c2
+isSimplePred _     = True
 
 funargs :: Pretty a => [a] -> Doc Ann
 funargs = parens . mconcat . intersperse "," . map pretty
@@ -264,14 +270,6 @@ instance Fixity Pred where
   fixity (PImpl _ _)    = (1, InfixN)
   fixity (PIff _ _)     = (1, InfixN)
   fixity _              = (9, InfixL)
-
--------------------------------------------------------------------------------
-
-isPred :: Pred -> Bool
-isPred (PAll _ _ _ _) = False
-isPred (PImpl _ c) = isPred c
-isPred (PConj c1 c2) = isPred c1 && isPred c2
-isPred _     = True
 
 -------------------------------------------------------------------------------
 

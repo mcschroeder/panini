@@ -309,7 +309,6 @@ predTerm = choice
       PAll <$ symAll <*> name
            <* symbol ":" <*> baseType 
            <* symbol "." <*> predicate
-           <* symImpl <*> predicate
 
 predOps :: [[Operator Parser Pred]]
 predOps =
