@@ -115,8 +115,7 @@ check g (If x e1 e2) t = do
   _ <- check g (Val x) (TBase dummyName TBool (Known pTrue) NoPV)
   c1 <- check g e1 t
   c2 <- check g e2 t
-  let y = freshName "y" (freeVars c1 ++ freeVars c2 ++ freeVars x)
-  return $ PAll y TInt (PVal x) c1 `pAnd` PAll y TInt (PNot (PVal x)) c2
+  return $ (PImpl (PVal x) c1) `pAnd` (PImpl (PNot (PVal x)) c2)
 
 -- [CHK-SYN]
 check g e t = do

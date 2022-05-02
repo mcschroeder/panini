@@ -269,6 +269,7 @@ instance Fixity Pred where
 
 isPred :: Pred -> Bool
 isPred (PAll _ _ _ _) = False
+isPred (PImpl _ c) = isPred c
 isPred (PConj c1 c2) = isPred c1 && isPred c2
 isPred _     = True
 
