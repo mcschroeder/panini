@@ -6,7 +6,6 @@ module Panini.Parser
   ( parseProg
   , parseDecl
   , parseTerm
-  , parseConstraint
   ) where
 
 import Control.Monad
@@ -40,9 +39,6 @@ parseDecl = parseA decl
 
 parseTerm :: FilePath -> Text -> Either Error Term
 parseTerm = parseA term
-
-parseConstraint :: FilePath -> Text -> Either Error Con
-parseConstraint = parseA constraint
 
 parseA :: Parser a -> FilePath -> Text -> Either Error a
 parseA p fp = first transformErrorBundle . parse (p <* eof) fp
@@ -299,22 +295,24 @@ refinement = (Unknown <$ symbol "?" <|> Known <$> predicate) <?> "refinement"
 
 -- | Parses a `Predicate`.
 predicate :: Parser Pred
-predicate = makeExprParser predTerm (predOpsBase ++ predOpsLogic)
-
--- | Parses a `Predicate` that does not contain logical connectives. 
--- We need this to disambiguate within the `Constraint` parser.
-predicateNoLogic :: Parser Pred
-predicateNoLogic = makeExprParser predTerm predOpsBase
+predicate = makeExprParser predTerm predOps
 
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
+  , predAll
   , try $ PVal <$> value <* notFollowedBy "("
   , PFun <$> name <*> parens (sepBy1 predicate ",")
   ]
+  where
+    predAll = 
+      PAll <$ symAll <*> name
+           <* symbol ":" <*> baseType 
+           <* symbol "." <*> predicate
+           <* symImpl <*> predicate
 
-predOpsBase :: [[Operator Parser Pred]]
-predOpsBase =
+predOps :: [[Operator Parser Pred]]
+predOps =
   [ [ prefix symNot PNot
     ]
   , [ infixL (op "*") (PBin Mul)
@@ -330,11 +328,7 @@ predOpsBase =
     , infixN symGeq   (PRel Geq)
     , infixN (op ">") (PRel Gt)
     ]
-  ]
-
-predOpsLogic :: [[Operator Parser Pred]]
-predOpsLogic =
-  [ [ infixR symConj PConj
+  , [ infixR symConj PConj
     ]
   , [ infixR symDisj PDisj
     ]
@@ -356,29 +350,6 @@ op :: Text -> Parser ()
 op n = (void . lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
  where
    isOpSym c = c `elem` ['=', '<', '>', '/', '\\']
-
--------------------------------------------------------------------------------
-
-constraint :: Parser Con
-constraint = makeExprParser conTerm conOps  
-
-conTerm :: Parser Con
-conTerm = choice
-  [ try $ CPred <$> embeddedPredicate
-  , parens constraint
-  , CAll <$ symAll <*> name
-         <* symbol ":" <*> baseType 
-         <* symbol "." <*> predicate
-         <* symImpl <*> constraint
-  ]
- where
-  embeddedPredicate = try (parens predicate) <|> predicateNoLogic
-
-conOps :: [[Operator Parser Con]]
-conOps = 
-  [ [ InfixR (CConj <$ symConj)
-    ]
-  ]
 
 -------------------------------------------------------------------------------
 

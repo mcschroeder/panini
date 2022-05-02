@@ -68,10 +68,16 @@ instance Subable Reft where
     Unknown -> []
     Known p -> freeVars p
 
--- | Note that the predicate language does not have binders, so we don't need to
--- worry about name capture in here.
 instance Subable Pred where  
   subst x y = \case
+    PAll n b p c
+      | y == n -> PAll n b p c                             -- (1)
+      | x == V n -> let n' = freshName n (y : freeVars c)  -- (2)
+                        p' = subst (V n') n p
+                        c' = subst (V n') n c
+                    in PAll n' b (subst x y p') (subst x y c')
+      | otherwise -> PAll n b (subst x y p) (subst x y c)  -- (3)
+
     PVal v -> PVal (subst x y v)
     PBin o p1 p2 -> PBin o (subst x y p1) (subst x y p2)
     PRel r p1 p2 -> PRel r (subst x y p1) (subst x y p2)
@@ -83,6 +89,7 @@ instance Subable Pred where
     PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
     PHorn k xs -> PHorn k (map (subst x y) xs)  -- TODO: what about k?
   freeVars = \case
+    PAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
     PVal (V n) -> [n]
     PVal _ -> []
     PBin _ p1 p2 -> freeVars p1 ++ freeVars p2
@@ -94,23 +101,6 @@ instance Subable Pred where
     PNot p1 -> freeVars p1
     PFun f ps -> [f] ++ concatMap freeVars ps
     PHorn _ xs -> concatMap freeVars xs  -- TODO: is k free?
-
-instance Subable Con where
-  subst x y = \case
-    CPred p -> CPred (subst x y p)
-    CConj c1 c2 -> CConj (subst x y c1) (subst x y c2)
-    CAll n b p c
-      | y == n -> CAll n b p c                             -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars c)  -- (2)
-                        p' = subst (V n') n p
-                        c' = subst (V n') n c
-                    in CAll n' b (subst x y p') (subst x y c')
-      | otherwise -> CAll n b (subst x y p) (subst x y c)  -- (3)
-  
-  freeVars = \case
-    CPred p -> freeVars p
-    CConj c1 c2 -> freeVars c1 ++ freeVars c2
-    CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
 
 instance Subable Value where
   subst x y (V n) | y == n = x

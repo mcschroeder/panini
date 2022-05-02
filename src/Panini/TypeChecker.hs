@@ -37,7 +37,7 @@ type Ctx = Map Name Type
 ------------------------------------------------------------------------------
 
 -- | Synthesize type of term (↗).
-synth :: Ctx -> Term -> TC (Con, Type)
+synth :: Ctx -> Term -> TC (Pred, Type)
 
 -- [SYN-VAR]
 -- [SYN-SELF]
@@ -48,16 +48,16 @@ synth g (Val (V x)) = do
           p' = subst (V v') v p
           r' = Known (p' `pAnd` (pVar v' `pEq` pVar x))
           t' = TBase v' b r' (Derived pv "SYN-SELF")
-      return (cTrue, t')    
-    Just t -> return (cTrue, t)
+      return (pTrue, t')    
+    Just t -> return (pTrue, t)
     Nothing -> failWith $ VarNotInScope x
 
 -- [SYN-PRIM]
 synth _ (Val c) = case c of
-  U   _ -> return (cTrue, primType TUnit)
-  B _ _ -> return (cTrue, primType TBool)
-  I _ _ -> return (cTrue, primType TInt)
-  S _ _ -> return (cTrue, primType TString)
+  U   _ -> return (pTrue, primType TUnit)
+  B _ _ -> return (pTrue, primType TBool)
+  I _ _ -> return (pTrue, primType TInt)
+  S _ _ -> return (pTrue, primType TString)
   where
     primType b = TBase v b (Known (pVar v `pEq` PVal c)) pv
     v = dummyName
@@ -75,7 +75,7 @@ synth g (App e y) = do
   case t0 of
     TFun x s t _ -> do
       c' <- check g (Val y) s
-      return (c `cAnd` c', subst y x t)
+      return (c `pAnd` c', subst y x t)
 
     _ -> failWith $ ExpectedFunType e t0
 
@@ -84,7 +84,7 @@ synth _ e = failWith $ CantSynth e
 ------------------------------------------------------------------------------
 
 -- | Check type of term (↙).
-check :: Ctx -> Term -> Type -> TC Con
+check :: Ctx -> Term -> Type -> TC Pred
 
 -- [CHK-LAM]
 check g (Lam x e) (TFun y s t _) = do
@@ -100,7 +100,7 @@ check g (Let x e1 e2) t2 = do
   (c1, t1) <- synth g e1
   let g' = Map.insert x t1 g
   c2 <- check g' e2 t2
-  return $ c1 `cAnd` (cImpl x t1 c2)
+  return $ c1 `pAnd` (cImpl x t1 c2)
 
 -- [CHK-REC]
 check g (Rec x s1 e1 e2) t2 = do
@@ -108,7 +108,7 @@ check g (Rec x s1 e1 e2) t2 = do
   let g' = Map.insert x t1 g
   c1 <- check g' e1 t1
   c2 <- check g' e2 t2
-  return $ c1 `cAnd` c2
+  return $ c1 `pAnd` c2
 
 -- [CHK-IF]
 check g (If x e1 e2) t = do
@@ -116,13 +116,13 @@ check g (If x e1 e2) t = do
   c1 <- check g e1 t
   c2 <- check g e2 t
   let y = freshName "y" (freeVars c1 ++ freeVars c2 ++ freeVars x)
-  return $ CAll y TInt (PVal x) c1 `cAnd` CAll y TInt (PNot (PVal x)) c2
+  return $ PAll y TInt (PVal x) c1 `pAnd` PAll y TInt (PNot (PVal x)) c2
 
 -- [CHK-SYN]
 check g e t = do
   (c, s) <- synth g e
   c' <- sub s t
-  return $ c `cAnd` c'
+  return $ c `pAnd` c'
 
 ------------------------------------------------------------------------------
 
@@ -151,12 +151,12 @@ fresh g (TFun x s1 t1 pv) = do
 ------------------------------------------------------------------------------
 
 -- | Subtyping (<:).
-sub :: Type -> Type -> TC Con
+sub :: Type -> Type -> TC Pred
 
 -- [SUB-BASE]
 sub t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
   | b1 == b2  = let p2' = subst (V v1) v2 p2
-                in return $ CAll v1 b1 p1 (CPred p2')
+                in return $ PAll v1 b1 p1 p2'
   | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)
 
 -- [SUB-FUN]
@@ -164,14 +164,14 @@ sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   cI <- sub s2 s1
   let t1' = subst (V x2) x1 t1
   cO <- sub t1' t2
-  return $ cI `cAnd` cImpl x2 s2 cO
+  return $ cI `pAnd` cImpl x2 s2 cO
 
 sub t1 t2 = failWith $ InvalidSubtype t1 t2
 
 ------------------------------------------------------------------------------
 
 -- | Implication constraint @(x :: t) => c@.
-cImpl :: Name -> Type -> Con -> Con
+cImpl :: Name -> Type -> Pred -> Pred
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> CAll x b (subst (V x) v p) c
+  TBase v b (Known p) _ -> PAll x b (subst (V x) v p) c
   _                     -> c

@@ -200,10 +200,21 @@ instance Pretty Pred where
     PRel Lt p1 p2  -> prettyOp p0 p1 p2 (sym "<")
     PRel Geq p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
     PRel Gt p1 p2  -> prettyOp p0 p1 p2 (sym ">")
-    PConj p1 p2    -> prettyOp p0 p1 p2 (sym "/\\")
     PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
     PImpl p1 p2    -> prettyOp p0 p1 p2 (sym "==>")
     PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
+
+    PConj c1 c2
+      | isPred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
+      | otherwise -> pretty c1 <+> sym "/\\" <\> pretty c2
+        
+    PAll x b p c
+      | isPred c  ->          parens $ forall_ <+> pretty c
+      | otherwise -> nest 2 $ parens $ forall_ <\> pretty c
+      where
+        forall_ = 
+          sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> 
+          pretty p <+> sym "==>"
 
 funargs :: Pretty a => [a] -> Doc Ann
 funargs = parens . mconcat . intersperse "," . map pretty
@@ -256,37 +267,10 @@ instance Fixity Pred where
 
 -------------------------------------------------------------------------------
 
-instance Pretty Con where
-  pretty = annotate Predicate . \case
-    CPred p -> parensIf (hasImpl p) (pretty p)
-
-    CConj c1 c2
-      | isPred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
-      | otherwise -> pretty c1 <+> sym "/\\" <\> pretty c2
-        
-    CAll x b p c
-      | isPred c  ->          parens $ forall_ <+> pretty c
-      | otherwise -> nest 2 $ parens $ forall_ <\> pretty c
-      where
-        forall_ = 
-          sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "." <+> 
-          pretty p <+> sym "==>"
-
-isPred :: Con -> Bool
-isPred (CPred _)     = True
-isPred (CConj c1 c2) = isPred c1 && isPred c2
-isPred _             = False
-
-hasImpl :: Pred -> Bool
-hasImpl = \case
-  PConj p1 p2 -> hasImpl p1 || hasImpl p2
-  PDisj p1 p2 -> hasImpl p1 || hasImpl p2
-  PImpl _ _ -> True
-  PIff _ _ -> True
-  PBin _ p1 p2 -> hasImpl p1 || hasImpl p2
-  PRel _ p1 p2 -> hasImpl p1 || hasImpl p2
-  PNot p -> hasImpl p
-  _ -> False
+isPred :: Pred -> Bool
+isPred (PAll _ _ _ _) = False
+isPred (PConj c1 c2) = isPred c1 && isPred c2
+isPred _     = True
 
 -------------------------------------------------------------------------------
 

@@ -156,6 +156,7 @@ data Pred
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
   | PHorn Name [Value]  -- k(x1,x2,...)
+  | PAll Name Base Pred Pred  -- forall x:b. p ==> c
   deriving stock (Eq, Show, Read)
 
 data Bop = Add | Sub | Mul | Div
@@ -181,21 +182,3 @@ pAnd :: Pred -> Pred -> Pred
 pAnd (PVal (B True _)) p2 = p2
 pAnd p1 (PVal (B True _)) = p1
 pAnd p1 p2 = PConj p1 p2
-
-------------------------------------------------------------------------------
--- Constraints
-
-data Con
-  = CPred Pred               -- p
-  | CConj Con Con            -- c1 /\ c2
-  | CAll Name Base Pred Con  -- forall x:b. p ==> c
-  deriving stock (Show, Read)
-
-cTrue :: Con
-cTrue = CPred pTrue
-
--- | Smart constructor for `CConj`, eliminates redundant true values.
-cAnd :: Con -> Con -> Con
-cAnd (CPred (PVal (B True _))) c2 = c2
-cAnd c1 (CPred (PVal (B True _))) = c1
-cAnd c1 c2 = CConj c1 c2
