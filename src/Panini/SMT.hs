@@ -81,27 +81,44 @@ solve c _q = do
 --     g !i (_:xs) = (fromString $ "z" ++ show @Int i) : g (i + 1) xs
 --     g _ [] = []
 
+
 -- | Flatten a Horn constraint into a set of flat constraints each of which is
 -- of the form ∀xs:bs. p ⇒ p' where p' is either a single Horn application κ(ȳ)
 -- or a concrete predicate free of Horn variables.
 flat :: Pred -> [Pred]
-flat p = [simpl [] pTrue p' | p' <- split p]
+flat p0 = [simpl [] pTrue p' | p' <- split p0]
+  where
+    split (PConj p1 p2) = split p1 ++ split p2
+    split (PImpl p q)   = [PImpl p q' | q' <- split q]
+    split (PAll xs p)   = [PAll xs p' | p' <- split p]
+    split p             = [p]
 
-split :: Pred -> [Pred]
-split (PConj p1 p2) = split p1 ++ split p2
-split (PImpl p c) = [PImpl p c' | c' <- split c]
-split (PAll xs (PImpl p c)) = [PAll xs (PImpl p c') | c' <- split c]
-split p = [p]
+    simpl xs p (PImpl q c) = simpl xs (p `pAnd` q) c
+    simpl xs p (PAll ys q) = 
+      -- rename clashing bindings before merging the foralls
+      let (ys1, q') = rename (map fst xs) (map fst ys) q
+          ys2       = zip ys1 (map snd ys)
+      in simpl (xs ++ ys2) p q'
+    simpl xs p q = 
+      -- remove redundant bindings that don't actually occur in the predicate
+      let fvs = freeVars p ++ freeVars q
+          xs' = filter (\(x,_) -> x `elem` fvs) xs
+      in if null xs' then PImpl p q else PAll xs' (PImpl p q)    
 
-simpl :: [(Name, Base)] -> Pred -> Pred -> Pred
-simpl xs p (PAll ys (PImpl q c)) = simpl (xs ++ ys) (p `pAnd` q) c
-simpl xs p (PImpl q c) = simpl xs (p `pAnd` q) c
-simpl xs p q = PAll xs (PImpl p q)
+-- | @rename xs ys p@ renames all @ys@ in @p@ that clash with @xs@.
+rename :: [Name] -> [Name] -> Pred -> ([Name], Pred)
+rename xs = go []
+  where
+    go zs [] p = (zs, p)
+    go zs (y:ys) p
+      | y `elem` xs = let z = freshName y (xs ++ ys ++ freeVars p)
+                          q = subst (V z) y p
+                      in go (z:zs) ys q
+      | otherwise = go (y:zs) ys p
 
 -- | Whether or not a flat constraint has a Horn application in its head.
 horny :: Pred -> Bool
-horny (PHorn _ _) = True
-horny (PAll _ (PImpl _ c)) = horny c
+horny (PAll _ (PImpl _ (PHorn _ _))) = True
 horny _ = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
