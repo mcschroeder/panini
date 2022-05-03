@@ -48,9 +48,9 @@ freshName x ys = go (nextSubscript x)
 
 -- | Given "x", returns "x1"; given "x1", returns "x2"; and so on.
 nextSubscript :: Name -> Name
-nextSubscript (Name n _) = case decimal @Int $ Text.takeWhileEnd isDigit n of
-  Left _      -> Name (Text.append n "1") NoPV
-  Right (i,_) -> Name (Text.dropWhileEnd isDigit n <> i') NoPV
+nextSubscript (Name n pv) = case decimal @Int $ Text.takeWhileEnd isDigit n of
+  Left _      -> Name (Text.append n "1") (Derived pv "rename")
+  Right (i,_) -> Name (Text.dropWhileEnd isDigit n <> i') (Derived pv "rename")
                    where i' = Text.pack $ show (i + 1) 
 
 ------------------------------------------------------------------------------
