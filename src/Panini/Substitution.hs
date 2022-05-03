@@ -74,7 +74,7 @@ instance Subable Pred where
     PVal v -> PVal (subst x y v)
     PBin o p1 p2 -> PBin o (subst x y p1) (subst x y p2)
     PRel r p1 p2 -> PRel r (subst x y p1) (subst x y p2)
-    PConj p1 p2 -> PConj (subst x y p1) (subst x y p2)
+    PAnd ps -> PAnd (map (subst x y) ps)
     PDisj p1 p2 -> PDisj (subst x y p1) (subst x y p2)
     PImpl p1 p2 -> PImpl (subst x y p1) (subst x y p2)
     PIff p1 p2 -> PIff (subst x y p1) (subst x y p2)
@@ -87,7 +87,7 @@ instance Subable Pred where
     PVal _ -> []
     PBin _ p1 p2 -> freeVars p1 ++ freeVars p2
     PRel _ p1 p2 -> freeVars p1 ++ freeVars p2
-    PConj p1 p2 -> freeVars p1 ++ freeVars p2
+    PAnd ps -> concatMap freeVars ps
     PDisj p1 p2 -> freeVars p1 ++ freeVars p2
     PImpl p1 p2 -> freeVars p1 ++ freeVars p2
     PIff p1 p2 -> freeVars p1 ++ freeVars p2

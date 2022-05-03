@@ -88,7 +88,7 @@ solve c _q = do
 flat :: Pred -> [Pred]
 flat p0 = [simpl [] pTrue p' | p' <- split p0]
   where
-    split (PConj p1 p2) = split p1 ++ split p2
+    split (PAnd ps)     = concatMap split ps
     split (PImpl p q)   = [PImpl p q' | q' <- split q]
     split (PAll xs p)   = [PAll xs p' | p' <- split p]
     split p             = [p]
@@ -141,13 +141,13 @@ weaken s c =
       Just (ys,q0) -> do
         let c' = mapFlatBody (apply s) c
         let keep q = smtValid [mapFlatHead (const (substN xs ys q)) c']
-        qs' <- foldr PConj pTrue <$> filterM keep (explode q0)
+        qs' <- PAnd <$> filterM keep (explode q0)
         return $ Map.insert k (ys,qs') s
 
     _ -> error "expected Horn variable at head of flat constraint"
 
 explode :: Pred -> [Pred]
-explode (PConj p1 p2) = explode p1 ++ explode p2 
+explode (PAnd ps) = ps
 explode p = [p]
 
 getFlatHead :: Pred -> Pred
@@ -177,7 +177,7 @@ apply s = \case
   PVal x       -> PVal x
   PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
   PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
-  PConj p1 p2  -> PConj (apply s p1) (apply s p2)
+  PAnd ps      -> PAnd (map (apply s) ps)
   PDisj p1 p2  -> PDisj (apply s p1) (apply s p2)
   PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
   PIff p1 p2   -> PIff (apply s p1) (apply s p2)
@@ -232,7 +232,7 @@ instance SMTLib2 Pred where
   encode (PVal v) = encode v
   encode (PBin o p1 p2) = sexpr [encode o, encode p1, encode p2]
   encode (PRel r p1 p2) = sexpr [encode r, encode p1, encode p2]
-  encode (PConj p1 p2) = sexpr ["and", encode p1, encode p2]
+  encode (PAnd ps) = sexpr ("and" : map encode ps)
   encode (PDisj p1 p2) = sexpr ["or", encode p1, encode p2]
   encode (PImpl p1 p2) = sexpr ["=>", encode p1, encode p2]
   encode (PIff p1 p2) = sexpr ["iff", encode p1, encode p2]

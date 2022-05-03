@@ -207,9 +207,13 @@ instance Pretty Pred where
       | isSimplePred p2 -> prettyOp p0 p1 p2 (sym "==>")
       | otherwise -> nest 2 $ pretty p1 <+> sym "==>" <\> pretty p2
 
-    PConj c1 c2
-      | isSimplePred c2 -> pretty c1 <+> sym "/\\" <+> pretty c2
-      | otherwise       -> pretty c1 <+> sym "/\\" <\> pretty c2
+    PAnd ps -> go ps
+      where
+        go [] = mempty
+        go (p:[]) = pretty p
+        go (p:q:qs)
+          | isSimplePred q = pretty p <+> sym "/\\" <+> go (q:qs)
+          | otherwise = pretty p <+> sym "/\\" <\> go (q:qs)
         
     PAll xbs c -> parens $ forall_ <+> pretty c
       where
@@ -220,7 +224,7 @@ instance Pretty Pred where
 isSimplePred :: Pred -> Bool
 isSimplePred (PAll _ _) = False
 isSimplePred (PImpl _ c) = isSimplePred c
-isSimplePred (PConj c1 c2) = isSimplePred c1 && isSimplePred c2
+isSimplePred (PAnd ps) = all isSimplePred ps
 isSimplePred _     = True
 
 funargs :: Pretty a => [a] -> Doc Ann
@@ -266,7 +270,7 @@ instance Fixity Pred where
   fixity (PRel Leq _ _) = (4, InfixN)
   fixity (PRel Gt _ _)  = (4, InfixN)
   fixity (PRel Lt _ _)  = (4, InfixN)
-  fixity (PConj _ _)    = (3, InfixR)
+  fixity (PAnd _)       = (3, InfixR)
   fixity (PDisj _ _)    = (2, InfixR)
   fixity (PImpl _ _)    = (1, InfixN)
   fixity (PIff _ _)     = (1, InfixN)

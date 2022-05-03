@@ -328,7 +328,7 @@ predOps =
     , infixN symGeq   (PRel Geq)
     , infixN (op ">") (PRel Gt)
     ]
-  , [ infixR symConj PConj
+  , [ infixR symConj mkAnd
     ]
   , [ infixR symDisj PDisj
     ]
@@ -336,6 +336,12 @@ predOps =
     , infixN symIff PIff
     ]
   ]
+
+mkAnd :: Pred -> Pred -> Pred
+mkAnd (PAnd ps) (PAnd qs) = PAnd (ps ++ qs)
+mkAnd (PAnd ps) q         = PAnd (ps ++ [q])
+mkAnd p         (PAnd qs) = PAnd (p:qs)
+mkAnd p         q         = PAnd [p,q]
 
 prefix :: Functor m => m b -> (a -> a) -> Operator m a
 prefix p f = Prefix (f <$ p)

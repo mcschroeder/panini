@@ -149,7 +149,7 @@ data Pred
   = PVal Value          -- x
   | PBin Bop Pred Pred  -- p1 o p2
   | PRel Rel Pred Pred  -- p1 R p2
-  | PConj Pred Pred     -- p1 /\ p2
+  | PAnd [Pred]         -- p1 /\ p2 /\ ... /\ pn
   | PDisj Pred Pred     -- p1 \/ p2
   | PImpl Pred Pred     -- p1 ==> p2
   | PIff Pred Pred      -- p1 <=> p2
@@ -178,8 +178,12 @@ pVar = PVal . V
 pEq :: Pred -> Pred -> Pred
 pEq = PRel Eq
 
--- | Smart constructor for `PConj`, eliminates redundant true values.
+-- | Smart constructor for `PAnd`, eliminates redundant true values and merges
+-- adjacent `PAnd` lists.
 pAnd :: Pred -> Pred -> Pred
-pAnd (PVal (B True _)) p2 = p2
-pAnd p1 (PVal (B True _)) = p1
-pAnd p1 p2 = PConj p1 p2
+pAnd (PVal (B True _)) q                 = q
+pAnd p                 (PVal (B True _)) = p
+pAnd (PAnd ps)         (PAnd qs)         = PAnd (ps ++ qs)
+pAnd (PAnd ps)         q                 = PAnd (ps ++ [q])
+pAnd p                 (PAnd qs)         = PAnd (p:qs)
+pAnd p                 q                 = PAnd [p,q]
