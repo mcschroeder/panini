@@ -159,18 +159,17 @@ data Pred
   | PAll [(Name,Base)] Pred  -- forall xs:bs. p
   deriving stock (Eq, Show, Read)
 
-
 data Bop = Add | Sub | Mul | Div
   deriving stock (Eq, Show, Read)
 
 data Rel = Eq | Neq | Geq | Leq | Gt | Lt
   deriving stock (Eq, Show, Read)
 
-pTrue :: Pred
-pTrue = PVal (B True NoPV)
+pattern PTrue :: PV -> Pred
+pattern PTrue pv = PVal (B True pv)
 
-pFalse :: Pred
-pFalse = PVal (B True NoPV)
+pattern PFalse :: PV -> Pred
+pattern PFalse pv = PVal (B False pv)
 
 pVar :: Name -> Pred
 pVar = PVal . V
@@ -181,9 +180,9 @@ pEq = PRel Eq
 -- | Smart constructor for `PAnd`, eliminates redundant true values and merges
 -- adjacent `PAnd` lists.
 pAnd :: Pred -> Pred -> Pred
-pAnd (PVal (B True _)) q                 = q
-pAnd p                 (PVal (B True _)) = p
-pAnd (PAnd ps)         (PAnd qs)         = PAnd (ps ++ qs)
-pAnd (PAnd ps)         q                 = PAnd (ps ++ [q])
-pAnd p                 (PAnd qs)         = PAnd (p:qs)
-pAnd p                 q                 = PAnd [p,q]
+pAnd (PTrue _) q         = q
+pAnd p         (PTrue _) = p
+pAnd (PAnd ps) (PAnd qs) = PAnd (ps ++ qs)
+pAnd (PAnd ps) q         = PAnd (ps ++ [q])
+pAnd p         (PAnd qs) = PAnd (p:qs)
+pAnd p         q         = PAnd [p,q]

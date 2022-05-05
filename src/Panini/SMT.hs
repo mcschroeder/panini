@@ -41,7 +41,7 @@ solve c _q = do
            , PRel Leq (pVar "z1") (pVar "z2")
            , PRel Geq (pVar "z2") (pVar "z1")
            ]
-  let s0 = Map.fromList [("k0", (["z1","z2"], foldr pAnd pTrue qs))]
+  let s0 = Map.fromList [("k0", (["z1","z2"], foldr pAnd (PTrue NoPV) qs))]
   putStrLn $ show s0
   s <- fixpoint csk s0
   r <- smtValid (map (apply s) csp)
@@ -86,7 +86,7 @@ solve c _q = do
 -- of the form ∀xs:bs. p ⇒ p' where p' is either a single Horn application κ(ȳ)
 -- or a concrete predicate free of Horn variables.
 flat :: Pred -> [Pred]
-flat p0 = [simpl [] pTrue p' | p' <- split p0]
+flat p0 = [simpl [] (PTrue NoPV) p' | p' <- split p0]
   where
     split (PAnd ps)     = concatMap split ps
     split (PImpl p q)   = [PImpl p q' | q' <- split q]

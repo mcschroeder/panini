@@ -275,10 +275,11 @@ type1 = choice
     symbol ":"
     b <- baseType
     end <- getSourcePos
-    pure (x, TBase x b (Known pTrue) (mkPV begin end))
+    let pv = mkPV begin end
+    pure (x, TBase x b (Known (PTrue pv)) pv)
   base = do
     (b, pv) <- withPV baseType
-    pure (dummyName, TBase dummyName b (Known pTrue) pv)
+    pure (dummyName, TBase dummyName b (Known (PTrue pv)) pv)
 
 baseType :: Parser Base
 baseType = choice

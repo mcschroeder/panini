@@ -145,7 +145,7 @@ instance Pretty Value where
 -------------------------------------------------------------------------------
 
 isT :: Reft -> Bool
-isT (Known (PVal (B True _))) = True
+isT (Known (PTrue _)) = True
 isT _ = False
 
 arr :: Doc Ann -> Doc Ann -> Doc Ann

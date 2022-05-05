@@ -47,17 +47,18 @@ synth g (Val (V x)) = do
       let v' = if v == x then freshName v (freeVars p) else v
           p' = subst (V v') v p
           r' = Known (p' `pAnd` (pVar v' `pEq` pVar x))
-          t' = TBase v' b r' (Derived pv "SYN-SELF")
-      return (pTrue, t')    
-    Just t -> return (pTrue, t)
+          pv' = Derived pv "SYN-SELF"
+          t' = TBase v' b r' pv'
+      return (PTrue pv', t')
+    Just t -> return (PTrue (getPV t), t)
     Nothing -> failWith $ VarNotInScope x
 
 -- [SYN-PRIM]
 synth _ (Val c) = case c of
-  U   _ -> return (pTrue, primType TUnit)
-  B _ _ -> return (pTrue, primType TBool)
-  I _ _ -> return (pTrue, primType TInt)
-  S _ _ -> return (pTrue, primType TString)
+  U   _ -> return (PTrue pv, primType TUnit)
+  B _ _ -> return (PTrue pv, primType TBool)
+  I _ _ -> return (PTrue pv, primType TInt)
+  S _ _ -> return (PTrue pv, primType TString)
   where
     primType b = TBase v b (Known (pVar v `pEq` PVal c)) pv
     v = dummyName
@@ -112,7 +113,7 @@ check g (Rec x s1 e1 e2) t2 = do
 
 -- [CHK-IF]
 check g (If x e1 e2) t = do
-  _ <- check g (Val x) (TBase dummyName TBool (Known pTrue) NoPV)
+  _ <- check g (Val x) (TBase dummyName TBool (Known (PTrue NoPV)) NoPV)
   c1 <- check g e1 t
   c2 <- check g e2 t
   return $ (PImpl (PVal x) c1) `pAnd` (PImpl (PNot (PVal x)) c2)

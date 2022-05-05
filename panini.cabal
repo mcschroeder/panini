@@ -57,6 +57,7 @@ library
     LambdaCase
     OverloadedRecordDot
     ViewPatterns
+    PatternSynonyms
   
   ghc-options:
     -Weverything
