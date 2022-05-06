@@ -4,6 +4,7 @@ module Panini.SMT
   ( printSMTLib2
   , solve
   , flat
+  , taut, simplify
   ) where
 
 import Control.Monad
@@ -30,7 +31,7 @@ import System.Exit
 -- | Solve a Horn constraint given a set of candidates.
 solve :: Pred -> [Pred] -> IO (Maybe Assignment)
 solve c _q = do
-  let cs = flat c
+  let cs = filter (not . taut) $ map simplify $ flat c
   let (csk,csp) = partition horny cs
   --let s0 = Map.fromList $ map (\(k,xs) -> (k,(xs,pTrue))) $ getHornVars csk
   --let s0 = extractCandidateAssignment csk
@@ -86,24 +87,21 @@ solve c _q = do
 -- of the form ∀xs:bs. p ⇒ p' where p' is either a single Horn application κ(ȳ)
 -- or a concrete predicate free of Horn variables.
 flat :: Pred -> [Pred]
-flat p0 = [simpl [] (PTrue NoPV) p' | p' <- split p0]
+flat p0 = [merge [] (PTrue NoPV) p' | p' <- split p0]
   where
     split (PAnd ps)     = concatMap split ps
     split (PImpl p q)   = [PImpl p q' | q' <- split q]
     split (PAll xs p)   = [PAll xs p' | p' <- split p]
     split p             = [p]
 
-    simpl xs p (PImpl q c) = simpl xs (p `pAnd` q) c
-    simpl xs p (PAll ys q) = 
+    merge xs p (PAll ys q) = 
       -- rename clashing bindings before merging the foralls
       let (ys1, q') = rename (map fst xs) (map fst ys) q
           ys2       = zip ys1 (map snd ys)
-      in simpl (xs ++ ys2) p q'
-    simpl xs p q = 
-      -- remove redundant bindings that don't actually occur in the predicate
-      let fvs = freeVars p ++ freeVars q
-          xs' = filter (\(x,_) -> x `elem` fvs) xs
-      in if null xs' then PImpl p q else PAll xs' (PImpl p q)    
+      in merge (xs ++ ys2) p q'
+    
+    merge xs p (PImpl q c) = merge xs (p `pAnd` q) c
+    merge xs p q           = PAll xs (PImpl p q)
 
 -- | @rename xs ys p@ renames all @ys@ in @p@ that clash with @xs@.
 rename :: [Name] -> [Name] -> Pred -> ([Name], Pred)
@@ -115,6 +113,44 @@ rename xs = go []
                           q = subst (V z) y p
                       in go (z:zs) ys q
       | otherwise = go (y:zs) ys p
+
+-- TODO: preserve provenance information
+simplify :: Pred -> Pred
+simplify = \case
+  PAnd (filter (not . taut) . map simplify -> ps)
+    | []  <- ps -> PTrue NoPV
+    | [p] <- ps -> p
+    | otherwise -> PAnd ps
+
+  PNot (simplify -> p) -> PNot p
+
+  PImpl (simplify -> p) (simplify -> q)
+    | PTrue _ <- p -> q
+    | PTrue _ <- q -> PTrue NoPV
+    | otherwise    -> PImpl p q
+  
+  PIff (simplify -> p) (simplify -> q)
+    | PTrue _ <- p -> q
+    | PTrue _ <- q -> p
+    | otherwise    -> PIff p q
+  
+  PAll xs (simplify -> p) -> 
+    -- remove redundant bindings that don't actually occur in the predicate
+    let fvs = freeVars p
+        xs' = filter (\(x,_) -> x `elem` fvs) xs
+    in if null xs' then p else PAll xs' p
+  
+  p -> p
+
+taut :: Pred -> Bool
+taut (PTrue _)      = True
+taut (PAnd [])      = True
+taut (PAnd ps)      = all taut ps
+taut (PRel Eq  p q) = p == q
+taut (PRel Leq p q) = p == q
+taut (PRel Geq p q) = p == q
+taut _              = False
+
 
 -- | Whether or not a flat constraint has a Horn application in its head.
 horny :: Pred -> Bool

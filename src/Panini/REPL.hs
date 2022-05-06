@@ -135,7 +135,14 @@ showState = do
     outputPretty x
     outputPretty vc
     outputStrLn "---"
+    outputPretty (simplify vc)
+    outputStrLn "---"
     mapM_ outputPretty (flat vc)
+    outputStrLn "---"
+    mapM_ outputPretty (flat (simplify vc))
+    outputStrLn "---"
+    --mapM_ outputPretty $ filter (not . taut) $ map simplify $ flat vc
+    --mapM_ outputPretty $ flat $ simplify vc
     outputStrLn "---"
     r <- liftIO $ Panini.SMT.solve vc []
     case r of
