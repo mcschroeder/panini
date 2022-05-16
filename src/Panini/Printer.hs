@@ -4,6 +4,7 @@ module Panini.Printer
   ( Pretty(..)
   , RenderOptions(..)
   , renderDoc
+  , showPretty
   ) where
 
 import Control.Monad
@@ -18,6 +19,18 @@ import Prettyprinter hiding (Pretty(..))
 import Prettyprinter qualified
 import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI
+
+-------------------------------------------------------------------------------
+
+showPretty :: Pretty a => a -> String
+showPretty = Text.unpack . renderDoc opts . pretty
+  where
+    opts = RenderOptions 
+      { ansiColors = True
+      , unicodeSymbols = True
+      , fixedWidth = Nothing 
+      }
+
 
 -------------------------------------------------------------------------------
 
