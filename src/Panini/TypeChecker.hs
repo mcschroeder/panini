@@ -120,13 +120,13 @@ synth g e0@(Lam2 x t1 e) = do
   --traceM $ showPretty e0 ++ " : " ++ showPretty t'' ++ " ⫤ " ++ showPretty vc
   return (vc, t'')
 
-synth g e0@(App e (V y)) = do
+synth g e0@(App e y) = do
   (c,t0) <- synth g e
   case t0 of
     TFun x s t _ -> do
-      s' <- self g y
+      (_, s') <- synth g (Val y)
       cy <- sub s' s
-      let t' = subst (V y) x t
+      let t' = subst y x t
       let vc = c `cAnd` cy
       traceM $ showPretty e0 ++ " : " ++ showPretty t' ++ " ⫤ " ++ showPretty vc
       return (vc, t')
