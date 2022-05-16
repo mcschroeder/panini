@@ -81,10 +81,9 @@ instance Simplifable Con where
       | CHead (PTrue _) <- c2 -> c1
       | otherwise     -> CAnd c1 c2
     CAll x b (simplify -> p) (simplify -> c)
-      | x `elem` (freeVars p ++ freeVars c) -> CAll x b p c
-      | PTrue _         <- p -> c
       | CHead (PTrue _) <- c -> CHead (PTrue NoPV)
-      | otherwise            -> CAll x b p c
+      | PTrue _ <- p, x `notElem` (freeVars p ++ freeVars c) -> CAll x b p c
+      | otherwise -> CAll x b p c
 
 simplifyAnd :: [Pred] -> [Pred]
 simplifyAnd = go []
