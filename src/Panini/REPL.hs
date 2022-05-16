@@ -135,22 +135,17 @@ showState = do
     outputPretty x
     outputPretty vc
     outputStrLn "---"
-    outputPretty (simplify vc)
-    outputStrLn "---"
-    mapM_ outputPretty (flat vc)
-    outputStrLn "---"
-    mapM_ outputPretty (flat (simplify vc))
-    outputStrLn "---"
-    --mapM_ outputPretty $ filter (not . taut) $ map simplify $ flat vc
-    --mapM_ outputPretty $ flat $ simplify vc
-    outputStrLn "---"
-    r <- liftIO $ Panini.SMT.solve vc []
+    r <- liftIO $ Panini.SMT.sat vc []
     case r of
-      Nothing -> outputStrLn "UNSAT"
-      Just s -> do
-        outputStrLn "SAT"
-        forM_ (Map.toList s) $ \(k,(xs,p)) -> do
-          outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
+      True -> outputStrLn "SAT"
+      False -> outputStrLn "UNSAT"
+    -- r <- liftIO $ Panini.SMT.solve vc []
+    -- case r of
+    --   Nothing -> outputStrLn "UNSAT"
+    --   Just s -> do
+    --     outputStrLn "SAT"
+    --     forM_ (Map.toList s) $ \(k,(xs,p)) -> do
+    --       outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
 
 forgetVars :: [String] -> InputT Elab ()
 forgetVars xs = do

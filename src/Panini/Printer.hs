@@ -89,6 +89,7 @@ renderDoc opts =
     "->"  -> "→"
     "\\"  -> "λ"
     "forall " -> "∀"  -- note the extra space
+    "exists " -> "∃"  -- note the extra space
     x     -> x
   unicodify Margin = Text.replace "|" "│"
   unicodify _ = id
@@ -132,6 +133,7 @@ instance Pretty Term where
   pretty (Val x) = pretty x
   pretty (App e x) = pretty e <+> pretty x  
   pretty (Lam x e) = nest 2 $ group $ kws "\\" <> pretty x <> kws "." <\> pretty e
+  pretty (Lam2 x t e) = nest 2 $ group $ kws "\\" <> pretty x <> kws ":" <> pretty t <> kws "." <\> pretty e
   pretty (Ann e t) = pretty e <+> kws ":" <+> pretty t
   pretty (Let x e1 e2) = 
     kw "let" <+> pretty x <+> kws "=" <+> group (pretty e1 <\> kw "in") <\\> 
@@ -227,15 +229,11 @@ instance Pretty Pred where
         go (p:q:qs)
           | isSimplePred q = pretty p <+> sym "/\\" <+> go (q:qs)
           | otherwise = pretty p <+> sym "/\\" <\> go (q:qs)
-        
-    PAll xbs c -> parens $ forall_ <+> pretty c
-      where
-        forall_ = sym "forall " <> sorts xbs <> sym "."
-        sorts = mconcat . intersperse ", " . map sort_
-        sort_ (x,b) = pretty x <> sym ":" <> pretty b
 
+    PExists x b p -> parens $ 
+      sym "exists " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p
+        
 isSimplePred :: Pred -> Bool
-isSimplePred (PAll _ _) = False
 isSimplePred (PImpl _ c) = isSimplePred c
 isSimplePred (PAnd ps) = all isSimplePred ps
 isSimplePred _     = True
@@ -288,6 +286,18 @@ instance Fixity Pred where
   fixity (PImpl _ _)    = (1, InfixN)
   fixity (PIff _ _)     = (1, InfixN)
   fixity _              = (9, InfixL)
+
+-------------------------------------------------------------------------------
+
+instance Pretty Con where
+  pretty = annotate Predicate . \case
+    CHead p -> pretty p
+    CAnd c1 c2 -> pretty c1 <+> sym "/\\" <\> pretty c2
+    CAll x b p c -> parens $ case c of
+      CHead _ ->          forall_ <+> pretty p <+> sym "==>" <+> pretty c
+      _       -> nest 2 $ forall_ <+> pretty p <+> sym "==>" <\> pretty c
+      where
+        forall_ = sym "forall " <> pretty x <> sym ":" <> pretty b <> sym "."
 
 -------------------------------------------------------------------------------
 

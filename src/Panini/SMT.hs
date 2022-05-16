@@ -3,12 +3,11 @@
 module Panini.SMT
   ( printSMTLib2
   , solve
-  , flat
-  , taut, simplify
+  , sat
   ) where
 
 import Control.Monad
-import Data.List (partition, dropWhileEnd)
+import Data.List (partition, dropWhileEnd, nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
@@ -19,6 +18,7 @@ import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Panini.Provenance
+import Panini.Printer
 import Panini.Substitution
 import Panini.Syntax
 import Prelude
@@ -28,119 +28,72 @@ import System.Exit
 
 ------------------------------------------------------------------------------
 
--- | Solve a Horn constraint given a set of candidates.
-solve :: Pred -> [Pred] -> IO (Maybe Assignment)
-solve c _q = do
-  let cs = filter (not . taut) $ map simplify $ flat c
-  let (csk,csp) = partition horny cs
-  --let s0 = Map.fromList $ map (\(k,xs) -> (k,(xs,pTrue))) $ getHornVars csk
-  --let s0 = extractCandidateAssignment csk
-  let qs = [ PRel Leq (pVar "z1") (PVal (I 0 NoPV))
-           , PRel Geq (pVar "z1") (PVal (I 0 NoPV))
-           , PRel Leq (pVar "z2") (PVal (I 0 NoPV))
-           , PRel Geq (pVar "z2") (PVal (I 0 NoPV))
-           , PRel Leq (pVar "z1") (pVar "z2")
-           , PRel Geq (pVar "z2") (pVar "z1")
-           ]
-  let s0 = Map.fromList [("k0", (["z1","z2"], foldr pAnd (PTrue NoPV) qs))]
-  putStrLn $ show s0
-  s <- fixpoint csk s0
-  r <- smtValid (map (apply s) csp)
-  if r then return (Just s) else return Nothing
+outputPretty :: Pretty a => a -> IO ()
+outputPretty x = do
+  let opts = RenderOptions {unicodeSymbols = True, ansiColors = True, fixedWidth = Nothing}
+  putStrLn $ Text.unpack $ renderDoc opts $ pretty x
 
--- extractCandidateAssignment :: [Con] -> Assignment
--- extractCandidateAssignment = 
---   Map.fromListWith (\(xs,p1) (_,p2) -> (xs, p1 `pAnd` p2)) . map extractCandidate
+------------------
 
--- extractCandidate :: Con -> (Name, ([Name],Pred))
--- extractCandidate = renameHornVarArgs . go []
---   where
---     go ps (CAll _ _ p c) = go (p:ps) c
---     go ps (CPred (PHorn k xs)) = (k, (v2n xs, foldr pAnd pTrue ps))
---     go _ _ = error "expected flat horn constraint"
+class Simplifable a where
+  simplify :: a -> a
 
---     v2n [] = []
---     v2n (V n:xs) = n:v2n xs
---     v2n _ = error "expected all Horn var arguments to be variables"
-
--- renameHornVarArgs :: (Name, ([Name], Pred)) -> (Name, ([Name], Pred))
--- renameHornVarArgs (k,(xs0,p0)) = let (p,zs) = go xs0 p0 [] in (k,(zs,p))
---   where
---     go [] p zs = (p, reverse zs)
---     go (x:xs) p zs = 
---       let z = freshName "z" (xs ++ freeVars p)
---           p' = subst (V z) x p
---       in go xs p' (z:zs)
+instance Simplifable Pred where
+  -- TODO: preserve provenance information
+  simplify = \case
+    PAnd (simplifyAnd -> ps)
+      | []  <- ps -> PTrue NoPV
+      | [p] <- ps -> p
+      | otherwise -> PAnd ps
     
+    PDisj (simplify -> p) (simplify -> q)
+      | PFalse _ <- p -> q
+      | PFalse _ <- q -> p
+      | otherwise     -> PDisj p q
 
--- getHornVars :: [Con] -> [(Name,[Name])]
--- getHornVars = map (f . getFlatHead)
---   where
---     f (PHorn k xs) = (k, g 0 xs)
---     f _ = error "expected flat constraint"
+    PNot (simplify -> p) -> PNot p
 
---     g !i (_:xs) = (fromString $ "z" ++ show @Int i) : g (i + 1) xs
---     g _ [] = []
+    PImpl (simplify -> p) (simplify -> q)
+      | PTrue _ <- p -> q
+      | PTrue _ <- q -> PTrue NoPV
+      | otherwise    -> PImpl p q
+  
+    PIff (simplify -> p) (simplify -> q)
+      | PTrue _ <- p -> q
+      | PTrue _ <- q -> p
+      | otherwise    -> PIff p q
 
+    PExists x b (simplify -> p)
+      | x `elem` freeVars p -> PExists x b p
+      | otherwise           -> p
+  
+    PBin o (simplify -> p1) (simplify -> p2) -> PBin o p1 p2
+    PRel r (simplify -> p1) (simplify -> p2) -> PRel r p1 p2
+    PFun f (map simplify -> ps)              -> PFun f ps
 
--- | Flatten a Horn constraint into a set of flat constraints each of which is
--- of the form ∀xs:bs. p ⇒ p' where p' is either a single Horn application κ(ȳ)
--- or a concrete predicate free of Horn variables.
-flat :: Pred -> [Pred]
-flat p0 = [merge [] (PTrue NoPV) p' | p' <- split p0]
+    p -> p
+
+instance Simplifable Con where
+  simplify = \case
+    CHead (simplify -> p) -> CHead p
+    CAnd (simplify -> c1) (simplify -> c2)
+      | CHead (PTrue _) <- c1 -> c2
+      | CHead (PTrue _) <- c2 -> c1
+      | otherwise     -> CAnd c1 c2
+    CAll x b (simplify -> p) (simplify -> c)
+      | x `elem` (freeVars p ++ freeVars c) -> CAll x b p c
+      | PTrue _         <- p -> c
+      | CHead (PTrue _) <- c -> CHead (PTrue NoPV)
+      | otherwise            -> CAll x b p c
+
+simplifyAnd :: [Pred] -> [Pred]
+simplifyAnd = go []
   where
-    split (PAnd ps)     = concatMap split ps
-    split (PImpl p q)   = [PImpl p q' | q' <- split q]
-    split (PAll xs p)   = [PAll xs p' | p' <- split p]
-    split p             = [p]
-
-    merge xs p (PAll ys q) = 
-      -- rename clashing bindings before merging the foralls
-      let (ys1, q') = rename (map fst xs) (map fst ys) q
-          ys2       = zip ys1 (map snd ys)
-      in merge (xs ++ ys2) p q'
-    
-    merge xs p (PImpl q c) = merge xs (p `pAnd` q) c
-    merge xs p q           = PAll xs (PImpl p q)
-
--- | @rename xs ys p@ renames all @ys@ in @p@ that clash with @xs@.
-rename :: [Name] -> [Name] -> Pred -> ([Name], Pred)
-rename xs = go []
-  where
-    go zs [] p = (zs, p)
-    go zs (y:ys) p
-      | y `elem` xs = let z = freshName y (xs ++ ys ++ freeVars p)
-                          q = subst (V z) y p
-                      in go (z:zs) ys q
-      | otherwise = go (y:zs) ys p
-
--- TODO: preserve provenance information
-simplify :: Pred -> Pred
-simplify = \case
-  PAnd (filter (not . taut) . map simplify -> ps)
-    | []  <- ps -> PTrue NoPV
-    | [p] <- ps -> p
-    | otherwise -> PAnd ps
-
-  PNot (simplify -> p) -> PNot p
-
-  PImpl (simplify -> p) (simplify -> q)
-    | PTrue _ <- p -> q
-    | PTrue _ <- q -> PTrue NoPV
-    | otherwise    -> PImpl p q
-  
-  PIff (simplify -> p) (simplify -> q)
-    | PTrue _ <- p -> q
-    | PTrue _ <- q -> p
-    | otherwise    -> PIff p q
-  
-  PAll xs (simplify -> p) -> 
-    -- remove redundant bindings that don't actually occur in the predicate
-    let fvs = freeVars p
-        xs' = filter (\(x,_) -> x `elem` fvs) xs
-    in if null xs' then p else PAll xs' p
-  
-  p -> p
+    go qs [] = reverse qs
+    go qs ((simplify -> p) : ps)
+      | PFalse _ <- p = [p]
+      | taut p        = go qs ps
+      | otherwise     = go (p:qs) ps
 
 taut :: Pred -> Bool
 taut (PTrue _)      = True
@@ -151,17 +104,130 @@ taut (PRel Leq p q) = p == q
 taut (PRel Geq p q) = p == q
 taut _              = False
 
+------------------
+
+-- k is a set of refinement variables that cuts c
+-- TODO: compute k
+-- elim computes *exact* solutions for non-cut variables
+-- solve computes approximate solutions for the remaining cut variables
+-- (using predicate abstraction? from the tutorial (more or less?))
+
+sat :: Con -> [Pred] -> IO Bool
+sat c q = do
+  let ks = [("k0", ["z1"]),("k1", ["z1"]), ("k2", ["z1"])] -- TODO
+  let c' = simplify $ elim ks c
+  putStrLn "---"
+  outputPretty c'
+  putStrLn "---"
+  r <- solve c' q
+  case r of
+    Just s -> do
+      forM_ (Map.toList s) $ \(k,(xs,p)) -> do
+        outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
+      return True
+    Nothing -> return False
+
+type K = (Name,[Name])
+
+elim :: [K] -> Con -> Con
+elim []     c = c
+elim (k:ks) c = elim ks (elim1 k c)
+
+elim1 :: K -> Con -> Con
+elim1 k c = elim' sk c
+  where
+    sk = Map.singleton (fst k) (snd k, sol1 k c')
+    c' = flatHead2 $ scope k c
+
+flatHead2 :: Con -> Con
+flatHead2 (CAll _ _ _ c) = flatHead2 c
+flatHead2 c = c
+
+varnames :: [Value] -> [Name]
+varnames = map go
+  where
+    go (V x) = x
+    go _ = error "expected all xs in k(xs) to be variables"
+
+
+sol1 :: K -> Con -> Pred
+sol1 k (CAnd c1 c2)   = (sol1 k c1) `pOr` (sol1 k c2)
+sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
+sol1 k (CHead (PHorn k2 ys))
+  | fst k == k2       = PAnd $ map (\(x,y) -> pVar x `pEq` pVar y) 
+                             $ zip (snd k) (varnames ys)
+sol1 _ _              = PFalse NoPV
+
+scope :: K -> Con -> Con
+scope k (CAnd c1 c2)
+  | k `elem` kvars c1, k `notElem` kvars c2 = scope k c1
+  | k `notElem` kvars c1, k `elem` kvars c2 = scope k c2
+scope k (CAll x b p c')
+  | k `notElem` kvars p                     = CAll x b p (scope k c')
+scope _ c                                   = c
+
+elim' :: Assignment -> Con -> Con
+elim' s (CAnd c1 c2)   = elim' s c1 `cAnd` elim' s c2
+elim' s (CAll x b p c) = CAll x b (apply s p) (elim' s c)
+elim' s (CHead (PHorn k _)) 
+  | k `Map.member` s   = CTrue NoPV
+elim' _ c              = c
+
+
+class HasKVars a where
+  kvars :: a -> [K]
+
+instance HasKVars Pred where
+  kvars = nub . go
+    where
+      go (PHorn k xs) = [(k, varnames xs)]  -- xs assumed to be just var names
+      go (PBin _ p1 p2) = kvars p1 ++ kvars p2
+      go (PRel _ p1 p2) = kvars p1 ++ kvars p2
+      go (PAnd ps) = concatMap kvars ps
+      go (PDisj p1 p2) = kvars p1 ++ kvars p2
+      go (PImpl p1 p2) = kvars p1 ++ kvars p2
+      go (PIff p1 p2) = kvars p1 ++ kvars p2
+      go (PNot p) = kvars p
+      go _ = []
+
+instance HasKVars Con where
+  kvars = nub . go
+    where
+      go (CHead p) = kvars p
+      go (CAnd c1 c2) = kvars c1 ++ kvars c2
+      go (CAll _ _ p c) = kvars p ++ kvars c
+
+------------------------------------------------------------------------------
+-- | Solve a Horn constraint given a set of candidates.
+solve :: Con -> [Pred] -> IO (Maybe Assignment)
+solve c _qs = do
+  let cs = flat c
+  let (csk,csp) = partition horny cs
+  let s0 = Map.empty
+  s <- fixpoint csk s0
+  r <- smtValid (map (applyCon s) csp)
+  if r then return (Just s) else return Nothing
+
+-- | Flatten a Horn constraint into a set of flat constraints each of which is
+-- of the form ∀x1:b1. p1 ⇒ ∀x2:b2. p2 ⇒ ... ⇒ pn where pn is either a single
+-- Horn application κ(ȳ) or a concrete predicate free of Horn variables.
+flat :: Con -> [Con]
+flat = split
+  where
+    split (CHead p)      = [CHead p]
+    split (CAnd c1 c2)   = split c1 ++ split c2
+    split (CAll x b p c) = [CAll x b p c' | c' <- split c]
 
 -- | Whether or not a flat constraint has a Horn application in its head.
-horny :: Pred -> Bool
-horny (PAll _ (PImpl _ (PHorn _ _))) = True
-horny _ = False
+horny :: Con -> Bool
+horny (CAll _ _ _ (CHead (PHorn _ _))) = True
+horny _                                = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given (flat) constraints is found.
-fixpoint :: [Pred] -> Assignment -> IO Assignment
+fixpoint :: [Con] -> Assignment -> IO Assignment
 fixpoint cs s = do  
-  r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
+  r <- take 1 <$> filterM ((not <$>) . smtValid . pure . applyCon s) cs
   case r of
     [c] -> do
       s' <- weaken s c
@@ -169,9 +235,9 @@ fixpoint cs s = do
     _ -> return s
 
 -- | Weaken a Horn assignment to satisfy a given (flat) constraint.
-weaken :: Assignment -> Pred -> IO Assignment
+weaken :: Assignment -> Con -> IO Assignment
 weaken s c =
-  case getFlatHead c of
+  case flatHead c of
     PHorn k xs -> case Map.lookup k s of
       Nothing -> error $ "expected Horn assignment for " ++ show k
       Just (ys,q0) -> do
@@ -186,20 +252,20 @@ explode :: Pred -> [Pred]
 explode (PAnd ps) = ps
 explode p = [p]
 
-getFlatHead :: Pred -> Pred
-getFlatHead (PAll _ (PImpl _ q)) = getFlatHead q
-getFlatHead p = p
+flatHead :: Con -> Pred
+flatHead (CAll _ _ _ c) = flatHead c
+flatHead (CHead p) = p
+flatHead (CAnd _ _) = error "expected flat constraint"
 
-mapFlatBody :: (Pred -> Pred) -> Pred -> Pred
-mapFlatBody f (PAll xs (PImpl p q))
-  | PAll _ _ <- q = PAll xs (PImpl (f p) (mapFlatBody f q))
-  | otherwise     = PAll xs (PImpl (f p) q)
-mapFlatBody _ _ = error "expected flat constraint"
+mapFlatBody :: (Pred -> Pred) -> Con -> Con
+mapFlatBody f (CAll x b p c) = CAll x b (f p) (mapFlatBody f c)
+mapFlatBody _ (CHead p) = CHead p
+mapFlatBody _ (CAnd _ _) = error "expected flat constraint"
 
-mapFlatHead :: (Pred -> Pred) -> Pred -> Pred
-mapFlatHead f (PAll xs (PImpl p q)) = PAll xs (PImpl p (mapFlatHead f q))
-mapFlatHead f p = f p
-
+mapFlatHead :: (Pred -> Pred) -> Con -> Con
+mapFlatHead f (CAll x b p c) = CAll x b p (mapFlatHead f c)
+mapFlatHead f (CHead p) = CHead (f p)
+mapFlatHead _ (CAnd _ _) = error "expected flat constraint"
 
 -- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn
 -- variables parameters x̄.
@@ -209,7 +275,6 @@ type Assignment = Map Name ([Name], Pred)
 -- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
 apply :: Assignment -> Pred -> Pred
 apply s = \case
-  PAll xs p    -> PAll xs (apply s p)
   PVal x       -> PVal x
   PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
   PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
@@ -222,6 +287,13 @@ apply s = \case
   PHorn k xs   -> case Map.lookup k s of
     Just (ys,p) -> substN xs ys p
     Nothing     -> PHorn k xs
+  PExists x b p -> PExists x b (apply s p)
+
+applyCon :: Assignment -> Con -> Con
+applyCon s = \case
+  CAll x b p c -> CAll x b (apply s p) (applyCon s c)
+  CAnd c1 c2 -> CAnd (applyCon s c1) (applyCon s c2)
+  CHead p -> CHead (apply s p)
 
 substN :: [Value] -> [Name] -> Pred -> Pred
 substN (x:xs) (y:ys) = substN xs ys . subst x y
@@ -229,7 +301,7 @@ substN _ _ = id
 
 ------------------------------------------------------------------------------
 
-smtValid :: [Pred] -> IO Bool
+smtValid :: [Con] -> IO Bool
 smtValid cs = do
   let foralls = map (Text.unpack . printSMTLib2) cs
   let declares = 
@@ -264,6 +336,14 @@ parens a = "(" <> a <> ")"
 sexpr :: [Builder] -> Builder
 sexpr  = parens . foldr1 (<+>)
 
+instance SMTLib2 Con where
+  encode (CHead p) = encode p
+  encode (CAnd c1 c2) = sexpr ["and", encode c1, encode c2]
+  encode (CAll x b p c) = sexpr ["forall", sexpr [sort], impl]
+    where
+      sort = sexpr [encode x, encode b]
+      impl = sexpr ["=>", encode p, encode c]
+
 instance SMTLib2 Pred where
   encode (PVal v) = encode v
   encode (PBin o p1 p2) = sexpr [encode o, encode p1, encode p2]
@@ -275,9 +355,9 @@ instance SMTLib2 Pred where
   encode (PNot p) = sexpr ["not", encode p]
   encode (PFun x ps) = sexpr (encode x : map encode ps)
   encode (PHorn x vs) = sexpr (encode x : map encode vs)
-  encode (PAll xs p) = sexpr ["forall", sexpr (map sort xs), encode p] 
+  encode (PExists x b p) = sexpr ["exists", sexpr [sort], encode p]
     where
-      sort (x,b) = sexpr [encode x, encode b]
+      sort = sexpr [encode x, encode b]
 
 instance SMTLib2 Name where
   encode (Name n _) = LB.fromText n

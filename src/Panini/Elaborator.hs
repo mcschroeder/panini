@@ -31,7 +31,7 @@ tryError m = catchError (Right <$> m) (return . Left)
 data ElabState = ElabState
   { pan_types :: Ctx            -- ^ global typing context (Gamma)
   , pan_terms :: Map Name Term  -- ^ top-level functions
-  , pan_vcs :: Map Name Pred    -- ^ verification conditions
+  , pan_vcs :: Map Name Con    -- ^ verification conditions
   }
 
 -- | Initial (empty) elaborator state.
@@ -60,15 +60,22 @@ elabDecl (Define x e) = do
   terms <- gets pan_terms
   case Map.lookup x terms of
     Just _ -> throwError $ AlreadyDefined x
+    -- Nothing -> do
+      -- (c, t) <- lift $ except $ runTC $ synth gamma e
+      -- modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
+      -- modify' $ \ps -> ps {pan_vcs = Map.insert x c (pan_vcs ps)}
+      -- modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
+
     Nothing -> case Map.lookup x gamma of
       Nothing -> throwError $ MissingType x
-      Just t -> do
-        (t', vc) <- lift $ except $ runTC $ do          
-          t' <- fresh gamma t
-          let gamma' = Map.insert x t' gamma
-          vc <- check gamma' e t'
-          return (t',vc)
-        modify' $ \ps -> ps {pan_types = Map.insert x t' (pan_types ps)}
+      Just s -> do
+        (t, vc) <- lift $ except $ runTC $ do
+          (c1, t) <- synth gamma e
+          s' <- fresh mempty s
+          c2 <- sub s' t
+          return (t, c1 `cAnd` c2)
+        
+        modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
         modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
         modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
 

@@ -70,6 +70,7 @@ data Term
   = Val Value                -- x
   | App Term Value           -- e x
   | Lam Name Term            -- \x. e
+  | Lam2 Name Type Term      -- \x:t. e   -- TODO: unrefined type only?
   | Ann Term Type            -- e : t
   | Let Name Term Term       -- let x = e1 in e2
   | Rec Name Type Term Term  -- rec x : t = e1 in e2
@@ -155,8 +156,8 @@ data Pred
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
-  | PHorn Name [Value]  -- k(x1,x2,...)
-  | PAll [(Name,Base)] Pred  -- forall xs:bs. p
+  | PHorn Name [Value]  -- k(x1,x2,...)  -- TODO: [Name] instead of [Value]
+  | PExists Name Base Pred  -- exists x:b. p
   deriving stock (Eq, Show, Read)
 
 data Bop = Add | Sub | Mul | Div
@@ -177,12 +178,40 @@ pVar = PVal . V
 pEq :: Pred -> Pred -> Pred
 pEq = PRel Eq
 
--- | Smart constructor for `PAnd`, eliminates redundant true values and merges
+-- | Smart constructor for `PAnd`, eliminates redundant values and merges
 -- adjacent `PAnd` lists.
 pAnd :: Pred -> Pred -> Pred
-pAnd (PTrue _) q         = q
-pAnd p         (PTrue _) = p
-pAnd (PAnd ps) (PAnd qs) = PAnd (ps ++ qs)
-pAnd (PAnd ps) q         = PAnd (ps ++ [q])
-pAnd p         (PAnd qs) = PAnd (p:qs)
-pAnd p         q         = PAnd [p,q]
+pAnd (PTrue _)   q           = q
+pAnd (PFalse pv) _           = PFalse pv
+pAnd p           (PTrue _)   = p
+pAnd _           (PFalse pv) = PFalse pv
+pAnd (PAnd ps)   (PAnd qs)   = PAnd (ps ++ qs)
+pAnd (PAnd ps)   q           = PAnd (ps ++ [q])
+pAnd p           (PAnd qs)   = PAnd (p:qs)
+pAnd p           q           = PAnd [p,q]
+
+-- | Smart constructor for `PDisj`, eliminates redundant values.
+pOr :: Pred -> Pred -> Pred
+pOr (PFalse _) q          = q
+pOr (PTrue pv) _          = PTrue pv
+pOr p          (PFalse _) = p
+pOr _          (PTrue pv) = PTrue pv
+pOr p          q          = PDisj p q
+
+------------------------------------------------------------------------------
+-- Horn constraints
+
+data Con
+  = CHead Pred               -- p
+  | CAnd Con Con             -- c1 /\ c2
+  | CAll Name Base Pred Con  -- forall x:b. p ==> c
+  deriving stock (Eq, Show, Read)
+
+pattern CTrue :: PV -> Con
+pattern CTrue pv = CHead (PTrue pv)
+
+-- | Smart constructor for `CAnd`, eliminates redundant true values.
+cAnd :: Con -> Con -> Con
+cAnd (CTrue _) c2        = c2
+cAnd c1        (CTrue _) = c1
+cAnd c1        c2        = CAnd c1 c2

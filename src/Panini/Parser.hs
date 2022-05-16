@@ -192,6 +192,10 @@ term1 = choice
   , try $ Let <$ keyword "let" <*> name 
               <* symbol "=" <*> term 
               <* keyword "in" <*> term
+
+  , try $ Lam2 <$ lambda <*> name 
+               <* symbol ":" <*> type_  -- TODO: should be unrefined type only
+               <* symbol "." <*> term
   
   , try $ Lam <$ lambda <*> name 
               <* symbol "." <*> term
@@ -301,16 +305,9 @@ predicate = makeExprParser predTerm predOps
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  , predAll
   , try $ PVal <$> value <* notFollowedBy "("
   , PFun <$> name <*> parens (sepBy1 predicate ",")
   ]
-  where
-    predAll = 
-      PAll <$ symAll <*> sepBy1 predSort (symbol ",")
-           <* symbol "." <*> predicate
-
-    predSort = (,) <$> name <* symbol ":" <*> baseType
 
 predOps :: [[Operator Parser Pred]]
 predOps =
@@ -399,7 +396,3 @@ symImpl = op "==>" <|> symbol "⇒"
 -- | Parses an if-and-only-if symbol.
 symIff :: Parser ()
 symIff = op "<=>" <|> symbol "⇔"
-
--- | Parses a forall symbol/keyword.
-symAll :: Parser ()
-symAll = keyword "forall" <|> symbol "∀"

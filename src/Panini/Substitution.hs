@@ -70,7 +70,6 @@ instance Subable Reft where
 
 instance Subable Pred where  
   subst x y = \case
-    PAll ns p -> substPAll x y ns p
     PVal v -> PVal (subst x y v)
     PBin o p1 p2 -> PBin o (subst x y p1) (subst x y p2)
     PRel r p1 p2 -> PRel r (subst x y p1) (subst x y p2)
@@ -81,8 +80,15 @@ instance Subable Pred where
     PNot p1 -> PNot (subst x y p1)
     PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
     PHorn k xs -> PHorn k (map (subst x y) xs)  -- TODO: what about k?
+
+    PExists n b p
+      | y == n -> PExists n b p -- (1)
+      | x == V n -> let n' = freshName n (y : freeVars p) -- (2)
+                        p' = subst (V n') n p
+                    in PExists n' b (subst x y p')
+      | otherwise -> PExists n b (subst x y p) -- (3)
+
   freeVars = \case
-    PAll ns p -> freeVars p \\ map fst ns
     PVal (V n) -> [n]
     PVal _ -> []
     PBin _ p1 p2 -> freeVars p1 ++ freeVars p2
@@ -94,18 +100,23 @@ instance Subable Pred where
     PNot p1 -> freeVars p1
     PFun f ps -> [f] ++ concatMap freeVars ps
     PHorn _ xs -> concatMap freeVars xs  -- TODO: is k free?
+    PExists n _ p -> freeVars p \\ [n]
 
--- note: this assumes all bindings in PAll are unique
-substPAll :: Value -> Name -> [(Name,Base)] -> Pred -> Pred
-substPAll x y ns0 p = go [] ns0
-  where
-    go ms ((n,b):ns)
-      | y == n = PAll (ms ++ (n,b):ns) p                                 -- (1)
-      | x == V n = let n' = freshName n (y : freeVars p ++ map fst ns0)  -- (2)
-                       p' = subst (V n') n p
-                   in PAll (ms ++ (n',b):ns) (subst x y p')
-      | otherwise = go (ms ++ [(n,b)]) ns
-    go ms [] = PAll ms (subst x y p)                                     -- (3)
+instance Subable Con where
+  subst x y = \case
+    CHead p -> CHead (subst x y p)
+    CAnd c1 c2 -> CAnd (subst x y c1) (subst x y c2)
+    CAll n b p c
+      | y == n -> CAll n b p c                                           -- (1)
+      | x == V n -> let n' = freshName n (y : freeVars p ++ freeVars c)  -- (2)
+                        p' = subst (V n') n p
+                        c' = subst (V n') n c
+                    in CAll n' b (subst x y p') (subst x y c')
+      | otherwise -> CAll n b (subst x y p) (subst x y c)                -- (3)
+  freeVars = \case
+    CHead p -> freeVars p
+    CAnd c1 c2 -> freeVars c1 ++ freeVars c2
+    CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
 
 instance Subable Value where
   subst x y (V n) | y == n = x
