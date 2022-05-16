@@ -18,11 +18,14 @@ define foo = \s.
     let v2 = le i1 v1 in
     if v2 then
       let v3 = substr s i1 i1 in
-      let v4 = eqstr v3 "a" in
-      let _ = assert v4 in
-      let i2 = add 1 i1 in
+      let v4 = "a" in
+      let v5 = eqstr v3 v4 in
+      let _ = assert v5 in
+      let v6 = 1 in
+      let i2 = add v6 i1 in
       L1 i2
     else
       unit
   in
-  L1 0
+  let v7 = 0 in
+  L1 v7

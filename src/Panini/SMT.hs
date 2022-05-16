@@ -202,6 +202,9 @@ instance HasKVars Con where
 solve :: Con -> [Pred] -> IO (Maybe Assignment)
 solve c _qs = do
   let cs = flat c
+  putStrLn "---"
+  mapM_ (putStrLn . showPretty) cs
+  putStrLn "---"
   let (csk,csp) = partition horny cs
   let s0 = Map.empty
   s <- fixpoint csk s0

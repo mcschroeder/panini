@@ -108,10 +108,12 @@ synth g e0@(Let x e1 e2) = do
   c3 <- sub t2 t2'
   let vc = c1 `cAnd` (cImpl x t1 (c2 `cAnd` c3)) 
   --traceM $ showPretty e0 ++ " : " ++ showPretty t2' ++ " ⫤ " ++ showPretty vc
+  traceM $ showPretty x ++ " : " ++ showPretty t1
   return (vc, t2')
 
 synth g e0@(Lam2 x t1 e) = do
-  t1' <- fresh mempty (shape t1)
+  --t1' <- fresh mempty (shape t1)
+  let t1' = t1
   (c, t2) <- synth (Map.insert x t1' g) e
   let t'' = TFun x t1' t2 NoPV
   let vc = cImpl x t1' c
