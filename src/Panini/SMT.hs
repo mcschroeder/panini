@@ -113,8 +113,9 @@ taut _              = False
 
 sat :: Con -> [Pred] -> IO Bool
 sat c q = do
-  let ks = [("k0", ["z1"]),("k1", ["z1"]), ("k2", ["z1"])] -- TODO
-  let c' = simplify $ elim ks c
+  let ks = getKs c
+  let ks' = ks  -- TODO: cut set
+  let c' = simplify $ elim ks' c
   putStrLn "---"
   outputPretty c'
   putStrLn "---"
@@ -127,6 +128,23 @@ sat c q = do
     Nothing -> return False
 
 type K = (Name,[Name])
+
+getKs :: Con -> [K]
+getKs = Set.toList . Set.fromList . go
+  where
+    go (CHead p) = go2 p
+    go (CAnd c1 c2) = go c1 ++ go c2
+    go (CAll _ _ p c) = go2 p ++ go c
+    go2 (PBin _ p1 p2) = go2 p1 ++ go2 p2
+    go2 (PRel _ p1 p2) = go2 p1 ++ go2 p2
+    go2 (PAnd ps) = concatMap go2 ps
+    go2 (PDisj p1 p2) = go2 p1 ++ go2 p2
+    go2 (PImpl p1 p2) = go2 p1 ++ go2 p2
+    go2 (PIff p1 p2) = go2 p1 ++ go2 p2
+    go2 (PNot p) = go2 p
+    go2 (PExists _ _ p) = go2 p
+    go2 (PHorn k xs) = [(k, [fromString ("z" ++ show i) | i <- [1..length xs]])]
+    go2 _ = []
 
 elim :: [K] -> Con -> Con
 elim []     c = c
