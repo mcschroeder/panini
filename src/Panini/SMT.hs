@@ -11,6 +11,7 @@ import Data.List (partition, dropWhileEnd, nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
+import Data.Set qualified as Set
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -25,6 +26,7 @@ import Prelude
 import System.Process
 import Data.Char
 import System.Exit
+import Debug.Trace
 
 ------------------------------------------------------------------------------
 
@@ -151,7 +153,7 @@ elim []     c = c
 elim (k:ks) c = elim ks (elim1 k c)
 
 elim1 :: K -> Con -> Con
-elim1 k c = elim' sk c
+elim1 k c = trace (prettyAss sk) $ elim' sk c
   where
     sk = Map.singleton (fst k) (snd k, sol1 k c')
     c' = flatHead2 $ scope k c
@@ -319,14 +321,21 @@ substN :: [Value] -> [Name] -> Pred -> Pred
 substN (x:xs) (y:ys) = substN xs ys . subst x y
 substN _ _ = id
 
+
+prettyAss :: Assignment -> String
+prettyAss = unlines . map go . Map.toAscList
+  where
+    go (k,(xs,p)) = showPretty k ++ " = " ++ concatMap lam xs ++ showPretty (simplify p)
+    lam x = "λ" ++ showPretty x ++ "."
+
 ------------------------------------------------------------------------------
 
 smtValid :: [Con] -> IO Bool
 smtValid cs = do
   let foralls = map (Text.unpack . printSMTLib2) cs
   let declares = 
-        [ "(declare-fun length (String) Int)"
-        , "(declare-fun substring (String Int Int) String)"
+        [ "(define-fun length ((s String)) Int (str.len s))"
+        , "(define-fun substring ((s String) (i Int)) String (str.at s i))"
         ]
   let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
   let query = unlines $ declares ++ asserts ++ ["(check-sat)"]

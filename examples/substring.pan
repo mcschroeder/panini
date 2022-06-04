@@ -7,7 +7,7 @@ assume assert : {b:bool|b} -> unit
 assume length : s:string -> {n:int| n >= 0 /\ n = length(s)}
 
 assume substring :
-  { s : string | true } ->
+  { s : string | length(s) > 0 } ->
   { i : int | i >= 0 /\ i < length(s) } ->
   { t : string | t = substring(s,i) }
 
@@ -15,28 +15,18 @@ assume match : s:string -> t:string -> {b:bool|b <=> s = t}
 
 assume bar : s:string -> unit
 define bar = \s.
-  rec L2 : int -> int -> unit = \j1. \i3.
-    let v3 = length s in
-    let v4 = lt i3 v3 in
-    if v4 then
-      let v5 = substring s i3 in
-      let v6 = match v5 "b" in
-      let _ = assert v6 in
-      let i4 = add i3 1 in
-      let j2 = sub j1 1 in
-      L2 j2 i4
-    else
-      let v7 = eq j1 0 in
-      let _ = assert v7 in
-      unit
-  in
-    rec L1 : int -> unit = \i1.
-      let v1 = substring s i1 in
-      let v2 = match v1 "a" in
-      if v2 then
+  rec L1 : int -> unit = \i1.
+    let v0 = length s in
+    let v1 = lt i1 v0 in
+    if v1 then      
+      let v2 = substring s i1 in
+      let v3 = match v2 "a" in
+      if v3 then
         let i2 = add i1 1 in
         L1 i2
       else
-        L2 i1 i1
-    in
-      L1 0
+        unit
+    else
+      unit
+  in
+    L1 0

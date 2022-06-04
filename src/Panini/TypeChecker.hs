@@ -101,43 +101,65 @@ synth _ (Val c) = case c of
 --     _ -> failWith $ ExpectedFunType e t0
 
 -----
-synth g e0@(Let x e1 e2) = do
+synth g (Let x e1 e2) = do
   (c1, t1) <- synth g e1
   (c2, t2) <- synth (Map.insert x t1 g) e2
-  t2' <- fresh mempty (shape t2)
-  c3 <- sub t2 t2'
-  let vc = c1 `cAnd` (cImpl x t1 (c2 `cAnd` c3)) 
-  --traceM $ showPretty e0 ++ " : " ++ showPretty t2' ++ " ⫤ " ++ showPretty vc
-  traceM $ showPretty x ++ " : " ++ showPretty t1
-  return (vc, t2')
+  t2_hat <- fresh mempty (shape t2)
+  c2_hat <- sub t2 t2_hat
+  let vc = c1 `cAnd` (cImpl x t1 c2) `cAnd` c2_hat
+  --traceM $ showPretty e0 ++ " : " ++ showPretty t2_hat ++ " ⫤ " ++ showPretty vc
+  return (vc, t2_hat)
 
-synth g e0@(Lam2 x t1 e) = do
-  --t1' <- fresh mempty (shape t1)
-  let t1' = t1
-  (c, t2) <- synth (Map.insert x t1' g) e
-  let t'' = TFun x t1' t2 NoPV
-  let vc = cImpl x t1' c
-  --traceM $ showPretty e0 ++ " : " ++ showPretty t'' ++ " ⫤ " ++ showPretty vc
-  return (vc, t'')
+synth g (Lam2 x t1_tilde e) = do
+  t1_hat <- fresh mempty (shape t1_tilde)
+  c1_hat <- sub t1_tilde t1_hat
+  (c2, t2) <- synth (Map.insert x t1_hat g) e
+  let t = TFun x t1_hat t2 NoPV
+  let vc = c1_hat `cAnd` cImpl x t1_hat c2
+  --traceM $ showPretty e0 ++ " : " ++ showPretty t ++ " ⫤ " ++ showPretty c
+  return (vc, t)
 
 synth g e0@(App e y) = do
-  (c,t0) <- synth g e
-  case t0 of
-    TFun x s t _ -> do
-      (_, s') <- synth g (Val y)
-      cy <- sub s' s
-      let t' = subst y x t
+  (c, t) <- synth g e
+  case t of
+    TFun x t1 t2 _ -> do
+      (_, ty) <- synth g (Val y)
+      cy <- sub ty t1
+      let t2' = subst y x t2
       let vc = c `cAnd` cy
-      traceM $ showPretty e0 ++ " : " ++ showPretty t' ++ " ⫤ " ++ showPretty vc
-      return (vc, t')
+      traceM $ showPretty e0 ++ " : " ++ showPretty t2' ++ " ⫤ " ++ showPretty vc
+      return (vc, t2')
 
-    _ -> failWith $ ExpectedFunType e t0
+    _ -> failWith $ ExpectedFunType e t
+
+
+synth g (If x e1 e2) = do
+  _ <- check g (Val x) (TBase dummyName TBool (Known (PTrue NoPV)) NoPV)
+  (c1, t1) <- synth g e1
+  (c2, t2) <- synth g e2
+  let y = freshName "y" (freeVars c1 ++ freeVars c2 ++ freeVars x)
+  let vc = (CAll y TUnit (PVal x) c1) `cAnd` (CAll y TUnit (PNot (PVal x)) c2)
+  t <- join t1 t2
+  --traceM $ showPretty e0 ++ " : " ++ showPretty t ++ " ⫤ " ++ showPretty vc
+  return (vc, t)
+
+
+synth g (Rec x t1_tilde e1 e2) = do
+  t1_hat <- fresh g (shape t1_tilde)
+  (c1, t1) <- synth (Map.insert x t1_hat g) e1
+  c1_tilde <- sub t1 t1_tilde
+  (c2, t2) <- synth (Map.insert x t1 g) e2
+  t2_hat <- fresh g (shape t2)
+  c2_hat <- sub t2 t2_hat
+  let vc = (cImpl x t1_hat c1) `cAnd` c1_tilde `cAnd` (cImpl x t1 c2) `cAnd` c2_hat
+  --traceM $ showPretty e0 ++ " : " ++ showPretty t2_hat ++ " ⫤ " ++ showPretty vc
+  return (vc, t2)
+
 
 -----
 
 
 synth _ e = failWith $ CantSynth e
-
 
 shape :: Type -> Type
 shape (TBase v b _ pv) = TBase v b Unknown pv
@@ -229,6 +251,16 @@ sub (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
   return $ cI `cAnd` cImpl x2 s2 cO
 
 sub t1 t2 = failWith $ InvalidSubtype t1 t2
+
+
+join :: Type -> Type -> TC Type
+join t1@(TBase v1 b1 (Known p1) _) t2@(TBase v2 b2 (Known p2) _)
+  | b1 == b2 = let p2' = subst (V v1) v2 p2
+               in return $ TBase v1 b1 (Known (p1 `pOr` p2')) NoPV  -- TODO: join provenance
+  | otherwise = failWith $ InvalidSubtypeBase (t1,b1) (t2,b2)  -- TODO: correct error
+
+join t1 t2 = failWith $ InvalidSubtype t1 t2 -- TODO: correct error
+
 
 ------------------------------------------------------------------------------
 

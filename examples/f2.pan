@@ -1,0 +1,20 @@
+assume substring : 
+  (s:string) -> 
+  {i:int | i >= 0 /\ i < length(s)} ->
+  {t:string | t = substring(s,i)}
+
+assume match : (s:string) -> (t:string) -> {b:bool|b <=> s = t}
+assume assert : {b:bool|b} -> unit
+
+assume f : string -> unit
+define f = \s:{v:string|v="c"}.
+  let x = substring s 0 in
+  let p1 = match x "a" in
+  if p1 then
+    let y = substring s 1 in
+    let p2 = match y "b" in
+    assert p2
+  else
+    let z = substring s 0 in
+    let p3 = match z "c" in
+    assert p3

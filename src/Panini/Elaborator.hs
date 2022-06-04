@@ -8,7 +8,9 @@ import Data.Map qualified as Map
 import Panini.Error
 import Panini.Syntax
 import Panini.TypeChecker
+--import Panini.Printer
 import Prelude
+--import Debug.Trace
 
 -------------------------------------------------------------------------------
 
@@ -55,27 +57,42 @@ elabDecl (Assume x t) = do
     Nothing -> do
       modify' $ \ps -> ps { pan_types = Map.insert x t (pan_types ps)}
 
+-- TODO: allow recursion etc.
 elabDecl (Define x e) = do
   gamma <- gets pan_types
-  terms <- gets pan_terms
-  case Map.lookup x terms of
-    Just _ -> throwError $ AlreadyDefined x
-    -- Nothing -> do
-      -- (c, t) <- lift $ except $ runTC $ synth gamma e
-      -- modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
-      -- modify' $ \ps -> ps {pan_vcs = Map.insert x c (pan_vcs ps)}
-      -- modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
+  --terms <- gets pan_terms
+  (vc,t) <- lift $ except $ runTC $ synth gamma (Let x e (Val (V x)))
+  modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
+  modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
+  modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
 
-    Nothing -> case Map.lookup x gamma of
-      Nothing -> throwError $ MissingType x
-      Just t -> do
-        (s, vc) <- lift $ except $ runTC $ do
-          c <- check gamma e t
-          return (t, c)      
+  -- case Map.lookup x terms of
+  --   Just _ -> throwError $ AlreadyDefined x
+  --   -- Nothing -> do
+  --     -- (c, t) <- lift $ except $ runTC $ synth gamma e
+  --     -- modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
+  --     -- modify' $ \ps -> ps {pan_vcs = Map.insert x c (pan_vcs ps)}
+  --     -- modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
+
+  --   Nothing -> case Map.lookup x gamma of
+  --     Nothing -> throwError $ MissingType x
+  --     Just t_tilde -> do
+  --       (vc, t) <- lift $ except $ runTC $ do
+  --         (c, t) <- synth (Map.insert x t_tilde gamma) e
+  --         return (c, t)
+
+  --         -- TODO: the problem is that \x:int gets its x type from the annotation
+  --         -- but we somehow need it to be passed down
+  --         -- think about this!!!
+
+  --         -- t_hat <- fresh mempty t_tilde
+  --         -- (c, t) <- synth (Map.insert x t_hat gamma) e 
+  --         -- c_tilde <- sub t t_tilde
+  --         -- return (c `cAnd` c_tilde, t)
         
-        modify' $ \ps -> ps {pan_types = Map.insert x s (pan_types ps)}
-        modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
-        modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
+  --       modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
+  --       modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
+  --       modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
 
 solve :: Elab ()
 solve = undefined
