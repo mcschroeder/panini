@@ -110,6 +110,33 @@ synth g (Let x e1 e2) = do
   --traceM $ showPretty e0 ++ " : " ++ showPretty t2_hat ++ " ⫤ " ++ showPretty vc
   return (vc, t2_hat)
 
+-- synth g e0@(Lam x e) = do
+--   -- fake manual annotation of function type
+--   let t1_tilde = TBase dummyName TInt (Known $ PTrue NoPV) NoPV
+--   let t2_tilde = TBase dummyName TUnit (Known $ PTrue NoPV) NoPV
+--   let t_tilde = TFun x t1_tilde t2_tilde NoPV
+
+--   t_hat <- fresh mempty (shape t_tilde)
+--   let TFun _ t1_hat t2_hat _ = t_hat
+
+--   (c2,t2) <- synth (Map.insert x t1_hat g) e
+
+--   c_tilde <- sub (TFun x t1_hat t2 NoPV) t_tilde
+
+--   let vc = (cImpl x t1_hat c2) `cAnd` c_tilde
+--   let t = TFun x t1_hat t2 NoPV
+
+--   traceM $ showPretty e0 ++ " : " ++ showPretty t ++ " ⫤ " ++ showPretty vc
+--   return (vc, t)
+
+synth g (Lam x e) = do
+  t1_hat <- fresh mempty (TBase "s" TString Unknown NoPV)
+  (c2, t2) <- synth (Map.insert x t1_hat g) e
+  let t = TFun x t1_hat t2 NoPV
+  let vc = cImpl x t1_hat c2
+  --traceM $ showPretty e0 ++ " : " ++ showPretty t ++ " ⫤ " ++ showPretty c
+  return (vc, t)
+
 synth g (Lam2 x t1_tilde e) = do
   t1_hat <- fresh mempty (shape t1_tilde)
   c1_hat <- sub t1_tilde t1_hat

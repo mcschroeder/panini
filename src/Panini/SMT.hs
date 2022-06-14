@@ -51,6 +51,8 @@ instance Simplifable Pred where
     PDisj (simplify -> p) (simplify -> q)
       | PFalse _ <- p -> q
       | PFalse _ <- q -> p
+      --  | PTrue _  <- p -> PTrue NoPV  -- TODO: information loss?
+      --  | PTrue _  <- q -> PTrue NoPV  -- TODO: information loss?
       | otherwise     -> PDisj p q
 
     PNot (simplify -> p) -> PNot p
@@ -65,8 +67,9 @@ instance Simplifable Pred where
       | PTrue _ <- q -> p
       | otherwise    -> PIff p q
 
-    PExists x b (simplify -> p)
-      | x `elem` freeVars p -> PExists x b p
+    PExists x b (simplify -> p)      
+      | trivialExists x b p -> PTrue NoPV  -- TODO: information loss?
+      | x `elem` freeVars p -> PExists x b p      
       | otherwise           -> p
   
     PBin o (simplify -> p1) (simplify -> p2) -> PBin o p1 p2
@@ -74,6 +77,12 @@ instance Simplifable Pred where
     PFun f (map simplify -> ps)              -> PFun f ps
 
     p -> p
+
+--TODO: this is a hack; depending on the sort of x, it might not even be sound!
+trivialExists :: Name -> Base -> Pred -> Bool
+trivialExists x _ = \case
+  PRel Eq (PVal (V v1)) (PVal (V v2)) -> v1 == x || v2 == x
+  _                                   -> False
 
 instance Simplifable Con where
   simplify = \case
@@ -117,8 +126,11 @@ sat :: Con -> [Pred] -> IO Bool
 sat c q = do
   let ks = getKs c
   let ks' = ks  -- TODO: cut set
-  let c' = simplify $ elim ks' c
-  putStrLn "---"
+  let c1 = simplify c
+  putStrLn "--- simplified constraint:"
+  outputPretty c1
+  let c' = simplify $ elim ks' c1
+  putStrLn "--- after fusion:"
   outputPretty c'
   putStrLn "---"
   r <- solve c' q
@@ -219,13 +231,15 @@ instance HasKVars Con where
 ------------------------------------------------------------------------------
 -- | Solve a Horn constraint given a set of candidates.
 solve :: Con -> [Pred] -> IO (Maybe Assignment)
-solve c _qs = do
+solve c qs = do
   let cs = flat c
   putStrLn "---"
   mapM_ (putStrLn . showPretty) cs
   putStrLn "---"
   let (csk,csp) = partition horny cs
-  let s0 = Map.empty
+  -- TODO: we assume free vars in qs to match k args
+  let ks = concatMap getKs csk
+  let s0 = Map.fromList $ map (\(k,zs) -> (k,(zs,PAnd qs))) ks
   s <- fixpoint csk s0
   r <- smtValid (map (applyCon s) csp)
   if r then return (Just s) else return Nothing
@@ -330,12 +344,16 @@ prettyAss = unlines . map go . Map.toAscList
 
 ------------------------------------------------------------------------------
 
+-- TODO: encode string ops more safely/consistently
+
 smtValid :: [Con] -> IO Bool
 smtValid cs = do
   let foralls = map (Text.unpack . printSMTLib2) cs
   let declares = 
         [ "(define-fun length ((s String)) Int (str.len s))"
-        , "(define-fun substring ((s String) (i Int)) String (str.at s i))"
+        , "(define-fun substring ((s String) (i Int) (n Int)) String (str.substr s i n))"
+        -- "(declare-fun length ((String)) Int)"
+        -- , "(declare-fun substring ((String) (Int)) String)"
         ]
   let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
   let query = unlines $ declares ++ asserts ++ ["(check-sat)"]

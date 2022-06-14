@@ -61,7 +61,7 @@ elabDecl (Assume x t) = do
 elabDecl (Define x e) = do
   gamma <- gets pan_types
   --terms <- gets pan_terms
-  (vc,t) <- lift $ except $ runTC $ synth gamma (Let x e (Val (V x)))
+  (vc,t) <- lift $ except $ runTC $ synth gamma e --(Let x e (Val (V x)))
   modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
   modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
   modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
