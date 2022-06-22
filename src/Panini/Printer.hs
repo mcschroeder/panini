@@ -125,7 +125,8 @@ instance Pretty Prog where
 
 instance Pretty Decl where
   pretty (Assume x t) = kw "assume" <+> pretty x <+> kws ":" <+> pretty t
-  pretty (Define x e) = kw "define" <+> pretty x <+> kws "=" <+> pretty e
+  pretty (Define x t e) = 
+    kw "define" <+> pretty x <+> kws ":" <+> pretty t <\> kws "=" <+> pretty e
 
 -------------------------------------------------------------------------------
 

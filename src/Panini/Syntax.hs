@@ -59,8 +59,8 @@ nextSubscript (Name n pv) = case decimal @Int $ Text.takeWhileEnd isDigit n of
 type Prog = [Decl]
 
 data Decl
-  = Assume Name Type   -- assume x : t
-  | Define Name Term   -- define x = e
+  = Assume Name Type       -- assume x : t
+  | Define Name Type Term  -- define x : t = e
   deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------

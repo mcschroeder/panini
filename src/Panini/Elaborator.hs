@@ -58,7 +58,7 @@ elabDecl (Assume x t) = do
       modify' $ \ps -> ps { pan_types = Map.insert x t (pan_types ps)}
 
 -- TODO: allow recursion etc.
-elabDecl (Define x e) = do
+elabDecl (Define x t_tilde e) = do
   gamma <- gets pan_types
   --terms <- gets pan_terms
   (vc,t) <- lift $ except $ runTC $ synth gamma e --(Let x e (Val (V x)))

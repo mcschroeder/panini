@@ -164,9 +164,11 @@ define :: Parser Decl
 define = do
   keyword "define"
   x <- name
+  symbol ":"
+  t <- type_
   symbol "="
   e <- term
-  return $ Define x e
+  return $ Define x t e
 
 -------------------------------------------------------------------------------
 

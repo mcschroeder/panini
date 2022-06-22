@@ -7,7 +7,8 @@ assume substring :
 assume match : (s:string) -> (t:string) -> {b:bool|b <=> s = t}
 assume assert : {b:bool|b} -> unit
 
-define f = \s.
+define f : string -> unit 
+= \s.
   let x = substring s 0 1 in
   let p1 = match x "a" in
   if p1 then
