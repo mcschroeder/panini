@@ -49,11 +49,11 @@ initState = ElabState
 
 -------------------------------------------------------------------------------
 
-elabProg :: Prog -> Elab ()
-elabProg = mapM_ elabDecl
+elaborateProgram :: Program -> Elab ()
+elaborateProgram = mapM_ elaborateStatement
 
-elabDecl :: Decl -> Elab ()
-elabDecl (Assume x t) = do
+elaborateStatement :: Statement -> Elab ()
+elaborateStatement (Assume x t) = do
   gamma <- gets pan_types
   case Map.lookup x gamma of
     Just _ -> throwError $ AlreadyDefined x
@@ -61,7 +61,7 @@ elabDecl (Assume x t) = do
       modify' $ \ps -> ps { pan_types = Map.insert x t (pan_types ps)}
 
 -- TODO: allow recursion etc.
-elabDecl (Define x t_tilde e) = do
+elaborateStatement (Define x _t_tilde e) = do
   gamma <- gets pan_types
   --terms <- gets pan_terms
   (vc,t) <- lift $ except $ runTC $ synth gamma e --(Let x e (Val (V x)))
@@ -97,11 +97,11 @@ elabDecl (Define x t_tilde e) = do
   --       modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
   --       modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
 
-elabDecl (Import m) = do
+elaborateStatement (Import m) = do
   src <- liftIO $ Text.readFile m  -- TODO: handle error
-  case parseProg m src of
+  case parseProgram m src of
     Left  err  -> throwError err
-    Right prog -> elabProg prog
+    Right prog -> elaborateProgram prog
 
 solve :: Elab ()
 solve = undefined

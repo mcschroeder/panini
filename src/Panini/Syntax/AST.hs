@@ -9,19 +9,18 @@ import Panini.Syntax.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------
--- Top-level declarations
 
-type Prog = [Decl]
+-- | A program is simply a list of successive statements.
+type Program = [Statement]
 
-data Decl
+-- | Statements are top-level declarations.
+data Statement
   = Assume Name Type       -- assume x : t
   | Define Name Type Term  -- define x : t = e
   | Import FilePath        -- import m
   deriving stock (Show, Read)
 
-------------------------------------------------------------------------------
--- Terms
-
+-- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
 data Term
   = Val Value                -- x
   | App Term Value           -- e x
@@ -32,9 +31,6 @@ data Term
   | Rec Name Type Term Term  -- rec x : t = e1 in e2
   | If Value Term Term       -- if x then e1 else e2
   deriving stock (Show, Read)
-
-------------------------------------------------------------------------------
--- Values
 
 data Value
   = U PV          -- unit
@@ -65,22 +61,26 @@ instance HasProvenance Value where
   setPV pv (S x _) = S x pv
   setPV pv (V x) = V (setPV pv x)
 
-------------------------------------------------------------------------------
--- Types
 
+-- | A type is either a refined 'Base' type or a dependent function type.
+-- 
+-- For convenience, we define the following equivalences:
+--
+-- >            b  ≡  {_:b|true}
+-- >      t₁ → t₂  ≡  _:t₁ → t₂
+-- > {x:b|r} → t₂  ≡  x:{x:b|r} → t₂
+--
 data Type
   = TBase Name Base Reft PV  -- {v:b|r}
-  | TFun Name Type Type PV   -- x:t1 -> t2
+  | TFun Name Type Type PV   -- x:t₁ → t₂
   deriving stock (Show, Read)
 
---             b  ^=  {_:b|true}
---      t1 -> t2  ^=  _:t1 -> t2
--- {x:b|r} -> t2  ^=  x:{x:b|r} -> t2
 
 isBaseType :: Type -> Bool
 isBaseType (TBase _ _ _ _) = True
 isBaseType _ = False
 
+-- | A primitive base type.
 data Base
   = TUnit
   | TBool

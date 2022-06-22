@@ -101,7 +101,7 @@ synthesizeType input = do
 
 evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
-  res <- lift $ tryError $ elabProg =<< lift (except $ parseInput input) 
+  res <- lift $ tryError $ elaborateProgram =<< lift (except $ parseInput input) 
   case res of
     Left err -> do
       err' <- liftIO $ updatePV (addSourceLinesREPL input) err
@@ -111,10 +111,10 @@ evaluateInput input = do
 loadFiles :: [FilePath] -> InputT Elab ()
 loadFiles fs = forM_ fs $ \f -> do
   src <- liftIO $ Text.readFile f
-  case parseProg f src of
+  case parseProgram f src of
     Left err1 -> outputPretty err1
     Right prog -> do
-      res <- lift $ tryError $ elabProg prog
+      res <- lift $ tryError $ elaborateProgram prog
       case res of
         Left err2 -> do
           err2' <- liftIO $ updatePV addSourceLines err2
@@ -193,11 +193,11 @@ class Inputable a where
 instance Inputable Term where
   parseInput = parseTerm "<repl>" . Text.pack
 
-instance Inputable Decl where
-  parseInput = parseDecl "<repl>" . Text.pack
+instance Inputable Statement where
+  parseInput = parseStatement "<repl>" . Text.pack
 
-instance Inputable Prog where
-  parseInput = parseProg "<repl>" . Text.pack
+instance Inputable Program where
+  parseInput = parseProgram "<repl>" . Text.pack
 
 -------------------------------------------------------------------------------
 

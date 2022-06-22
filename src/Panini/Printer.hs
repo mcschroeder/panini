@@ -119,10 +119,10 @@ instance Pretty Name where
 
 -------------------------------------------------------------------------------
 
-instance Pretty Prog where
+instance Pretty Program where
   pretty = vcat . map pretty
 
-instance Pretty Decl where
+instance Pretty Statement where
   pretty (Assume x t) = kw "assume" <+> pretty x <+> kws ":" <+> pretty t
   pretty (Define x t e) = 
     kw "define" <+> pretty x <+> kws ":" <+> pretty t <\> kws "=" <+> pretty e

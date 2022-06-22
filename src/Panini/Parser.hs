@@ -3,8 +3,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Panini.Parser
-  ( parseProg
-  , parseDecl
+  ( parseProgram
+  , parseStatement
   , parseTerm
   ) where
 
@@ -30,11 +30,11 @@ import Data.Maybe
 
 -------------------------------------------------------------------------------
 
-parseProg :: FilePath -> Text -> Either Error Prog
-parseProg = parseA (many decl)
+parseProgram :: FilePath -> Text -> Either Error Program
+parseProgram = parseA (many statement)
 
-parseDecl :: FilePath -> Text -> Either Error Decl
-parseDecl = parseA decl
+parseStatement :: FilePath -> Text -> Either Error Statement
+parseStatement = parseA statement
 
 parseTerm :: FilePath -> Text -> Either Error Term
 parseTerm = parseA term
@@ -148,10 +148,10 @@ name = label "name" $ do
 
 -------------------------------------------------------------------------------
 
-decl :: Parser Decl
-decl = choice [assume, define, import_]
+statement :: Parser Statement
+statement = choice [assume, define, import_]
 
-assume :: Parser Decl
+assume :: Parser Statement
 assume = do
   keyword "assume"
   x <- name
@@ -159,7 +159,7 @@ assume = do
   t <- type_
   return $ Assume x t
 
-define :: Parser Decl
+define :: Parser Statement
 define = do
   keyword "define"
   x <- name
@@ -169,7 +169,7 @@ define = do
   e <- term
   return $ Define x t e
 
-import_ :: Parser Decl
+import_ :: Parser Statement
 import_ = do
   keyword "import"
   m <- some $ satisfy (\x -> isAlphaNum x || x == '_' || x == '/' || x == '.')
