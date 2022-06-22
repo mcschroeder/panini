@@ -9,8 +9,6 @@ import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Panini.Error
 import Panini.Printer
-import Panini.Provenance
-import Panini.Substitution
 import Panini.Syntax
 import Prelude
 import Debug.Trace

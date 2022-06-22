@@ -1,0 +1,54 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+-- TODO: module documentation
+module Panini.Syntax.Names where
+
+import Data.Char (isDigit)
+import Data.String
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Text.Read
+import Panini.Syntax.Provenance
+import Prelude
+
+------------------------------------------------------------------------------
+
+-- | A name for something, e.g. a variable or a binder.
+data Name = Name Text PV
+  deriving stock (Show, Read)
+
+instance HasProvenance Name where
+  getPV (Name _ pv) = pv
+  setPV pv (Name x _) = Name x pv
+
+-- | Equality between names ignores provenance.
+instance Eq Name where
+  Name a _ == Name b _ = a == b
+
+-- | Ordering between names ignores provenance.
+instance Ord Name where
+  Name a _ <= Name b _ = a <= b
+
+instance IsString Name where
+  fromString s = Name (Text.pack s) NoPV
+
+dummyName :: Name
+dummyName = "_"
+
+isDummy :: Name -> Bool
+isDummy n = n == dummyName
+
+-- | Returns a fresh name based on a given name, avoiding unwanted names.
+freshName :: Name -> [Name] -> Name
+freshName x ys = go (nextSubscript x)
+ where
+  go x'
+    | x' `elem` ys = go (nextSubscript x')
+    | otherwise    = x'
+
+-- | Given "x", returns "x1"; given "x1", returns "x2"; and so on.
+nextSubscript :: Name -> Name
+nextSubscript (Name n pv) = case decimal @Int $ Text.takeWhileEnd isDigit n of
+  Left _      -> Name (Text.append n "1") (Derived pv "rename")
+  Right (i,_) -> Name (Text.dropWhileEnd isDigit n <> i') (Derived pv "rename")
+                   where i' = Text.pack $ show (i + 1) 

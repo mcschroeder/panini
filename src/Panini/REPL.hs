@@ -22,7 +22,6 @@ import Panini.Elaborator
 import Panini.Error
 import Panini.Parser
 import Panini.Printer
-import Panini.Provenance
 import Panini.Solver.Fusion
 import Panini.Syntax
 import Panini.TypeChecker

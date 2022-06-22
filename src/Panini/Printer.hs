@@ -12,7 +12,6 @@ import Data.List (intersperse)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Error
-import Panini.Provenance
 import Panini.Syntax
 import Prelude
 import Prettyprinter hiding (Pretty(..))

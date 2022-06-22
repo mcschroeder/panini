@@ -2,8 +2,6 @@
 module Panini.Solver.Simplify where
 
 import Panini.Syntax
-import Panini.Provenance
-import Panini.Substitution
 import Prelude
 
 class Simplifable a where

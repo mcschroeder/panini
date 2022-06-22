@@ -1,4 +1,4 @@
-module Panini.Provenance
+module Panini.Syntax.Provenance
   ( SrcLoc(..)
   , PV(..)
   , HasProvenance(..)

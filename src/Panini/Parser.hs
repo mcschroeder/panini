@@ -18,7 +18,6 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
-import Panini.Provenance
 import Panini.Error
 import Panini.Syntax
 import Prelude

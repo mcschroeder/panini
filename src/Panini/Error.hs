@@ -1,7 +1,6 @@
 module Panini.Error where
 
 import Data.Text (Text)
-import Panini.Provenance
 import Panini.Syntax
 import Prelude
 

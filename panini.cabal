@@ -35,8 +35,11 @@ library
     Panini.Solver.Simplify
     Panini.Solver.SMTLIB
     Panini.Solver.Z3
-    Panini.Substitution
     Panini.Syntax
+    Panini.Syntax.AST
+    Panini.Syntax.Names
+    Panini.Syntax.Provenance
+    Panini.Syntax.Substitution
     Panini.TypeChecker
 
   build-depends:

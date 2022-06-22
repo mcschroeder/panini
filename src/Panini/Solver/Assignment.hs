@@ -4,7 +4,6 @@ module Panini.Solver.Assignment where
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Panini.Syntax
-import Panini.Substitution
 import Prelude
 
 -- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn

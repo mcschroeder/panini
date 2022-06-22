@@ -1,0 +1,173 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+-- TODO: module documentation
+module Panini.Syntax.AST where
+
+import Data.Text (Text)
+import Panini.Syntax.Names
+import Panini.Syntax.Provenance
+import Prelude
+
+------------------------------------------------------------------------------
+-- Top-level declarations
+
+type Prog = [Decl]
+
+data Decl
+  = Assume Name Type       -- assume x : t
+  | Define Name Type Term  -- define x : t = e
+  | Import FilePath        -- import m
+  deriving stock (Show, Read)
+
+------------------------------------------------------------------------------
+-- Terms
+
+data Term
+  = Val Value                -- x
+  | App Term Value           -- e x
+  | Lam Name Term            -- \x. e
+  | Lam2 Name Type Term      -- \x:t. e   -- TODO: unrefined type only?
+  | Ann Term Type            -- e : t
+  | Let Name Term Term       -- let x = e1 in e2
+  | Rec Name Type Term Term  -- rec x : t = e1 in e2
+  | If Value Term Term       -- if x then e1 else e2
+  deriving stock (Show, Read)
+
+------------------------------------------------------------------------------
+-- Values
+
+data Value
+  = U PV          -- unit
+  | B Bool PV     -- true, false
+  | I Integer PV  -- 0, -1, 1, ...
+  | S Text PV     -- "lorem ipsum"
+  | V Name        -- x
+  deriving stock (Show, Read)
+
+-- | Equality between values ignores provenance.
+instance Eq Value where
+  U   _ == U   _ = True
+  B a _ == B b _ = a == b
+  I a _ == I b _ = a == b
+  S a _ == S b _ = a == b
+  V a   == V b   = a == b
+  _     == _     = False
+
+instance HasProvenance Value where
+  getPV (U pv) = pv
+  getPV (B _ pv) = pv
+  getPV (I _ pv) = pv
+  getPV (S _ pv) = pv
+  getPV (V x) = getPV x
+  setPV pv (U _) = U pv
+  setPV pv (B x _) = B x pv
+  setPV pv (I x _) = I x pv
+  setPV pv (S x _) = S x pv
+  setPV pv (V x) = V (setPV pv x)
+
+------------------------------------------------------------------------------
+-- Types
+
+data Type
+  = TBase Name Base Reft PV  -- {v:b|r}
+  | TFun Name Type Type PV   -- x:t1 -> t2
+  deriving stock (Show, Read)
+
+--             b  ^=  {_:b|true}
+--      t1 -> t2  ^=  _:t1 -> t2
+-- {x:b|r} -> t2  ^=  x:{x:b|r} -> t2
+
+isBaseType :: Type -> Bool
+isBaseType (TBase _ _ _ _) = True
+isBaseType _ = False
+
+data Base
+  = TUnit
+  | TBool
+  | TInt
+  | TString
+  deriving stock (Eq, Show, Read)
+
+data Reft
+  = Unknown     -- ?
+  | Known Pred  -- p
+  deriving stock (Eq, Show, Read)
+
+instance HasProvenance Type where
+  getPV (TBase _ _ _ pv) = pv
+  getPV (TFun _ _ _ pv) = pv
+  setPV pv (TBase v b r _) = TBase v b r pv
+  setPV pv (TFun x t1 t2 _) = TFun x t1 t2 pv
+
+------------------------------------------------------------------------------
+-- Predicates
+
+data Pred
+  = PVal Value          -- x
+  | PBin Bop Pred Pred  -- p1 o p2
+  | PRel Rel Pred Pred  -- p1 R p2
+  | PAnd [Pred]         -- p1 /\ p2 /\ ... /\ pn
+  | PDisj Pred Pred     -- p1 \/ p2
+  | PImpl Pred Pred     -- p1 ==> p2
+  | PIff Pred Pred      -- p1 <=> p2
+  | PNot Pred           -- ~p1
+  | PFun Name [Pred]    -- f(p1,p2,...)
+  | PHorn Name [Value]  -- k(x1,x2,...)  -- TODO: [Name] instead of [Value]
+  | PExists Name Base Pred  -- exists x:b. p
+  deriving stock (Eq, Show, Read)
+
+data Bop = Add | Sub | Mul | Div
+  deriving stock (Eq, Show, Read)
+
+data Rel = Eq | Neq | Geq | Leq | Gt | Lt
+  deriving stock (Eq, Show, Read)
+
+pattern PTrue :: PV -> Pred
+pattern PTrue pv = PVal (B True pv)
+
+pattern PFalse :: PV -> Pred
+pattern PFalse pv = PVal (B False pv)
+
+pVar :: Name -> Pred
+pVar = PVal . V
+
+pEq :: Pred -> Pred -> Pred
+pEq = PRel Eq
+
+-- | Smart constructor for `PAnd`, eliminates redundant values and merges
+-- adjacent `PAnd` lists.
+pAnd :: Pred -> Pred -> Pred
+pAnd (PTrue _)   q           = q
+pAnd (PFalse pv) _           = PFalse pv
+pAnd p           (PTrue _)   = p
+pAnd _           (PFalse pv) = PFalse pv
+pAnd (PAnd ps)   (PAnd qs)   = PAnd (ps ++ qs)
+pAnd (PAnd ps)   q           = PAnd (ps ++ [q])
+pAnd p           (PAnd qs)   = PAnd (p:qs)
+pAnd p           q           = PAnd [p,q]
+
+-- | Smart constructor for `PDisj`, eliminates redundant values.
+pOr :: Pred -> Pred -> Pred
+pOr (PFalse _) q          = q
+pOr (PTrue pv) _          = PTrue pv
+pOr p          (PFalse _) = p
+pOr _          (PTrue pv) = PTrue pv
+pOr p          q          = PDisj p q
+
+------------------------------------------------------------------------------
+-- Horn constraints
+
+data Con
+  = CHead Pred               -- p
+  | CAnd Con Con             -- c1 /\ c2
+  | CAll Name Base Pred Con  -- forall x:b. p ==> c
+  deriving stock (Eq, Show, Read)
+
+pattern CTrue :: PV -> Con
+pattern CTrue pv = CHead (PTrue pv)
+
+-- | Smart constructor for `CAnd`, eliminates redundant true values.
+cAnd :: Con -> Con -> Con
+cAnd (CTrue _) c2        = c2
+cAnd c1        (CTrue _) = c1
+cAnd c1        c2        = CAnd c1 c2

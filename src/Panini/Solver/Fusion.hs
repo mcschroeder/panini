@@ -12,7 +12,6 @@ import Data.List (nub)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.String
-import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Liquid
 import Panini.Solver.Simplify
