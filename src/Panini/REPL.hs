@@ -22,7 +22,6 @@ import Panini.Elaborator
 import Panini.Error
 import Panini.Parser
 import Panini.Printer
-import Panini.Solver.Fusion
 import Panini.Syntax
 import Panini.TypeChecker
 import Prelude
@@ -123,28 +122,50 @@ loadFiles fs = forM_ fs $ \f -> do
 
 showState :: InputT Elab ()
 showState = do
-  ElabState{pan_types, pan_terms, pan_vcs} <- lift get
-  outputStrLn "\ntyping context"
-  mapM_ outputPretty $ Map.toList pan_types
-  outputStrLn "\nterm context"
-  mapM_ outputPretty $ Map.toList pan_terms
-  outputStrLn "\nverification conditions"
-  -- mapM_ outputPretty $ Map.toList pan_vcs
-  forM_ (Map.toList pan_vcs) $ \(x,vc) -> do
-    outputPretty x
-    outputPretty vc
-    outputStrLn "---"
-    r <- liftIO $ sat vc []
-    case r of
-      True -> outputStrLn "SAT"
-      False -> outputStrLn "UNSAT"
-    -- r <- liftIO $ Panini.SMT.solve vc []
-    -- case r of
-    --   Nothing -> outputStrLn "UNSAT"
-    --   Just s -> do
-    --     outputStrLn "SAT"
-    --     forM_ (Map.toList s) $ \(k,(xs,p)) -> do
-    --       outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
+  ElabState{environment} <- lift get
+  forM_ (Map.toAscList environment) $ \(_,def) -> case def of
+    Assumed{_name,_givenType} ->
+      outputStrLn $ "✳️  " ++ prettyS _name ++ " : " ++ prettyS _givenType
+    Rejected{_name,_givenType,_typeError} ->
+      outputStrLn $ "❗ " ++ prettyS _name ++ " : " ++ prettyS _givenType ++ "  [type error]"
+    Inferred{_name,_inferredType,_vc} ->
+      outputStrLn $ "❓ " ++ prettyS _name ++ " : " ++ prettyS _inferredType
+    Invalid{_name,_inferredType,_vc} ->
+      outputStrLn $ "‼️  " ++ prettyS _name ++ " : " ++ prettyS _inferredType ++ "  [solver error]"
+    Verified{_name,_inferredType,_vc,_solution} ->
+      outputStrLn $ "✅ " ++ prettyS _name ++ " : " ++ prettyS _inferredType
+
+
+
+
+-- prettyEnv :: Environment -> Doc Ann
+-- prettyEnv env = forM_ (Map.toList env) $ \(x,def) -> case def of
+--   Assumed {_givenType} -> "" <+> x <+> sym ":" <+> pretty _givenType
+--   Rejected {_givenType,_typeError} -> "" <+> x <+> sym ":" <+> pretty _givenType
+
+
+  -- ElabState{pan_types, pan_terms, pan_vcs} <- lift get
+  -- outputStrLn "\ntyping context"
+  -- mapM_ outputPretty $ Map.toList pan_types
+  -- outputStrLn "\nterm context"
+  -- mapM_ outputPretty $ Map.toList pan_terms
+  -- outputStrLn "\nverification conditions"
+  -- -- mapM_ outputPretty $ Map.toList pan_vcs
+  -- forM_ (Map.toList pan_vcs) $ \(x,vc) -> do
+  --   outputPretty x
+  --   outputPretty vc
+  --   outputStrLn "---"
+  --   r <- liftIO $ sat vc []
+  --   case r of
+  --     True -> outputStrLn "SAT"
+  --     False -> outputStrLn "UNSAT"
+  --   -- r <- liftIO $ Panini.SMT.solve vc []
+  --   -- case r of
+  --   --   Nothing -> outputStrLn "UNSAT"
+  --   --   Just s -> do
+  --   --     outputStrLn "SAT"
+  --   --     forM_ (Map.toList s) $ \(k,(xs,p)) -> do
+  --   --       outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
 
 forgetVars :: [String] -> InputT Elab ()
 forgetVars xs = do
@@ -220,3 +241,8 @@ outputPretty x = do
   fixedWidth <- liftIO $ fmap snd <$> getTerminalSize
   let opts = RenderOptions {unicodeSymbols = True, ansiColors, fixedWidth}
   outputStrLn $ Text.unpack $ renderDoc opts $ pretty x
+
+prettyS :: Pretty a => a -> String
+prettyS x =
+  let opts = RenderOptions {unicodeSymbols = True, ansiColors = True, fixedWidth = Nothing}
+  in Text.unpack $ renderDoc opts $ pretty x
