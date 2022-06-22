@@ -1,13 +1,16 @@
 module Panini.Elaborator where
 
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Text.IO qualified as Text
 import Panini.Error
 import Panini.Syntax
 import Panini.TypeChecker
+import Panini.Parser
 --import Panini.Printer
 import Prelude
 --import Debug.Trace
@@ -93,6 +96,12 @@ elabDecl (Define x t_tilde e) = do
   --       modify' $ \ps -> ps {pan_types = Map.insert x t (pan_types ps)}
   --       modify' $ \ps -> ps {pan_vcs = Map.insert x vc (pan_vcs ps)}
   --       modify' $ \ps -> ps {pan_terms = Map.insert x e (pan_terms ps)}
+
+elabDecl (Import m) = do
+  src <- liftIO $ Text.readFile m  -- TODO: handle error
+  case parseProg m src of
+    Left  err  -> throwError err
+    Right prog -> elabProg prog
 
 solve :: Elab ()
 solve = undefined

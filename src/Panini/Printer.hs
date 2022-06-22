@@ -127,6 +127,8 @@ instance Pretty Decl where
   pretty (Assume x t) = kw "assume" <+> pretty x <+> kws ":" <+> pretty t
   pretty (Define x t e) = 
     kw "define" <+> pretty x <+> kws ":" <+> pretty t <\> kws "=" <+> pretty e
+  pretty (Import m) = 
+    kw "import" <+> pretty m
 
 -------------------------------------------------------------------------------
 

@@ -108,7 +108,7 @@ isReserved = flip elem
   , "true", "false", "unit"
   , "bool", "int", "string"
   , "forall"
-  , "assume", "define"
+  , "assume", "define", "import"
   ]
 
 -- | Report a parse error at the given offset.
@@ -150,7 +150,7 @@ name = label "name" $ do
 -------------------------------------------------------------------------------
 
 decl :: Parser Decl
-decl = choice [assume, define]
+decl = choice [assume, define, import_]
 
 assume :: Parser Decl
 assume = do
@@ -169,6 +169,12 @@ define = do
   symbol "="
   e <- term
   return $ Define x t e
+
+import_ :: Parser Decl
+import_ = do
+  keyword "import"
+  m <- some $ satisfy (\x -> isAlphaNum x || x == '_' || x == '/' || x == '.')
+  return $ Import m
 
 -------------------------------------------------------------------------------
 

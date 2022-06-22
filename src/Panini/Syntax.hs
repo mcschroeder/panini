@@ -61,6 +61,7 @@ type Prog = [Decl]
 data Decl
   = Assume Name Type       -- assume x : t
   | Define Name Type Term  -- define x : t = e
+  | Import FilePath        -- import m
   deriving stock (Show, Read)
 
 ------------------------------------------------------------------------------
