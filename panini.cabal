@@ -29,7 +29,12 @@ library
     Panini.Parser
     Panini.Printer
     Panini.REPL
-    Panini.SMT
+    Panini.Solver.Assignment
+    Panini.Solver.Fusion
+    Panini.Solver.Liquid
+    Panini.Solver.Simplify
+    Panini.Solver.SMTLIB
+    Panini.Solver.Z3
     Panini.Substitution
     Panini.Syntax
     Panini.TypeChecker

@@ -23,7 +23,7 @@ import Panini.Error
 import Panini.Parser
 import Panini.Printer
 import Panini.Provenance
-import Panini.SMT
+import Panini.Solver.Fusion
 import Panini.Syntax
 import Panini.TypeChecker
 import Prelude
@@ -135,7 +135,7 @@ showState = do
     outputPretty x
     outputPretty vc
     outputStrLn "---"
-    r <- liftIO $ Panini.SMT.sat vc []
+    r <- liftIO $ sat vc []
     case r of
       True -> outputStrLn "SAT"
       False -> outputStrLn "UNSAT"
