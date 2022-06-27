@@ -36,7 +36,7 @@ parseProgram = parseA (many statement)
 parseStatement :: FilePath -> Text -> Either Error Statement
 parseStatement = parseA statement
 
-parseTerm :: FilePath -> Text -> Either Error Term
+parseTerm :: FilePath -> Text -> Either Error (Term Untyped)
 parseTerm = parseA term
 
 parseA :: Parser a -> FilePath -> Text -> Either Error a
@@ -177,37 +177,44 @@ import_ = do
 
 -------------------------------------------------------------------------------
 
-term :: Parser Term
+term :: Parser (Term Untyped)
 term = do
   e1 <- term1
-  e <- (foldl' App e1 <$> some (try value)) <|> pure e1
-  (Ann e <$ symbol ":" <*> type_) <|> pure e
+  let mkApp e x = App e x NoPV ()  -- TODO: figure out the provenance here
+  (foldl' mkApp e1 <$> some (try value)) <|> pure e1
 
-term1 :: Parser Term
+term1 :: Parser (Term Untyped)
 term1 = choice
   [ try $ parens term
 
   , try $ If <$ keyword "if" <*> value 
              <* keyword "then" <*> term 
              <* keyword "else" <*> term
+             <*> pure NoPV -- TODO: add term provenance
+             <*> pure ()
   
   , try $ Rec <$ keyword "rec" <*> name 
               <* symbol ":" <*> type_ 
               <* symbol "=" <*> term 
               <* keyword "in" <*> term
+              <*> pure NoPV -- TODO: add term provenance
+              <*> pure ()
   
   , try $ Let <$ keyword "let" <*> name 
               <* symbol "=" <*> term 
               <* keyword "in" <*> term
+              <*> pure NoPV -- TODO: add term provenance
+              <*> pure ()
 
-  , try $ Lam2 <$ lambda <*> name 
-               <* symbol ":" <*> type_  -- TODO: should be unrefined type only
-               <* symbol "." <*> term
-  
   , try $ Lam <$ lambda <*> name 
+              <* symbol ":" <*> type_  -- TODO: should be unrefined type only
               <* symbol "." <*> term
-  
+              <*> pure NoPV -- TODO: add term provenance
+              <*> pure ()
+
   , Val <$> value
+        <*> pure NoPV -- TODO: add term provenance
+        <*> pure ()
   ]
 
 value :: Parser Value

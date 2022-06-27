@@ -26,6 +26,7 @@ library
   exposed-modules:
     Panini.Elaborator
     Panini.Error
+    Panini.Infer
     Panini.Parser
     Panini.Printer
     Panini.REPL
@@ -40,7 +41,6 @@ library
     Panini.Syntax.Names
     Panini.Syntax.Provenance
     Panini.Syntax.Substitution
-    Panini.TypeChecker
 
   build-depends:
       base ^>=4.16

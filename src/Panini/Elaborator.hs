@@ -11,10 +11,10 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Text.IO qualified as Text
 import Panini.Error
+import Panini.Infer
 import Panini.Parser
 import Panini.Solver.Assignment
 import Panini.Syntax
-import Panini.TypeChecker
 import Prelude
 import Panini.Solver.Fusion qualified
 
@@ -37,19 +37,13 @@ tryError m = catchError (Right <$> m) (return . Left)
 
 -- | Elaborator state.
 data ElabState = ElabState
-  { pan_types :: Ctx            -- ^ global typing context (Gamma)
-  , pan_terms :: Map Name Term  -- ^ top-level functions
-  , pan_vcs :: Map Name Con    -- ^ verification conditions
-  , environment :: Environment
+  { environment :: Environment
   }
 
 -- | Initial (empty) elaborator state.
 initState :: ElabState
 initState = ElabState 
-  { pan_types = Map.empty 
-  , pan_terms = Map.empty
-  , pan_vcs = Map.empty
-  , environment = mempty
+  { environment = mempty
   }
 
 -------------------------------------------------------------------------------
@@ -122,7 +116,7 @@ data Definition
   | Rejected
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term 
+      , _givenTerm :: Term Untyped
       , _typeError :: Error
       }
   
@@ -133,7 +127,7 @@ data Definition
   | Inferred
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term 
+      , _givenTerm :: Term Untyped
       , _inferredType :: Type
       , _vc :: Con
       }
@@ -144,7 +138,7 @@ data Definition
   | Invalid
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term 
+      , _givenTerm :: Term Untyped
       , _inferredType :: Type
       , _vc :: Con
       , _solverMsg :: Maybe String
@@ -155,7 +149,7 @@ data Definition
   | Verified
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term 
+      , _givenTerm :: Term Untyped
       , _inferredType :: Type
       , _vc :: Con
       , _solution :: Assignment
@@ -166,7 +160,7 @@ data Definition
 
 -- | Convert an elaborator environment to a typechecking context by throwing
 -- away all non-final definitions.
-envToContext :: Environment -> Ctx 
+envToContext :: Environment -> Context 
 envToContext = Map.mapMaybe go
   where
     go (Assumed   {_givenType})    = Just _givenType
@@ -193,11 +187,11 @@ elaborateStatement = \case
       Nothing -> do
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
-        case runTC $ synth g' e of
+        case runInferWithContext g' $ infer e of
           Left err -> do
             envExtend x (Rejected x t0 e err)
             throwError err -- ?
-          Right (vc,t) -> do
+          Right (e',t,vc) -> do
             envExtend x (Inferred x t0 e t vc)
             r <- liftIO $ Panini.Solver.Fusion.sat vc []
             case r of

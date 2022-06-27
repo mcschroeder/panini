@@ -23,7 +23,6 @@ import Panini.Error
 import Panini.Parser
 import Panini.Printer
 import Panini.Syntax
-import Panini.TypeChecker
 import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
@@ -87,16 +86,16 @@ formatInput input = do
     Right e -> outputPretty e
 
 synthesizeType :: String -> InputT Elab ()
-synthesizeType input = do
-  e <- lift $ lift $ except $ parseInput input  
-  g <- lift $ gets pan_types
-  case runTC $ synth g e of
-    Left err -> do
-      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
-      outputPretty err'
-    Right (vc, t) -> do
-      outputPretty vc
-      outputPretty t
+synthesizeType _input = undefined -- do
+  -- e <- lift $ lift $ except $ parseInput input  
+  -- g <- lift $ gets pan_types
+  -- case runTC $ synth g e of
+  --   Left err -> do
+  --     err' <- liftIO $ updatePV (addSourceLinesREPL input) err
+  --     outputPretty err'
+  --   Right (vc, t) -> do
+  --     outputPretty vc
+  --     outputPretty t
 
 evaluateInput :: String -> InputT Elab ()
 evaluateInput input = do
@@ -168,12 +167,12 @@ showState = do
   --   --       outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
 
 forgetVars :: [String] -> InputT Elab ()
-forgetVars xs = do
-  forM_ xs $ \x -> do
-    let n = Name (Text.pack x) NoPV
-    lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
-    lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
-    lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
+forgetVars _xs = undefined --do
+  -- forM_ xs $ \x -> do
+  --   let n = Name (Text.pack x) NoPV
+  --   lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
+  --   lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
+  --   lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
 
 
 -- TODO: error source /= var name source (previous vs current definition)
@@ -211,7 +210,7 @@ autocomplete = fallbackCompletion completeCommands completeFiles
 class Inputable a where
   parseInput :: String -> Either Error a
 
-instance Inputable Term where
+instance Inputable (Term Untyped) where
   parseInput = parseTerm "<repl>" . Text.pack
 
 instance Inputable Statement where

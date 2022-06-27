@@ -15,22 +15,24 @@ type Program = [Statement]
 
 -- | Statements are top-level declarations.
 data Statement
-  = Assume Name Type       -- assume x : t
-  | Define Name Type Term  -- define x : t = e
-  | Import FilePath        -- import m
+  = Assume Name Type                 -- assume x : t
+  | Define Name Type (Term Untyped)  -- define x : t = e
+  | Import FilePath                  -- import m
   deriving stock (Show, Read)
 
 -- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
-data Term
-  = Val Value                -- x
-  | App Term Value           -- e x
-  | Lam Name Term            -- \x. e
-  | Lam2 Name Type Term      -- \x:t. e   -- TODO: unrefined type only?
-  | Ann Term Type            -- e : t
-  | Let Name Term Term       -- let x = e1 in e2
-  | Rec Name Type Term Term  -- rec x : t = e1 in e2
-  | If Value Term Term       -- if x then e1 else e2
+data Term a
+  = Val Value                       PV a  -- x
+  | App (Term a) Value              PV a -- e x
+  | Lam Name Type (Term a)          PV a -- \x:t. e   -- TODO: unrefined type only?
+  | Let Name (Term a) (Term a)      PV a -- let x = e1 in e2
+  | Rec Name Type (Term a) (Term a) PV a -- rec x : t = e1 in e2
+  | If Value (Term a) (Term a)      PV a -- if x then e1 else e2
   deriving stock (Show, Read)
+
+type Untyped = ()
+type Typed = (Type, Con)
+-- TODO: type Verified = (Type, Con, Assignment)
 
 data Value
   = U PV          -- unit

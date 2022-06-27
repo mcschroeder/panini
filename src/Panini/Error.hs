@@ -8,10 +8,10 @@ data Error
   = AlreadyDefined Name
   | VarNotInScope Name
   | MissingType Name
-  | InvalidSubtypeBase (Type,Base) (Type,Base)
+  | InvalidSubtypeBase (Type,Base) (Type,Base)  -- TODO: do we need this?
   | InvalidSubtype Type Type
-  | ExpectedFunType Term Type
-  | CantSynth Term
+  | ExpectedFunType (Term Untyped) Type
+  | CantSynth (Term Untyped)
   | ParserError PV Text
   deriving stock (Show, Read)
 

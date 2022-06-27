@@ -131,22 +131,20 @@ instance Pretty Statement where
 
 -------------------------------------------------------------------------------
 
-instance Pretty Term where
-  pretty (Val x) = pretty x
-  pretty (App e x) = pretty e <+> pretty x  
-  pretty (Lam x e) = nest 2 $ group $ kws "\\" <> pretty x <> kws "." <\> pretty e
-  pretty (Lam2 x t e) = nest 2 $ group $ kws "\\" <> pretty x <> kws ":" <> pretty t <> kws "." <\> pretty e
-  pretty (Ann e t) = pretty e <+> kws ":" <+> pretty t
-  pretty (Let x e1 e2) = 
+instance Pretty (Term a) where
+  pretty (Val x _ _) = pretty x
+  pretty (App e x _ _) = pretty e <+> pretty x  
+  pretty (Lam x t e _ _) = nest 2 $ group $ kws "\\" <> pretty x <> kws ":" <> pretty t <> kws "." <\> pretty e
+  pretty (Let x e1 e2 _ _) = 
     kw "let" <+> pretty x <+> kws "=" <+> group (pretty e1 <\> kw "in") <\\> 
     pretty e2
   
-  pretty (Rec x t e1 e2) =
+  pretty (Rec x t e1 e2 _ _) =
     kw "rec" <+> pretty x <+> kws ":" <+> pretty t <\> 
     kws "=" <+> group (pretty e1 <\> kw "in") <\\>
     pretty e2
   
-  pretty (If x e1 e2) = group $
+  pretty (If x e1 e2 _ _) = group $
     kw "if" <+> pretty x <+> 
     nest 2 (kw "then" <\> pretty e1) <\> 
     nest 2 (kw "else" <\> pretty e2)
