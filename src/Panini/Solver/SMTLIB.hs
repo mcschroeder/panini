@@ -48,10 +48,13 @@ instance SMTLib2 Pred where
   encode (PIff p1 p2) = sexpr ["iff", encode p1, encode p2]
   encode (PNot p) = sexpr ["not", encode p]
   encode (PFun x ps) = sexpr (encode x : map encode ps)
-  encode (PHorn x vs) = sexpr (encode x : map encode vs)
+  encode (PHornApp k xs) = sexpr (encode k : map encode xs)
   encode (PExists x b p) = sexpr ["exists", sexpr [sort], encode p]
     where
       sort = sexpr [encode x, encode b]
+
+instance SMTLib2 HornVar where
+  encode (HornVar i _) = "k" <> LB.fromString (show i)
 
 instance SMTLib2 Name where
   encode (Name n _) = LB.fromText n

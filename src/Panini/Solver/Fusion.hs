@@ -10,7 +10,6 @@ module Panini.Solver.Fusion (sat) where
 
 import Data.List (nub)
 import Data.Map qualified as Map
-import Data.Set qualified as Set
 import Data.String
 import Panini.Solver.Assignment
 import Panini.Solver.Liquid
@@ -20,7 +19,7 @@ import Prelude
 
 sat :: Con -> [Pred] -> IO Bool
 sat c q = do
-  let ks = getKs c
+  let ks = getHornVars c
   let ks' = ks  -- TODO: cut set
   let c1 = simplify c
   -- putStrLn "--- simplified constraint:"
@@ -37,24 +36,7 @@ sat c q = do
       return True
     Nothing -> return False
 
-type K = (Name,[Name])
-
-getKs :: Con -> [K]
-getKs = Set.toList . Set.fromList . go
-  where
-    go (CHead p) = go2 p
-    go (CAnd c1 c2) = go c1 ++ go c2
-    go (CAll _ _ p c) = go2 p ++ go c
-    go2 (PBin _ p1 p2) = go2 p1 ++ go2 p2
-    go2 (PRel _ p1 p2) = go2 p1 ++ go2 p2
-    go2 (PAnd ps) = concatMap go2 ps
-    go2 (PDisj p1 p2) = go2 p1 ++ go2 p2
-    go2 (PImpl p1 p2) = go2 p1 ++ go2 p2
-    go2 (PIff p1 p2) = go2 p1 ++ go2 p2
-    go2 (PNot p) = go2 p
-    go2 (PExists _ _ p) = go2 p
-    go2 (PHorn k xs) = [(k, [fromString ("z" ++ show i) | i <- [1..length xs]])]
-    go2 _ = []
+type K = HornVar
 
 elim :: [K] -> Con -> Con
 elim []     c = c
@@ -63,7 +45,7 @@ elim (k:ks) c = elim ks (elim1 k c)
 elim1 :: K -> Con -> Con
 elim1 k c = {- trace (prettyAss sk) $ -} elim' sk c
   where
-    sk = Map.singleton (fst k) (snd k, sol1 k c')
+    sk = Map.singleton k (params k, sol1 k c')
     c' = flatHead2 $ scope k c
 
 flatHead2 :: Con -> Con
@@ -80,9 +62,9 @@ varnames = map go
 sol1 :: K -> Con -> Pred
 sol1 k (CAnd c1 c2)   = (sol1 k c1) `pOr` (sol1 k c2)
 sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
-sol1 k (CHead (PHorn k2 ys))
-  | fst k == k2       = PAnd $ map (\(x,y) -> pVar x `pEq` pVar y) 
-                             $ zip (snd k) (varnames ys)
+sol1 k (CHead (PHornApp k2 ys))
+  | k == k2           = PAnd $ map (\(x,y) -> pVar x `pEq` pVar y) 
+                             $ zip (params k) (varnames ys)
 sol1 _ _              = PFalse NoPV
 
 scope :: K -> Con -> Con
@@ -96,18 +78,22 @@ scope _ c                                   = c
 elim' :: Assignment -> Con -> Con
 elim' s (CAnd c1 c2)   = elim' s c1 `cAnd` elim' s c2
 elim' s (CAll x b p c) = CAll x b (apply s p) (elim' s c)
-elim' s (CHead (PHorn k _)) 
+elim' s (CHead (PHornApp k _)) 
   | k `Map.member` s   = CTrue NoPV
 elim' _ c              = c
 
 
+params :: K -> [Name]
+params (HornVar _ ts) = [fromString $ "z" ++ show i | i <- [0..length ts]]
+
+-- TODO: this is the same as getHornVars, but for Pred also
 class HasKVars a where
   kvars :: a -> [K]
 
 instance HasKVars Pred where
   kvars = nub . go
     where
-      go (PHorn k xs) = [(k, varnames xs)]  -- xs assumed to be just var names
+      go (PHornApp k _) = [k]
       go (PBin _ p1 p2) = kvars p1 ++ kvars p2
       go (PRel _ p1 p2) = kvars p1 ++ kvars p2
       go (PAnd ps) = concatMap kvars ps

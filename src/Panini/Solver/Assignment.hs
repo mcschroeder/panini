@@ -8,7 +8,7 @@ import Prelude
 
 -- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn
 -- variables parameters x̄.
-type Assignment = Map Name ([Name], Pred)
+type Assignment = Map HornVar ([Name], Pred)
 
 -- | Apply a Horn assignment σ to a predicate, replacing each Horn application
 -- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
@@ -23,9 +23,9 @@ apply s = \case
   PIff p1 p2   -> PIff (apply s p1) (apply s p2)
   PNot p       -> PNot (apply s p)
   PFun f ps    -> PFun f (map (apply s) ps)
-  PHorn k xs   -> case Map.lookup k s of
+  PHornApp k xs   -> case Map.lookup k s of
     Just (ys,p) -> substN xs ys p
-    Nothing     -> PHorn k xs
+    Nothing     -> PHornApp k xs
   PExists x b p -> PExists x b (apply s p)
 
 applyCon :: Assignment -> Con -> Con

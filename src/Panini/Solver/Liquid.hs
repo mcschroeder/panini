@@ -14,7 +14,6 @@ module Panini.Solver.Liquid (solve) where
 import Control.Monad
 import Data.List (partition)
 import Data.Map qualified as Map
-import Data.Set qualified as Set
 import Data.String
 import Panini.Solver.Assignment
 import Panini.Solver.Z3
@@ -29,9 +28,13 @@ solve c qs = do
   -- mapM_ (putStrLn . showPretty) cs
   -- putStrLn "---"
   let (csk,csp) = partition horny cs
-  -- TODO: we assume free vars in qs to match k args
-  let ks = concatMap getKs csk
-  let s0 = Map.fromList $ map (\(k,zs) -> (k,(zs,PAnd qs))) ks
+  
+  -- TODO: we assume free vars in qs to match the k params we invent here (z1,...,zn)
+  -- this is clearly not good
+  let ks = concatMap getHornVars csk
+  let zs n = [fromString ("z" ++ show i) | i <- [1..n]]
+  let s0 = Map.fromList $ map (\k@(HornVar _ ts) -> (k,(zs (length ts), PAnd qs))) ks
+  
   s <- fixpoint csk s0
   r <- smtValid (map (applyCon s) csp)
   if r then return (Just s) else return Nothing
@@ -48,8 +51,8 @@ flat = split
 
 -- | Whether or not a flat constraint has a Horn application in its head.
 horny :: Con -> Bool
-horny (CAll _ _ _ (CHead (PHorn _ _))) = True
-horny _                                = False
+horny (CAll _ _ _ (CHead (PHornApp _ _))) = True
+horny _                                   = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given (flat) constraints is found.
@@ -66,7 +69,7 @@ fixpoint cs s = do
 weaken :: Assignment -> Con -> IO Assignment
 weaken s c =
   case flatHead c of
-    PHorn k xs -> case Map.lookup k s of
+    PHornApp k xs -> case Map.lookup k s of
       Nothing -> error $ "expected Horn assignment for " ++ show k
       Just (ys,q0) -> do
         let c' = mapFlatBody (apply s) c
@@ -94,21 +97,3 @@ mapFlatHead :: (Pred -> Pred) -> Con -> Con
 mapFlatHead f (CAll x b p c) = CAll x b p (mapFlatHead f c)
 mapFlatHead f (CHead p) = CHead (f p)
 mapFlatHead _ (CAnd _ _) = error "expected flat constraint"
-
-
-getKs :: Con -> [(Name,[Name])]
-getKs = Set.toList . Set.fromList . go
-  where
-    go (CHead p) = go2 p
-    go (CAnd c1 c2) = go c1 ++ go c2
-    go (CAll _ _ p c) = go2 p ++ go c
-    go2 (PBin _ p1 p2) = go2 p1 ++ go2 p2
-    go2 (PRel _ p1 p2) = go2 p1 ++ go2 p2
-    go2 (PAnd ps) = concatMap go2 ps
-    go2 (PDisj p1 p2) = go2 p1 ++ go2 p2
-    go2 (PImpl p1 p2) = go2 p1 ++ go2 p2
-    go2 (PIff p1 p2) = go2 p1 ++ go2 p2
-    go2 (PNot p) = go2 p
-    go2 (PExists _ _ p) = go2 p
-    go2 (PHorn k xs) = [(k, [fromString ("z" ++ show i) | i <- [1..length xs]])]
-    go2 _ = []

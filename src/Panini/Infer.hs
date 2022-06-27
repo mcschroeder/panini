@@ -2,14 +2,14 @@
 
 module Panini.Infer where
 
+import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe
 import Panini.Error
 import Panini.Syntax
 import Prelude
-import Control.Monad.Trans.Class
-import Data.Text qualified as Text
 
 ------------------------------------------------------------------------------
 
@@ -18,8 +18,8 @@ type Infer a = StateT InferState (Either Error) a
 
 -- | Type inference state.
 data InferState = InferState 
-  { context :: Context    -- ^ mappings of variables to types (Γ)
-  , hornVarCount :: !Int  -- ^ source of fresh Horn var names
+  { context :: Context -- ^ mappings of variables to types (Γ)
+  , hornVarCount :: !Int  -- ^ source of fresh Horn variable names
   }
 
 runInfer :: Infer a -> Either Error a
@@ -33,6 +33,12 @@ runInferWithContext g m = runInfer $ modify' (\s -> s { context = g }) >> m
 
 failWith :: Error -> Infer a
 failWith = lift . Left
+
+freshHornVar :: [Base] -> Infer HornVar
+freshHornVar ts = do
+  i <- gets hornVarCount
+  modify $ \s -> s { hornVarCount = i + 1}
+  return $ HornVar i ts
 
 ------------------------------------------------------------------------------
 
@@ -146,13 +152,9 @@ fresh = go []
   where
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
-      -- TODO: replace this with a HornVarSource or something
-      i <- gets hornVarCount
-      modify' (\s -> s { hornVarCount = s.hornVarCount + 1})
-      let k = Text.pack $ "k" ++ show i
-      -- TODO: add sorts to horn vars
-      let xs = map fst $ filter (isBaseType . snd) g
-      let p = PHorn (Name k NoPV) (map V (v:xs))
+      let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
+      k <- freshHornVar (b:ts)
+      let p = PHornApp k (map V (v:xs))
       return $ TBase v b (Known p) (Derived pv "ins/hole")
     
     -- ins/conc -------------------------------------------
@@ -163,7 +165,7 @@ fresh = go []
       ŝ <- go g s
       t̂ <- go ((x,s):g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
-
+      
 -- | Returns the non-refined version of a type.
 shape :: Type -> Type
 shape (TBase v b _ pv) = TBase v b Unknown pv

@@ -7,6 +7,10 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
+-- TODO: why are we allowing substitution of values for names?
+-- this makes things more tricky all around
+
+
 -- | Types implementing capture-avoiding substitution.
 --
 -- When substituting @x@ for @y@ in @p@, and @p@ is a binder, for example a
@@ -80,7 +84,7 @@ instance Subable Pred where
     PIff p1 p2 -> PIff (subst x y p1) (subst x y p2)
     PNot p1 -> PNot (subst x y p1)
     PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
-    PHorn k xs -> PHorn k (map (subst x y) xs)  -- TODO: what about k?
+    PHornApp k xs -> PHornApp k (map (subst x y) xs)
 
     PExists n b p
       | y == n -> PExists n b p -- (1)
@@ -100,7 +104,7 @@ instance Subable Pred where
     PIff p1 p2 -> freeVars p1 ++ freeVars p2
     PNot p1 -> freeVars p1
     PFun f ps -> [f] ++ concatMap freeVars ps
-    PHorn _ xs -> concatMap freeVars xs  -- TODO: is k free?
+    PHornApp _ xs -> concatMap freeVars xs
     PExists n _ p -> freeVars p \\ [n]
 
 instance Subable Con where

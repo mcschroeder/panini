@@ -3,6 +3,7 @@
 -- TODO: module documentation
 module Panini.Syntax.AST where
 
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Panini.Syntax.Names
 import Panini.Syntax.Provenance
@@ -88,7 +89,7 @@ data Base
   | TBool
   | TInt
   | TString
-  deriving stock (Eq, Show, Read)
+  deriving stock (Ord, Eq, Show, Read)
 
 data Reft
   = Unknown     -- ?
@@ -114,9 +115,29 @@ data Pred
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
-  | PHorn Name [Value]  -- k(x1,x2,...)  -- TODO: [Name] instead of [Value]
+
+  -- TODO: we expect the arguments to be just names during solving,
+  -- but for substitution its easier to have them be values.
+  -- what shall we do?
+  | PHornApp HornVar [Value]  -- ^ Horn variable application @κᵢ(x₁,x₂,…)@
+  
   | PExists Name Base Pred  -- exists x:b. p
   deriving stock (Eq, Show, Read)
+
+-- | A /Horn variable/ κᵢ represents an unknown refinment over some free
+-- variables z₁,z₂,…,zₙ, known as the /parameters/ of κᵢ. For any Horn
+-- variable, we know its arity (the number of parameters) as well as the
+-- expected parameter types τ₁,τ₂,…,τₙ.
+-- 
+-- Horn variables can occur in predicates in the form of /Horn applications/
+-- ('PHornApp'), which bind the parameters z̅ of a Horn variable to particular
+-- values x̅. Note that the refinement represented by an applied Horn variable
+-- is unknown until the solving phase, where we aim to find some assignment σ
+-- that maps each Horn variable to a concrete refinement predicate satisfying
+-- the constraints induced by the Horn applications.
+data HornVar = HornVar Int [Base]
+  deriving stock (Ord, Eq, Show, Read)
+
 
 data Bop = Add | Sub | Mul | Div
   deriving stock (Eq, Show, Read)
@@ -173,3 +194,20 @@ cAnd :: Con -> Con -> Con
 cAnd (CTrue _) c2        = c2
 cAnd c1        (CTrue _) = c1
 cAnd c1        c2        = CAnd c1 c2
+
+getHornVars :: Con -> [HornVar]
+getHornVars = Set.toList . Set.fromList . go
+  where
+    go (CHead p)        = go2 p
+    go (CAnd c1 c2)     = go c1 ++ go c2
+    go (CAll _ _ p c)   = go2 p ++ go c
+    go2 (PBin _ p1 p2)  = go2 p1 ++ go2 p2
+    go2 (PRel _ p1 p2)  = go2 p1 ++ go2 p2
+    go2 (PAnd ps)       = concatMap go2 ps
+    go2 (PDisj p1 p2)   = go2 p1 ++ go2 p2
+    go2 (PImpl p1 p2)   = go2 p1 ++ go2 p2
+    go2 (PIff p1 p2)    = go2 p1 ++ go2 p2
+    go2 (PNot p)        = go2 p
+    go2 (PExists _ _ p) = go2 p
+    go2 (PHornApp k _)  = [k]
+    go2 _               = []
