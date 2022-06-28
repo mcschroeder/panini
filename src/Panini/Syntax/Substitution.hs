@@ -84,7 +84,7 @@ instance Subable Pred where
     PIff p1 p2 -> PIff (subst x y p1) (subst x y p2)
     PNot p1 -> PNot (subst x y p1)
     PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
-    PHornApp k xs -> PHornApp k (map (subst x y) xs)
+    PAppK k xs -> PAppK k (map (subst x y) xs)
 
     PExists n b p
       | y == n -> PExists n b p -- (1)
@@ -104,7 +104,7 @@ instance Subable Pred where
     PIff p1 p2 -> freeVars p1 ++ freeVars p2
     PNot p1 -> freeVars p1
     PFun f ps -> [f] ++ concatMap freeVars ps
-    PHornApp _ xs -> concatMap freeVars xs
+    PAppK _ xs -> concatMap freeVars xs
     PExists n _ p -> freeVars p \\ [n]
 
 instance Subable Con where

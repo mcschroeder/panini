@@ -14,7 +14,7 @@ module Panini.Solver.Liquid (solve) where
 import Control.Monad
 import Data.List (partition)
 import Data.Map qualified as Map
-import Data.String
+import Data.Set qualified as Set
 import Panini.Solver.Assignment
 import Panini.Solver.Z3
 import Panini.Syntax
@@ -29,11 +29,10 @@ solve c qs = do
   -- putStrLn "---"
   let (csk,csp) = partition horny cs
   
-  -- TODO: we assume free vars in qs to match the k params we invent here (z1,...,zn)
+  -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
   -- this is clearly not good
-  let ks = concatMap getHornVars csk
-  let zs n = [fromString ("z" ++ show i) | i <- [1..n]]
-  let s0 = Map.fromList $ map (\k@(HornVar _ ts) -> (k,(zs (length ts), PAnd qs))) ks
+  let ks = kvars csk
+  let s0 = Map.fromList $ map (\k -> (k, (kparams k, PAnd qs))) $ Set.toList ks
   
   s <- fixpoint csk s0
   r <- smtValid (map (applyCon s) csp)
@@ -51,7 +50,7 @@ flat = split
 
 -- | Whether or not a flat constraint has a Horn application in its head.
 horny :: Con -> Bool
-horny (CAll _ _ _ (CHead (PHornApp _ _))) = True
+horny (CAll _ _ _ (CHead (PAppK _ _))) = True
 horny _                                   = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
@@ -69,7 +68,7 @@ fixpoint cs s = do
 weaken :: Assignment -> Con -> IO Assignment
 weaken s c =
   case flatHead c of
-    PHornApp k xs -> case Map.lookup k s of
+    PAppK k xs -> case Map.lookup k s of
       Nothing -> error $ "expected Horn assignment for " ++ show k
       Just (ys,q0) -> do
         let c' = mapFlatBody (apply s) c

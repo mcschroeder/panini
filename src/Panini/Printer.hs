@@ -203,7 +203,7 @@ instance Pretty Pred where
   pretty p0 = annotate Predicate $ case p0 of
     PVal x -> pretty x
     PFun f ps -> pretty f <> funargs ps
-    PHornApp k xs -> pretty k <> funargs xs
+    PAppK k xs -> pretty k <> funargs xs
     PNot p1 -> prettyUnary p0 p1 (sym "~")
     PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
     PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
@@ -234,8 +234,8 @@ instance Pretty Pred where
       sym "exists " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p
 
 -- TODO: unicode
-instance Pretty HornVar where
-  pretty (HornVar i _) = "k" <> pretty i
+instance Pretty KVar where
+  pretty (KVar i _) = "k" <> pretty i
 
 isSimplePred :: Pred -> Bool
 isSimplePred (PImpl _ c) = isSimplePred c

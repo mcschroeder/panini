@@ -6,9 +6,13 @@ import Data.Map qualified as Map
 import Panini.Syntax
 import Prelude
 
+
+-- TODO: the mapping should be just to Map K Pred, because the params are always
+-- implicitly named (z1,...,zn)
+
 -- | A Horn assignment σ mapping Horn variables κ to predicates over the Horn
 -- variables parameters x̄.
-type Assignment = Map HornVar ([Name], Pred)
+type Assignment = Map KVar ([Name], Pred)
 
 -- | Apply a Horn assignment σ to a predicate, replacing each Horn application
 -- κ(ȳ) with its solution σ(κ)[x̄/ȳ].
@@ -23,9 +27,9 @@ apply s = \case
   PIff p1 p2   -> PIff (apply s p1) (apply s p2)
   PNot p       -> PNot (apply s p)
   PFun f ps    -> PFun f (map (apply s) ps)
-  PHornApp k xs   -> case Map.lookup k s of
+  PAppK k xs   -> case Map.lookup k s of
     Just (ys,p) -> substN xs ys p
-    Nothing     -> PHornApp k xs
+    Nothing     -> PAppK k xs
   PExists x b p -> PExists x b (apply s p)
 
 applyCon :: Assignment -> Con -> Con

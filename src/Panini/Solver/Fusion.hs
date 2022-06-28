@@ -8,9 +8,8 @@
 -------------------------------------------------------------------------------
 module Panini.Solver.Fusion (sat) where
 
-import Data.List (nub)
 import Data.Map qualified as Map
-import Data.String
+import Data.Set qualified as Set
 import Panini.Solver.Assignment
 import Panini.Solver.Liquid
 import Panini.Solver.Simplify
@@ -19,8 +18,8 @@ import Prelude
 
 sat :: Con -> [Pred] -> IO Bool
 sat c q = do
-  let ks = getHornVars c
-  let ks' = ks  -- TODO: cut set
+  let ks = kvars c
+  let ks' = Set.toList ks  -- TODO: cut set
   let c1 = simplify c
   -- putStrLn "--- simplified constraint:"
   -- outputPretty c1
@@ -36,76 +35,46 @@ sat c q = do
       return True
     Nothing -> return False
 
-type K = HornVar
-
-elim :: [K] -> Con -> Con
+elim :: [KVar] -> Con -> Con
 elim []     c = c
 elim (k:ks) c = elim ks (elim1 k c)
 
-elim1 :: K -> Con -> Con
+elim1 :: KVar -> Con -> Con
 elim1 k c = {- trace (prettyAss sk) $ -} elim' sk c
   where
-    sk = Map.singleton k (params k, sol1 k c')
+    sk = Map.singleton k (kparams k, sol1 k c')
     c' = flatHead2 $ scope k c
 
 flatHead2 :: Con -> Con
 flatHead2 (CAll _ _ _ c) = flatHead2 c
 flatHead2 c = c
 
+-- TODO: this should be made unnecessary
 varnames :: [Value] -> [Name]
 varnames = map go
   where
     go (V x) = x
     go _ = error "expected all xs in k(xs) to be variables"
 
-
-sol1 :: K -> Con -> Pred
+sol1 :: KVar -> Con -> Pred
 sol1 k (CAnd c1 c2)   = (sol1 k c1) `pOr` (sol1 k c2)
 sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
-sol1 k (CHead (PHornApp k2 ys))
+sol1 k (CHead (PAppK k2 ys))
   | k == k2           = PAnd $ map (\(x,y) -> pVar x `pEq` pVar y) 
-                             $ zip (params k) (varnames ys)
+                             $ zip (kparams k) (varnames ys)
 sol1 _ _              = PFalse NoPV
 
-scope :: K -> Con -> Con
+scope :: KVar -> Con -> Con
 scope k (CAnd c1 c2)
-  | k `elem` kvars c1, k `notElem` kvars c2 = scope k c1
-  | k `notElem` kvars c1, k `elem` kvars c2 = scope k c2
+  | k    `elem` kvars c1, k `notElem` kvars c2 = scope k c1
+  | k `notElem` kvars c1, k    `elem` kvars c2 = scope k c2
 scope k (CAll x b p c')
-  | k `notElem` kvars p                     = CAll x b p (scope k c')
-scope _ c                                   = c
+  | k `notElem` kvars p                        = CAll x b p (scope k c')
+scope _ c                                      = c
 
 elim' :: Assignment -> Con -> Con
 elim' s (CAnd c1 c2)   = elim' s c1 `cAnd` elim' s c2
 elim' s (CAll x b p c) = CAll x b (apply s p) (elim' s c)
-elim' s (CHead (PHornApp k _)) 
+elim' s (CHead (PAppK k _)) 
   | k `Map.member` s   = CTrue NoPV
 elim' _ c              = c
-
-
-params :: K -> [Name]
-params (HornVar _ ts) = [fromString $ "z" ++ show i | i <- [0..length ts]]
-
--- TODO: this is the same as getHornVars, but for Pred also
-class HasKVars a where
-  kvars :: a -> [K]
-
-instance HasKVars Pred where
-  kvars = nub . go
-    where
-      go (PHornApp k _) = [k]
-      go (PBin _ p1 p2) = kvars p1 ++ kvars p2
-      go (PRel _ p1 p2) = kvars p1 ++ kvars p2
-      go (PAnd ps) = concatMap kvars ps
-      go (PDisj p1 p2) = kvars p1 ++ kvars p2
-      go (PImpl p1 p2) = kvars p1 ++ kvars p2
-      go (PIff p1 p2) = kvars p1 ++ kvars p2
-      go (PNot p) = kvars p
-      go _ = []
-
-instance HasKVars Con where
-  kvars = nub . go
-    where
-      go (CHead p) = kvars p
-      go (CAnd c1 c2) = kvars c1 ++ kvars c2
-      go (CAll _ _ p c) = kvars p ++ kvars c

@@ -19,12 +19,12 @@ type Infer a = StateT InferState (Either Error) a
 -- | Type inference state.
 data InferState = InferState 
   { context :: Context -- ^ mappings of variables to types (Γ)
-  , hornVarCount :: !Int  -- ^ source of fresh Horn variable names
+  , kvarCount :: !Int  -- ^ source of fresh Horn variable names
   }
 
 runInfer :: Infer a -> Either Error a
 runInfer m = do
-  let s0 = InferState { context = mempty, hornVarCount = 0 }
+  let s0 = InferState { context = mempty, kvarCount = 0 }
   (x,_) <- runStateT m s0
   return x
 
@@ -34,11 +34,11 @@ runInferWithContext g m = runInfer $ modify' (\s -> s { context = g }) >> m
 failWith :: Error -> Infer a
 failWith = lift . Left
 
-freshHornVar :: [Base] -> Infer HornVar
-freshHornVar ts = do
-  i <- gets hornVarCount
-  modify $ \s -> s { hornVarCount = i + 1}
-  return $ HornVar i ts
+freshK :: [Base] -> Infer KVar
+freshK ts = do
+  i <- gets kvarCount
+  modify $ \s -> s { kvarCount = i + 1}
+  return $ KVar i ts
 
 ------------------------------------------------------------------------------
 
@@ -153,8 +153,8 @@ fresh = go []
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
-      k <- freshHornVar (b:ts)
-      let p = PHornApp k (map V (v:xs))
+      κ <- freshK (b:ts)
+      let p = PAppK κ (map V (v:xs))
       return $ TBase v b (Known p) (Derived pv "ins/hole")
     
     -- ins/conc -------------------------------------------

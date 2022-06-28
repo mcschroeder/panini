@@ -3,7 +3,9 @@
 -- TODO: module documentation
 module Panini.Syntax.AST where
 
+import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.String
 import Data.Text (Text)
 import Panini.Syntax.Names
 import Panini.Syntax.Provenance
@@ -119,25 +121,10 @@ data Pred
   -- TODO: we expect the arguments to be just names during solving,
   -- but for substitution its easier to have them be values.
   -- what shall we do?
-  | PHornApp HornVar [Value]  -- ^ Horn variable application @κᵢ(x₁,x₂,…)@
+  | PAppK KVar [Value]  -- ^ κ-variable application @κᵢ(x₁,x₂,…)@
   
   | PExists Name Base Pred  -- exists x:b. p
   deriving stock (Eq, Show, Read)
-
--- | A /Horn variable/ κᵢ represents an unknown refinment over some free
--- variables z₁,z₂,…,zₙ, known as the /parameters/ of κᵢ. For any Horn
--- variable, we know its arity (the number of parameters) as well as the
--- expected parameter types τ₁,τ₂,…,τₙ.
--- 
--- Horn variables can occur in predicates in the form of /Horn applications/
--- ('PHornApp'), which bind the parameters z̅ of a Horn variable to particular
--- values x̅. Note that the refinement represented by an applied Horn variable
--- is unknown until the solving phase, where we aim to find some assignment σ
--- that maps each Horn variable to a concrete refinement predicate satisfying
--- the constraints induced by the Horn applications.
-data HornVar = HornVar Int [Base]
-  deriving stock (Ord, Eq, Show, Read)
-
 
 data Bop = Add | Sub | Mul | Div
   deriving stock (Eq, Show, Read)
@@ -195,19 +182,50 @@ cAnd (CTrue _) c2        = c2
 cAnd c1        (CTrue _) = c1
 cAnd c1        c2        = CAnd c1 c2
 
-getHornVars :: Con -> [HornVar]
-getHornVars = Set.toList . Set.fromList . go
-  where
-    go (CHead p)        = go2 p
-    go (CAnd c1 c2)     = go c1 ++ go c2
-    go (CAll _ _ p c)   = go2 p ++ go c
-    go2 (PBin _ p1 p2)  = go2 p1 ++ go2 p2
-    go2 (PRel _ p1 p2)  = go2 p1 ++ go2 p2
-    go2 (PAnd ps)       = concatMap go2 ps
-    go2 (PDisj p1 p2)   = go2 p1 ++ go2 p2
-    go2 (PImpl p1 p2)   = go2 p1 ++ go2 p2
-    go2 (PIff p1 p2)    = go2 p1 ++ go2 p2
-    go2 (PNot p)        = go2 p
-    go2 (PExists _ _ p) = go2 p
-    go2 (PHornApp k _)  = [k]
-    go2 _               = []
+------------------------------------------------------------------------------
+-- K vars
+
+-- | A /refinement variable/ κ represents an unknown refinment over some free
+-- variables z₁,z₂,…,zₙ, known as the /parameters/ of κ. For any κ-variable, we
+-- know its arity (the number of parameters) as well as the expected parameter
+-- types τ₁,τ₂,…,τₙ.
+-- 
+-- Refinement variables can occur in predicates in the form of applications
+-- ('PAppK') which bind the parameters to particular values. Note that the
+-- refinement represented by an applied κ-variable is unknown until the solving
+-- phase, where we aim to find some assignment σ that maps each κ-variable to a
+-- concrete refinement predicate satisfying the constraints induced by the
+-- applications.
+--
+-- In the literature, κ-variables are sometimes referred to as /Horn variables/.
+data KVar = KVar Int [Base]
+  deriving stock (Ord, Eq, Show, Read)
+
+-- | The parameters of a κ-variable.
+kparams :: KVar -> [Name]
+kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]
+
+class HasKVars a where
+  -- | The set of κ-variables in a constraint or predicate.
+  kvars :: a -> Set KVar
+
+instance HasKVars Pred where
+  kvars = \case
+    PAppK k _ -> Set.singleton k
+    PBin _ p1 p2 -> kvars p1 <> kvars p2
+    PRel _ p1 p2 -> kvars p1 <> kvars p2
+    PAnd ps      -> foldMap kvars ps
+    PDisj p1 p2  -> kvars p1 <> kvars p2
+    PImpl p1 p2  -> kvars p1 <> kvars p2
+    PIff p1 p2   -> kvars p1 <> kvars p2
+    PNot p       -> kvars p
+    _            -> mempty
+
+instance HasKVars Con where
+  kvars = \case
+    CHead p      -> kvars p
+    CAnd c1 c2   -> kvars c1 <> kvars c2
+    CAll _ _ p c -> kvars p <> kvars c
+
+instance (Foldable t, HasKVars a) => HasKVars (t a) where
+  kvars = foldMap kvars
