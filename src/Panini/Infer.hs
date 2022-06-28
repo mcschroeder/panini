@@ -154,7 +154,7 @@ fresh = go []
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
       κ <- freshK (b:ts)
-      let p = PAppK κ (map V (v:xs))
+      let p = PAppK κ (v:xs)
       return $ TBase v b (Known p) (Derived pv "ins/hole")
     
     -- ins/conc -------------------------------------------

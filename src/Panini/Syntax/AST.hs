@@ -117,12 +117,7 @@ data Pred
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
-
-  -- TODO: we expect the arguments to be just names during solving,
-  -- but for substitution its easier to have them be values.
-  -- what shall we do?
-  | PAppK KVar [Value]  -- ^ κ-variable application @κᵢ(x₁,x₂,…)@
-  
+  | PAppK KVar [Name]   -- ^ κ-variable application @κᵢ(x₁,x₂,…)@  
   | PExists Name Base Pred  -- exists x:b. p
   deriving stock (Eq, Show, Read)
 

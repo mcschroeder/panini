@@ -108,7 +108,7 @@ instance Subable Pred where
     PIff  p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PAnd ps       -> concatMap freeVars ps
     PFun f ps     -> concatMap freeVars ps ++ [f]
-    PAppK _ xs    -> concatMap freeVars xs
+    PAppK _ xs    -> xs
     PNot p₁       -> freeVars p₁
     PVal (V n)    -> [n]
     PVal _        -> []
@@ -142,3 +142,7 @@ instance Subable Value where
   
   freeVars (V n) = [n]
   freeVars _     = []
+
+instance Subable Name where
+  subst x y n = if y == n then x else n  
+  freeVars n = [n]

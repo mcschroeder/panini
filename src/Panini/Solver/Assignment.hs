@@ -38,8 +38,8 @@ applyCon s = \case
   CAnd c1 c2 -> CAnd (applyCon s c1) (applyCon s c2)
   CHead p -> CHead (apply s p)
 
-substN :: [Value] -> [Name] -> Pred -> Pred
-substN (V x:xs) (y:ys) = substN xs ys . subst x y  -- TODO: fix
+substN :: [Name] -> [Name] -> Pred -> Pred
+substN (x:xs) (y:ys) = substN xs ys . subst x y
 substN _ _ = id
 
 

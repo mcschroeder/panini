@@ -49,19 +49,12 @@ flatHead2 :: Con -> Con
 flatHead2 (CAll _ _ _ c) = flatHead2 c
 flatHead2 c = c
 
--- TODO: this should be made unnecessary
-varnames :: [Value] -> [Name]
-varnames = map go
-  where
-    go (V x) = x
-    go _ = error "expected all xs in k(xs) to be variables"
-
 sol1 :: KVar -> Con -> Pred
 sol1 k (CAnd c1 c2)   = (sol1 k c1) `pOr` (sol1 k c2)
 sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
 sol1 k (CHead (PAppK k2 ys))
   | k == k2           = PAnd $ map (\(x,y) -> pVar x `pEq` pVar y) 
-                             $ zip (kparams k) (varnames ys)
+                             $ zip (kparams k) ys
 sol1 _ _              = PFalse NoPV
 
 scope :: KVar -> Con -> Con
