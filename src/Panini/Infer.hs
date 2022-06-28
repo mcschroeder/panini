@@ -89,9 +89,9 @@ infer = \case
     case tₑ of
       TBase _ _ _ _ -> failWith undefined  --  $ ExpectedFunType ė t
       TFun y t₁ t₂ _ -> do
-        (_,tₓ,_ ) <- infer $ Val x NoPV ()
+        (_,tₓ,_ ) <- infer $ Val (V x) NoPV ()  -- lookup & selfify
         cₓ <- sub tₓ t₁
-        let t = subst x y t₂
+        let t = subst (V x) y t₂
         let c = cₑ ∧ cₓ
         return $ App ė x pv `withType` (t, c)
   
@@ -128,8 +128,8 @@ infer = \case
     -- TODO: check that x is bool
     (ė₁, t₁, c₁) <- infer e₁
     (ė₂, t₂, c₂) <- infer e₂
-    let y = freshName "y" (freeVars c₁ ++ freeVars c₂ ++ freeVars x)
-    let c = (CAll y TUnit (PVal x) c₁) ∧ (CAll y TUnit (PNot (PVal x)) c₂)
+    let y = freshName "y" (x : freeVars c₁ ++ freeVars c₂)
+    let c = (CAll y TUnit (PVal (V x)) c₁) ∧ (CAll y TUnit (PNot (PVal (V x))) c₂)
     t <- join t₁ t₂
     return $ If x ė₁ ė₂ pv `withType` (t, c)
 
