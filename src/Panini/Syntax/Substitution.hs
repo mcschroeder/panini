@@ -7,34 +7,30 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
--- TODO: why are we allowing substitution of values for names?
--- this makes things more tricky all around
-
-
 -- | Types implementing capture-avoiding substitution.
 --
--- When substituting @x@ for @y@ in @p@, and @p@ is a binder, for example a
--- lambda abstraction @λn.e@ that binds the name @n@ inside @e@, then we need to
--- deal with three possible scenarios:
+-- In a substitution @p[x/y]@, @x@ is substituted for @y@ in @p@ (@x@ replaces
+-- @y@). If @p@ is a binder, for example a lambda abstraction @λn.e@ that binds
+-- the name @n@ inside @e@, then we need to deal with three possible scenarios:
 --
--- 1. If the bound name @n@ is the same as the name @y@ that we are replacing,
---    then there can be no free occurrences of @y@ in @e@ and we can leave @p@
---    as-is.
+-- (1) If the bound name @n@ is the same as the name @y@ that is being replaced,
+--     then there can be no free occurrences of @y@ in @e@ and we can leave @e@
+--     as-is.
 --
--- 2. If the substitution @x@ is a variable and the bound name @n@ is the same
---    as @x@, then we need to rename @n@ to something fresh that doesn't yet
---    occur in @e@ (and also isn't @y@) and update all occurrences of @n@ in @e@
---    accordingly. Don't forget to continue substituting @x@ for @y@ in @e@!
+-- (2) If the bound name @n@ is the same as the substitution @x@, then we need
+--     to rename @n@ to something fresh that doesn't yet occur in @e@ (and also
+--     isn't @y@) and update all occurrences of @n@ in @e@ accordingly. Don't
+--     forget to continue substituting @x@ for @y@ in @e@!
 --
--- 3. If the bound name @n@ is neither @x@ nor @y@, then we can just recurse
---    into @e@.
+-- (3) If the bound name @n@ is neither @x@ nor @y@, then we can just recurse
+--     into @e@.
 --
 class Subable a where
 
   -- | Capture-avoiding substitution.
   --
   -- @subst x y a  ===  a[x/y]  ===  a where x replaces y@
-  subst :: Value -> Name -> a -> a
+  subst :: Name -> Name -> a -> a
   
   -- | Returns all free variables of the given term.
   freeVars :: a -> [Name]
@@ -46,24 +42,31 @@ instance Subable Type where
     -- In a refined base type {n:b|r}, the value variable n names the
     -- value of type b that is being refined. Thus, we take n to be bound in r.    
     TBase n b r pv
-      | y == n -> TBase n b r pv                           -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars r)  -- (2)
-                        r' = subst (V n') n r
-                    in TBase n' b (subst x y r') pv
-      | otherwise -> TBase n b (subst x y r) pv            -- (3)
+      | y == n    -> TBase n b r pv  -- (1)
+      | x == n    -> TBase ṅ b ṙ̲ pv  -- (2)
+      | otherwise -> TBase n b r̲ pv  -- (3)
+      where
+        r̲ = subst x y r
+        ṙ̲ = subst x y ṙ
+        ṙ = subst ṅ n r
+        ṅ = freshName n (y : freeVars r)
 
-    -- In a dependent function type n:t1 -> t2, the name n binds t1 in t2. 
-    -- Note that t1 might itself contain (free) occurrences of n.
-    TFun n t1 t2 pv
-      | y == n -> TFun n (subst x y t1) t2 pv                -- (1)
-      | x == V n -> let n'  = freshName n (y : freeVars t2)  -- (2)
-                        t2' = subst (V n') n t2
-                    in TFun n' (subst x y t1) (subst x y t2') pv
-      | otherwise -> TFun n (subst x y t1) (subst x y t2) pv -- (3)
+    -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
+    -- Note that t₁ might itself contain (free) occurrences of n.
+    TFun n t₁ t₂ pv
+      | y == n    -> TFun n t̲₁̲ t₂ pv  -- (1)
+      | x == n    -> TFun ṅ t̲₁̲ t̲₂̲̇ pv  -- (2)
+      | otherwise -> TFun n t̲₁̲ t̲₂̲ pv  -- (3)
+      where
+        t̲₁̲ = subst x y t₁
+        t̲₂̲ = subst x y t₂
+        t̲₂̲̇ = subst x y t₂̇
+        t₂̇ = subst ṅ n t₂
+        ṅ = freshName n (y : freeVars t₂)
 
   freeVars = \case
     TBase v _ r _ -> freeVars r \\ [v]
-    TFun x t1 t2 _ -> freeVars t1 ++ (freeVars t2 \\ [x])
+    TFun x t₁ t₂ _ -> freeVars t₁ ++ (freeVars t₂ \\ [x])
 
 instance Subable Reft where
   subst x y = \case
@@ -75,56 +78,67 @@ instance Subable Reft where
 
 instance Subable Pred where  
   subst x y = \case
-    PVal v -> PVal (subst x y v)
-    PBin o p1 p2 -> PBin o (subst x y p1) (subst x y p2)
-    PRel r p1 p2 -> PRel r (subst x y p1) (subst x y p2)
-    PAnd ps -> PAnd (map (subst x y) ps)
-    PDisj p1 p2 -> PDisj (subst x y p1) (subst x y p2)
-    PImpl p1 p2 -> PImpl (subst x y p1) (subst x y p2)
-    PIff p1 p2 -> PIff (subst x y p1) (subst x y p2)
-    PNot p1 -> PNot (subst x y p1)
-    PFun f ps -> PFun f (map (subst x y) ps)  -- TODO: what about f?
-    PAppK k xs -> PAppK k (map (subst x y) xs)
-
     PExists n b p
-      | y == n -> PExists n b p -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars p) -- (2)
-                        p' = subst (V n') n p
-                    in PExists n' b (subst x y p')
-      | otherwise -> PExists n b (subst x y p) -- (3)
+      | y == n    -> PExists n b p  -- (1)
+      | x == n    -> PExists ṅ b ṗ̲  -- (2)
+      | otherwise -> PExists n b p̲  -- (3)
+      where
+        p̲ = subst x y p
+        ṗ̲ = subst x y ṗ
+        ṗ = subst ṅ n p
+        ṅ = freshName n (y : freeVars p)
+
+    PBin o p₁ p₂ -> PBin o (subst x y p₁) (subst x y p₂)
+    PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
+    PDisj p₁ p₂  -> PDisj (subst x y p₁) (subst x y p₂)
+    PImpl p₁ p₂  -> PImpl (subst x y p₁) (subst x y p₂)
+    PIff p₁ p₂   -> PIff  (subst x y p₁) (subst x y p₂)
+    PAnd ps      -> PAnd    (map (subst x y) ps)
+    PFun f ps    -> PFun f  (map (subst x y) ps)  -- TODO: what about f?
+    PAppK k xs   -> PAppK k (map (subst x y) xs)
+    PNot p₁      -> PNot (subst x y p₁)
+    PVal v       -> PVal (subst x y v)
 
   freeVars = \case
-    PVal (V n) -> [n]
-    PVal _ -> []
-    PBin _ p1 p2 -> freeVars p1 ++ freeVars p2
-    PRel _ p1 p2 -> freeVars p1 ++ freeVars p2
-    PAnd ps -> concatMap freeVars ps
-    PDisj p1 p2 -> freeVars p1 ++ freeVars p2
-    PImpl p1 p2 -> freeVars p1 ++ freeVars p2
-    PIff p1 p2 -> freeVars p1 ++ freeVars p2
-    PNot p1 -> freeVars p1
-    PFun f ps -> [f] ++ concatMap freeVars ps
-    PAppK _ xs -> concatMap freeVars xs
     PExists n _ p -> freeVars p \\ [n]
+    PBin _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    PDisj p₁ p₂   -> freeVars p₁ ++ freeVars p₂
+    PImpl p₁ p₂   -> freeVars p₁ ++ freeVars p₂
+    PIff  p₁ p₂   -> freeVars p₁ ++ freeVars p₂
+    PAnd ps       -> concatMap freeVars ps
+    PFun f ps     -> concatMap freeVars ps ++ [f]
+    PAppK _ xs    -> concatMap freeVars xs
+    PNot p₁       -> freeVars p₁
+    PVal (V n)    -> [n]
+    PVal _        -> []
 
 instance Subable Con where
   subst x y = \case
-    CHead p -> CHead (subst x y p)
-    CAnd c1 c2 -> CAnd (subst x y c1) (subst x y c2)
     CAll n b p c
-      | y == n -> CAll n b p c                                           -- (1)
-      | x == V n -> let n' = freshName n (y : freeVars p ++ freeVars c)  -- (2)
-                        p' = subst (V n') n p
-                        c' = subst (V n') n c
-                    in CAll n' b (subst x y p') (subst x y c')
-      | otherwise -> CAll n b (subst x y p) (subst x y c)                -- (3)
+      | y == n    -> CAll n b p c  -- (1)
+      | x == n    -> CAll ṅ b ṗ̲ ċ̲  -- (2)
+      | otherwise -> CAll n b p̲ c̲  -- (3)
+      where        
+        p̲ = subst x y p
+        c̲ = subst x y c
+        ṗ̲ = subst x y ṗ
+        ċ̲ = subst x y ċ
+        ṗ = subst ṅ n p
+        ċ = subst ṅ n c
+        ṅ = freshName n (y : freeVars p ++ freeVars c)
+
+    CHead p    -> CHead (subst x y p)
+    CAnd c₁ c₂ -> CAnd  (subst x y c₁) (subst x y c₂)
+
   freeVars = \case
-    CHead p -> freeVars p
-    CAnd c1 c2 -> freeVars c1 ++ freeVars c2
+    CHead p      -> freeVars p
+    CAnd c₁ c₂   -> freeVars c₁ ++ freeVars c₂
     CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
 
 instance Subable Value where
-  subst x y (V n) | y == n = x
-  subst _ _ v = v
+  subst x y (V n) | y == n = V x
+  subst _ _ v              = v
+  
   freeVars (V n) = [n]
-  freeVars _ = []
+  freeVars _     = []

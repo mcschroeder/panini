@@ -91,7 +91,7 @@ infer = \case
       TFun y t₁ t₂ _ -> do
         (_,tₓ,_ ) <- infer $ Val (V x) NoPV ()  -- lookup & selfify
         cₓ <- sub tₓ t₁
-        let t = subst (V x) y t₂
+        let t = subst x y t₂
         let c = cₑ ∧ cₓ
         return $ App ė x pv `withType` (t, c)
   
@@ -142,7 +142,7 @@ self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst (V v') x p) `pAnd` (pVar v' `pEq` pVar x)
+        p' = (subst v' x p) `pAnd` (pVar v' `pEq` pVar x)
     in TBase v' b (Known p') pv  
   t -> t
 
@@ -177,12 +177,12 @@ sub lhs rhs = case (lhs, rhs) of
   
   -- sub/base ---------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
-    | b₁ == b₂ -> return $ CAll v₁ b₁ p₁ $ CHead $ subst (V v₁) v₂ p₂
+    | b₁ == b₂ -> return $ CAll v₁ b₁ p₁ $ CHead $ subst v₁ v₂ p₂
 
   -- sub/fun ----------------------------------------------
   (TFun x₁ s₁ t₁ _, TFun x₂ s₂ t₂ _) -> do
     cᵢ <- sub s₂ s₁
-    cₒ <- sub (subst (V x₂) x₁ t₁) t₂
+    cₒ <- sub (subst x₂ x₁ t₁) t₂
     return $ cᵢ ∧ (cImpl x₂ s₂ cₒ)
 
   _ -> failWith $ InvalidSubtype lhs rhs
@@ -191,7 +191,7 @@ sub lhs rhs = case (lhs, rhs) of
 -- | Generalized implication that drops binders with non-basic types.
 cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> CAll x b (subst (V x) v p) c
+  TBase v b (Known p) _ -> CAll x b (subst x v p) c
   _                     -> c
 
 -- | The join (⊔) of two types.
@@ -200,7 +200,7 @@ join t₁ t₂ = case (t₁, t₂) of
   -- join/base --------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
     | b₁ == b₂ -> 
-        let p = p₁ `pOr` subst (V v₁) v₂ p₂
+        let p = p₁ `pOr` subst v₁ v₂ p₂
         in return $ TBase v₁ b₁ (Known p) NoPV -- TODO: join provenance
   
   _ -> error "invalid join"  -- TODO: correct error
