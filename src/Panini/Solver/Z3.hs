@@ -5,14 +5,13 @@ import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
 import Panini.Solver.SMTLIB
-import Panini.Syntax
 import Prelude
 import System.Exit
 import System.Process
 
 -- TODO: encode string ops more safely/consistently
 
-smtValid :: [Con] -> IO Bool
+smtValid :: SMTLib2 a => [a] -> IO Bool
 smtValid cs = do
   let foralls = map (Text.unpack . printSMTLib2) cs
   let declares = 
