@@ -32,10 +32,10 @@ solve c qs = do
   -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
   -- this is clearly not good
   let ks = kvars csk
-  let s0 = Map.fromList $ map (\k -> (k, (kparams k, PAnd qs))) $ Set.toList ks
+  let s0 = Map.fromList $ map (\k -> (k, PAnd qs)) $ Set.toList ks
   
   s <- fixpoint csk s0
-  r <- smtValid (map (applyCon s) csp)
+  r <- smtValid (map (apply s) csp)
   if r then return (Just s) else return Nothing
 
 -- | Flatten a Horn constraint into a set of flat constraints each of which is
@@ -57,7 +57,7 @@ horny _                                   = False
 -- given (flat) constraints is found.
 fixpoint :: [Con] -> Assignment -> IO Assignment
 fixpoint cs s = do  
-  r <- take 1 <$> filterM ((not <$>) . smtValid . pure . applyCon s) cs
+  r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
   case r of
     [c] -> do
       s' <- weaken s c
@@ -70,11 +70,11 @@ weaken s c =
   case flatHead c of
     PAppK k xs -> case Map.lookup k s of
       Nothing -> error $ "expected Horn assignment for " ++ show k
-      Just (ys,q0) -> do
+      Just q0 -> do
         let c' = mapFlatBody (apply s) c
-        let keep q = smtValid [mapFlatHead (const (substN xs ys q)) c']
+        let keep q = smtValid [mapFlatHead (const (substN xs (kparams k) q)) c']
         qs' <- PAnd <$> filterM keep (explode q0)
-        return $ Map.insert k (ys,qs') s
+        return $ Map.insert k qs' s
 
     _ -> error "expected Horn variable at head of flat constraint"
 

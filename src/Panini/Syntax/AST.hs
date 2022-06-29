@@ -3,8 +3,6 @@
 -- TODO: module documentation
 module Panini.Syntax.AST where
 
-import Data.Set (Set)
-import Data.Set qualified as Set
 import Data.String
 import Data.Text (Text)
 import Panini.Syntax.Names
@@ -117,7 +115,7 @@ data Pred
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
   | PFun Name [Pred]    -- f(p1,p2,...)
-  | PAppK KVar [Name]   -- ^ κ-variable application @κᵢ(x₁,x₂,…)@  
+  | PAppK KVar [Name]   -- ^ κ-variable application @κᵢ(y₁,y₂,…)@  
   | PExists Name Base Pred  -- exists x:b. p
   deriving stock (Eq, Show, Read)
 
@@ -203,28 +201,3 @@ data KVar = KVar Int [Base]
 -- | The parameters of a κ-variable.
 kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]
-
-class HasKVars a where
-  -- | The set of κ-variables in a constraint or predicate.
-  kvars :: a -> Set KVar
-
-instance HasKVars Pred where
-  kvars = \case
-    PAppK k _ -> Set.singleton k
-    PBin _ p1 p2 -> kvars p1 <> kvars p2
-    PRel _ p1 p2 -> kvars p1 <> kvars p2
-    PAnd ps      -> foldMap kvars ps
-    PDisj p1 p2  -> kvars p1 <> kvars p2
-    PImpl p1 p2  -> kvars p1 <> kvars p2
-    PIff p1 p2   -> kvars p1 <> kvars p2
-    PNot p       -> kvars p
-    _            -> mempty
-
-instance HasKVars Con where
-  kvars = \case
-    CHead p      -> kvars p
-    CAnd c1 c2   -> kvars c1 <> kvars c2
-    CAll _ _ p c -> kvars p <> kvars c
-
-instance (Foldable t, HasKVars a) => HasKVars (t a) where
-  kvars = foldMap kvars

@@ -45,7 +45,7 @@ elim (k:ks) c = elim ks (elim1 k c)
 elim1 :: KVar -> Con -> Con
 elim1 k c = elim' sk c
   where
-    sk = Map.singleton k (kparams k, sol1 k c')
+    sk = Map.singleton k (sol1 k c')
     c' = skipHypos $ scope k c
 
 -- | Given a constraint of the form ∀x₁:b₁. p₁ ⇒ … ⇒ ∀xₙ:bₙ. pₙ ⇒ c',

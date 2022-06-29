@@ -35,6 +35,10 @@ class Subable a where
   -- | Returns all free variables of the given term.
   freeVars :: a -> [Name]
 
+-- | @substN xs ys a@ substitutes each x for the corresponding y in a.
+substN :: Subable a => [Name] -> [Name] -> a -> a
+substN xs ys p = foldr (uncurry subst) p $ zip xs ys
+
 ------------------------------------------------------------------------------
 
 instance Subable Type where
