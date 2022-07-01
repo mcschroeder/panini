@@ -115,7 +115,7 @@ data Pred
   | PBin Bop Pred Pred  -- p1 o p2
   | PRel Rel Pred Pred  -- p1 R p2
   | PAnd [Pred]         -- p1 /\ p2 /\ ... /\ pn
-  | PDisj Pred Pred     -- p1 \/ p2
+  | POr [Pred]          -- p1 \/ p2 \/ ... \/ pn
   | PImpl Pred Pred     -- p1 ==> p2
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
@@ -151,13 +151,17 @@ pAnd (PAnd ps)   q           = PAnd (ps ++ [q])
 pAnd p           (PAnd qs)   = PAnd (p:qs)
 pAnd p           q           = PAnd [p,q]
 
--- | Smart constructor for `PDisj`, eliminates redundant values.
+-- | Smart constructor for `POr`, eliminates redundant values and merges
+-- adjacent `POr` lists.
 pOr :: Pred -> Pred -> Pred
 pOr (PFalse _) q          = q
 pOr (PTrue pv) _          = PTrue pv
 pOr p          (PFalse _) = p
 pOr _          (PTrue pv) = PTrue pv
-pOr p          q          = PDisj p q
+pOr (POr ps)   (POr qs)   = POr (ps ++ qs)
+pOr (POr ps)   q          = POr (ps ++ [q])
+pOr p          (POr qs)   = POr (p:qs)
+pOr p          q          = POr [p,q]
 
 ------------------------------------------------------------------------------
 -- Constraints

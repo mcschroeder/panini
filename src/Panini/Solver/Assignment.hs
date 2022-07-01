@@ -24,7 +24,7 @@ instance HasKVars Pred where
     PBin _ p1 p2 -> kvars p1 <> kvars p2
     PRel _ p1 p2 -> kvars p1 <> kvars p2
     PAnd ps      -> foldMap kvars ps
-    PDisj p1 p2  -> kvars p1 <> kvars p2
+    POr ps       -> foldMap kvars ps
     PImpl p1 p2  -> kvars p1 <> kvars p2
     PIff p1 p2   -> kvars p1 <> kvars p2
     PNot p       -> kvars p
@@ -37,7 +37,7 @@ instance HasKVars Pred where
     PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
     PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
     PAnd ps      -> PAnd (map (apply s) ps)
-    PDisj p1 p2  -> PDisj (apply s p1) (apply s p2)
+    POr ps       -> PAnd (map (apply s) ps)
     PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
     PIff p1 p2   -> PIff (apply s p1) (apply s p2)
     PNot p       -> PNot (apply s p)

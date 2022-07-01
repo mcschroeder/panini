@@ -216,7 +216,6 @@ instance Pretty Pred where
     PRel Lt p1 p2  -> prettyOp p0 p1 p2 (sym "<")
     PRel Geq p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
     PRel Gt p1 p2  -> prettyOp p0 p1 p2 (sym ">")
-    PDisj p1 p2    -> prettyOp p0 p1 p2 (sym "\\/")
     PIff p1 p2     -> prettyOp p0 p1 p2 (sym "<=>")
 
     PImpl p1 p2
@@ -230,6 +229,12 @@ instance Pretty Pred where
         go (p:q:qs)
           | isSimplePred q = pretty p <+> sym "/\\" <+> go (q:qs)
           | otherwise = pretty p <+> sym "/\\" <\> go (q:qs)
+
+    POr ps -> go ps
+      where
+        go [] = mempty
+        go (p:[]) = pretty p
+        go (p:q:qs) = pretty p <+> sym "\\/" <+> go (q:qs)
 
     PExists x b p -> parens $ 
       sym "exists " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p
@@ -287,7 +292,7 @@ instance Fixity Pred where
   fixity (PRel Gt _ _)  = (4, InfixN)
   fixity (PRel Lt _ _)  = (4, InfixN)
   fixity (PAnd _)       = (3, InfixR)
-  fixity (PDisj _ _)    = (2, InfixR)
+  fixity (POr _)        = (2, InfixR)
   fixity (PImpl _ _)    = (1, InfixN)
   fixity (PIff _ _)     = (1, InfixN)
   fixity _              = (9, InfixL)

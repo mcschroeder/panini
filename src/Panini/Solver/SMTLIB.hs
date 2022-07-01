@@ -44,7 +44,7 @@ instance SMTLib2 Pred where
   encode (PBin o p1 p2) = sexpr [encode o, encode p1, encode p2]
   encode (PRel r p1 p2) = sexpr [encode r, encode p1, encode p2]
   encode (PAnd ps) = sexpr ("and" : map encode ps)
-  encode (PDisj p1 p2) = sexpr ["or", encode p1, encode p2]
+  encode (POr ps) = sexpr ("or" : map encode ps)
   encode (PImpl p1 p2) = sexpr ["=>", encode p1, encode p2]
   encode (PIff p1 p2) = sexpr ["iff", encode p1, encode p2]
   encode (PNot p) = sexpr ["not", encode p]

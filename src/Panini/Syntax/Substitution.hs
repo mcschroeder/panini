@@ -98,10 +98,10 @@ instance Subable Pred where
     
     PBin o p₁ p₂ -> PBin o (subst x y p₁) (subst x y p₂)
     PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
-    PDisj p₁ p₂  -> PDisj (subst x y p₁) (subst x y p₂)
     PImpl p₁ p₂  -> PImpl (subst x y p₁) (subst x y p₂)
     PIff p₁ p₂   -> PIff  (subst x y p₁) (subst x y p₂)
     PAnd ps      -> PAnd    (map (subst x y) ps)
+    POr ps       -> POr     (map (subst x y) ps)
     PFun f ps    -> PFun f  (map (subst x y) ps)  -- TODO: what about f?
     PAppK k xs   -> PAppK k (map (subst x y) xs)
     PNot p₁      -> PNot (subst x y p₁)
@@ -112,10 +112,10 @@ instance Subable Pred where
     PExists n _ p -> freeVars p \\ [n]
     PBin _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
-    PDisj p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PImpl p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PIff  p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PAnd ps       -> concatMap freeVars ps
+    POr ps        -> concatMap freeVars ps
     PFun f ps     -> concatMap freeVars ps ++ [f]
     PAppK _ xs    -> xs
     PNot p₁       -> freeVars p₁

@@ -15,13 +15,11 @@ instance Simplifable Pred where
       | [p] <- ps -> p
       | otherwise -> PAnd ps
     
-    PDisj (simplify -> p) (simplify -> q)
-      | PFalse _ <- p -> q
-      | PFalse _ <- q -> p
-      --  | PTrue _  <- p -> PTrue NoPV  -- TODO: information loss?
-      --  | PTrue _  <- q -> PTrue NoPV  -- TODO: information loss?
-      | otherwise     -> PDisj p q
-
+    POr (simplifyOr -> ps)
+      | []  <- ps -> PFalse NoPV
+      | [p] <- ps -> p
+      | otherwise -> POr ps
+    
     PNot (simplify -> p) -> PNot p
 
     PImpl (simplify -> p) (simplify -> q)
@@ -70,6 +68,15 @@ simplifyAnd = go []
     go qs ((simplify -> p) : ps)
       | PFalse _ <- p = [p]
       | taut p        = go qs ps
+      | otherwise     = go (p:qs) ps
+
+simplifyOr :: [Pred] -> [Pred]
+simplifyOr = go []
+  where
+    go qs [] = reverse qs
+    go qs ((simplify -> p) : ps)
+      | PTrue  _ <- p = [p]
+      | PFalse _ <- p = go qs ps
       | otherwise     = go (p:qs) ps
 
 taut :: Pred -> Bool
