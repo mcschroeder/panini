@@ -44,6 +44,15 @@ freshK ts = do
 
 type Context = Map Name Type
 
+-- | Returns the type of the given variable name in the current context; raises
+-- an error if the name is unknown.
+lookupInContext :: Name -> Infer Type
+lookupInContext x = do
+  g <- gets context
+  case Map.lookup x g of
+    Nothing -> failWith $ VarNotInScope x
+    Just t -> return t
+
 -- | Extends a typing context with the given mapping.
 --
 -- Usage: @modify' (x ↦ t)@ or @'with' (x ↦ t) /something/@.
@@ -65,10 +74,8 @@ infer = \case
   
   -- inf/var ----------------------------------------------
   Var x _ -> do
-    g <- gets context
-    case Map.lookup x g of
-      Nothing -> failWith $ VarNotInScope x
-      Just t -> return $ Var x `withType` (self x t, CTrue (getPV x))
+    t <- self x <$> lookupInContext x
+    return $ Var x `withType` (t, CTrue (getPV x))
   
   -- inf/con ----------------------------------------------
   Con c _ -> do
@@ -88,7 +95,7 @@ infer = \case
     case tₑ of
       TBase _ _ _ _ -> failWith undefined  --  $ ExpectedFunType ė t
       TFun y t₁ t₂ _ -> do
-        (_,tₓ,_ ) <- infer $ Var x ()  -- lookup & selfify
+        tₓ <- self x <$> lookupInContext x
         cₓ <- sub tₓ t₁
         let t = subst x y t₂
         let c = cₑ ∧ cₓ
