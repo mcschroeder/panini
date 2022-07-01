@@ -48,8 +48,8 @@ instance Simplifable Pred where
 --TODO: this is a hack; depending on the sort of x, it might not even be sound!
 trivialExists :: Name -> Base -> Pred -> Bool
 trivialExists x _ = \case
-  PRel Eq (PVal (V v1)) (PVal (V v2)) -> v1 == x || v2 == x
-  _                                   -> False
+  PRel Eq (PVar v1) (PVar v2) -> v1 == x || v2 == x
+  _                           -> False
 
 instance Simplifable Con where
   simplify = \case

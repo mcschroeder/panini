@@ -212,18 +212,19 @@ term1 = choice
               <*> pure NoPV -- TODO: add term provenance
               <*> pure ()
 
-  , Val <$> value
-        <*> pure NoPV -- TODO: add term provenance
+  , Con <$> constant
+        <*> pure ()
+  
+  , Var <$> name 
         <*> pure ()
   ]
 
-value :: Parser Value
-value = label "value" $ choice
+constant :: Parser Constant
+constant = label "constant" $ choice
   [ (addPV $ U <$ string "unit") <* whitespace
   , boolLit
   , intLit
   , stringLit
-  , V <$> name
   ]
   where
     boolLit = do
@@ -319,7 +320,8 @@ predicate = makeExprParser predTerm predOps
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  , try $ PVal <$> value <* notFollowedBy "("
+  , try $ PCon <$> constant <* notFollowedBy "("
+  , try $ PVar <$> name <* notFollowedBy "("
   , PFun <$> name <*> parens (sepBy1 predicate ",")
   ]
 

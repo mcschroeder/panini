@@ -64,24 +64,23 @@ infer :: Term Untyped -> Infer (Term Typed, Type, Con)
 infer = \case
   
   -- inf/var ----------------------------------------------
-  Val (V x) pv _ -> do
+  Var x _ -> do
     g <- gets context
     case Map.lookup x g of
       Nothing -> failWith $ VarNotInScope x
-      Just t -> return $ Val (V x) pv `withType` (self x t, CTrue pv)
+      Just t -> return $ Var x `withType` (self x t, CTrue (getPV x))
   
   -- inf/con ----------------------------------------------
-  Val c pv _ -> do
+  Con c _ -> do
     let v = dummyName
     let b = primType c
-    let t = TBase v b (Known (pVar v `pEq` PVal c)) pv
-    return $ Val c pv `withType` (t, CTrue pv)
+    let t = TBase v b (Known (PVar v `pEq` PCon c)) (getPV c)
+    return $ Con c `withType` (t, CTrue (getPV c))
     where
       primType (U   _) = TUnit
       primType (B _ _) = TBool
       primType (I _ _) = TInt
       primType (S _ _) = TString
-      primType _       = undefined  -- TODO: define Value differently?
   
   -- inf/app ----------------------------------------------
   App e x pv _ -> do
@@ -89,7 +88,7 @@ infer = \case
     case tₑ of
       TBase _ _ _ _ -> failWith undefined  --  $ ExpectedFunType ė t
       TFun y t₁ t₂ _ -> do
-        (_,tₓ,_ ) <- infer $ Val (V x) NoPV ()  -- lookup & selfify
+        (_,tₓ,_ ) <- infer $ Var x ()  -- lookup & selfify
         cₓ <- sub tₓ t₁
         let t = subst x y t₂
         let c = cₑ ∧ cₓ
@@ -129,7 +128,7 @@ infer = \case
     (ė₁, t₁, c₁) <- infer e₁
     (ė₂, t₂, c₂) <- infer e₂
     let y = freshName "y" (x : freeVars c₁ ++ freeVars c₂)
-    let c = (CAll y TUnit (PVal (V x)) c₁) ∧ (CAll y TUnit (PNot (PVal (V x))) c₂)
+    let c = (CAll y TUnit (PVar x) c₁) ∧ (CAll y TUnit (PNot (PVar x)) c₂)
     t <- join t₁ t₂
     return $ If x ė₁ ė₂ pv `withType` (t, c)
 
@@ -142,7 +141,7 @@ self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst v' x p) `pAnd` (pVar v' `pEq` pVar x)
+        p' = (subst v' x p) `pAnd` (PVar v' `pEq` PVar x)
     in TBase v' b (Known p') pv  
   t -> t
 

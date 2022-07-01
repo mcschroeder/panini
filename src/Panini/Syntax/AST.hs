@@ -21,9 +21,12 @@ data Statement
   | Import FilePath                  -- import m
   deriving stock (Show, Read)
 
+------------------------------------------------------------------------------
+
 -- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
 data Term a
-  = Val Value                       PV a  -- x
+  = Con Constant                       a -- c
+  | Var Name                           a -- x
   | App (Term a) Name               PV a -- e x
   | Lam Name Type (Term a)          PV a -- \x:t. e   -- TODO: unrefined type only?
   | Let Name (Term a) (Term a)      PV a -- let x = e1 in e2
@@ -35,35 +38,33 @@ type Untyped = ()
 type Typed = (Type, Con)
 -- TODO: type Verified = (Type, Con, Assignment)
 
-data Value
-  = U PV          -- unit
-  | B Bool PV     -- true, false
+-- | Primitive constants.
+data Constant
+  = U         PV  -- unit
+  | B Bool    PV  -- true, false
   | I Integer PV  -- 0, -1, 1, ...
-  | S Text PV     -- "lorem ipsum"
-  | V Name        -- x
+  | S Text    PV  -- "lorem ipsum"
   deriving stock (Show, Read)
 
--- | Equality between values ignores provenance.
-instance Eq Value where
+-- | Equality between constants ignores provenance.
+instance Eq Constant where
   U   _ == U   _ = True
   B a _ == B b _ = a == b
   I a _ == I b _ = a == b
   S a _ == S b _ = a == b
-  V a   == V b   = a == b
   _     == _     = False
 
-instance HasProvenance Value where
+instance HasProvenance Constant where
   getPV (U pv) = pv
   getPV (B _ pv) = pv
   getPV (I _ pv) = pv
   getPV (S _ pv) = pv
-  getPV (V x) = getPV x
   setPV pv (U _) = U pv
   setPV pv (B x _) = B x pv
   setPV pv (I x _) = I x pv
   setPV pv (S x _) = S x pv
-  setPV pv (V x) = V (setPV pv x)
 
+------------------------------------------------------------------------------
 
 -- | A type is either a refined 'Base' type or a dependent function type.
 -- 
@@ -105,8 +106,12 @@ instance HasProvenance Type where
 ------------------------------------------------------------------------------
 -- Predicates
 
+-- TODO: restrict predicate syntax to logically valid expressions
+-- (e.g. no non-bool constants at top-level)
+
 data Pred
-  = PVal Value          -- x
+  = PCon Constant       -- c
+  | PVar Name           -- x
   | PBin Bop Pred Pred  -- p1 o p2
   | PRel Rel Pred Pred  -- p1 R p2
   | PAnd [Pred]         -- p1 /\ p2 /\ ... /\ pn
@@ -126,13 +131,10 @@ data Rel = Eq | Neq | Geq | Leq | Gt | Lt
   deriving stock (Eq, Show, Read)
 
 pattern PTrue :: PV -> Pred
-pattern PTrue pv = PVal (B True pv)
+pattern PTrue pv = PCon (B True pv)
 
 pattern PFalse :: PV -> Pred
-pattern PFalse pv = PVal (B False pv)
-
-pVar :: Name -> Pred
-pVar = PVal . V
+pattern PFalse pv = PCon (B False pv)
 
 pEq :: Pred -> Pred -> Pred
 pEq = PRel Eq

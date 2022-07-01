@@ -132,7 +132,8 @@ instance Pretty Statement where
 -------------------------------------------------------------------------------
 
 instance Pretty (Term a) where
-  pretty (Val x _ _) = pretty x
+  pretty (Var x _) = pretty x
+  pretty (Con c _) = pretty c
   pretty (App e x _ _) = pretty e <+> pretty x  
   pretty (Lam x t e _ _) = nest 2 $ group $ kws "\\" <> pretty x <> kws ":" <> pretty t <> kws "." <\> pretty e
   pretty (Let x e1 e2 _ _) = 
@@ -149,13 +150,12 @@ instance Pretty (Term a) where
     nest 2 (kw "then" <\> pretty e1) <\> 
     nest 2 (kw "else" <\> pretty e2)
 
-instance Pretty Value where
+instance Pretty Constant where
   pretty (U _) = "unit"
   pretty (B True _) = "true"
   pretty (B False _) = "false"
   pretty (I c _) = pretty c
   pretty (S t _) = viaShow t
-  pretty (V x) = pretty x
 
 -------------------------------------------------------------------------------
 
@@ -201,7 +201,8 @@ instance Pretty Reft where
 
 instance Pretty Pred where
   pretty p0 = annotate Predicate $ case p0 of
-    PVal x -> pretty x
+    PVar n -> pretty n
+    PCon c -> pretty c
     PFun f ps -> pretty f <> funargs ps
     PAppK k xs -> pretty k <> funargs xs
     PNot p1 -> prettyUnary p0 p1 (sym "~")

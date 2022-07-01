@@ -34,7 +34,6 @@ instance HasKVars Pred where
     PAppK k ys -> case Map.lookup k s of
       Just p  -> substN ys (kparams k) p
       Nothing -> PAppK k ys
-    PVal x       -> PVal x
     PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
     PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
     PAnd ps      -> PAnd (map (apply s) ps)
@@ -43,7 +42,9 @@ instance HasKVars Pred where
     PIff p1 p2   -> PIff (apply s p1) (apply s p2)
     PNot p       -> PNot (apply s p)
     PFun f ps    -> PFun f (map (apply s) ps)
-    PExists x b p -> PExists x b (apply s p)    
+    PExists x b p -> PExists x b (apply s p)
+    PVar n       -> PVar n
+    PCon c       -> PCon c
 
 instance HasKVars Con where
   kvars = \case

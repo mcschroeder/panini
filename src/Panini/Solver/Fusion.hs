@@ -60,7 +60,7 @@ sol1 :: KVar -> Con -> Pred
 sol1 k (CAnd c1 c2)   = (sol1 k c1) `pOr` (sol1 k c2)
 sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
 sol1 k (CHead (PAppK k2 ys))
-  | k == k2           = PAnd $ map (\(x,y) -> pVar x `pEq` pVar y) 
+  | k == k2           = PAnd $ map (\(x,y) -> PVar x `pEq` PVar y) 
                              $ zip (kparams k) ys
 sol1 _ _              = PFalse NoPV
 

@@ -82,6 +82,10 @@ instance Subable Reft where
 
 instance Subable Pred where  
   subst x y = \case
+    PVar n
+      | y == n    -> PVar x
+      | otherwise -> PVar n
+
     PExists n b p
       | y == n    -> PExists n b p  -- (1)
       | x == n    -> PExists ṅ b ṗ̲  -- (2)
@@ -91,7 +95,7 @@ instance Subable Pred where
         ṗ̲ = subst x y ṗ
         ṗ = subst ṅ n p
         ṅ = freshName n (y : freeVars p)
-
+    
     PBin o p₁ p₂ -> PBin o (subst x y p₁) (subst x y p₂)
     PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
     PDisj p₁ p₂  -> PDisj (subst x y p₁) (subst x y p₂)
@@ -101,9 +105,10 @@ instance Subable Pred where
     PFun f ps    -> PFun f  (map (subst x y) ps)  -- TODO: what about f?
     PAppK k xs   -> PAppK k (map (subst x y) xs)
     PNot p₁      -> PNot (subst x y p₁)
-    PVal v       -> PVal (subst x y v)
+    PCon c       -> PCon c
 
   freeVars = \case
+    PVar n        -> [n]
     PExists n _ p -> freeVars p \\ [n]
     PBin _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
@@ -114,8 +119,7 @@ instance Subable Pred where
     PFun f ps     -> concatMap freeVars ps ++ [f]
     PAppK _ xs    -> xs
     PNot p₁       -> freeVars p₁
-    PVal (V n)    -> [n]
-    PVal _        -> []
+    PCon _        -> []
 
 instance Subable Con where
   subst x y = \case
@@ -139,13 +143,6 @@ instance Subable Con where
     CHead p      -> freeVars p
     CAnd c₁ c₂   -> freeVars c₁ ++ freeVars c₂
     CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
-
-instance Subable Value where
-  subst x y (V n) | y == n = V x
-  subst _ _ v              = v
-  
-  freeVars (V n) = [n]
-  freeVars _     = []
 
 instance Subable Name where
   subst x y n = if y == n then x else n  

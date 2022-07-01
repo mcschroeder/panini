@@ -39,7 +39,8 @@ instance SMTLib2 Con where
       impl = sexpr ["=>", encode p, encode c]
 
 instance SMTLib2 Pred where
-  encode (PVal v) = encode v
+  encode (PVar n) = encode n
+  encode (PCon c) = encode c
   encode (PBin o p1 p2) = sexpr [encode o, encode p1, encode p2]
   encode (PRel r p1 p2) = sexpr [encode r, encode p1, encode p2]
   encode (PAnd ps) = sexpr ("and" : map encode ps)
@@ -61,13 +62,12 @@ instance SMTLib2 KVar where
 instance SMTLib2 Name where
   encode (Name n _) = LB.fromText n
 
-instance SMTLib2 Value where
+instance SMTLib2 Constant where
   encode (U _) = "0"  -- TODO
   encode (B True _) = "true"
   encode (B False _) = "false"
   encode (I x _) = LB.fromString (show x)
   encode (S x _) = LB.fromString (show x)
-  encode (V x) = encode x
 
 instance SMTLib2 Bop where
   encode Add = "+"
