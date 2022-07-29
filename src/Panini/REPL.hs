@@ -22,6 +22,7 @@ import Panini.Elaborator
 import Panini.Error
 import Panini.Parser
 import Panini.Printer
+import Panini.Solver.Grammar qualified
 import Panini.Syntax
 import Prelude
 import System.Console.ANSI
@@ -75,7 +76,18 @@ commands =
   , ("load", loadFiles . words)
   , ("show", const showState)
   , ("forget", forgetVars . words)
+  , ("grammar", solveGrammarFile . head . words)
   ]
+
+solveGrammarFile :: FilePath -> InputT Elab ()
+solveGrammarFile f = do
+  src <- liftIO $ Text.readFile f
+  case parseConstraint f src of
+    Left err -> outputPretty err
+    Right c -> do
+      outputPretty c
+      let c' = Panini.Solver.Grammar.solve c
+      outputPretty c'
 
 formatInput :: String -> InputT Elab ()
 formatInput input = do
@@ -201,6 +213,7 @@ autocomplete = fallbackCompletion completeCommands completeFiles
 
     completeFiles (r,s) = case splitCmd (reverse r) of
       (":load", _) -> completeFilename (r,s)
+      (":grammar", _) -> completeFilename (r,s)
       _ -> pure (r,[])
     
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace

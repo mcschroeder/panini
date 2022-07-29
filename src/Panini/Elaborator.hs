@@ -191,7 +191,7 @@ elaborateStatement = \case
           Left err -> do
             envExtend x (Rejected x t0 e err)
             throwError err -- ?
-          Right (e',t,vc) -> do
+          Right (_e',t,vc) -> do
             envExtend x (Inferred x t0 e t vc)
             r <- liftIO $ Panini.Solver.Fusion.sat vc []
             case r of

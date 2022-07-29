@@ -1,0 +1,10 @@
+(0 < len(s)) /\ forall x:string. (x = charat(s,0)) ==>
+    forall p1:bool. (p1 <=> x = "a") ==>
+      (forall _:unit. (p1) ==>
+        forall n:int. (n >= 0 /\ n = len(s)) ==>
+          forall p2:bool. (p2 <=> n = 1) ==>
+            p2)
+    /\ forall _:unit. (~p1) ==>
+          (1 < len(s)) /\ forall y:string. (y = charat(s,1)) ==>
+            forall p3:bool. (p3 <=> y = "b") ==>
+              p3

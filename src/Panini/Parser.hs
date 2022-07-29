@@ -6,6 +6,7 @@ module Panini.Parser
   ( parseProgram
   , parseStatement
   , parseTerm
+  , parseConstraint
   ) where
 
 import Control.Monad
@@ -38,6 +39,9 @@ parseStatement = parseA statement
 
 parseTerm :: FilePath -> Text -> Either Error (Term Untyped)
 parseTerm = parseA term
+
+parseConstraint :: FilePath -> Text -> Either Error Con
+parseConstraint = parseA constraint
 
 parseA :: Parser a -> FilePath -> Text -> Either Error a
 parseA p fp = first transformErrorBundle . parse (p <* eof) fp
@@ -379,6 +383,28 @@ op n = (void . lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
 
 -------------------------------------------------------------------------------
 
+constraint :: Parser Con
+constraint = choice
+  [ call
+  , CAnd <$> parens constraint <* symConj <*> constraint
+  , CHead <$> predicate
+  ]
+
+-- TODO: this 
+call :: Parser Con
+call = do
+  symAll
+  x <- name
+  symbol ":"
+  b <- baseType
+  symbol "."
+  p <- parens predicate
+  symImpl
+  c <- constraint
+  return $ CAll x b p c
+  
+-------------------------------------------------------------------------------
+
 -- | Parses an arrow.
 arrow :: Parser ()
 arrow = symbol "->" <|> symbol "→"
@@ -418,3 +444,6 @@ symImpl = op "==>" <|> symbol "⇒"
 -- | Parses an if-and-only-if symbol.
 symIff :: Parser ()
 symIff = op "<=>" <|> symbol "⇔"
+
+symAll :: Parser ()
+symAll = op "forall" <|> symbol "∀"
