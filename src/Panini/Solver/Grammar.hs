@@ -3,76 +3,81 @@
 module Panini.Solver.Grammar (solve) where
 
 import Panini.Syntax
---import Panini.Solver.Simplify
 import Prelude
+--import Data.Map qualified as Map
 
 solve :: Con -> Pred
-solve = PAnd . go [] . mapCon norm
+solve = go
   where
-    go k (CHead p)      = resolve k p
-    go k (CAnd c1 c2)   = let k' = go k c1 in go k' c2
-    go k (CAll _ _ p c) = let k' = resolve k p in go k' c
+    go (CHead p) = norm p
+    go (CAnd (CAll _ TUnit p1@(PVar x) q1) (CAll _ TUnit p2@(PNot (PVar y)) q2))
+      | x == y = (p1 `pAnd` go q1) `pOr` (p2 `pAnd` go q2)
+    go (CAnd c1 c2) = go c1 `pAnd` go c2
+    go (CAll _ _ p c) = norm p `pAnd` go c
 
+-- solve = snd . goC Map.empty
+--   where
+--     goC ks (CHead p) = goP ks p
+    
+--     goC ks (CAnd (CAll _ TUnit p1@(PVar x) q1) (CAll _ TUnit p2@(PNot (PVar y)) q2))
+--       | x == y = 
+--         let (ks1,p1') = goP ks p1
+--             (_  ,q1') = goC ks1 q1
+--             (ks2,p2') = goP ks p2
+--             (_  ,q2') = goC ks2 q2
+--         in (ks, (p1' `pAnd` q1') `pOr` (p2' `pAnd` q2'))
+    
+--     goC ks (CAnd c1 c2) = 
+--       let (ks1,p1) = goC ks c1
+--           (ks2,p2) = goC ks1 c2
+--       in (ks2, p1 `pAnd` p2)
+    
+--     goC ks (CAll _ _ p c) = 
+--       let (ks1,p1) = goP ks p
+--           (ks2,p2) = goC ks1 c
+--       in (ks2, p1 `pAnd` p2)
 
-resolve :: [Pred] -> Pred -> [Pred]
-resolve ks p = p:ks
+--     goP ks (PNot (PVar x)) = case Map.lookup x ks of
+--       Just (PIff (PVar x') q) | x == x' -> (ks, norm (PNot q))
+--       _ -> (ks, PNot (PVar x))
 
--- resolveAll :: Pred -> Pred -> Pred
--- resolveAll (PAnd ks) (norm -> p) = PAnd $ map (flip resolve p) ks
--- resolveAll (POr  ks) (norm -> p) = POr  $ map (flip resolve p) ks
--- resolveAll       k   (norm -> p) = resolve k p
-
--- resolve :: Pred -> Pred -> Pred
--- resolve (PRel Eq s@(PFun "charat" _) (PVar x1))  -- s[i] = x  ─┐
---         (PRel Eq (PVar x2) c@(PCon (S _ _)))     -- x = c     ─┤
---         | x1 == x2 = PRel Eq s c                 -- s[i] = c ◀─┘
-
--- -- p1 <==> p2 ─▶ (p1 ∧ p2) ∨ (¬p1 ∧ ¬p2)
--- resolve k (PIff p1 p2)
---         = (     p1 `pAnd` resolveAll k       p1) `pOr` 
---           (PNot p2 `pAnd` resolveAll k (PNot p1))
-
--- resolve k p = k `pAnd` p
+--     goP ks (PVar x) = case Map.lookup x ks of
+--       Just (PIff (PVar x') q) | x == x' -> (ks, q)
+--       _ -> (ks, PVar x)
+    
+--     goP ks (norm -> p) = case p of
+--       PIff (PVar x) _ -> (Map.insert x p ks, p)
+--       PRel _ (PVar x) _ -> (Map.insert x p ks, p)
+--       _ -> (ks, p)
 
 norm :: Pred -> Pred
-norm (PRel Eq (PVar x) s@(PFun "charat" _))  -- x = s[i]  ─┐
-    = PRel Eq s (PVar x)                     -- s[i] = x ◀─┘
+norm (PNot p) = case p of
+  PCon (B b _) -> PCon (B (not b) NoPV)
+  PRel r x y -> norm $ PRel (inverse r) x y
+  _ -> PNot p
 
-norm (PRel r x s@(PFun "len" _)) --- x < |s|  ─┐
-    = PRel (invRel r) s x        --- |s| > x ◀─┘
+norm (PRel r (PCon c) (PVar x))    = PRel (converse r) (PVar x)    (PCon c)
+norm (PRel r (PCon c) (PFun f ps)) = PRel (converse r) (PFun f ps) (PCon c)
 
-norm (PRel r c@(PCon _) x@(PVar _))  -- c < x  ─┐
-    = PRel (invRel r) x c            -- x > c ◀─┘
-
-norm (PNot (PRel Eq p1 p2))  -- ¬(x = y)  ─┐
-    = PRel Neq p1 p2         --   x ≠ y  ◀─┘
+norm (PAnd ps) = PAnd $ map norm ps
+norm (POr  ps) = POr  $ map norm ps
 
 norm p = p
 
-invRel :: Rel -> Rel
-invRel = \case
+inverse :: Rel -> Rel
+inverse = \case
+  Eq -> Neq
+  Neq -> Eq
+  Geq -> Lt
+  Leq -> Gt
+  Gt -> Leq
+  Lt -> Geq
+
+converse :: Rel -> Rel
+converse = \case
   Eq  -> Eq
   Neq -> Neq
   Geq -> Leq
   Leq -> Geq
   Gt  -> Lt
   Lt  -> Gt
-
-mapCon :: (Pred -> Pred) -> Con -> Con
-mapCon f = \case
-  CHead p -> CHead (mapPred f p)
-  CAnd c1 c2 -> CAnd (mapCon f c1) (mapCon f c2)
-  CAll x b p c -> CAll x b (mapPred f p) (mapCon f c)
-
-mapPred :: (Pred -> Pred) -> Pred -> Pred
-mapPred f = \case
-  PBin o p1 p2 -> f $ PBin o (mapPred f p1) (mapPred f p2)
-  PRel r p1 p2 -> f $ PRel r (mapPred f p1) (mapPred f p2)
-  PAnd ps -> f $ PAnd (map (mapPred f) ps)
-  POr ps -> f $ POr (map (mapPred f) ps)
-  PImpl p q -> f $ PImpl (mapPred f p) (mapPred f q)
-  PIff p q -> f $ PIff (mapPred f p) (mapPred f q)
-  PNot p -> f $ PNot (mapPred f p)
-  PFun x ps -> f $ PFun x (map (mapPred f) ps)
-  PExists x b p -> f $ PExists x b (mapPred f p)
-  p -> f p
