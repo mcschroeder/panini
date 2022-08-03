@@ -225,16 +225,19 @@ instance Pretty Pred where
     PAnd ps -> go ps
       where
         go [] = mempty
-        go (p:[]) = pretty p
+        go (p:[]) = prettyN p
         go (p:q:qs)
-          | isSimplePred q = pretty p <+> sym "/\\" <+> go (q:qs)
-          | otherwise = pretty p <+> sym "/\\" <\> go (q:qs)
+          | isSimplePred q = prettyN p <+> sym "/\\" <+> go (q:qs)
+          | otherwise = prettyN p <+> sym "/\\" <\> go (q:qs)        
+        prettyN p = parensIf (fixity' p0 >= fixity' p) (pretty p)
 
     POr ps -> go ps
       where
         go [] = mempty
-        go (p:[]) = pretty p
-        go (p:q:qs) = pretty p <+> sym "\\/" <+> go (q:qs)
+        go (p:[]) = prettyN p
+        go (p:q:qs) = prettyN p <+> sym "\\/" <+> go (q:qs)
+        prettyN p = parensIf (fixity' p0 >= fixity' p) (pretty p)
+
 
     PExists x b p -> parens $ 
       sym "exists " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p
@@ -291,11 +294,14 @@ instance Fixity Pred where
   fixity (PRel Leq _ _) = (4, InfixN)
   fixity (PRel Gt _ _)  = (4, InfixN)
   fixity (PRel Lt _ _)  = (4, InfixN)
-  fixity (PAnd _)       = (3, InfixR)
-  fixity (POr _)        = (2, InfixR)
+  fixity (PAnd _)       = (3, InfixN)
+  fixity (POr _)        = (3, InfixN)
   fixity (PImpl _ _)    = (1, InfixN)
   fixity (PIff _ _)     = (1, InfixN)
   fixity _              = (9, InfixL)
+
+fixity' :: Fixity a => a -> Int
+fixity' = fst . fixity
 
 -------------------------------------------------------------------------------
 
