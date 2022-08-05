@@ -3,81 +3,172 @@
 module Panini.Solver.Grammar (solve) where
 
 import Panini.Syntax
+import Panini.Printer
 import Prelude
---import Data.Map qualified as Map
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Foldable
+--import Debug.Trace
+import Data.Bifunctor
 
 solve :: Con -> Pred
-solve = go
-  where
-    go (CHead p) = norm p
-    go (CAnd (CAll _ TUnit p1@(PVar x) q1) (CAll _ TUnit p2@(PNot (PVar y)) q2))
-      | x == y = (p1 `pAnd` go q1) `pOr` (p2 `pAnd` go q2)
-    go (CAnd c1 c2) = go c1 `pAnd` go c2
-    go (CAll _ _ p c) = norm p `pAnd` go c
+solve = rewrite' resolveIffs . norm . elim
 
--- solve = snd . goC Map.empty
---   where
---     goC ks (CHead p) = goP ks p
-    
---     goC ks (CAnd (CAll _ TUnit p1@(PVar x) q1) (CAll _ TUnit p2@(PNot (PVar y)) q2))
---       | x == y = 
---         let (ks1,p1') = goP ks p1
---             (_  ,q1') = goC ks1 q1
---             (ks2,p2') = goP ks p2
---             (_  ,q2') = goC ks2 q2
---         in (ks, (p1' `pAnd` q1') `pOr` (p2' `pAnd` q2'))
-    
---     goC ks (CAnd c1 c2) = 
---       let (ks1,p1) = goC ks c1
---           (ks2,p2) = goC ks1 c2
---       in (ks2, p1 `pAnd` p2)
-    
---     goC ks (CAll _ _ p c) = 
---       let (ks1,p1) = goP ks p
---           (ks2,p2) = goC ks1 c
---       in (ks2, p1 `pAnd` p2)
+-------------------------------------------------------------------------------
 
---     goP ks (PNot (PVar x)) = case Map.lookup x ks of
---       Just (PIff (PVar x') q) | x == x' -> (ks, norm (PNot q))
---       _ -> (ks, PNot (PVar x))
+-- | Eliminate quantifiers.
+elim :: Con -> Pred
+elim (CIf p1 c1 p2 c2) = (p1 `pAnd` elim c1) `pOr` (p2 `pAnd` elim c2)
+elim (CAnd c1 c2)      = elim c1 `pAnd` elim c2
+elim (CAll _ _ p c)    = p `pAnd` elim c
+elim (CHead p)         = p
 
---     goP ks (PVar x) = case Map.lookup x ks of
---       Just (PIff (PVar x') q) | x == x' -> (ks, q)
---       _ -> (ks, PVar x)
-    
---     goP ks (norm -> p) = case p of
---       PIff (PVar x) _ -> (Map.insert x p ks, p)
---       PRel _ (PVar x) _ -> (Map.insert x p ks, p)
---       _ -> (ks, p)
+pattern CIf :: Pred -> Con -> Pred -> Con -> Con
+pattern CIf p1 c1 p2 c2 <- 
+  CAnd (CAll _ TUnit p1@(PVar x) c1) 
+       (CAll _ TUnit p2@(PNot (PVar ((== x) -> True))) c2)
 
+-------------------------------------------------------------------------------
+
+-- | Rewrite predicate into normal form.
 norm :: Pred -> Pred
-norm (PNot p) = case p of
-  PCon (B b _) -> PCon (B (not b) NoPV)
-  PRel r x y -> norm $ PRel (inverse r) x y
-  _ -> PNot p
-
-norm (PRel r (PCon c) (PVar x))    = PRel (converse r) (PVar x)    (PCon c)
-norm (PRel r (PCon c) (PFun f ps)) = PRel (converse r) (PFun f ps) (PCon c)
+norm (PNot p)
+  | PRel r x y    <- p = norm (PRel (invRel r) x y)
+  | PCon (B b pv) <- p = PCon (B (not b) pv)
+    
+norm (PRel r x y)
+  | PCon _ <- x, PVar _   <- y = PRel (convRel r) y x
+  | PCon _ <- x, PFun _ _ <- y = PRel (convRel r) y x
 
 norm (PAnd ps) = PAnd $ map norm ps
 norm (POr  ps) = POr  $ map norm ps
 
 norm p = p
 
-inverse :: Rel -> Rel
-inverse = \case
-  Eq -> Neq
+-- | Inverse of a relation, e.g., ≥ to <.
+invRel :: Rel -> Rel
+invRel = \case
+  Eq  -> Neq
   Neq -> Eq
   Geq -> Lt
   Leq -> Gt
-  Gt -> Leq
-  Lt -> Geq
+  Gt  -> Leq
+  Lt  -> Geq
 
-converse :: Rel -> Rel
-converse = \case
+-- | Converse of a relation, e.g., ≥ to ≤.
+convRel :: Rel -> Rel
+convRel = \case
   Eq  -> Eq
   Neq -> Neq
   Geq -> Leq
   Leq -> Geq
   Gt  -> Lt
   Lt  -> Gt
+
+-------------------------------------------------------------------------------
+
+-- | Rewrite a predicate using knowledge collected along the way.
+--
+-- Conjunctions ('PAnd') are rewritten sequentially, with knowledge flowing left
+-- to right. Disjunctions ('POr') are rewritten independently of one another,
+-- with knowledge only flowing downwards, but not across the alternatives.
+rewrite :: (k -> Pred -> (k, Pred)) -> k -> Pred -> (k, Pred)
+rewrite f = go
+  where
+    go k (PAnd ps) = foldl' (\(k', q) -> second (pAnd q) . go k') (k, tt) ps
+    go k (POr  ps) = (k, POr $ map (snd . go k) ps)
+    go k p         = f k p
+
+rewrite' :: Monoid k => (k -> Pred -> (k, Pred)) -> Pred -> Pred
+rewrite' f = snd . rewrite f mempty
+
+tt :: Pred
+tt = PTrue NoPV
+
+-------------------------------------------------------------------------------
+
+resolveIffs :: Map Name Pred -> Pred -> (Map Name Pred, Pred)
+resolveIffs k p = case p of
+  PIff (PVar x) q -> (Map.insert x q k, tt)
+  
+  PVar x -> case Map.lookup x k of
+    Just q        -> (k, q)
+    Nothing       -> (k, p)    
+  
+  PNot (PVar x) -> case Map.lookup x k of
+    Just q        -> (k, norm (PNot q))
+    Nothing       -> (k, p)
+  
+  _               -> (k, p)
+    
+-------------------------------------------------------------------------------
+
+-- resolveInts :: Map Name Interval -> Pred -> (Map Name Interval, Pred)
+-- resolveInts k p = case p of
+--   PRel r (PVar x) (PCon (I a _)) ->
+--     let i = mkInterval r a
+
+-- mkInterval :: Rel -> Integer -> Interval
+-- mkInterval Eq = IntervalPoint
+-- mkInterval Neq
+
+-- data Interval 
+--   = IntervalPoint Integer 
+--   | IntervalFrom Integer 
+--   | IntervalTo Integer 
+--   | Interval Integer Integer
+--   deriving (Eq, Show, Read)
+
+-- intersectIntervals :: Interval -> Interval -> Maybe Interval
+-- intersectIntervals (IntervalPoint a) = \case
+--   IntervalPoint b | a == b -> Just (IntervalPoint a)
+--   IntervalFrom b  | a >= b -> Just (IntervalPoint a)
+--   IntervalTo b    | a <= b -> Just (IntervalPoint a)
+--   Interval c d    | a >= c, a <= d -> Just (IntervalPoint a)
+
+-- intersectIntervals (IntervalFrom a) = \case
+--   IntervalPoint b 
+--     | b >= a -> Just (IntervalPoint b)
+--   IntervalFrom b 
+--     | a >= b -> Just (IntervalFrom a)
+--     | b >= a -> Just (IntervalFrom b)
+--   IntervalTo b
+--     | b == a -> Just (IntervalPoint b)
+--     | b >  a -> Just (Interval a b)
+--   Interval c d
+--     | a <= c             -> Just (Interval c d)
+--     |      c < a, a <  d -> Just (Interval a d)
+--     |             a == d -> Just (IntervalPoint d)
+
+-- intersectIntervals (IntervalTo a) = \case
+--   IntervalPoint b
+--     | a >= b -> Just (IntervalPoint b)
+--   IntervalFrom b
+--     | a == b -> Just (IntervalPoint a)
+--     | a >  b -> Just (Interval b a)
+--   IntervalTo b
+--     | a <= b -> Just (IntervalTo a)
+--     | b <= a -> Just (IntervalTo b)
+--   Interval c d
+--     |         a <= d -> Just (Interval c d)
+--     | a >  c, a <  d -> Just (Interval c a)
+--     | a == c         -> Just (IntervalPoint c)
+
+-- intersectIntervals (Interval a b) = \case
+--   IntervalPoint c
+--     | a <= c, c <= b -> Just (IntervalPoint c)
+--   IntervalFrom c
+--     | c <= a             -> Just (Interval a b)
+--     |      a < c, c <  b -> Just (Interval c b)
+--     |             c == b -> Just (IntervalPoint c)
+--   IntervalTo c
+--     |             b <= c -> Just (Interval a b)
+--     | a <  c, c < b      -> Just (Interval a c)
+--     | a == c             -> Just (IntervalPoint c)
+--   Interval c d
+--     |     a <= c, d <= b     -> Just (Interval c d)
+--     |     a <= c,      b < d -> Just (Interval c b)
+--     | c < a,      d <= b     -> Just (Interval a d)
+--     | c < a,           b < d -> Just (Interval a b)    
+
+-- intersectIntervals _ = const Nothing
