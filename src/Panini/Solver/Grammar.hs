@@ -2,14 +2,16 @@
 
 module Panini.Solver.Grammar (solve) where
 
-import Panini.Syntax
-import Panini.Printer
-import Prelude
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
-import Data.Foldable
 --import Debug.Trace
 import Data.Bifunctor
+import Data.Foldable
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Panini.Printer
+import Panini.Syntax
+import Prelude
 
 solve :: Con -> Pred
 solve = rewrite' resolveIffs . norm . elim
@@ -101,74 +103,3 @@ resolveIffs k p = case p of
   
   _               -> (k, p)
     
--------------------------------------------------------------------------------
-
--- resolveInts :: Map Name Interval -> Pred -> (Map Name Interval, Pred)
--- resolveInts k p = case p of
---   PRel r (PVar x) (PCon (I a _)) ->
---     let i = mkInterval r a
-
--- mkInterval :: Rel -> Integer -> Interval
--- mkInterval Eq = IntervalPoint
--- mkInterval Neq
-
--- data Interval 
---   = IntervalPoint Integer 
---   | IntervalFrom Integer 
---   | IntervalTo Integer 
---   | Interval Integer Integer
---   deriving (Eq, Show, Read)
-
--- intersectIntervals :: Interval -> Interval -> Maybe Interval
--- intersectIntervals (IntervalPoint a) = \case
---   IntervalPoint b | a == b -> Just (IntervalPoint a)
---   IntervalFrom b  | a >= b -> Just (IntervalPoint a)
---   IntervalTo b    | a <= b -> Just (IntervalPoint a)
---   Interval c d    | a >= c, a <= d -> Just (IntervalPoint a)
-
--- intersectIntervals (IntervalFrom a) = \case
---   IntervalPoint b 
---     | b >= a -> Just (IntervalPoint b)
---   IntervalFrom b 
---     | a >= b -> Just (IntervalFrom a)
---     | b >= a -> Just (IntervalFrom b)
---   IntervalTo b
---     | b == a -> Just (IntervalPoint b)
---     | b >  a -> Just (Interval a b)
---   Interval c d
---     | a <= c             -> Just (Interval c d)
---     |      c < a, a <  d -> Just (Interval a d)
---     |             a == d -> Just (IntervalPoint d)
-
--- intersectIntervals (IntervalTo a) = \case
---   IntervalPoint b
---     | a >= b -> Just (IntervalPoint b)
---   IntervalFrom b
---     | a == b -> Just (IntervalPoint a)
---     | a >  b -> Just (Interval b a)
---   IntervalTo b
---     | a <= b -> Just (IntervalTo a)
---     | b <= a -> Just (IntervalTo b)
---   Interval c d
---     |         a <= d -> Just (Interval c d)
---     | a >  c, a <  d -> Just (Interval c a)
---     | a == c         -> Just (IntervalPoint c)
-
--- intersectIntervals (Interval a b) = \case
---   IntervalPoint c
---     | a <= c, c <= b -> Just (IntervalPoint c)
---   IntervalFrom c
---     | c <= a             -> Just (Interval a b)
---     |      a < c, c <  b -> Just (Interval c b)
---     |             c == b -> Just (IntervalPoint c)
---   IntervalTo c
---     |             b <= c -> Just (Interval a b)
---     | a <  c, c < b      -> Just (Interval a c)
---     | a == c             -> Just (IntervalPoint c)
---   Interval c d
---     |     a <= c, d <= b     -> Just (Interval c d)
---     |     a <= c,      b < d -> Just (Interval c b)
---     | c < a,      d <= b     -> Just (Interval a d)
---     | c < a,           b < d -> Just (Interval a b)    
-
--- intersectIntervals _ = const Nothing
