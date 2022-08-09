@@ -21,7 +21,7 @@ import Data.List (intersperse)
 data Ant 
   = Empty
   | Concrete Integer
-  | Abstract [Interval]
+  | Abstract IntervalSequence
 
 isInfinite :: Ant -> Bool
 isInfinite (Abstract (In NegInf _ : _)) = True
@@ -86,6 +86,7 @@ meet (Concrete a) (Concrete b)
 instance Pretty Ant where
   pretty Empty = "∅"
   pretty (Concrete a) = pretty a
+  pretty (Abstract [x]) = pretty x
   pretty (Abstract xs) = "{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
 
 -------------------------------------------------------------------------------
@@ -94,27 +95,32 @@ instance Pretty Ant where
 data Interval = In (Inf Integer) (Inf Integer)
   deriving stock (Eq, Show, Read)
 
--- | Merge two non-overlapping ordered lists of intervals using join semantics.
-joinIntervals :: [Interval] -> [Interval] -> [Interval]
+-- | An ordered list of non-overlapping intervals.
+type IntervalSequence = [Interval]
+
+-- | Merge two lists of intervals using join semantics.
+joinIntervals :: IntervalSequence -> IntervalSequence -> IntervalSequence
 joinIntervals []     = id
 joinIntervals (x:xs) = joinIntervals xs . go x
   where
-    go (In a b) [] = [In a b]
+    go (In a b) [] = [In a b]    
     go (In a b) (In c d : ys)
-      | b < c     = In a b : In c d : ys
-      | a > d     = In c d : go (In a b) ys
-      | otherwise = In (min a c) (max b d) : ys
+      | b < (pred <$> c) = In a b : In c d : ys
+      | a > (succ <$> d) = In c d : go (In a b) ys
+      | otherwise        = In (min a c) (max b d) : ys
 
--- | Merge two non-overlapping ordered lists of intervals using meet semantics.
-meetIntervals :: [Interval] -> [Interval] -> [Interval]
-meetIntervals [] = id
-meetIntervals (x:xs) = meetIntervals xs . go x
-  where
-    go _ [] = []
-    go (In a b) (In c d : ys)
-      | b < c     = []
-      | a > d     = go (In a b) ys
-      | otherwise = In (max a c) (min b d) : ys
+-- | Merge two lists of intervals using meet semantics.
+meetIntervals :: IntervalSequence -> IntervalSequence -> IntervalSequence
+meetIntervals xs0 ys0 = go [] xs0 ys0
+  where    
+    go zs [] _ = reverse zs
+    go zs _ [] = reverse zs
+    go zs (In a b : xs) (In c d : ys)
+      | b < c     = go                           zs            xs (In c d : ys)
+      | a > d     = go                           zs  (In a b : xs)          ys
+      | b > d     = go (In (max a c) (min b d) : zs) (In a b : xs)          ys
+      | d > b     = go (In (max a c) (min b d) : zs)           xs (In c d : ys)
+      | otherwise = go (In (max a c) (min b d) : zs)           xs           ys
 
 instance Pretty Interval where
   pretty (In a b)
@@ -125,7 +131,7 @@ instance Pretty Interval where
 
 -- | A type extended with negative and positive infinity.
 data Inf a = NegInf | Fin a | PosInf
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Functor, Show, Read)
 
 instance Ord a => Ord (Inf a) where
   compare NegInf NegInf   = EQ
