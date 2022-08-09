@@ -188,7 +188,7 @@ cAnd c1        c2        = CAnd c1 c2
 ------------------------------------------------------------------------------
 -- K vars
 
--- | A /refinement variable/ κ represents an unknown refinment over some free
+-- | A /refinement variable/ κ represents an unknown refinement over some free
 -- variables z₁,z₂,…,zₙ, known as the /parameters/ of κ. For any κ-variable, we
 -- know its arity (the number of parameters) as well as the expected parameter
 -- types τ₁,τ₂,…,τₙ.
