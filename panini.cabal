@@ -28,6 +28,7 @@ library
     Panini.Error
     Panini.Infer
     Panini.Parser
+    Panini.Pretty.Graphviz
     Panini.Printer
     Panini.REPL
     Panini.Solver.AbstractInteger

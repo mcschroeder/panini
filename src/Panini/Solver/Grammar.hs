@@ -2,7 +2,7 @@
 
 module Panini.Solver.Grammar (solve) where
 
-import Debug.Trace
+-- import Debug.Trace
 -- import Data.Bifunctor
 -- import Data.Foldable
 -- import Data.Map.Strict (Map)
@@ -11,6 +11,8 @@ import Panini.Printer
 import Panini.Syntax
 import Prelude
 import Panini.Solver.AbstractInteger qualified as A
+import Panini.Pretty.Graphviz
+import Prettyprinter (vsep)
 
 data GTree
   = GAnd GTree GTree
@@ -26,10 +28,29 @@ data GExpr
   | GPred Pred -- TODO: remove
   deriving stock (Show, Read)
 
+instance GraphViz GTree where
+  dot = fromDAG . dag
+    where
+      dag (GAnd t1 t2)          = Node Circle "∧" [dag t1, dag t2]
+      dag (GAll (Name x _) _ t) = Node Circle ("∀ " <> x) [dag t]
+      dag (GImpl t1 t2)         = Node Circle "⇒" [dag t1, dag t2]
+      dag (GOr xs ys)           = Node Circle "∨" [dagE xs, dagE ys]
+      dag (GExpr xs)            = dagE xs
+      dagE xs                   = Node Box lbl []
+        where
+          opts = RenderOptions False True Nothing
+          lbl = renderDoc opts $ vsep $ map pretty xs
+
+instance Pretty GExpr where
+  pretty (GAtom True x) = pretty x
+  pretty (GAtom False x) = "¬" <> pretty x
+  pretty (GVarIntAbs x a) = pretty x <> " = " <> pretty a
+  pretty (GPred p) = pretty p
+
 solve :: Con -> Pred
 solve c = 
-  let t = solve' c
-  in traceShow t (PFalse NoPV)
+  let t = traceGraph "trace.png" $ solve' c
+  in t `seq` PFalse NoPV
 
 solve' :: Con -> GTree
 solve' = treeify
