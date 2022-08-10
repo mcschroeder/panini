@@ -30,7 +30,7 @@ library
     Panini.Parser
     Panini.Printer
     Panini.REPL
-    Panini.Solver.Ant
+    Panini.Solver.AbstractInteger
     Panini.Solver.Assignment
     Panini.Solver.Fusion
     Panini.Solver.Liquid

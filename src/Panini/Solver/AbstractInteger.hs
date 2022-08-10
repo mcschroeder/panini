@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
-module Panini.Solver.Ant
-  ( Ant
+module Panini.Solver.AbstractInteger
+  ( AbstractInteger
   , isInfinite
   , isEmpty
   , concreteValue
-  , mkAntEq, mkAntNeq, mkAntGt, mkAntGeq, mkAntLt, mkAntLeq
+  , mkEq, mkNeq, mkGt, mkGeq, mkLt, mkLeq
   , join
   , meet
   ) where
@@ -18,44 +18,45 @@ import Data.List (intersperse)
 -------------------------------------------------------------------------------
 
 -- | An abstract integer.
-data Ant 
+data AbstractInteger 
   = Empty
   | Concrete Integer
   | Abstract IntervalSequence
+  deriving stock (Show, Read)
 
-isInfinite :: Ant -> Bool
+isInfinite :: AbstractInteger -> Bool
 isInfinite (Abstract (In NegInf _ : _)) = True
 isInfinite (Abstract (last -> In _ PosInf)) = True
 isInfinite _ = False
 
-isEmpty :: Ant -> Bool
+isEmpty :: AbstractInteger -> Bool
 isEmpty Empty = True
 isEmpty _     = False
 
-concreteValue :: Ant -> Maybe Integer
+concreteValue :: AbstractInteger -> Maybe Integer
 concreteValue (Concrete n) = Just n
 concreteValue _            = Nothing
 
-mkAntEq :: Integer -> Ant
-mkAntEq a = Concrete a
+mkEq :: Integer -> AbstractInteger
+mkEq a = Concrete a
 
-mkAntNeq :: Integer -> Ant
-mkAntNeq a = Abstract [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
+mkNeq :: Integer -> AbstractInteger
+mkNeq a = Abstract [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
 
-mkAntGt :: Integer -> Ant
-mkAntGt a = Abstract [In (Fin (a + 1)) PosInf]
+mkGt :: Integer -> AbstractInteger
+mkGt a = Abstract [In (Fin (a + 1)) PosInf]
 
-mkAntGeq :: Integer -> Ant
-mkAntGeq a = Abstract [In (Fin a) PosInf]
+mkGeq :: Integer -> AbstractInteger
+mkGeq a = Abstract [In (Fin a) PosInf]
 
-mkAntLt :: Integer -> Ant
-mkAntLt a = Abstract [In NegInf (Fin (a - 1))]
+mkLt :: Integer -> AbstractInteger
+mkLt a = Abstract [In NegInf (Fin (a - 1))]
 
-mkAntLeq :: Integer -> Ant
-mkAntLeq a = Abstract [In NegInf (Fin a)]
+mkLeq :: Integer -> AbstractInteger
+mkLeq a = Abstract [In NegInf (Fin a)]
 
 -- | Join two abstract integers (widening).
-join :: Ant -> Ant -> Ant
+join :: AbstractInteger -> AbstractInteger -> AbstractInteger
 join Empty b = b
 join a Empty = a
 join (Abstract xs) (Abstract ys) = Abstract $ joinIntervals xs ys
@@ -67,7 +68,7 @@ join (Concrete a) (Concrete b)
   | otherwise = Concrete a
 
 -- | Meet two abstract integers (narrowing).
-meet :: Ant -> Ant -> Ant
+meet :: AbstractInteger -> AbstractInteger -> AbstractInteger
 meet Empty _ = Empty
 meet _ Empty = Empty
 meet (Abstract xs) (Abstract ys) = 
@@ -83,7 +84,7 @@ meet (Concrete a) (Concrete b)
   | a == b = Concrete a
   | otherwise = Empty
 
-instance Pretty Ant where
+instance Pretty AbstractInteger where
   pretty Empty = "∅"
   pretty (Concrete a) = pretty a
   pretty (Abstract [x]) = pretty x
