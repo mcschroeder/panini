@@ -2,19 +2,70 @@
 
 module Panini.Solver.Grammar (solve) where
 
---import Debug.Trace
-import Data.Bifunctor
-import Data.Foldable
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
-import Data.Set (Set)
-import Data.Set qualified as Set
+import Debug.Trace
+-- import Data.Bifunctor
+-- import Data.Foldable
+-- import Data.Map.Strict (Map)
+-- import Data.Map.Strict qualified as Map
 import Panini.Printer
 import Panini.Syntax
 import Prelude
+import Panini.Solver.AbstractInteger qualified as A
+
+data GTree
+  = GAnd GTree GTree
+  | GAll Name Base GTree
+  | GImpl GTree GTree
+  | GOr [GExpr] [GExpr]
+  | GExpr [GExpr]
+  deriving stock (Show, Read)
+
+data GExpr 
+  = GAtom Bool Name
+  | GVarIntAbs Name A.AbstractInteger
+  | GPred Pred -- TODO: remove
+  deriving stock (Show, Read)
 
 solve :: Con -> Pred
-solve = rewrite' resolveIffs . norm . elim
+solve c = 
+  let t = solve' c
+  in traceShow t (PFalse NoPV)
+
+solve' :: Con -> GTree
+solve' = treeify
+
+treeify :: Con -> GTree
+treeify = goC
+  where
+    goC (CAnd c1 c2)   = GAnd (goC c1) (goC c2)
+    goC (CAll x b p c) = GAll x b (GImpl (goP p) (goC c))
+    goC (CHead p)      = goP p
+
+    goP       (PVar x)  = GExpr [GAtom True  x]
+    goP (PNot (PVar x)) = GExpr [GAtom False x]
+    
+    goP (PAnd (p:[])) = goP p
+    goP (PAnd (p:ps)) = GAnd (goP p) (goP (PAnd ps))
+    
+    goP (PRel r (PVar x) (PCon (I i _))) = GExpr [GVarIntAbs x (relToAbsInt r i)]
+    
+    goP p = GExpr [GPred p]
+
+
+relToAbsInt :: Rel -> Integer -> A.AbstractInteger
+relToAbsInt r i = case r of
+  Eq  -> A.mkEq i
+  Neq -> A.mkNeq i
+  Gt  -> A.mkGt i
+  Geq -> A.mkGeq i
+  Lt  -> A.mkLt i
+  Leq -> A.mkLeq i
+
+{-
+
+
+-- solve :: Con -> Pred
+-- solve = rewrite' resolveIffs . norm . elim
 
 -------------------------------------------------------------------------------
 
@@ -103,3 +154,6 @@ resolveIffs k p = case p of
   
   _               -> (k, p)
     
+-------------------------------------------------------------------------------
+
+-}
