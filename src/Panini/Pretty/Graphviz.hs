@@ -70,14 +70,20 @@ mkEdge x y = Dot $ do
 -------------------------------------------------------------------------------
 -- convenience methods for when your graph is a DAG
 
-data DAG = Node Shape Text [DAG]
+data DAG = Node [Attribute] [DAG]
+
+pattern CircleNode :: Text -> [DAG] -> DAG
+pattern CircleNode lbl xs = Node [Shape Circle, Label lbl] xs
+
+pattern BoxNode :: Text -> [DAG] -> DAG
+pattern BoxNode lbl xs = Node [Shape Box, Label lbl] xs
 
 fromDAG :: DAG -> Dot ()
 fromDAG = void . go
-  where
-    go (Node sh lbl []) = mkNode [Shape sh, Label lbl]
-    go (Node sh lbl xs) = do
-      n <- mkNode [Shape sh, Label lbl]
+  where    
+    go (Node as []) = mkNode as
+    go (Node as xs) = do
+      n <- mkNode as
       ms <- mapM go xs
       mapM_ (mkEdge n) ms
       return n
@@ -107,6 +113,8 @@ attrStr (Label t) =
   "label=\"" <> (LB.fromString $ escape $ Text.unpack t) <> "\""
 
 escape :: [Char] -> [Char]
+escape ('\\':'l':xs) = '\\' : 'l' : escape xs
+escape ('\\':'r':xs) = '\\' : 'r' : escape xs
 escape ('\\':xs) = '\\' : '\\' : escape xs
 escape ('\"':xs) = '\\' : '\"' : escape xs
 escape ('\n':xs) = '\\' : 'n' : escape xs

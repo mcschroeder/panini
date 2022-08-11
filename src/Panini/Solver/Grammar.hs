@@ -31,15 +31,17 @@ data GExpr
 instance GraphViz GTree where
   dot = fromDAG . dag
     where
-      dag (GAnd t1 t2)          = Node Circle "∧" [dag t1, dag t2]
-      dag (GAll (Name x _) _ t) = Node Circle ("∀ " <> x) [dag t]
-      dag (GImpl t1 t2)         = Node Circle "⇒" [dag t1, dag t2]
-      dag (GOr xs ys)           = Node Circle "∨" [dagE xs, dagE ys]
+      dag (GAnd t1 t2)          = CircleNode "∧" [dag t1, dag t2]
+      dag (GAll (Name x _) _ t) = CircleNode ("∀ " <> x) [dag t]
+      dag (GImpl t1 t2)         = CircleNode "⇒" [dag t1, dag t2]
+      dag (GOr xs ys)           = CircleNode "∨" [dagE xs, dagE ys]
       dag (GExpr xs)            = dagE xs
-      dagE xs                   = Node Box lbl []
+      dagE xs                   = BoxNode lbl []
         where
           opts = RenderOptions False True Nothing
-          lbl = renderDoc opts $ vsep $ map pretty xs
+          lbl
+            | [x] <- xs = renderDoc opts $ pretty x
+            | otherwise = renderDoc opts $ mconcat $ map (\x -> pretty x <> "\\l") xs
 
 instance Pretty GExpr where
   pretty (GAtom True x) = pretty x
