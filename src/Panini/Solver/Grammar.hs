@@ -1,53 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData #-}
 
 module Panini.Solver.Grammar (solve) where
 
--- import Debug.Trace
--- import Data.Bifunctor
--- import Data.Foldable
--- import Data.Map.Strict (Map)
--- import Data.Map.Strict qualified as Map
 import Panini.Printer
 import Panini.Syntax
 import Prelude
 import Panini.Solver.AbstractInteger qualified as A
 import Panini.Pretty.Graphviz
-import Prettyprinter (vsep)
+import Data.List qualified as List
+import Data.Text qualified as Text
+import Debug.Trace
+import Data.Bifunctor
 
-data GTree
-  = GAnd GTree GTree
-  | GAll Name Base GTree
-  | GImpl GTree GTree
-  | GOr [GExpr] [GExpr]
-  | GExpr [GExpr]
-  deriving stock (Show, Read)
-
-data GExpr 
-  = GAtom Bool Name
-  | GVarIntAbs Name A.AbstractInteger
-  | GPred Pred -- TODO: remove
-  deriving stock (Show, Read)
-
-instance GraphViz GTree where
-  dot = fromDAG . dag
-    where
-      dag (GAnd t1 t2)          = CircleNode "∧" [dag t1, dag t2]
-      dag (GAll (Name x _) _ t) = CircleNode ("∀ " <> x) [dag t]
-      dag (GImpl t1 t2)         = CircleNode "⇒" [dag t1, dag t2]
-      dag (GOr xs ys)           = CircleNode "∨" [dagE xs, dagE ys]
-      dag (GExpr xs)            = dagE xs
-      dagE xs                   = BoxNode lbl []
-        where
-          opts = RenderOptions False True Nothing
-          lbl
-            | [x] <- xs = renderDoc opts $ pretty x
-            | otherwise = renderDoc opts $ mconcat $ map (\x -> pretty x <> "\\l") xs
-
-instance Pretty GExpr where
-  pretty (GAtom True x) = pretty x
-  pretty (GAtom False x) = "¬" <> pretty x
-  pretty (GVarIntAbs x a) = pretty x <> " = " <> pretty a
-  pretty (GPred p) = pretty p
+-------------------------------------------------------------------------------
 
 solve :: Con -> Pred
 solve c = 
@@ -55,7 +21,59 @@ solve c =
   in t `seq` PFalse NoPV
 
 solve' :: Con -> GTree
-solve' = treeify
+solve' = GExpr . resolve . treeify
+
+-------------------------------------------------------------------------------
+
+data GTree
+  = GAnd GTree GTree
+  | GAll Name Base GTree
+  | GImpl GTree GTree
+  | GExpr GExpr
+  deriving stock (Show, Read)
+
+data GExpr
+  = GSimple [GFact]
+  | GChoice [GFact] GExpr
+  deriving stock (Show, Read)
+
+data GFact
+  = GAtom Bool Name
+  | GIff Name Pred
+  | GVarIntAbs Name A.AbstractInteger
+  | GPred Pred -- TODO: remove  
+  deriving stock (Show, Read)
+
+-------------------------------------------------------------------------------
+
+instance GraphViz GTree where
+  dot = fromDAG . dag
+    where
+      dag (GAnd t1 t2)          = CircleNode "∧" [dag t1, dag t2]
+      dag (GAll (Name x _) _ t) = Node [Shape Diamond, Label ("∀ " <> x)] [dag t]
+      dag (GImpl t1 t2)         = CircleNode "⇒" [dag t1, dag t2]
+      dag (GExpr x)             = dagE x
+      
+      dagE e = Node [Shape Record, Label (lab e)] []
+      lab (GSimple xs) = labS xs
+      lab (GChoice xs e) = labS xs <> "|" <> lab e
+      labS [x] = rend $ pretty x
+      labS xs = "{" <> rend (mconcat $ map ((<> "\\l") . pretty) xs) <> "}"
+      opts = RenderOptions False True Nothing
+      rend = Text.pack . esc . Text.unpack . renderDoc opts
+      esc (x:xs) 
+        | x `elem` ("|{}<>" :: String) = '\\':x:esc xs
+        | otherwise = x:esc xs
+      esc [] = []
+
+instance Pretty GFact where
+  pretty (GAtom True x)   = pretty x
+  pretty (GAtom False x)  = "¬" <> pretty x
+  pretty (GIff x p)       = pretty x <> " ⟺ " <> pretty p
+  pretty (GVarIntAbs x a) = pretty x <> " = " <> pretty a
+  pretty (GPred p)        = pretty p
+
+-------------------------------------------------------------------------------
 
 treeify :: Con -> GTree
 treeify = goC
@@ -63,17 +81,41 @@ treeify = goC
     goC (CAnd c1 c2)   = GAnd (goC c1) (goC c2)
     goC (CAll x b p c) = GAll x b (GImpl (goP p) (goC c))
     goC (CHead p)      = goP p
+    goP (PAnd [p])     = goP p
+    goP (PAnd (p:ps))  = GAnd (goP p) (goP (PAnd ps))
+    goP p              = GExpr $ GSimple [predToFact p]
 
-    goP       (PVar x)  = GExpr [GAtom True  x]
-    goP (PNot (PVar x)) = GExpr [GAtom False x]
-    
-    goP (PAnd (p:[])) = goP p
-    goP (PAnd (p:ps)) = GAnd (goP p) (goP (PAnd ps))
-    
-    goP (PRel r (PVar x) (PCon (I i _))) = GExpr [GVarIntAbs x (relToAbsInt r i)]
-    
-    goP p = GExpr [GPred p]
+predToFact :: Pred -> GFact
+predToFact = \case
+  PNot (PCon (B b pv))           -> predToFact $ PCon (B (not b) pv)  
+  PNot (PRel r x y)              -> predToFact $ PRel (invRel r) x y
+  PRel r x@(PCon _) y@(PVar _)   -> predToFact $ PRel (convRel r) y x
+  PRel r x@(PCon _) y@(PFun _ _) -> predToFact $ PRel (convRel r) y x
+  PVar x                         -> GAtom True  x
+  PNot (PVar x)                  -> GAtom False x
+  PRel r (PVar x) (PCon (I i _)) -> GVarIntAbs x (relToAbsInt r i)
+  PIff (PVar x) q                -> GIff x q
+  p                              -> GPred p
 
+-- | Inverse of a relation, e.g., ≥ to <.
+invRel :: Rel -> Rel
+invRel = \case
+  Eq  -> Neq
+  Neq -> Eq
+  Geq -> Lt
+  Leq -> Gt
+  Gt  -> Leq
+  Lt  -> Geq
+
+-- | Converse of a relation, e.g., ≥ to ≤.
+convRel :: Rel -> Rel
+convRel = \case
+  Eq  -> Eq
+  Neq -> Neq
+  Geq -> Leq
+  Leq -> Geq
+  Gt  -> Lt
+  Lt  -> Gt
 
 relToAbsInt :: Rel -> Integer -> A.AbstractInteger
 relToAbsInt r i = case r of
@@ -83,6 +125,103 @@ relToAbsInt r i = case r of
   Geq -> A.mkGeq i
   Lt  -> A.mkLt i
   Leq -> A.mkLeq i
+
+-------------------------------------------------------------------------------
+
+resolve :: GTree -> GExpr
+resolve (GExpr e) = e
+resolve (GImpl t1 t2) = resolve t1 `meetExpr` resolve t2
+resolve (GAll x _ t) = solveFor x (resolve t)
+resolve (GAnd t1 t2) =
+  let e1 = resolve t1
+      e2 = resolve t2
+  in case e1 `meetExpr` e2 of
+    GSimple [] -> e1 `orExpr` e2
+    z -> z
+
+meetExpr :: GExpr -> GExpr -> GExpr
+meetExpr (GSimple xs) (GSimple ys) = GSimple $ meetFacts (xs ++ ys)
+meetExpr e1@(GSimple xs) (GChoice ys e2) = GChoice (meetFacts (xs ++ ys)) (e1 `meetExpr` e2)
+meetExpr (GChoice xs e1) e2@(GSimple ys) = GChoice (meetFacts (xs ++ ys)) (e1 `meetExpr` e2)
+--meetExpr (GChoice xs e1) (GChoice ys e2) = undefined
+
+orExpr :: GExpr -> GExpr -> GExpr
+orExpr (GSimple xs) e = GChoice xs e
+orExpr (GChoice xs e1) e2 = GChoice xs (e1 `orExpr` e2)
+
+meetFacts :: [GFact] -> [GFact]
+meetFacts xs = 
+  let ys = combinations xs
+  in trace (unlines $ map (\(a,b) -> showPretty a ++ " ∩ " ++ showPretty b) ys) $ concatMap (uncurry meetFact) ys
+-- TODO: repeat until fixpoint
+
+combinations :: [a] -> [(a,a)]
+combinations xs = [(x,y) | (x:ys) <- List.tails xs, y <- ys]
+
+
+meetFact :: GFact -> GFact -> [GFact]
+meetFact f1 f2 = case (f1, f2) of
+  (GAtom pa a, GAtom pb b) 
+    | a == b, pa /= pb -> []
+    | a == b, pa == pb -> [GAtom pa a]
+
+  (GIff _ _, GAtom _ _) -> meetFact f2 f1
+  (GAtom pa a, GIff b p)
+    | a == b, pa == True  -> [predToFact p]
+    | a == b, pa == False -> [predToFact (PNot p)]
+
+  (GVarIntAbs a i1, GVarIntAbs b i2)
+    | a == b -> [GVarIntAbs a (A.meet i1 i2)]
+
+  _ -> [f1, f2]
+
+
+solveFor :: Name -> GExpr -> GExpr
+solveFor _ = id
+
+-- resolve :: GTree -> GExpr
+-- resolve (GExpr xs) = xs
+-- resolve (GAnd t1 t2) = 
+--   let x = resolve t1 
+--       y = resolve t2
+--   in case x `meetExpr` y of
+--     GFacts [] -> GChoice x y
+--     z         -> z
+-- resolve (GImpl t1 t2) = resolve t1 `meetExpr` resolve t2
+-- resolve (GAll x _ t) = solveFor x $ resolve t
+
+-- solveFor :: Name -> GExpr -> GExpr
+-- solveFor _ = id
+
+-- meetExpr :: GExpr -> GExpr -> GExpr
+-- meetExpr (GFacts xs) (GFacts ys) = undefined
+-- meetExpr (GChoice xs x2) (GFacts ys) = undefined
+-- meetExpr (GFacts xs) (GChoice ys y2) = undefined
+-- meetExpr (GChoice xs x2) (GChoice ys y2) = undefined
+
+
+-- resolve (GOr xs ys) = GOr xs ys
+-- resolve (GImpl (resolve -> GExpr xs) (resolve -> GExpr ys)) = GExpr (xs ++ ys)
+-- resolve (GImpl (resolve -> GExpr ys) (resolve -> GOr ys zs)) = GExpr
+--   (GExpr xs, GOr ys zs) -> GOr (xs ++ ys) (xs ++ zs)  -- TODO: meet
+--   (GOr xs ys, GExpr zs) -> GOr (xs ++ zs) (ys ++ zs) -- TODO: meet
+--   (t1', t2') -> GImpl t1' t2'
+
+
+-- resolve (GImpl t1 t2) = case (resolve t1, resolve t2) of
+--   (GExpr xs, GExpr ys) -> GExpr (xs ++ ys)  -- TODO: meet
+--   (GExpr xs, GOr ys zs) -> GOr (xs ++ ys) (xs ++ zs)  -- TODO: meet
+--   (GOr xs ys, GExpr zs) -> GOr (xs ++ zs) (ys ++ zs) -- TODO: meet
+--   (t1', t2') -> GImpl t1' t2'
+-- resolve (GAll _ _ p) = resolve p  -- TODO: solve for x
+-- resolve (GAnd t1 t2) = case (resolve t1, resolve t2) of
+--   (GExpr xs, GExpr ys) -> GExpr (xs ++ ys) -- TODO: meet
+--   (GExpr xs, GOr ys zs) -> GOr (xs ++ ys) (xs ++ zs)  -- TODO: meet
+--   (GOr xs ys, GExpr zs) -> GOr (xs ++ zs) (ys ++ zs) -- TODO: meet
+--   (t1', t2') -> GImpl t1' t2'
+
+
+
 
 {-
 
@@ -121,25 +260,7 @@ norm (POr  ps) = POr  $ map norm ps
 
 norm p = p
 
--- | Inverse of a relation, e.g., ≥ to <.
-invRel :: Rel -> Rel
-invRel = \case
-  Eq  -> Neq
-  Neq -> Eq
-  Geq -> Lt
-  Leq -> Gt
-  Gt  -> Leq
-  Lt  -> Geq
 
--- | Converse of a relation, e.g., ≥ to ≤.
-convRel :: Rel -> Rel
-convRel = \case
-  Eq  -> Eq
-  Neq -> Neq
-  Geq -> Leq
-  Leq -> Geq
-  Gt  -> Lt
-  Lt  -> Gt
 
 -------------------------------------------------------------------------------
 
