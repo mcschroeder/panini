@@ -11,6 +11,7 @@ import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Prelude
+import System.IO.Error
 import System.IO.Unsafe
 import System.Process
 
@@ -35,7 +36,7 @@ renderGraph f x = do
 traceGraph :: GraphViz a => FilePath -> a -> a
 traceGraph f x = unsafePerformIO $ do
   putStrLn $ "rendering graph to " ++ f
-  renderGraph f x  
+  catchIOError (renderGraph f x) print
   return x
   
 -------------------------------------------------------------------------------
