@@ -38,7 +38,7 @@ traceGraph f x = unsafePerformIO $ do
   putStrLn $ "rendering graph to " ++ f
   catchIOError (renderGraph f x) print
   return x
-  
+
 -------------------------------------------------------------------------------
 
 newtype Dot a = Dot (State (NodeId, Builder) a)
@@ -50,7 +50,15 @@ data Attribute
   = Shape Shape
   | Label Text
 
-data Shape = Circle | Box
+data Shape 
+  = Circle 
+  | Box 
+  | Diamond 
+  | Triangle 
+  | InvertedTriangle 
+  | Ellipse 
+  | Record
+  | None
 
 mkNode :: [Attribute] -> Dot NodeId
 mkNode as = Dot $ do
@@ -106,6 +114,12 @@ nodeStmt n as = n' <> " [" <> as' <> "];\n"
 shapeStr :: Shape -> Builder
 shapeStr Circle = "circle"
 shapeStr Box = "box"
+shapeStr Diamond = "diamond"
+shapeStr Triangle = "triangle"
+shapeStr InvertedTriangle = "invtriangle"
+shapeStr Ellipse = "ellipse"
+shapeStr Record = "record"
+shapeStr None = "none"
 
 attrStr :: Attribute -> Builder
 attrStr (Shape s) = "shape=" <> shapeStr s
@@ -113,9 +127,9 @@ attrStr (Label t) =
   "label=\"" <> (LB.fromString $ escape $ Text.unpack t) <> "\""
 
 escape :: [Char] -> [Char]
-escape ('\\':'l':xs) = '\\' : 'l' : escape xs
-escape ('\\':'r':xs) = '\\' : 'r' : escape xs
-escape ('\\':xs) = '\\' : '\\' : escape xs
+escape ('\\':x:xs) 
+  | x `elem` ("lr|{}<>" :: String) = '\\' : x : escape xs
+  | otherwise = '\\' : '\\' : escape xs
 escape ('\"':xs) = '\\' : '\"' : escape xs
 escape ('\n':xs) = '\\' : 'n' : escape xs
 escape (x:xs) = x : escape xs
