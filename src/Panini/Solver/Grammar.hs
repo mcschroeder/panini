@@ -12,6 +12,7 @@ import Data.List qualified as List
 import Data.Text qualified as Text
 import Debug.Trace
 import Data.Bifunctor
+import Data.Foldable
 
 -------------------------------------------------------------------------------
 
@@ -91,6 +92,10 @@ predToFact = \case
   PNot (PRel r x y)              -> predToFact $ PRel (invRel r) x y
   PRel r x@(PCon _) y@(PVar _)   -> predToFact $ PRel (convRel r) y x
   PRel r x@(PCon _) y@(PFun _ _) -> predToFact $ PRel (convRel r) y x
+
+  PRel r (PFun "len" [PVar "s"]) y -> predToFact $ PRel r (PVar "|s|") y
+  PRel r x (PFun "len" [PVar "s"]) -> predToFact $ PRel r x (PVar "|s|")
+
   PVar x                         -> GAtom True  x
   PNot (PVar x)                  -> GAtom False x
   PRel r (PVar x) (PCon (I i _)) -> GVarIntAbs x (relToAbsInt r i)
@@ -150,31 +155,34 @@ orExpr (GSimple xs) e = GChoice xs e
 orExpr (GChoice xs e1) e2 = GChoice xs (e1 `orExpr` e2)
 
 meetFacts :: [GFact] -> [GFact]
-meetFacts xs = 
-  let ys = combinations xs
-  in trace (unlines $ map (\(a,b) -> showPretty a ++ " ∩ " ++ showPretty b) ys) $ concatMap (uncurry meetFact) ys
--- TODO: repeat until fixpoint
+meetFacts [] = []
+meetFacts (x0:xs0) = go x0 [] xs0
+  where
+    go z    []     []  = z : []
+    go z (y:ys)    []  = z : go y [] ys
+    go z    ys  (x:xs) = case meetFact z x of
+      Top     -> go z (x:ys) xs
+      Meet z' -> go z'   ys  xs
+      Bottom  -> []
 
-combinations :: [a] -> [(a,a)]
-combinations xs = [(x,y) | (x:ys) <- List.tails xs, y <- ys]
 
+data Meet a = Top | Meet a | Bottom
 
-meetFact :: GFact -> GFact -> [GFact]
+meetFact :: GFact -> GFact -> Meet GFact
 meetFact f1 f2 = case (f1, f2) of
   (GAtom pa a, GAtom pb b) 
-    | a == b, pa /= pb -> []
-    | a == b, pa == pb -> [GAtom pa a]
+    | a == b, pa /= pb -> Bottom
+    | a == b, pa == pb -> Meet $ GAtom pa a
 
   (GIff _ _, GAtom _ _) -> meetFact f2 f1
   (GAtom pa a, GIff b p)
-    | a == b, pa == True  -> [predToFact p]
-    | a == b, pa == False -> [predToFact (PNot p)]
+    | a == b, pa == True  -> Meet $ predToFact p
+    | a == b, pa == False -> Meet $ predToFact (PNot p)
 
   (GVarIntAbs a i1, GVarIntAbs b i2)
-    | a == b -> [GVarIntAbs a (A.meet i1 i2)]
+    | a == b -> Meet $ GVarIntAbs a (A.meet i1 i2)
 
-  _ -> [f1, f2]
-
+  _ -> Top
 
 solveFor :: Name -> GExpr -> GExpr
 solveFor _ = id
