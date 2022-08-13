@@ -7,7 +7,8 @@ import Algebra.Lattice
 import Panini.Printer
 import Panini.Syntax
 import Prelude
-import Panini.Solver.AInteger qualified as A
+import Panini.Solver.Abstract.AInteger
+import Panini.Solver.Abstract.ABool
 import Panini.Pretty.Graphviz
 import Data.List qualified as List
 import Data.Text qualified as Text
@@ -42,7 +43,7 @@ data GExpr
 data GFact
   = GAtom Bool Name
   | GIff Name Pred
-  | GVarIntAbs Name A.AInteger
+  | GVarIntAbs Name AInteger
   | GPred Pred -- TODO: remove  
   deriving stock (Show, Read)
 
@@ -123,14 +124,14 @@ convRel = \case
   Gt  -> Lt
   Lt  -> Gt
 
-relToAbsInt :: Rel -> Integer -> A.AInteger
+relToAbsInt :: Rel -> Integer -> AInteger
 relToAbsInt r i = case r of
-  Eq  -> A.mkEq i
-  Neq -> A.mkNeq i
-  Gt  -> A.mkGt i
-  Geq -> A.mkGeq i
-  Lt  -> A.mkLt i
-  Leq -> A.mkLeq i
+  Eq  -> aIntegerEq i
+  Neq -> aIntegerNeq i
+  Gt  -> aIntegerGt i
+  Geq -> aIntegerGeq i
+  Lt  -> aIntegerLt i
+  Leq -> aIntegerLeq i
 
 -------------------------------------------------------------------------------
 

@@ -31,7 +31,8 @@ library
     Panini.Pretty.Graphviz
     Panini.Printer
     Panini.REPL
-    Panini.Solver.AbstractInteger
+    Panini.Solver.Abstract.ABool
+    Panini.Solver.Abstract.AInteger    
     Panini.Solver.Assignment
     Panini.Solver.Fusion
     Panini.Solver.Liquid

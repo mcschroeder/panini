@@ -1,12 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
-module Panini.Solver.AbstractInteger
+module Panini.Solver.Abstract.AInteger
   ( AInteger
   , isInfinite
   , isEmpty
-  , concreteValue
-  , mkEq, mkNeq, mkGt, mkGeq, mkLt, mkLeq
+  , concreteInteger
+  , aIntegerEq
+  , aIntegerNeq
+  , aIntegerGt
+  , aIntegerGeq
+  , aIntegerLt
+  , aIntegerLeq
   ) where
 
 import Algebra.Lattice
@@ -21,35 +26,44 @@ newtype AInteger = AInteger IntervalSequence
   deriving stock (Eq, Show, Read)
   deriving newtype (Lattice, BoundedJoinSemiLattice, BoundedMeetSemiLattice)
 
+-- | Does an abstract integer represent an infinite number of values?
 isInfinite :: AInteger -> Bool
 isInfinite (AInteger (In NegInf _ : _))     = True
 isInfinite (AInteger (last -> In _ PosInf)) = True
 isInfinite _                                = False
 
+-- | Does an abstract integer represent no values?
 isEmpty :: AInteger -> Bool
 isEmpty = (== bottom)
 
-concreteValue :: AInteger -> Maybe Integer
-concreteValue (AInteger [In (Fin a) (Fin b)]) | a == b = Just a
-concreteValue _                                        = Nothing
+-- | The single concrete value represented by the abstract integer, or Nothing.
+concreteInteger :: AInteger -> Maybe Integer
+concreteInteger (AInteger [In (Fin a) (Fin b)]) | a == b = Just a
+concreteInteger _                                        = Nothing
 
-mkEq :: Integer -> AInteger
-mkEq a = AInteger [singleton a]
+-- | An abstract integer @= i@.
+aIntegerEq :: Integer -> AInteger
+aIntegerEq a = AInteger [singleton a]
 
-mkNeq :: Integer -> AInteger
-mkNeq a = AInteger [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
+-- | An abstract integer @≠ i@, i.e., @{[-∞..i-1],[i+1..+∞]}@.
+aIntegerNeq :: Integer -> AInteger
+aIntegerNeq a = AInteger [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
 
-mkGt :: Integer -> AInteger
-mkGt a = AInteger [In (Fin (a + 1)) PosInf]
+-- | An abstract integer @> i@, i.e., @[i+1..+∞]@.
+aIntegerGt :: Integer -> AInteger
+aIntegerGt a = AInteger [In (Fin (a + 1)) PosInf]
 
-mkGeq :: Integer -> AInteger
-mkGeq a = AInteger [In (Fin a) PosInf]
+-- | An abstract integer @≥ i@, i.e., @[i..+∞]@.
+aIntegerGeq :: Integer -> AInteger
+aIntegerGeq a = AInteger [In (Fin a) PosInf]
 
-mkLt :: Integer -> AInteger
-mkLt a = AInteger [In NegInf (Fin (a - 1))]
+-- | An abstract integer @< i@, i.e., @[-∞..i-1]@.
+aIntegerLt :: Integer -> AInteger
+aIntegerLt a = AInteger [In NegInf (Fin (a - 1))]
 
-mkLeq :: Integer -> AInteger
-mkLeq a = AInteger [In NegInf (Fin a)]
+-- | An abstract integer @≤ i@, i.e., @[-∞..i]@.
+aIntegerLeq :: Integer -> AInteger
+aIntegerLeq a = AInteger [In NegInf (Fin a)]
 
 instance Pretty AInteger where
   pretty (AInteger [])  = "∅"
