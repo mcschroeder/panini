@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Panini.Solver.Abstract.ABool
   ( ABool
   , concreteBool
@@ -5,6 +7,7 @@ module Panini.Solver.Abstract.ABool
   ) where
 
 import Algebra.Lattice
+import Panini.Printer
 import Prelude
 
 -------------------------------------------------------------------------------
@@ -52,3 +55,9 @@ concreteBool _      = Nothing
 aBoolEq :: Bool -> ABool
 aBoolEq True  = True_
 aBoolEq False = False_
+
+instance Pretty ABool where
+  pretty Top = "{t,f}"
+  pretty True_ = "t"
+  pretty False_ = "f"
+  pretty Bottom = "↯"
