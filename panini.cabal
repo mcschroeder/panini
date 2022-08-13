@@ -52,6 +52,7 @@ library
     , directory
     , filepath
     , haskeline
+    , lattices
     , megaparsec == 9.2.*
     , parser-combinators
     , prettyprinter

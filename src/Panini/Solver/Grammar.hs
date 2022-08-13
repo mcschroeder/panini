@@ -3,10 +3,11 @@
 
 module Panini.Solver.Grammar (solve) where
 
+import Algebra.Lattice
 import Panini.Printer
 import Panini.Syntax
 import Prelude
-import Panini.Solver.AbstractInteger qualified as A
+import Panini.Solver.AInteger qualified as A
 import Panini.Pretty.Graphviz
 import Data.List qualified as List
 import Data.Text qualified as Text
@@ -41,7 +42,7 @@ data GExpr
 data GFact
   = GAtom Bool Name
   | GIff Name Pred
-  | GVarIntAbs Name A.AbstractInteger
+  | GVarIntAbs Name A.AInteger
   | GPred Pred -- TODO: remove  
   deriving stock (Show, Read)
 
@@ -122,7 +123,7 @@ convRel = \case
   Gt  -> Lt
   Lt  -> Gt
 
-relToAbsInt :: Rel -> Integer -> A.AbstractInteger
+relToAbsInt :: Rel -> Integer -> A.AInteger
 relToAbsInt r i = case r of
   Eq  -> A.mkEq i
   Neq -> A.mkNeq i
@@ -162,25 +163,25 @@ meetFacts (x0:xs0) = go x0 [] xs0
     go z (y:ys)    []  = z : go y [] ys
     go z    ys  (x:xs) = case meetFact z x of
       Top     -> go z (x:ys) xs
-      Meet z' -> go z'   ys  xs
+      Meet_ z' -> go z'   ys  xs
       Bottom  -> []
 
 
-data Meet a = Top | Meet a | Bottom
+data Meet_ a = Top | Meet_ a | Bottom
 
-meetFact :: GFact -> GFact -> Meet GFact
+meetFact :: GFact -> GFact -> Meet_ GFact
 meetFact f1 f2 = case (f1, f2) of
   (GAtom pa a, GAtom pb b) 
     | a == b, pa /= pb -> Bottom
-    | a == b, pa == pb -> Meet $ GAtom pa a
+    | a == b, pa == pb -> Meet_ $ GAtom pa a
 
   (GIff _ _, GAtom _ _) -> meetFact f2 f1
   (GAtom pa a, GIff b p)
-    | a == b, pa == True  -> Meet $ predToFact p
-    | a == b, pa == False -> Meet $ predToFact (PNot p)
+    | a == b, pa == True  -> Meet_ $ predToFact p
+    | a == b, pa == False -> Meet_ $ predToFact (PNot p)
 
   (GVarIntAbs a i1, GVarIntAbs b i2)
-    | a == b -> Meet $ GVarIntAbs a (A.meet i1 i2)
+    | a == b -> Meet_ $ GVarIntAbs a (i1 /\ i2)
 
   _ -> Top
 
