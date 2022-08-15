@@ -26,52 +26,26 @@ solve' = treeify
 -------------------------------------------------------------------------------
 
 data Tree
-  = TOr Tree Tree        -- p ∨ q
-  | TAnd Tree Tree       -- p ∧ q
---  | TImpl Tree Tree      -- p ⟹ q
---  | TIff Tree Tree       -- p ⟺ q
-  | TTerm [Fact]
+  = TOr Tree Tree   -- p ∨ q
+  | TAnd Tree Tree  -- p ∧ q
+  | TTerm APredSet
   deriving stock (Show, Read)
 
-data Fact
-  = FVarI Name AInteger    -- x = α
-  | FVarB Name ABool       -- x = β
-  | FVarC Name AChar       -- x = γ
-  | FStrAt AInteger AChar  -- s[α] = γ
-  | FPred Pred -- TODO: remove
-  deriving stock (Show, Read)
+type APredSet = [APred]
 
+data APred
+  = AEq Name AExpr           -- ^ x = α
+  | AStrAt Name AExpr AExpr  -- ^ x[α] = β
+  | AStrLen Name AExpr       -- ^ |x| = α
+  | AUnknown Pred
+  deriving stock (Eq, Show, Read)
 
--- meetFacts :: [GFact] -> [GFact]
--- meetFacts [] = []
--- meetFacts (x0:xs0) = go x0 [] xs0
---   where
---     go z    []     []  = z : []
---     go z (y:ys)    []  = z : go y [] ys
---     go z    ys  (x:xs) = case meetFact z x of
---       Top     -> go z (x:ys) xs
---       Meet_ z' -> go z'   ys  xs
---       Bottom  -> []
-
-
--- data Meet_ a = Top | Meet_ a | Bottom
-
--- meetFact :: GFact -> GFact -> Meet_ GFact
--- meetFact f1 f2 = case (f1, f2) of
---   (GAtom pa a, GAtom pb b) 
---     | a == b, pa /= pb -> Bottom
---     | a == b, pa == pb -> Meet_ $ GAtom pa a
-
---   (GIff _ _, GAtom _ _) -> meetFact f2 f1
---   (GAtom pa a, GIff b p)
---     | a == b, pa == True  -> Meet_ $ predToFact p
---     | a == b, pa == False -> Meet_ $ predToFact (PNot p)
-
---   (GVarIntAbs a i1, GVarIntAbs b i2)
---     | a == b -> Meet_ $ GVarIntAbs a (i1 /\ i2)
-
---   _ -> Top
-
+data AExpr
+  = AInteger AInteger
+  | ABool ABool
+  | AChar AChar
+  | AVar Name
+  deriving stock (Eq, Show, Read)
 
 -------------------------------------------------------------------------------
 
@@ -80,20 +54,22 @@ instance GraphViz Tree where
     where
       dag (TOr   p q) = CircleNode "∨" [dag p, dag q]
       dag (TAnd  p q) = CircleNode "∧" [dag p, dag q]
---      dag (TImpl p q) = CircleNode "⇒" [dag p, dag q]
---      dag (TIff  p q) = CircleNode "⇔" [dag p, dag q]
-      dag (TTerm fs)  = BoxNode (termLabel fs) []
-      
+      dag (TTerm fs)  = BoxNode (termLabel fs) []      
       termLabel [x] = rend $ pretty x
       termLabel xs  = rend $ mconcat $ map ((<> "\\l") . pretty) xs
       rend = renderDoc (RenderOptions False True Nothing)
 
-instance Pretty Fact where
-  pretty (FVarI x a) = pretty x <> " = " <> pretty a
-  pretty (FVarB x a) = pretty x <> " = " <> pretty a
-  pretty (FVarC x a) = pretty x <> " = " <> pretty a
-  pretty (FStrAt a c) = "s[" <> pretty a <> "] = " <> pretty c
-  pretty (FPred p)   = "⟨ " <> pretty p <> " ⟩"
+instance Pretty APred where
+  pretty (AEq x a) = pretty x <> " = " <> pretty a
+  pretty (AStrAt x a b) = pretty x <> "[" <> pretty a <> "] = " <> pretty b
+  pretty (AStrLen x a) = "|" <> pretty x <> "| = " <> pretty a
+  pretty (AUnknown p) = "⟨ " <> pretty p <> " ⟩"
+
+instance Pretty AExpr where
+  pretty (AInteger a) = pretty a
+  pretty (ABool a) = pretty a
+  pretty (AChar a) = pretty a
+  pretty (AVar x) = pretty x
 
 -------------------------------------------------------------------------------
 
@@ -101,36 +77,54 @@ treeify :: Con -> Tree
 treeify = goC
   where
     goC (CAnd c1 c2)       = TAnd (goC c1) (goC c2)    
-    goC (CAll x TInt  p c) = TAnd (TTerm [FVarI x (⊤)]) (TAnd (goP p) (goC c))
-    goC (CAll x TBool p c) = TAnd (TTerm [FVarB x (⊤)]) (TAnd (goP p) (goC c))    
+    goC (CAll x TInt  p c) = TAnd (TTerm [AEq x (AInteger (⊤))]) (TAnd (goP p) (goC c))
+    goC (CAll x TBool p c) = TAnd (TTerm [AEq x (ABool (⊤))]) (TAnd (goP p) (goC c))    
     goC (CAll _ _     p c) = TAnd (goP p) (goC c)
     goC (CHead p)          = goP p    
     goP (PAnd [p])         = goP p
     goP (PAnd (p:ps))      = TAnd (goP p) (goP (PAnd ps))
-    --goP (PIff p q)         = TIff (goP p) (goP q)
     goP (PIff p q)         = TOr (TAnd (goP p) (goP q)) (TAnd (goP (PNot p)) (goP (PNot q)))
     goP p                  = TTerm [factify p]
 
-factify :: Pred -> Fact
+factify :: Pred -> APred
 factify = \case
-  PNot (PCon (B b pv))           -> factify $ PCon (B (not b) pv)  
-  PNot (PRel r x y)              -> factify $ PRel (invRel r) x y
-  PRel r x@(PCon _) y@(PVar _)   -> factify $ PRel (convRel r) y x
-  PRel r x@(PCon _) y@(PFun _ _) -> factify $ PRel (convRel r) y x
+  PNot (PCon (B b pv)) -> factify $ PCon (B (not b) pv)  
+  PNot (PRel r x y)    -> factify $ PRel (invRel r) x y
 
-  PRel r (PFun "len" [PVar "s"]) y -> factify $ PRel r (PVar "|s|") y
-  PRel r x (PFun "len" [PVar "s"]) -> factify $ PRel r x (PVar "|s|")
+  PVar x        -> AEq x $ ABool $ aBoolEq True
+  PNot (PVar x) -> AEq x $ ABool $ aBoolEq False
+  
+  PRel r y@(PCon _) x@(PVar _) -> factify $ PRel (convRel r) x y
+  PRel r   (PVar x) (PCon (I i _)) -> AEq x $ AInteger $ aIntegerRel r i
+  PRel Eq  (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq b
+  PRel Neq (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq (not b)
+  PRel Eq  (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharEq c
+  PRel Neq (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharNeq c
+  
+  PRel Eq (PVar x) (PVar y) -> AEq x (AVar y)
 
-  PVar x                         -> FVarB x (aBoolEq True)
-  PNot (PVar x)                  -> FVarB x (aBoolEq False)
-  PRel r (PVar x) (PCon (I i _)) -> FVarI x (relToAbsInt r i)
-  
-  PRel Eq (PVar x) (PCon (S s _))
-    | [c] <- Text.unpack s       -> FVarC x (aCharEq c)
-  PRel Neq (PVar x) (PCon (S s _))
-    | [c] <- Text.unpack s       -> FVarC x (aCharNeq c)
-  
-  p                              -> FPred p
+  PRel r y x@(PStrLen _) -> factify $ PRel (convRel r) x y
+  PRel r  (PStrLen s) (PCon (I i _)) -> AStrLen s $ AInteger $ aIntegerRel r i
+  PRel Eq (PStrLen s) (PVar x)       -> AStrLen s $ AVar x
+
+  PRel r y x@(PStrAt _ _) -> factify $ PRel (convRel r) x y  
+  PRel Eq  (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharEq c)
+  PRel Neq (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharNeq c)
+  PRel Eq  (PStrAt s (PCon (I i _))) (PVar y)     -> AStrAt s (AInteger $ aIntegerEq i) (AVar y)  
+  PRel Eq  (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharEq c)
+  PRel Neq (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharNeq c)
+  PRel Eq  (PStrAt s (PVar x))       (PVar y)     -> AStrAt s (AVar x) (AVar y)
+
+  p -> AUnknown p
+
+pattern PConChar :: Char -> Pred
+pattern PConChar c <- PCon (S (Text.unpack -> [c]) _)
+
+pattern PStrLen :: Name -> Pred
+pattern PStrLen x <- PFun "len" [PVar x]
+
+pattern PStrAt :: Name -> Pred -> Pred
+pattern PStrAt x p <- PFun "charat" [PVar x, p]
 
 -- | Inverse of a relation, e.g., ≥ to <.
 invRel :: Rel -> Rel
@@ -152,8 +146,8 @@ convRel = \case
   Gt  -> Lt
   Lt  -> Gt
 
-relToAbsInt :: Rel -> Integer -> AInteger
-relToAbsInt r i = case r of
+aIntegerRel :: Rel -> Integer -> AInteger
+aIntegerRel r i = case r of
   Eq  -> aIntegerEq i
   Neq -> aIntegerNeq i
   Gt  -> aIntegerGt i
