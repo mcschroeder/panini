@@ -1,5 +1,7 @@
 module Panini.Solver.Abstract.Lattice where
 
+import Prelude
+
 class MeetSemilattice a where
   (⊓) :: a -> a -> a
 

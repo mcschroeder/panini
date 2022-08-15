@@ -41,6 +41,7 @@ class Pretty a where
 
 instance Pretty Text where pretty = Prettyprinter.pretty
 instance Pretty String where pretty = Prettyprinter.pretty
+instance Pretty Char where pretty = Prettyprinter.pretty
 instance Pretty Integer where pretty = Prettyprinter.pretty
 instance Pretty Int where pretty = Prettyprinter.pretty
 

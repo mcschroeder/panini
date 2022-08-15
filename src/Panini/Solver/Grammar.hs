@@ -3,20 +3,15 @@
 
 module Panini.Solver.Grammar (solve) where
 
+import Data.Text qualified as Text
+import Panini.Pretty.Graphviz
 import Panini.Printer
+import Panini.Solver.Abstract.ABool
+import Panini.Solver.Abstract.AChar
+import Panini.Solver.Abstract.AInteger
+import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
-import Panini.Solver.Abstract.Lattice
-import Panini.Solver.Abstract.AInteger
-import Panini.Solver.Abstract.ABool
-import Panini.Pretty.Graphviz
-import Data.List qualified as List
-import Data.Text qualified as Text
-import Debug.Trace
-import Data.Bifunctor
-import Data.Foldable
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 
 -------------------------------------------------------------------------------
 
@@ -39,11 +34,12 @@ data Tree
   deriving stock (Show, Read)
 
 data Fact
-  = FVarI Name AInteger  -- x = α
-  | FVarB Name ABool     -- x = β
-  | FPred Pred           -- TODO: remove
+  = FVarI Name AInteger    -- x = α
+  | FVarB Name ABool       -- x = β
+  | FVarC Name AChar       -- x = γ
+  | FStrAt AInteger AChar  -- s[α] = γ
+  | FPred Pred -- TODO: remove
   deriving stock (Show, Read)
-
 
 
 -- meetFacts :: [GFact] -> [GFact]
@@ -95,6 +91,8 @@ instance GraphViz Tree where
 instance Pretty Fact where
   pretty (FVarI x a) = pretty x <> " = " <> pretty a
   pretty (FVarB x a) = pretty x <> " = " <> pretty a
+  pretty (FVarC x a) = pretty x <> " = " <> pretty a
+  pretty (FStrAt a c) = "s[" <> pretty a <> "] = " <> pretty c
   pretty (FPred p)   = "⟨ " <> pretty p <> " ⟩"
 
 -------------------------------------------------------------------------------
@@ -126,6 +124,12 @@ factify = \case
   PVar x                         -> FVarB x (aBoolEq True)
   PNot (PVar x)                  -> FVarB x (aBoolEq False)
   PRel r (PVar x) (PCon (I i _)) -> FVarI x (relToAbsInt r i)
+  
+  PRel Eq (PVar x) (PCon (S s _))
+    | [c] <- Text.unpack s       -> FVarC x (aCharEq c)
+  PRel Neq (PVar x) (PCon (S s _))
+    | [c] <- Text.unpack s       -> FVarC x (aCharNeq c)
+  
   p                              -> FPred p
 
 -- | Inverse of a relation, e.g., ≥ to <.
