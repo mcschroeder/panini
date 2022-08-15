@@ -1,7 +1,7 @@
 module Panini.Solver.Abstract.AChar
   ( AChar
   , aCharEq
-  , aCharNeq
+  , aCharNe
   ) where
 
 import Data.IntSet (IntSet)
@@ -40,8 +40,8 @@ aCharEq :: Char -> AChar
 aCharEq = AChar True . I.singleton . fromEnum
 
 -- | An abstract character @≠ c@, i.e., @= Σ\c@.
-aCharNeq :: Char -> AChar
-aCharNeq = AChar False . I.singleton . fromEnum
+aCharNe :: Char -> AChar
+aCharNe = AChar False . I.singleton . fromEnum
 
 instance Pretty AChar where
   pretty (AChar True cs) = case map (toEnum @Char) $ I.toAscList cs of

@@ -80,10 +80,10 @@ simplifyOr = go []
       | otherwise     = go (p:qs) ps
 
 taut :: Pred -> Bool
-taut (PTrue _)      = True
-taut (PAnd [])      = True
-taut (PAnd ps)      = all taut ps
-taut (PRel Eq  p q) = p == q
-taut (PRel Leq p q) = p == q
-taut (PRel Geq p q) = p == q
-taut _              = False
+taut (PTrue _)     = True
+taut (PAnd [])     = True
+taut (PAnd ps)     = all taut ps
+taut (PRel Eq p q) = p == q
+taut (PRel Le p q) = p == q
+taut (PRel Ge p q) = p == q
+taut _             = False

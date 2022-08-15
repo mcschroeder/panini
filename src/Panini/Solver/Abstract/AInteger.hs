@@ -6,11 +6,11 @@ module Panini.Solver.Abstract.AInteger
   , isEmpty
   , concreteInteger
   , aIntegerEq
-  , aIntegerNeq
+  , aIntegerNe
   , aIntegerGt
-  , aIntegerGeq
+  , aIntegerGe
   , aIntegerLt
-  , aIntegerLeq
+  , aIntegerLe
   ) where
 
 import Data.List (intersperse)
@@ -49,24 +49,24 @@ aIntegerEq :: Integer -> AInteger
 aIntegerEq a = AInteger [singleton a]
 
 -- | An abstract integer @≠ i@, i.e., @{[-∞..i-1],[i+1..+∞]}@.
-aIntegerNeq :: Integer -> AInteger
-aIntegerNeq a = AInteger [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
+aIntegerNe :: Integer -> AInteger
+aIntegerNe a = AInteger [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
 
 -- | An abstract integer @> i@, i.e., @[i+1..+∞]@.
 aIntegerGt :: Integer -> AInteger
 aIntegerGt a = AInteger [In (Fin (a + 1)) PosInf]
 
 -- | An abstract integer @≥ i@, i.e., @[i..+∞]@.
-aIntegerGeq :: Integer -> AInteger
-aIntegerGeq a = AInteger [In (Fin a) PosInf]
+aIntegerGe :: Integer -> AInteger
+aIntegerGe a = AInteger [In (Fin a) PosInf]
 
 -- | An abstract integer @< i@, i.e., @[-∞..i-1]@.
 aIntegerLt :: Integer -> AInteger
 aIntegerLt a = AInteger [In NegInf (Fin (a - 1))]
 
 -- | An abstract integer @≤ i@, i.e., @[-∞..i]@.
-aIntegerLeq :: Integer -> AInteger
-aIntegerLeq a = AInteger [In NegInf (Fin a)]
+aIntegerLe :: Integer -> AInteger
+aIntegerLe a = AInteger [In NegInf (Fin a)]
 
 instance Pretty AInteger where
   pretty (AInteger [])  = "∅"

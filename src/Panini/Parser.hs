@@ -337,11 +337,11 @@ predOps =
   , [ infixL (op "+") (PBin Add)
     , infixL (op "-") (PBin Sub)
     ]
-  , [ infixN symNeq   (PRel Neq)
+  , [ infixN symNe    (PRel Ne)
     , infixN (op "=") (PRel Eq)
-    , infixN symLeq   (PRel Leq)
+    , infixN symLe    (PRel Le)
     , infixN (op "<") (PRel Lt)
-    , infixN symGeq   (PRel Geq)
+    , infixN symGe    (PRel Ge)
     , infixN (op ">") (PRel Gt)
     ]
   , [ infixR symConj mkAnd
@@ -416,16 +416,16 @@ symNot :: Parser ()
 symNot = op "~" <|> symbol "¬"
 
 -- | Parses a disequality symbol.
-symNeq :: Parser ()
-symNeq = op "/=" <|> symbol "≠"
+symNe :: Parser ()
+symNe = op "/=" <|> symbol "≠"
 
 -- | Parsers a less-than-or-equal symbol.
-symLeq :: Parser ()
-symLeq = op "<=" <|> symbol "≤"
+symLe :: Parser ()
+symLe = op "<=" <|> symbol "≤"
 
 -- | Parsers a greater-than-or-equal symbol.
-symGeq :: Parser ()
-symGeq = op ">=" <|> symbol "≥"
+symGe :: Parser ()
+symGe = op ">=" <|> symbol "≥"
 
 -- | Parses a conjunction symbol.
 symConj :: Parser ()

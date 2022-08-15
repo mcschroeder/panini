@@ -75,9 +75,9 @@ instance SMTLib2 Bop where
 
 instance SMTLib2 Rel where
   encode Eq = "="
-  encode Neq = "disequal"
-  encode Geq = ">="
-  encode Leq = "<="
+  encode Ne = "disequal"
+  encode Ge = ">="
+  encode Le = "<="
   encode Gt = ">"
   encode Lt = "<"
 

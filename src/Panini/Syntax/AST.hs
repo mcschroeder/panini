@@ -125,7 +125,7 @@ data Pred
 data Bop = Add | Sub | Mul | Div
   deriving stock (Eq, Show, Read)
 
-data Rel = Eq | Neq | Geq | Leq | Gt | Lt
+data Rel = Eq | Ne | Ge | Le | Gt | Lt
   deriving stock (Eq, Show, Read)
 
 pattern PTrue :: PV -> Pred

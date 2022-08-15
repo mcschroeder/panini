@@ -123,11 +123,11 @@ factify = \case
   PNot (PVar x) -> AEq x $ ABool $ aBoolEq False
   
   PRel r y@(PCon _) x@(PVar _) -> factify $ PRel (convRel r) x y
-  PRel r   (PVar x) (PCon (I i _)) -> AEq x $ AInteger $ aIntegerRel r i
-  PRel Eq  (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq b
-  PRel Neq (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq (not b)
-  PRel Eq  (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharEq c
-  PRel Neq (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharNeq c
+  PRel r  (PVar x) (PCon (I i _)) -> AEq x $ AInteger $ aIntegerRel r i
+  PRel Eq (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq b
+  PRel Ne (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq (not b)
+  PRel Eq (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharEq c
+  PRel Ne (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharNe c
   
   PRel Eq (PVar x) (PVar y) -> AEq x (AVar y)
 
@@ -136,12 +136,12 @@ factify = \case
   PRel Eq (PStrLen s) (PVar x)       -> AStrLen s $ AVar x
 
   PRel r y x@(PStrAt _ _) -> factify $ PRel (convRel r) x y  
-  PRel Eq  (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharEq c)
-  PRel Neq (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharNeq c)
-  PRel Eq  (PStrAt s (PCon (I i _))) (PVar y)     -> AStrAt s (AInteger $ aIntegerEq i) (AVar y)  
-  PRel Eq  (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharEq c)
-  PRel Neq (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharNeq c)
-  PRel Eq  (PStrAt s (PVar x))       (PVar y)     -> AStrAt s (AVar x) (AVar y)
+  PRel Eq (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharEq c)
+  PRel Ne (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharNe c)
+  PRel Eq (PStrAt s (PCon (I i _))) (PVar y)     -> AStrAt s (AInteger $ aIntegerEq i) (AVar y)  
+  PRel Eq (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharEq c)
+  PRel Ne (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharNe c)
+  PRel Eq (PStrAt s (PVar x))       (PVar y)     -> AStrAt s (AVar x) (AVar y)
 
   p -> AUnknown p
 
@@ -157,31 +157,31 @@ pattern PStrAt x p <- PFun "charat" [PVar x, p]
 -- | Inverse of a relation, e.g., ≥ to <.
 invRel :: Rel -> Rel
 invRel = \case
-  Eq  -> Neq
-  Neq -> Eq
-  Geq -> Lt
-  Leq -> Gt
-  Gt  -> Leq
-  Lt  -> Geq
+  Eq -> Ne
+  Ne -> Eq
+  Ge -> Lt
+  Le -> Gt
+  Gt -> Le
+  Lt -> Ge
 
 -- | Converse of a relation, e.g., ≥ to ≤.
 convRel :: Rel -> Rel
 convRel = \case
-  Eq  -> Eq
-  Neq -> Neq
-  Geq -> Leq
-  Leq -> Geq
-  Gt  -> Lt
-  Lt  -> Gt
+  Eq -> Eq
+  Ne -> Ne
+  Ge -> Le
+  Le -> Ge
+  Gt -> Lt
+  Lt -> Gt
 
 aIntegerRel :: Rel -> Integer -> AInteger
 aIntegerRel r i = case r of
-  Eq  -> aIntegerEq i
-  Neq -> aIntegerNeq i
-  Gt  -> aIntegerGt i
-  Geq -> aIntegerGeq i
-  Lt  -> aIntegerLt i
-  Leq -> aIntegerLeq i
+  Eq -> aIntegerEq i
+  Ne -> aIntegerNe i
+  Gt -> aIntegerGt i
+  Ge -> aIntegerGe i
+  Lt -> aIntegerLt i
+  Le -> aIntegerLe i
 
 -------------------------------------------------------------------------------
 
