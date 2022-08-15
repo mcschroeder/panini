@@ -1,5 +1,6 @@
 module Panini.Solver.Abstract.Lattice where
 
+import Data.Foldable
 import Prelude
 
 class MeetSemilattice a where
@@ -28,3 +29,19 @@ joins = foldr (⊔) (⊥)
 
 type Lattice a = (MeetSemilattice a, JoinSemilattice a)
 type BoundedLattice a = (BoundedMeetSemilattice a, BoundedJoinSemilattice a)
+
+class PartialMeetSemilattice a where
+  (⊓?) :: a -> a -> Maybe a
+
+partialMeets :: (Foldable t, PartialMeetSemilattice a) => t a -> [a]
+partialMeets = foldr go [] . toList
+  where
+    go x []     = [x]
+    go x (y:ys) = case x ⊓? y of
+      Just z  -> z : ys
+      Nothing -> y : go x ys
+
+class PartialJoinSemilattice a where
+  (⊔?) :: a -> a -> Maybe a
+
+type PartialLattice a = (PartialMeetSemilattice a, PartialJoinSemilattice a)

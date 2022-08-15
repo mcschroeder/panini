@@ -21,9 +21,19 @@ solve c =
   in t `seq` PFalse NoPV
 
 solve' :: Con -> Tree
-solve' = treeify
+solve' = reduce . treeify
 
 -------------------------------------------------------------------------------
+
+reduce :: Tree -> Tree
+reduce = \case
+  TOr (reduce -> p) (reduce -> q) -> TOr p q
+  TAnd (reduce -> p) (reduce -> q)
+    | TTerm xs <- p, TTerm ys <- q -> TTerm (xs ⊓ ys)
+    | TOr (TTerm xs) (TTerm ys) <- p, TTerm zs <- q -> TOr (TTerm (xs ⊓ zs)) (TTerm (ys ⊓ zs))
+    | TTerm xs <- p, TOr (TTerm ys) (TTerm zs) <- q -> TOr (TTerm (xs ⊓ ys)) (TTerm (xs ⊓ zs))
+    | otherwise -> TAnd p q
+  TTerm xs -> TTerm xs
 
 data Tree
   = TOr Tree Tree   -- p ∨ q
@@ -33,6 +43,13 @@ data Tree
 
 type APredSet = [APred]
 
+-- TODO: if one is bottom all is bottom
+-- TODO: resolve variables on forall (to resolve them as early as possible)
+-- TODO: maybe the tree is a Heyting algebra? (ish?)
+
+instance MeetSemilattice APredSet where
+  xs ⊓ ys = partialMeets (xs ++ ys)
+
 data APred
   = AEq Name AExpr           -- ^ x = α
   | AStrAt Name AExpr AExpr  -- ^ x[α] = β
@@ -40,12 +57,24 @@ data APred
   | AUnknown Pred
   deriving stock (Eq, Show, Read)
 
+instance PartialMeetSemilattice APred where
+  AEq x a      ⊓? AEq y b      | x == y         = AEq x      <$> a ⊓? b
+  AStrAt x i a ⊓? AStrAt y j b | x == y, i == j = AStrAt x a <$> a ⊓? b
+  AStrLen x a  ⊓? AStrLen y b  | x == y         = AStrLen x  <$> a ⊓? b
+  _            ⊓? _                             = Nothing
+
 data AExpr
   = AInteger AInteger
   | ABool ABool
   | AChar AChar
   | AVar Name
   deriving stock (Eq, Show, Read)
+
+instance PartialMeetSemilattice AExpr where
+  AInteger a ⊓? AInteger b = Just $ AInteger $ a ⊓ b
+  ABool a    ⊓? ABool b    = Just $ ABool    $ a ⊓ b
+  AChar a    ⊓? AChar b    = Just $ AChar    $ a ⊓ b
+  _          ⊓? _          = Nothing
 
 -------------------------------------------------------------------------------
 
