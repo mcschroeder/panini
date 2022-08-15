@@ -56,7 +56,7 @@ aBoolEq True  = True_
 aBoolEq False = False_
 
 instance Pretty ABool where
-  pretty Top = "{t,f}"
-  pretty True_ = "t"
-  pretty False_ = "f"
+  pretty Top = "{𝗧,𝗙}"
+  pretty True_ = "𝗧" 
+  pretty False_ = "𝗙"
   pretty Bottom = "↯"
