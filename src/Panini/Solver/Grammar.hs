@@ -5,7 +5,7 @@ module Panini.Solver.Grammar (solve) where
 
 import Data.Text qualified as Text
 import Panini.Pretty.Graphviz
-import Panini.Printer
+import Panini.Pretty.Printer
 import Panini.Solver.Abstract.ABool
 import Panini.Solver.Abstract.AChar
 import Panini.Solver.Abstract.AInteger

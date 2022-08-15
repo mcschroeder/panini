@@ -6,8 +6,8 @@ module Panini.Solver.Abstract.ABool
   , aBoolEq
   ) where
 
+import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
-import Panini.Printer
 import Prelude
 
 -------------------------------------------------------------------------------

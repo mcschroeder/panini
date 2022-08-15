@@ -9,7 +9,7 @@ module Panini.Solver.Abstract.AChar
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import Data.List (intersperse)
-import Panini.Printer
+import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
 import Prelude
 

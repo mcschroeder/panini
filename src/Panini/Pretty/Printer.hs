@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Panini.Printer 
+module Panini.Pretty.Printer 
   ( Pretty(..)
   , RenderOptions(..)
   , renderDoc

@@ -21,7 +21,7 @@ import Data.Text.IO qualified as Text
 import Panini.Elaborator
 import Panini.Error
 import Panini.Parser
-import Panini.Printer
+import Panini.Pretty.Printer
 import Panini.Solver.Grammar qualified
 import Panini.Syntax
 import Prelude

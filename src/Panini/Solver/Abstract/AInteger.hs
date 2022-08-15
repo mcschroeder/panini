@@ -14,10 +14,10 @@ module Panini.Solver.Abstract.AInteger
   , aIntegerLeq
   ) where
 
-import Panini.Solver.Abstract.Lattice
-import Panini.Printer
-import Prelude hiding (isInfinite)
 import Data.List (intersperse)
+import Panini.Pretty.Printer
+import Panini.Solver.Abstract.Lattice
+import Prelude hiding (isInfinite)
 
 -------------------------------------------------------------------------------
 
