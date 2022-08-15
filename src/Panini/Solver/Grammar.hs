@@ -17,7 +17,7 @@ import Prelude
 
 solve :: Con -> Pred
 solve c = 
-  let t = traceGraph "trace.png" $ solve' c
+  let t = traceGraph "trace.svg" $ solve' c
   in t `seq` PFalse NoPV
 
 solve' :: Con -> Tree

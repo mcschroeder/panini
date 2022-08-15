@@ -30,7 +30,7 @@ renderDOT x =
 renderGraph :: GraphViz a => FilePath -> a -> IO ()
 renderGraph f x = do  
   let d' = Text.unpack $ renderDOT x
-  let args = ["-Tpng", "-o" ++ f]
+  let args = ["-Tsvg", "-o" ++ f]
   void $ readProcess "dot" args d'
 
 traceGraph :: GraphViz a => FilePath -> a -> a
