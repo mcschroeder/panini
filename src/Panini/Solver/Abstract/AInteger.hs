@@ -14,7 +14,7 @@ module Panini.Solver.Abstract.AInteger
   , aIntegerLeq
   ) where
 
-import Algebra.Lattice
+import Panini.Solver.Abstract.Lattice
 import Panini.Printer
 import Prelude hiding (isInfinite)
 import Data.List (intersperse)
@@ -24,7 +24,10 @@ import Data.List (intersperse)
 -- | An abstract integer.
 newtype AInteger = AInteger IntervalSequence
   deriving stock (Eq, Show, Read)
-  deriving newtype (Lattice, BoundedJoinSemiLattice, BoundedMeetSemiLattice)
+  deriving newtype 
+    ( MeetSemilattice, BoundedMeetSemilattice
+    , JoinSemilattice, BoundedJoinSemilattice
+    )
 
 -- | Does an abstract integer represent an infinite number of values?
 isInfinite :: AInteger -> Bool
@@ -34,7 +37,8 @@ isInfinite _                                = False
 
 -- | Does an abstract integer represent no values?
 isEmpty :: AInteger -> Bool
-isEmpty = (== bottom)
+isEmpty (AInteger []) = True
+isEmpty _             = False
 
 -- | The single concrete value represented by the abstract integer, or Nothing.
 concreteInteger :: AInteger -> Maybe Integer
@@ -76,28 +80,29 @@ instance Pretty AInteger where
 -- | An ordered list of non-overlapping intervals.
 type IntervalSequence = [Interval]
 
-instance Lattice IntervalSequence where
-  []     \/ ys       = ys
-  xs     \/ []       = xs
-  (x:xs) \/ (y:ys)
-    | x `precedes` y = x : (xs \/ (y:ys))
-    | y `precedes` x = y : ((x:xs) \/ ys)
-    | otherwise      = ((x \/ y) : xs) \/ ys 
+instance JoinSemilattice IntervalSequence where
+  []     ⊔ ys        = ys
+  xs     ⊔ []        = xs
+  (x:xs) ⊔ (y:ys)
+    | x `precedes` y = x : (xs ⊔ (y:ys))
+    | y `precedes` x = y : ((x:xs) ⊔ ys)
+    | otherwise      = ((x ⊔ y) : xs) ⊔ ys 
 
-  []     /\ _        = []
-  _      /\ []       = []
-  (x:xs) /\ (y:ys)
-    | x `before` y   = xs /\ (y:ys)
-    | y `before` x   = (x:xs) /\ ys
-    | x `contains` y = (x /\ y) : ((x:xs) /\ ys)
-    | y `contains` x = (x /\ y) : (xs /\ (y:ys))
-    | otherwise      = (x /\ y) : (xs /\ ys)
+instance BoundedJoinSemilattice IntervalSequence where
+  (⊥) = []
 
-instance BoundedJoinSemiLattice IntervalSequence where
-  bottom = []
+instance MeetSemilattice IntervalSequence where
+  []     ⊓ _         = []
+  _      ⊓ []        = []
+  (x:xs) ⊓ (y:ys)
+    | x `before` y   = xs ⊓ (y:ys)
+    | y `before` x   = (x:xs) ⊓ ys
+    | x `contains` y = (x ⊓ y) : ((x:xs) ⊓ ys)
+    | y `contains` x = (x ⊓ y) : (xs ⊓ (y:ys))
+    | otherwise      = (x ⊓ y) : (xs ⊓ ys)
 
-instance BoundedMeetSemiLattice IntervalSequence where
-  top = [top]
+instance BoundedMeetSemilattice IntervalSequence where
+  (⊤) = [(⊤)]
 
 -------------------------------------------------------------------------------
 
@@ -128,12 +133,14 @@ before (In _ b) (In c _) = b < c
 contains :: Interval -> Interval -> Bool
 contains (In a b) (In c d) = a <= c && d <= b
 
-instance Lattice Interval where
-  In a b \/ In c d = In (min a c) (max b d)
-  In a b /\ In c d = In (max a c) (min b d)
+instance JoinSemilattice Interval where
+  In a b ⊔ In c d = In (min a c) (max b d)
 
-instance BoundedMeetSemiLattice Interval where
-  top = In NegInf PosInf
+instance MeetSemilattice Interval where
+  In a b ⊓ In c d = In (max a c) (min b d)
+
+instance BoundedMeetSemilattice Interval where
+  (⊤) = In NegInf PosInf
 
 instance Pretty Interval where
   pretty (In a b)

@@ -6,7 +6,7 @@ module Panini.Solver.Abstract.ABool
   , aBoolEq
   ) where
 
-import Algebra.Lattice
+import Panini.Solver.Abstract.Lattice
 import Panini.Printer
 import Prelude
 
@@ -20,30 +20,31 @@ data ABool
   | Bottom
   deriving stock (Eq, Show, Read)
 
-instance Lattice ABool where
-  Top    \/ _      = Top
-  _      \/ Top    = Top
-  True_  \/ False_ = Top
-  False_ \/ True_  = Top
-  True_  \/ True_  = True_
-  False_ \/ False_ = False_
-  Bottom \/ x      = x
-  x      \/ Bottom = x
+instance JoinSemilattice ABool where
+  Top    ⊔ _      = Top
+  _      ⊔ Top    = Top
+  True_  ⊔ False_ = Top
+  False_ ⊔ True_  = Top
+  True_  ⊔ True_  = True_
+  False_ ⊔ False_ = False_
+  Bottom ⊔ x      = x
+  x      ⊔ Bottom = x
 
-  Bottom /\ _      = Bottom
-  _      /\ Bottom = Bottom
-  True_  /\ False_ = Bottom
-  False_ /\ True_  = Bottom
-  True_  /\ True_  = True_
-  False_ /\ False_ = False_
-  Top    /\ x      = x
-  x      /\ Top    = x
+instance BoundedJoinSemilattice ABool where
+  (⊥) = Bottom
 
-instance BoundedJoinSemiLattice ABool where
-  bottom = Bottom
+instance MeetSemilattice ABool where
+  Bottom ⊓ _      = Bottom
+  _      ⊓ Bottom = Bottom
+  True_  ⊓ False_ = Bottom
+  False_ ⊓ True_  = Bottom
+  True_  ⊓ True_  = True_
+  False_ ⊓ False_ = False_
+  Top    ⊓ x      = x
+  x      ⊓ Top    = x
 
-instance BoundedMeetSemiLattice ABool where
-  top = Top
+instance BoundedMeetSemilattice ABool where
+  (⊤) = Top
 
 -- | The single concrete value represented by the abstract Boolean, or Nothing.
 concreteBool :: ABool -> Maybe Bool

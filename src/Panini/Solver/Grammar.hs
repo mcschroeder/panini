@@ -3,10 +3,10 @@
 
 module Panini.Solver.Grammar (solve) where
 
-import Algebra.Lattice
 import Panini.Printer
 import Panini.Syntax
 import Prelude
+import Panini.Solver.Abstract.Lattice
 import Panini.Solver.Abstract.AInteger
 import Panini.Solver.Abstract.ABool
 import Panini.Pretty.Graphviz
@@ -15,6 +15,8 @@ import Data.Text qualified as Text
 import Debug.Trace
 import Data.Bifunctor
 import Data.Foldable
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 
 -------------------------------------------------------------------------------
 
@@ -31,8 +33,8 @@ solve' = treeify
 data Tree
   = TOr Tree Tree        -- p ∨ q
   | TAnd Tree Tree       -- p ∧ q
-  | TImpl Tree Tree      -- p ⟹ q
-  | TIff Tree Tree       -- p ⟺ q
+--  | TImpl Tree Tree      -- p ⟹ q
+--  | TIff Tree Tree       -- p ⟺ q
   | TTerm [Fact]
   deriving stock (Show, Read)
 
@@ -42,6 +44,39 @@ data Fact
   | FPred Pred           -- TODO: remove
   deriving stock (Show, Read)
 
+
+
+-- meetFacts :: [GFact] -> [GFact]
+-- meetFacts [] = []
+-- meetFacts (x0:xs0) = go x0 [] xs0
+--   where
+--     go z    []     []  = z : []
+--     go z (y:ys)    []  = z : go y [] ys
+--     go z    ys  (x:xs) = case meetFact z x of
+--       Top     -> go z (x:ys) xs
+--       Meet_ z' -> go z'   ys  xs
+--       Bottom  -> []
+
+
+-- data Meet_ a = Top | Meet_ a | Bottom
+
+-- meetFact :: GFact -> GFact -> Meet_ GFact
+-- meetFact f1 f2 = case (f1, f2) of
+--   (GAtom pa a, GAtom pb b) 
+--     | a == b, pa /= pb -> Bottom
+--     | a == b, pa == pb -> Meet_ $ GAtom pa a
+
+--   (GIff _ _, GAtom _ _) -> meetFact f2 f1
+--   (GAtom pa a, GIff b p)
+--     | a == b, pa == True  -> Meet_ $ predToFact p
+--     | a == b, pa == False -> Meet_ $ predToFact (PNot p)
+
+--   (GVarIntAbs a i1, GVarIntAbs b i2)
+--     | a == b -> Meet_ $ GVarIntAbs a (i1 /\ i2)
+
+--   _ -> Top
+
+
 -------------------------------------------------------------------------------
 
 instance GraphViz Tree where
@@ -49,8 +84,8 @@ instance GraphViz Tree where
     where
       dag (TOr   p q) = CircleNode "∨" [dag p, dag q]
       dag (TAnd  p q) = CircleNode "∧" [dag p, dag q]
-      dag (TImpl p q) = CircleNode "⇒" [dag p, dag q]
-      dag (TIff  p q) = CircleNode "⇔" [dag p, dag q]
+--      dag (TImpl p q) = CircleNode "⇒" [dag p, dag q]
+--      dag (TIff  p q) = CircleNode "⇔" [dag p, dag q]
       dag (TTerm fs)  = BoxNode (termLabel fs) []
       
       termLabel [x] = rend $ pretty x
@@ -68,13 +103,14 @@ treeify :: Con -> Tree
 treeify = goC
   where
     goC (CAnd c1 c2)       = TAnd (goC c1) (goC c2)    
-    goC (CAll x TInt  p c) = TAnd (TTerm [FVarI x top]) (TImpl (goP p) (goC c))
-    goC (CAll x TBool p c) = TAnd (TTerm [FVarB x top]) (TImpl (goP p) (goC c))    
-    goC (CAll _ _     p c) = TImpl (goP p) (goC c)
+    goC (CAll x TInt  p c) = TAnd (TTerm [FVarI x (⊤)]) (TAnd (goP p) (goC c))
+    goC (CAll x TBool p c) = TAnd (TTerm [FVarB x (⊤)]) (TAnd (goP p) (goC c))    
+    goC (CAll _ _     p c) = TAnd (goP p) (goC c)
     goC (CHead p)          = goP p    
     goP (PAnd [p])         = goP p
     goP (PAnd (p:ps))      = TAnd (goP p) (goP (PAnd ps))
-    goP (PIff p q)         = TIff (goP p) (goP q)
+    --goP (PIff p q)         = TIff (goP p) (goP q)
+    goP (PIff p q)         = TOr (TAnd (goP p) (goP q)) (TAnd (goP (PNot p)) (goP (PNot q)))
     goP p                  = TTerm [factify p]
 
 factify :: Pred -> Fact
