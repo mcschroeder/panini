@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -------------------------------------------------------------------------------
 -- | An implementation of Horn constraint solving via predicate abstraction.
 --

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Panini.Pretty.Graphviz where
 
 import Control.Monad

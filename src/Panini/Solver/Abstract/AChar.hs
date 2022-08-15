@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Panini.Solver.Abstract.AChar
   ( AChar
   , aCharEq

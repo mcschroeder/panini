@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Panini.REPL
   ( repl,
     replSettings,

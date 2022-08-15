@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- TODO: module documentation
 module Panini.Syntax.AST where
 

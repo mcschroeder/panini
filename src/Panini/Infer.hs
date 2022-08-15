@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Panini.Infer where
 
 import Control.Monad.Trans.Class

@@ -70,8 +70,9 @@ library
     ImportQualifiedPost
     LambdaCase
     OverloadedRecordDot
-    ViewPatterns
+    OverloadedStrings
     PatternSynonyms
+    ViewPatterns
   
   ghc-options:
     -Weverything
@@ -104,4 +105,5 @@ executable pan
     DataKinds
     ImportQualifiedPost
     LambdaCase
+    OverloadedStrings
     ViewPatterns

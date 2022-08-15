@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Panini.Solver.Abstract.ABool
   ( ABool
   , concreteBool
