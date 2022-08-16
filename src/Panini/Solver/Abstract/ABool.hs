@@ -44,6 +44,12 @@ instance MeetSemilattice ABool where
 instance BoundedMeetSemilattice ABool where
   (⊤) = Top
 
+instance ComplementedLattice ABool where
+  neg Top    = Bottom
+  neg True_  = False_
+  neg False_ = True_
+  neg Bottom = Top
+
 -- | The single concrete value represented by the abstract Boolean, or Nothing.
 concreteBool :: ABool -> Maybe Bool
 concreteBool True_  = Just True

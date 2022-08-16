@@ -45,3 +45,6 @@ class PartialJoinSemilattice a where
   (⊔?) :: a -> a -> Maybe a
 
 type PartialLattice a = (PartialMeetSemilattice a, PartialJoinSemilattice a)
+
+class BoundedLattice a => ComplementedLattice a where  
+  neg :: a -> a

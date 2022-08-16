@@ -35,6 +35,9 @@ instance JoinSemilattice AChar where
 instance BoundedJoinSemilattice AChar where
   (⊥) = AChar True mempty
 
+instance ComplementedLattice AChar where
+  neg (AChar b xs) = AChar (not b) xs
+
 -- | An abstract character @= c@.
 aCharEq :: Char -> AChar
 aCharEq = AChar True . I.singleton . fromEnum

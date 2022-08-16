@@ -26,6 +26,7 @@ newtype AInteger = AInteger IntervalSequence
   deriving newtype 
     ( MeetSemilattice, BoundedMeetSemilattice
     , JoinSemilattice, BoundedJoinSemilattice
+    , ComplementedLattice
     )
 
 -- | Does an abstract integer represent an infinite number of values?
@@ -102,6 +103,16 @@ instance MeetSemilattice IntervalSequence where
 
 instance BoundedMeetSemilattice IntervalSequence where
   (⊤) = [(⊤)]
+
+instance ComplementedLattice IntervalSequence where
+  neg [] = [(⊤)]  
+  neg (x:xs)
+    | In a@(Fin _) _ <- x = In NegInf (pred <$> a) : go (x:xs)
+    | otherwise = go (x:xs)
+    where
+      go (In _ b : y@(In c _) : zs) = In (succ <$> b) (pred <$> c) : go (y:zs)
+      go [In _ b@(Fin _)] = [In (succ <$> b) PosInf]
+      go _ = []  
 
 -------------------------------------------------------------------------------
 
