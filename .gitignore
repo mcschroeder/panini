@@ -1,5 +1,5 @@
-trace.png
-trace.svg
+trace*.png
+trace*.svg
 
 ### Haskell
 dist

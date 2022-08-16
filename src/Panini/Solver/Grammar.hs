@@ -20,31 +20,93 @@ solve c =
   in t `seq` PFalse NoPV
 
 solve' :: Con -> Tree
-solve' = reduce . treeify
+solve' = last . iterateUntilStable reduce . treeify
+
+iterateUntilStable :: (GraphViz a, Eq a) => (a -> a) -> a -> [a]
+iterateUntilStable f = go 0 . iterate f
+  where
+    go _ [] = []
+    go _ [x] = [x]
+    go !n (x:y:zs) 
+      | x == y = [x]
+      | otherwise = 
+        traceGraph ("trace" ++ show n ++ ".svg") x `seq` x : go (n + 1) (y:zs)
 
 -------------------------------------------------------------------------------
 
 reduce :: Tree -> Tree
 reduce = \case
-  TOr (reduce -> p) (reduce -> q) -> TOr p q
-  TAnd (reduce -> p) (reduce -> q)
-    | TTerm xs <- p, TTerm ys <- q -> TTerm (xs ⊓ ys)
-    | TOr (TTerm xs) (TTerm ys) <- p, TTerm zs <- q -> TOr (TTerm (xs ⊓ zs)) (TTerm (ys ⊓ zs))
-    | TTerm xs <- p, TOr (TTerm ys) (TTerm zs) <- q -> TOr (TTerm (xs ⊓ ys)) (TTerm (xs ⊓ zs))
-    | otherwise -> TAnd p q
+  TAnd (reduce -> t1) (reduce -> t2)
+    | TTerm xs <- t1, TTerm ys <- t2 -> TTerm (xs ⊓ ys)
+    | TOr t1a t1b <- t1              -> TOr (TAnd t1a t2) (TAnd t1b t2)
+    | TOr t2a t2b <- t2              -> TOr (TAnd t1 t2a) (TAnd t1 t2b)
+    | otherwise                      -> TAnd t1 t2
+
+  TOr (reduce -> t1) (reduce -> t2)
+    | TTerm xs <- t1, hasBot xs -> t2
+    | TTerm ys <- t2, hasBot ys -> t1
+    | otherwise                 -> TOr t1 t2
+  
+  TImpl (reduce -> t1) (reduce -> t2)
+    | TOr t1a t1b <- t1 -> TOr (TImpl t1a t2) (TImpl t1b t2)
+    | otherwise         -> TOr (negT t1) (TAnd t1 t2)    
+  --TImpl t1 t2 -> TImpl (reduce t1) (reduce t2)
+  --TImpl t1 t2 -> TAnd t1 t2
+  
+  --TAll x b t -> TAll x b (reduce t)  -- TODO: solve for x
+  TAll _ _ (reduce -> t) -> t
+  
+  TIff (reduce -> t1) (reduce -> t2) -> TOr (TAnd t1 t2) (TAnd (negT t1) (negT t2))
+
   TTerm xs -> TTerm xs
 
+hasBot :: APredSet -> Bool
+hasBot = any go
+  where
+    go (AEq _ e) = go2 e
+    go (AStrAt _ _ e2) = go2 e2
+    go (AStrLen _ e) = go2 e
+    go (AUnknown _) = False
+
+    go2 (AInteger a) = a == (⊥)
+    go2 (ABool a) = a == (⊥)
+    go2 (AChar a) = a == (⊥)
+    go2 (AVar _) = False
+
+negT :: Tree -> Tree
+negT = \case
+  TOr t1 t2 -> TAnd (negT t1) (negT t2)
+  TAnd t1 t2 -> TOr (negT t1) (negT t2)
+  TImpl t1 t2 -> TAnd t1 (negT t2)
+  TAll x b t -> TAll x b (negT t) -- TODO: ???
+  TIff t1 t2 -> TOr (TAnd (negT t1) t2) (TAnd t1 (negT t2))
+  TTerm xs -> TTerm (negA xs)
+
+negA :: APredSet -> APredSet
+negA = map go
+  where
+    go (AEq x e) = AEq x (go2 e)
+    go (AStrAt x e1 e2) = AStrAt x e1 (go2 e2)
+    go (AStrLen x e) = AStrLen x (go2 e)
+    go (AUnknown p) = AUnknown (PNot p)
+
+    go2 (AInteger a) = AInteger (neg a)
+    go2 (ABool a) = ABool (neg a)
+    go2 (AChar a) = AChar (neg a)
+    go2 (AVar x) = AVar x -- TODO: ?????
+
 data Tree
-  = TOr Tree Tree   -- p ∨ q
-  | TAnd Tree Tree  -- p ∧ q
+  = TOr Tree Tree        -- p ∨ q
+  | TAnd Tree Tree       -- p ∧ q
+  | TImpl Tree Tree      -- p ==> q
+  | TAll Name Base Tree  -- ∀x:b. p
+  | TIff Tree Tree       -- p <==> q
   | TTerm APredSet
-  deriving stock (Show, Read)
+  deriving stock (Eq, Show, Read)
 
 type APredSet = [APred]
 
--- TODO: if one is bottom all is bottom
--- TODO: resolve variables on forall (to resolve them as early as possible)
--- TODO: maybe the tree is a Heyting algebra? (ish?)
+-- TODO: abstract variables at forall, use symbolic rep beforehand?
 
 instance MeetSemilattice APredSet where
   xs ⊓ ys = partialMeets (xs ++ ys)
@@ -82,9 +144,13 @@ instance GraphViz Tree where
     where
       dag (TOr   p q) = CircleNode "∨" [dag p, dag q]
       dag (TAnd  p q) = CircleNode "∧" [dag p, dag q]
-      dag (TTerm fs)  = BoxNode (termLabel fs) []      
+      dag (TImpl  p q) = CircleNode "⇒" [dag p, dag q]
+      dag (TAll x b p) = CircleNode (allLabel x b) [dag p]
+      dag (TIff p q) = CircleNode "⇔" [dag p, dag q]
+      dag (TTerm fs)  = BoxNode (termLabel fs) []
       termLabel [x] = rend $ pretty x
       termLabel xs  = rend $ mconcat $ map ((<> "\\l") . pretty) xs
+      allLabel x b = rend $ "∀" <> pretty x <> ":" <> pretty b
       rend = renderDoc (RenderOptions False True Nothing)
 
 instance Pretty APred where
@@ -101,28 +167,29 @@ instance Pretty AExpr where
 
 -------------------------------------------------------------------------------
 
+-- TODO: thought: the tree is a just a reification of the analysis process,
+-- i.e., the (Heyting?) algebra, where each op (/\, \/, ==>, ...) is explicit
+
 treeify :: Con -> Tree
 treeify = goC
   where
-    goC (CAnd c1 c2)       = TAnd (goC c1) (goC c2)    
-    goC (CAll x TInt  p c) = TAnd (TTerm [AEq x (AInteger (⊤))]) (TAnd (goP p) (goC c))
-    goC (CAll x TBool p c) = TAnd (TTerm [AEq x (ABool (⊤))]) (TAnd (goP p) (goC c))    
-    goC (CAll _ _     p c) = TAnd (goP p) (goC c)
-    goC (CHead p)          = goP p    
-    goP (PAnd [p])         = goP p
-    goP (PAnd (p:ps))      = TAnd (goP p) (goP (PAnd ps))
-    goP (PIff p q)         = TOr (TAnd (goP p) (goP q)) (TAnd (goP (PNot p)) (goP (PNot q)))
-    goP p                  = TTerm [factify p]
+    goC (CAnd c1 c2)   = TAnd (goC c1) (goC c2)    
+    goC (CAll x b p c) = TAll x b (TImpl (goP p) (goC c))
+    goC (CHead p)      = goP p    
+    goP (PAnd [p])     = goP p
+    goP (PAnd (p:ps))  = TAnd (goP p) (goP (PAnd ps))
+    goP (PIff p q)     = TIff (goP p) (goP q)
+    goP p              = TTerm [abstract p]
 
-factify :: Pred -> APred
-factify = \case
-  PNot (PCon (B b pv)) -> factify $ PCon (B (not b) pv)  
-  PNot (PRel r x y)    -> factify $ PRel (invRel r) x y
+abstract :: Pred -> APred
+abstract = \case
+  PNot (PCon (B b pv)) -> abstract $ PCon (B (not b) pv)  
+  PNot (PRel r x y)    -> abstract $ PRel (invRel r) x y
 
   PVar x        -> AEq x $ ABool $ aBoolEq True
   PNot (PVar x) -> AEq x $ ABool $ aBoolEq False
   
-  PRel r y@(PCon _) x@(PVar _) -> factify $ PRel (convRel r) x y
+  PRel r y@(PCon _) x@(PVar _) -> abstract $ PRel (convRel r) x y
   PRel r  (PVar x) (PCon (I i _)) -> AEq x $ AInteger $ aIntegerRel r i
   PRel Eq (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq b
   PRel Ne (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq (not b)
@@ -131,11 +198,11 @@ factify = \case
   
   PRel Eq (PVar x) (PVar y) -> AEq x (AVar y)
 
-  PRel r y x@(PStrLen _) -> factify $ PRel (convRel r) x y
+  PRel r y x@(PStrLen _) -> abstract $ PRel (convRel r) x y
   PRel r  (PStrLen s) (PCon (I i _)) -> AStrLen s $ AInteger $ aIntegerRel r i
   PRel Eq (PStrLen s) (PVar x)       -> AStrLen s $ AVar x
 
-  PRel r y x@(PStrAt _ _) -> factify $ PRel (convRel r) x y  
+  PRel r y x@(PStrAt _ _) -> abstract $ PRel (convRel r) x y  
   PRel Eq (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharEq c)
   PRel Ne (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharNe c)
   PRel Eq (PStrAt s (PCon (I i _))) (PVar y)     -> AStrAt s (AInteger $ aIntegerEq i) (AVar y)  
