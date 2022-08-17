@@ -2,6 +2,7 @@
 
 module Panini.Solver.Grammar (solve) where
 
+import Data.List qualified as List
 import Data.Text qualified as Text
 import Panini.Pretty.Graphviz
 import Panini.Pretty.Printer
@@ -149,7 +150,7 @@ instance GraphViz Tree where
       dag (TIff p q) = CircleNode "⇔" [dag p, dag q]
       dag (TTerm fs)  = BoxNode (termLabel fs) []
       termLabel [x] = rend $ pretty x
-      termLabel xs  = rend $ mconcat $ map ((<> "\\l") . pretty) xs
+      termLabel xs = mconcat $ map ((<> "\\l")) $ List.sort $ map (rend . pretty) xs
       allLabel x b = rend $ "∀" <> pretty x <> ":" <> pretty b
       rend = renderDoc (RenderOptions False True Nothing)
 
