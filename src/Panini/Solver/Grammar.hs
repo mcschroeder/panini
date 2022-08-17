@@ -13,6 +13,8 @@ import Panini.Solver.Abstract.AInteger
 import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
+import Debug.Trace
+import Data.Set qualified as Set
 
 -------------------------------------------------------------------------------
 
@@ -22,7 +24,8 @@ solve c =
   in t `seq` PFalse NoPV
 
 solve' :: Con -> Tree
-solve' = last . iterateUntilStable reduce . treeify
+--solve' = last . iterateUntilStable reduce . treeify
+solve' = reduce . treeify . CAll "s" TString (PTrue NoPV)
 
 iterateUntilStable :: (GraphViz a, Eq a) => (a -> a) -> a -> [a]
 iterateUntilStable f = go 0 . iterate f
@@ -32,28 +35,53 @@ iterateUntilStable f = go 0 . iterate f
     go !n (x:y:zs) 
       | x == y = [x]
       | otherwise = 
-        traceGraph ("trace" ++ show n ++ ".svg") x `seq` x : go (n + 1) (y:zs)
+        x : go (n + 1) (y:zs)
+        --traceGraph ("trace" ++ show n ++ ".svg") x `seq` x : go (n + 1) (y:zs)
 
 -------------------------------------------------------------------------------
 
 reduce :: Tree -> Tree
-reduce = transform red
+reduce = rewrite go
   where
-    red (TAnd (TTerm xs)  (TTerm ys))  = TTerm (xs ⊓ ys)
-    red (TAnd (TOr t1 t2) t3)          = TOr (TAnd t1 t3) (TAnd t2 t3)
-    red (TAnd t3          (TOr t1 t2)) = TOr (TAnd t1 t3) (TAnd t2 t3)
+    go (TAnd TTrue t2) = Just t2
+    go (TAnd t1 TTrue) = Just t1
+    go (TAnd (TTerm xs) (TTerm ys)) = Just $ TTerm (xs ⊓ ys)
+    go (TAnd TFalse _) = Just TFalse
+    go (TAnd _ TFalse) = Just TFalse
+    go (TAnd (TOr t1 t2) t3) = Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
+    go (TAnd t1 (TOr t2 t3)) = Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
     
-    red (TOr (TTerm xs) t2) | hasBot xs = t2
-    red (TOr t1 (TTerm ys)) | hasBot ys = t1
+    go (TOr TFalse t2) = Just t2
+    go (TOr t1 TFalse) = Just t1
+    go (TOr (TTerm xs) (TTerm ys))
+      | all (`elem` ys) xs = Just (TTerm ys)
+      | all (`elem` xs) ys = Just (TTerm xs)
+
+    go (TTerm xs) | hasBot xs = Just TFalse
+
+    go (TImpl (TOr t1 t2) t3) = Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
+    go (TImpl t1 t2) = Just $ TOr (negT t1) (TAnd t1 t2)
+
+    go (TIff t1 t2) = Just $ TOr (TAnd t1 t2) (TAnd (negT t1) (negT t2))
+
+    go (TAll _ _ t) = Just t
+
+    -- go (TAll _ TUnit t) = Just t
+    -- go (TAll x TBool (TTerm xs)) 
+    --   | Just xs' <- solveForBool x xs = Just (TTerm xs')
+    -- go (TAll x TString (TTerm xs))
+    --   | Just xs' <- solveForString x xs = Just (TTerm xs')
     
-    red (TImpl t1 t2) = TOr (negT t1) (TAnd t1 t2)
+    -- go (TAll x TInt (TTerm xs))
+    --   | Just xs' <- solveForInt x xs = Just (TTerm xs')
+    
+    -- go (TAll x TInt (TOr (TTerm xs) (TTerm ys)))
+    --   | Just xs' <- solveForInt x xs
+    --   , Just ys' <- solveForInt x ys 
+    --   = Just (TOr (TTerm xs') (TTerm ys'))
+    
 
-    red (TIff t1 t2) = TAnd (TImpl t1 t2) (TImpl t2 t1)
-
-    red (TAll _ _ t) = t
-
-    red x = x
-
+    go _ = Nothing
 
 hasBot :: APredSet -> Bool
 hasBot = any go
@@ -76,6 +104,8 @@ negT = \case
   TAll x b t -> TAll x b (negT t) -- TODO: ???
   TIff t1 t2 -> TOr (TAnd (negT t1) t2) (TAnd t1 (negT t2))
   TTerm xs -> TTerm (negA xs)
+  TTrue -> TFalse
+  TFalse -> TTrue
 
 negA :: APredSet -> APredSet
 negA = map go
@@ -97,6 +127,8 @@ data Tree
   | TAll Name Base Tree  -- ∀x:b. p
   | TIff Tree Tree       -- p <==> q
   | TTerm APredSet
+  | TTrue
+  | TFalse
   deriving stock (Eq, Show, Read)
 
 instance Uniplate Tree where
@@ -140,6 +172,46 @@ instance PartialMeetSemilattice AExpr where
   AChar a    ⊓? AChar b    = Just $ AChar    $ a ⊓ b
   _          ⊓? _          = Nothing
 
+
+solveFor :: Name -> APredSet -> Maybe APredSet
+solveFor x ps0 = undefined
+
+
+
+
+
+solveForBool :: Name -> APredSet -> Maybe APredSet
+solveForBool x ps = case filter (\p -> isLHS x p || isRHS x p) ps of
+  [] -> Just ps
+  [p@(AEq v (ABool _))] | v == x -> Just $ ps List.\\ [p]
+  _ -> Nothing
+
+solveForString :: Name -> APredSet -> Maybe APredSet
+solveForString x ps = case (filter (isLHS x) ps, filter (isRHS x) ps, filter (\p -> not (isLHS x p || isRHS x p)) ps) of
+  ([],[],qs) -> Just qs
+  ([AEq _ e], [AStrAt s i (AVar _)], qs) -> Just $ AStrAt s i e : qs
+  _ -> Nothing
+
+solveForInt :: Name -> APredSet -> Maybe APredSet
+solveForInt x ps = case (filter (isLHS x) ps, filter (isRHS x) ps, filter (\p -> not (isLHS x p || isRHS x p)) ps) of
+  ([],[],qs) -> Just qs
+  ([AEq _ e], [AStrLen s (AVar _)], qs) -> Just $ AStrLen s e : qs
+  _ -> Nothing
+
+isLHS :: Name -> APred -> Bool
+isLHS v (AEq y _)             = y == v
+isLHS v (AStrAt _ (AVar y) _) = y == v
+isLHS v (AStrAt y _ _)        = y == v
+isLHS v (AStrLen y _)         = y == v
+isLHS _ _                     = False
+
+isRHS :: Name -> APred -> Bool
+isRHS v (AEq _ (AVar y))      = y == v
+isRHS v (AStrAt _ _ (AVar y)) = y == v
+isRHS v (AStrLen _ (AVar y))  = y == v
+isRHS _ _                     = False
+
+
 -------------------------------------------------------------------------------
 
 instance GraphViz Tree where
@@ -151,6 +223,8 @@ instance GraphViz Tree where
       dag (TAll x b p) = CircleNode (allLabel x b) [dag p]
       dag (TIff p q) = CircleNode "⇔" [dag p, dag q]
       dag (TTerm fs)  = BoxNode (termLabel fs) []
+      dag TTrue = Node [Shape None, Label "⊤"] []
+      dag TFalse = Node [Shape None, Label "⊥"] []
       termLabel [x] = rend $ pretty x
       termLabel xs = mconcat $ map ((<> "\\l")) $ List.sort $ map (rend . pretty) xs
       allLabel x b = rend $ "∀" <> pretty x <> ":" <> pretty b
@@ -182,6 +256,8 @@ treeify = goC
     goP (PAnd [p])     = goP p
     goP (PAnd (p:ps))  = TAnd (goP p) (goP (PAnd ps))
     goP (PIff p q)     = TIff (goP p) (goP q)
+    goP (PTrue _)      = TTrue
+    goP (PFalse _)     = TFalse
     goP p              = TTerm [abstract p]
 
 abstract :: Pred -> APred
@@ -252,182 +328,3 @@ aIntegerRel r i = case r of
   Ge -> aIntegerGe i
   Lt -> aIntegerLt i
   Le -> aIntegerLe i
-
--------------------------------------------------------------------------------
-
--- resolve :: Tree -> GExpr
--- resolve (GExpr e) = e
--- resolve (TImpl t1 t2) = resolve t1 `meetExpr` resolve t2
--- resolve (TAll x _ t) = solveFor x (resolve t)
--- resolve (TAnd t1 t2) =
---   let e1 = resolve t1
---       e2 = resolve t2
---   in case e1 `meetExpr` e2 of
---     GSimple [] -> e1 `orExpr` e2
---     z -> z
-
--- meetExpr :: GExpr -> GExpr -> GExpr
--- meetExpr (GSimple xs) (GSimple ys) = GSimple $ meetFacts (xs ++ ys)
--- meetExpr e1@(GSimple xs) (GChoice ys e2) = GChoice (meetFacts (xs ++ ys)) (e1 `meetExpr` e2)
--- meetExpr (GChoice xs e1) e2@(GSimple ys) = GChoice (meetFacts (xs ++ ys)) (e1 `meetExpr` e2)
--- --meetExpr (GChoice xs e1) (GChoice ys e2) = undefined
-
--- orExpr :: GExpr -> GExpr -> GExpr
--- orExpr (GSimple xs) e = GChoice xs e
--- orExpr (GChoice xs e1) e2 = GChoice xs (e1 `orExpr` e2)
-
--- meetFacts :: [GFact] -> [GFact]
--- meetFacts [] = []
--- meetFacts (x0:xs0) = go x0 [] xs0
---   where
---     go z    []     []  = z : []
---     go z (y:ys)    []  = z : go y [] ys
---     go z    ys  (x:xs) = case meetFact z x of
---       Top     -> go z (x:ys) xs
---       Meet_ z' -> go z'   ys  xs
---       Bottom  -> []
-
-
--- data Meet_ a = Top | Meet_ a | Bottom
-
--- meetFact :: GFact -> GFact -> Meet_ GFact
--- meetFact f1 f2 = case (f1, f2) of
---   (GAtom pa a, GAtom pb b) 
---     | a == b, pa /= pb -> Bottom
---     | a == b, pa == pb -> Meet_ $ GAtom pa a
-
---   (GIff _ _, GAtom _ _) -> meetFact f2 f1
---   (GAtom pa a, GIff b p)
---     | a == b, pa == True  -> Meet_ $ predToFact p
---     | a == b, pa == False -> Meet_ $ predToFact (PNot p)
-
---   (GVarIntAbs a i1, GVarIntAbs b i2)
---     | a == b -> Meet_ $ GVarIntAbs a (i1 /\ i2)
-
---   _ -> Top
-
--- solveFor :: Name -> GExpr -> GExpr
--- solveFor _ = id
-
--- resolve :: Tree -> GExpr
--- resolve (GExpr xs) = xs
--- resolve (TAnd t1 t2) = 
---   let x = resolve t1 
---       y = resolve t2
---   in case x `meetExpr` y of
---     GFacts [] -> GChoice x y
---     z         -> z
--- resolve (TImpl t1 t2) = resolve t1 `meetExpr` resolve t2
--- resolve (TAll x _ t) = solveFor x $ resolve t
-
--- solveFor :: Name -> GExpr -> GExpr
--- solveFor _ = id
-
--- meetExpr :: GExpr -> GExpr -> GExpr
--- meetExpr (GFacts xs) (GFacts ys) = undefined
--- meetExpr (GChoice xs x2) (GFacts ys) = undefined
--- meetExpr (GFacts xs) (GChoice ys y2) = undefined
--- meetExpr (GChoice xs x2) (GChoice ys y2) = undefined
-
-
--- resolve (GOr xs ys) = GOr xs ys
--- resolve (TImpl (resolve -> GExpr xs) (resolve -> GExpr ys)) = GExpr (xs ++ ys)
--- resolve (TImpl (resolve -> GExpr ys) (resolve -> GOr ys zs)) = GExpr
---   (GExpr xs, GOr ys zs) -> GOr (xs ++ ys) (xs ++ zs)  -- TODO: meet
---   (GOr xs ys, GExpr zs) -> GOr (xs ++ zs) (ys ++ zs) -- TODO: meet
---   (t1', t2') -> TImpl t1' t2'
-
-
--- resolve (TImpl t1 t2) = case (resolve t1, resolve t2) of
---   (GExpr xs, GExpr ys) -> GExpr (xs ++ ys)  -- TODO: meet
---   (GExpr xs, GOr ys zs) -> GOr (xs ++ ys) (xs ++ zs)  -- TODO: meet
---   (GOr xs ys, GExpr zs) -> GOr (xs ++ zs) (ys ++ zs) -- TODO: meet
---   (t1', t2') -> TImpl t1' t2'
--- resolve (TAll _ _ p) = resolve p  -- TODO: solve for x
--- resolve (TAnd t1 t2) = case (resolve t1, resolve t2) of
---   (GExpr xs, GExpr ys) -> GExpr (xs ++ ys) -- TODO: meet
---   (GExpr xs, GOr ys zs) -> GOr (xs ++ ys) (xs ++ zs)  -- TODO: meet
---   (GOr xs ys, GExpr zs) -> GOr (xs ++ zs) (ys ++ zs) -- TODO: meet
---   (t1', t2') -> TImpl t1' t2'
-
-
-
-
-{-
-
-
--- solve :: Con -> Pred
--- solve = rewrite' resolveIffs . norm . elim
-
--------------------------------------------------------------------------------
-
--- | Eliminate quantifiers.
-elim :: Con -> Pred
-elim (CIf p1 c1 p2 c2) = (p1 `pAnd` elim c1) `pOr` (p2 `pAnd` elim c2)
-elim (CAnd c1 c2)      = elim c1 `pAnd` elim c2
-elim (CAll _ _ p c)    = p `pAnd` elim c
-elim (CHead p)         = p
-
-pattern CIf :: Pred -> Con -> Pred -> Con -> Con
-pattern CIf p1 c1 p2 c2 <- 
-  CAnd (CAll _ TUnit p1@(PVar x) c1) 
-       (CAll _ TUnit p2@(PNot (PVar ((== x) -> True))) c2)
-
--------------------------------------------------------------------------------
-
--- | Rewrite predicate into normal form.
-norm :: Pred -> Pred
-norm (PNot p)
-  | PRel r x y    <- p = norm (PRel (invRel r) x y)
-  | PCon (B b pv) <- p = PCon (B (not b) pv)
-    
-norm (PRel r x y)
-  | PCon _ <- x, PVar _   <- y = PRel (convRel r) y x
-  | PCon _ <- x, PFun _ _ <- y = PRel (convRel r) y x
-
-norm (PAnd ps) = PAnd $ map norm ps
-norm (POr  ps) = POr  $ map norm ps
-
-norm p = p
-
-
-
--------------------------------------------------------------------------------
-
--- | Rewrite a predicate using knowledge collected along the way.
---
--- Conjunctions ('PAnd') are rewritten sequentially, with knowledge flowing left
--- to right. Disjunctions ('POr') are rewritten independently of one another,
--- with knowledge only flowing downwards, but not across the alternatives.
-rewrite :: (k -> Pred -> (k, Pred)) -> k -> Pred -> (k, Pred)
-rewrite f = go
-  where
-    go k (PAnd ps) = foldl' (\(k', q) -> second (pAnd q) . go k') (k, tt) ps
-    go k (POr  ps) = (k, POr $ map (snd . go k) ps)
-    go k p         = f k p
-
-rewrite' :: Monoid k => (k -> Pred -> (k, Pred)) -> Pred -> Pred
-rewrite' f = snd . rewrite f mempty
-
-tt :: Pred
-tt = PTrue NoPV
-
--------------------------------------------------------------------------------
-
-resolveIffs :: Map Name Pred -> Pred -> (Map Name Pred, Pred)
-resolveIffs k p = case p of
-  PIff (PVar x) q -> (Map.insert x q k, tt)
-  
-  PVar x -> case Map.lookup x k of
-    Just q        -> (k, q)
-    Nothing       -> (k, p)    
-  
-  PNot (PVar x) -> case Map.lookup x k of
-    Just q        -> (k, norm (PNot q))
-    Nothing       -> (k, p)
-  
-  _               -> (k, p)
-    
--------------------------------------------------------------------------------
-
--}
