@@ -62,6 +62,7 @@ library
     , process
     , text
     , transformers
+    , uniplate
 
   default-language: GHC2021
   default-extensions: 

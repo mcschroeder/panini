@@ -2,6 +2,7 @@
 
 module Panini.Solver.Grammar (solve) where
 
+import Data.Generics.Uniplate.Direct
 import Data.List qualified as List
 import Data.Text qualified as Text
 import Panini.Pretty.Graphviz
@@ -36,30 +37,23 @@ iterateUntilStable f = go 0 . iterate f
 -------------------------------------------------------------------------------
 
 reduce :: Tree -> Tree
-reduce = \case
-  TAnd (reduce -> t1) (reduce -> t2)
-    | TTerm xs <- t1, TTerm ys <- t2 -> TTerm (xs ⊓ ys)
-    | TOr t1a t1b <- t1              -> TOr (TAnd t1a t2) (TAnd t1b t2)
-    | TOr t2a t2b <- t2              -> TOr (TAnd t1 t2a) (TAnd t1 t2b)
-    | otherwise                      -> TAnd t1 t2
+reduce = transform red
+  where
+    red (TAnd (TTerm xs)  (TTerm ys))  = TTerm (xs ⊓ ys)
+    red (TAnd (TOr t1 t2) t3)          = TOr (TAnd t1 t3) (TAnd t2 t3)
+    red (TAnd t3          (TOr t1 t2)) = TOr (TAnd t1 t3) (TAnd t2 t3)
+    
+    red (TOr (TTerm xs) t2) | hasBot xs = t2
+    red (TOr t1 (TTerm ys)) | hasBot ys = t1
+    
+    red (TImpl t1 t2) = TOr (negT t1) (TAnd t1 t2)
 
-  TOr (reduce -> t1) (reduce -> t2)
-    | TTerm xs <- t1, hasBot xs -> t2
-    | TTerm ys <- t2, hasBot ys -> t1
-    | otherwise                 -> TOr t1 t2
-  
-  TImpl (reduce -> t1) (reduce -> t2)
-    | TOr t1a t1b <- t1 -> TOr (TImpl t1a t2) (TImpl t1b t2)
-    | otherwise         -> TOr (negT t1) (TAnd t1 t2)    
-  --TImpl t1 t2 -> TImpl (reduce t1) (reduce t2)
-  --TImpl t1 t2 -> TAnd t1 t2
-  
-  --TAll x b t -> TAll x b (reduce t)  -- TODO: solve for x
-  TAll _ _ (reduce -> t) -> t
-  
-  TIff (reduce -> t1) (reduce -> t2) -> TOr (TAnd t1 t2) (TAnd (negT t1) (negT t2))
+    red (TIff t1 t2) = TAnd (TImpl t1 t2) (TImpl t2 t1)
 
-  TTerm xs -> TTerm xs
+    red (TAll _ _ t) = t
+
+    red x = x
+
 
 hasBot :: APredSet -> Bool
 hasBot = any go
@@ -104,6 +98,14 @@ data Tree
   | TIff Tree Tree       -- p <==> q
   | TTerm APredSet
   deriving stock (Eq, Show, Read)
+
+instance Uniplate Tree where
+  uniplate (TOr   t1 t2) = plate TOr   |* t1 |* t2
+  uniplate (TAnd  t1 t2) = plate TAnd  |* t1 |* t2
+  uniplate (TImpl t1 t2) = plate TImpl |* t1 |* t2
+  uniplate (TIff  t1 t2) = plate TIff  |* t1 |* t2
+  uniplate (TAll x b t) = plate (TAll x b) |* t
+  uniplate x = plate x
 
 type APredSet = [APred]
 
