@@ -82,10 +82,6 @@ instance Subable Reft where
 
 instance Subable Pred where  
   subst x y = \case
-    PVar n
-      | y == n    -> PVar x
-      | otherwise -> PVar n
-
     PExists n b p
       | y == n    -> PExists n b p  -- (1)
       | x == n    -> PExists ṅ b ṗ̲  -- (2)
@@ -95,30 +91,43 @@ instance Subable Pred where
         ṗ̲ = subst x y ṗ
         ṗ = subst ṅ n p
         ṅ = freshName n (y : freeVars p)
-    
-    PBin o p₁ p₂ -> PBin o (subst x y p₁) (subst x y p₂)
+        
     PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
     PImpl p₁ p₂  -> PImpl (subst x y p₁) (subst x y p₂)
     PIff p₁ p₂   -> PIff  (subst x y p₁) (subst x y p₂)
     PAnd ps      -> PAnd    (map (subst x y) ps)
     POr ps       -> POr     (map (subst x y) ps)
-    PFun f ps    -> PFun f  (map (subst x y) ps)  -- TODO: what about f?
     PAppK k xs   -> PAppK k (map (subst x y) xs)
     PNot p₁      -> PNot (subst x y p₁)
-    PCon c       -> PCon c
+    PTrue        -> PTrue
+    PFalse       -> PFalse
 
   freeVars = \case
-    PVar n        -> [n]
     PExists n _ p -> freeVars p \\ [n]
-    PBin _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PImpl p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PIff  p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PAnd ps       -> concatMap freeVars ps
     POr ps        -> concatMap freeVars ps
-    PFun f ps     -> concatMap freeVars ps ++ [f]
     PAppK _ xs    -> xs
     PNot p₁       -> freeVars p₁
+    PTrue         -> []
+    PFalse        -> []
+
+instance Subable PExpr where
+  subst x y = \case
+    PVar n
+      | y == n    -> PVar x
+      | otherwise -> PVar n
+
+    PCon c       -> PCon c
+    PBin o p₁ p₂ -> PBin o (subst x y p₁) (subst x y p₂)
+    PFun f ps    -> PFun f (map (subst x y) ps)  -- TODO: what about f?
+  
+  freeVars = \case
+    PVar n        -> [n]
+    PBin _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    PFun f ps     -> concatMap freeVars ps ++ [f]
     PCon _        -> []
 
 instance Subable Con where

@@ -297,10 +297,10 @@ type1 = choice
     b <- baseType
     end <- getSourcePos
     let pv = mkPV begin end
-    pure (x, TBase x b (Known (PTrue pv)) pv)
+    pure (x, TBase x b (Known PTrue) pv)
   base = do
     (b, pv) <- withPV baseType
-    pure (dummyName, TBase dummyName b (Known (PTrue pv)) pv)
+    pure (dummyName, TBase dummyName b (Known PTrue) pv)
 
 baseType :: Parser Base
 baseType = choice
@@ -322,27 +322,12 @@ predicate = makeExprParser predTerm predOps
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  , try $ PCon <$> constant <* notFollowedBy "("
-  , try $ PVar <$> name <* notFollowedBy "("
-  , PFun <$> name <*> parens (sepBy1 predicate ",")
+  , predRel
   ]
 
 predOps :: [[Operator Parser Pred]]
 predOps =
   [ [ prefix symNot PNot
-    ]
-  , [ infixL (op "*") (PBin Mul)
-    , infixL (op "/") (PBin Div)
-    ]
-  , [ infixL (op "+") (PBin Add)
-    , infixL (op "-") (PBin Sub)
-    ]
-  , [ infixN symNe    (PRel Ne)
-    , infixN (op "=") (PRel Eq)
-    , infixN symLe    (PRel Le)
-    , infixN (op "<") (PRel Lt)
-    , infixN symGe    (PRel Ge)
-    , infixN (op ">") (PRel Gt)
     ]
   , [ infixR symConj mkAnd
     ]
@@ -364,6 +349,43 @@ mkOr (POr ps) (POr qs) = POr (ps ++ qs)
 mkOr (POr ps) q        = POr (ps ++ [q])
 mkOr p        (POr qs) = POr (p:qs)
 mkOr p        q        = POr [p,q]
+
+predRel :: Parser Pred
+predRel = do
+  e1 <- pexpr
+  r <- relation
+  e2 <- pexpr
+  return (PRel r e1 e2)
+
+relation :: Parser Rel
+relation = choice
+  [ Ne <$ symNe
+  , Eq <$ op "="
+  , Le <$ symLe
+  , Lt <$ op "<"
+  , Ge <$ symGe
+  , Gt <$ op ">"
+  ]
+
+pexpr :: Parser PExpr
+pexpr = makeExprParser pexprTerm pexprOps
+
+pexprTerm :: Parser PExpr
+pexprTerm = choice
+  [ try $ PCon <$> constant <* notFollowedBy "("
+  , try $ PVar <$> name <* notFollowedBy "("
+  , PFun <$> name <*> parens (sepBy1 pexpr ",")
+  ]
+
+pexprOps :: [[Operator Parser PExpr]]
+pexprOps =
+  [ [ infixL (op "*") (PBin Mul)
+    , infixL (op "/") (PBin Div)
+    ]
+  , [ infixL (op "+") (PBin Add)
+    , infixL (op "-") (PBin Sub)
+    ]
+  ]
 
 prefix :: Functor m => m b -> (a -> a) -> Operator m a
 prefix p f = Prefix (f <$ p)

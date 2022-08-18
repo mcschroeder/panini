@@ -104,46 +104,32 @@ instance HasProvenance Type where
 ------------------------------------------------------------------------------
 -- Predicates
 
--- TODO: restrict predicate syntax to logically valid expressions
--- (e.g. no non-bool constants at top-level)
-
 data Pred
-  = PCon Constant       -- c
-  | PVar Name           -- x
-  | PBin Bop Pred Pred  -- p1 o p2
-  | PRel Rel Pred Pred  -- p1 R p2
+  = PRel Rel PExpr PExpr  -- e1 R e2
   | PAnd [Pred]         -- p1 /\ p2 /\ ... /\ pn
   | POr [Pred]          -- p1 \/ p2 \/ ... \/ pn
   | PImpl Pred Pred     -- p1 ==> p2
   | PIff Pred Pred      -- p1 <=> p2
   | PNot Pred           -- ~p1
-  | PFun Name [Pred]    -- f(p1,p2,...)
   | PAppK KVar [Name]   -- ^ κ-variable application @κᵢ(y₁,y₂,…)@  
   | PExists Name Base Pred  -- exists x:b. p
-  deriving stock (Eq, Show, Read)
-
-data Bop = Add | Sub | Mul | Div
+  | PTrue
+  | PFalse
   deriving stock (Eq, Show, Read)
 
 data Rel = Eq | Ne | Ge | Le | Gt | Lt
   deriving stock (Eq, Show, Read)
 
-pattern PTrue :: PV -> Pred
-pattern PTrue pv = PCon (B True pv)
-
-pattern PFalse :: PV -> Pred
-pattern PFalse pv = PCon (B False pv)
-
-pEq :: Pred -> Pred -> Pred
+pEq :: PExpr -> PExpr -> Pred
 pEq = PRel Eq
 
 -- | Smart constructor for `PAnd`, eliminates redundant values and merges
 -- adjacent `PAnd` lists.
 pAnd :: Pred -> Pred -> Pred
-pAnd (PTrue _)   q           = q
-pAnd (PFalse pv) _           = PFalse pv
-pAnd p           (PTrue _)   = p
-pAnd _           (PFalse pv) = PFalse pv
+pAnd PTrue       q           = q
+pAnd PFalse      _           = PFalse
+pAnd p           PTrue       = p
+pAnd _           PFalse      = PFalse
 pAnd (PAnd ps)   (PAnd qs)   = PAnd (ps ++ qs)
 pAnd (PAnd ps)   q           = PAnd (ps ++ [q])
 pAnd p           (PAnd qs)   = PAnd (p:qs)
@@ -152,14 +138,27 @@ pAnd p           q           = PAnd [p,q]
 -- | Smart constructor for `POr`, eliminates redundant values and merges
 -- adjacent `POr` lists.
 pOr :: Pred -> Pred -> Pred
-pOr (PFalse _) q          = q
-pOr (PTrue pv) _          = PTrue pv
-pOr p          (PFalse _) = p
-pOr _          (PTrue pv) = PTrue pv
+pOr PFalse     q          = q
+pOr PTrue      _          = PTrue
+pOr p          PFalse     = p
+pOr _          PTrue      = PTrue
 pOr (POr ps)   (POr qs)   = POr (ps ++ qs)
 pOr (POr ps)   q          = POr (ps ++ [q])
 pOr p          (POr qs)   = POr (p:qs)
 pOr p          q          = POr [p,q]
+
+------------------------------------------------------------------------------
+-- Expressions
+
+data PExpr
+  = PCon Constant         -- c
+  | PVar Name             -- x
+  | PBin Bop PExpr PExpr  -- e1 o e2
+  | PFun Name [PExpr]     -- f(e1,e2,...)
+  deriving stock (Eq, Show, Read)
+
+data Bop = Add | Sub | Mul | Div
+  deriving stock (Eq, Show, Read)
 
 ------------------------------------------------------------------------------
 -- Constraints
@@ -174,14 +173,14 @@ data Con
   | CAll Name Base Pred Con  -- forall x:b. p ==> c
   deriving stock (Eq, Show, Read)
 
-pattern CTrue :: PV -> Con
-pattern CTrue pv = CHead (PTrue pv)
+pattern CTrue :: Con
+pattern CTrue = CHead PTrue
 
 -- | Smart constructor for `CAnd`, eliminates redundant true values.
 cAnd :: Con -> Con -> Con
-cAnd (CTrue _) c2        = c2
-cAnd c1        (CTrue _) = c1
-cAnd c1        c2        = CAnd c1 c2
+cAnd CTrue c2    = c2
+cAnd c1    CTrue = c1
+cAnd c1    c2    = CAnd c1 c2
 
 ------------------------------------------------------------------------------
 -- K vars

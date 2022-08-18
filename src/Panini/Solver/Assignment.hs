@@ -21,8 +21,6 @@ class HasKVars a where
 instance HasKVars Pred where
   kvars = \case
     PAppK k _ -> Set.singleton k
-    PBin _ p1 p2 -> kvars p1 <> kvars p2
-    PRel _ p1 p2 -> kvars p1 <> kvars p2
     PAnd ps      -> foldMap kvars ps
     POr ps       -> foldMap kvars ps
     PImpl p1 p2  -> kvars p1 <> kvars p2
@@ -34,17 +32,15 @@ instance HasKVars Pred where
     PAppK k ys -> case Map.lookup k s of
       Just p  -> substN ys (kparams k) p
       Nothing -> PAppK k ys
-    PBin o p1 p2 -> PBin o (apply s p1) (apply s p2)
-    PRel r p1 p2 -> PRel r (apply s p1) (apply s p2)
+    PRel r e1 e2 -> PRel r e1 e2
     PAnd ps      -> PAnd (map (apply s) ps)
     POr ps       -> PAnd (map (apply s) ps)
     PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
     PIff p1 p2   -> PIff (apply s p1) (apply s p2)
     PNot p       -> PNot (apply s p)
-    PFun f ps    -> PFun f (map (apply s) ps)
     PExists x b p -> PExists x b (apply s p)
-    PVar n       -> PVar n
-    PCon c       -> PCon c
+    PTrue  -> PTrue
+    PFalse -> PFalse
 
 instance HasKVars Con where
   kvars = \case

@@ -62,7 +62,7 @@ sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
 sol1 k (CHead (PAppK k2 ys))
   | k == k2           = PAnd $ map (\(x,y) -> PVar x `pEq` PVar y) 
                              $ zip (kparams k) ys
-sol1 _ _              = PFalse NoPV
+sol1 _ _              = PFalse
 
 -- | @scope κ c@ returns a sub-constraint of c of the form ∀x₁:b₁. p₁ ⇒ … ⇒
 -- ∀xₙ:bₙ. pₙ ⇒ c' such that κ does not occur in p₁,…,pₙ, and all occurrences of
@@ -82,5 +82,5 @@ elim' :: Assignment -> Con -> Con
 elim' s (CAnd c1 c2)   = elim' s c1 `cAnd` elim' s c2
 elim' s (CAll x b p c) = CAll x b (apply s p) (elim' s c)
 elim' s (CHead (PAppK k _)) 
-  | k `Map.member` s   = CTrue NoPV
+  | k `Map.member` s   = CTrue
 elim' _ c              = c

@@ -37,20 +37,24 @@ instance SMTLib2 Con where
       impl = sexpr ["=>", encode p, encode c]
 
 instance SMTLib2 Pred where
-  encode (PVar n) = encode n
-  encode (PCon c) = encode c
-  encode (PBin o p1 p2) = sexpr [encode o, encode p1, encode p2]
-  encode (PRel r p1 p2) = sexpr [encode r, encode p1, encode p2]
+  encode (PRel r e1 e2) = sexpr [encode r, encode e1, encode e2]
   encode (PAnd ps) = sexpr ("and" : map encode ps)
   encode (POr ps) = sexpr ("or" : map encode ps)
   encode (PImpl p1 p2) = sexpr ["=>", encode p1, encode p2]
   encode (PIff p1 p2) = sexpr ["iff", encode p1, encode p2]
   encode (PNot p) = sexpr ["not", encode p]
-  encode (PFun x ps) = sexpr (encode x : map encode ps)
   encode (PAppK k xs) = sexpr (encode k : map encode xs)
   encode (PExists x b p) = sexpr ["exists", sexpr [sort], encode p]
     where
       sort = sexpr [encode x, encode b]
+  encode PTrue = sexpr ["true"]
+  encode PFalse = sexpr ["false"]
+
+instance SMTLib2 PExpr where
+  encode (PVar n) = encode n
+  encode (PCon c) = encode c
+  encode (PBin o e1 e2) = sexpr [encode o, encode e1, encode e2]
+  encode (PFun x ps) = sexpr (encode x : map encode ps)
 
 -- TODO: would kvars ever even be part of something sent to the solver?
 -- TODO: ensure uniqueness

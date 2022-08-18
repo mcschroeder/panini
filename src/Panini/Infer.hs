@@ -73,14 +73,14 @@ infer = \case
   -- inf/var ----------------------------------------------
   Var x _ -> do
     t <- self x <$> lookupInContext x
-    return $ Var x `withType` (t, CTrue (getPV x))
+    return $ Var x `withType` (t, CTrue)
   
   -- inf/con ----------------------------------------------
   Con c _ -> do
     let v = dummyName
     let b = primType c
     let t = TBase v b (Known (PVar v `pEq` PCon c)) (getPV c)
-    return $ Con c `withType` (t, CTrue (getPV c))
+    return $ Con c `withType` (t, CTrue)
     where
       primType (U   _) = TUnit
       primType (B _ _) = TBool
@@ -133,7 +133,9 @@ infer = \case
     (ė₁, t₁, c₁) <- infer e₁
     (ė₂, t₂, c₂) <- infer e₂
     let y = freshName "y" (x : freeVars c₁ ++ freeVars c₂)
-    let c = (CAll y TUnit (PVar x) c₁) ∧ (CAll y TUnit (PNot (PVar x)) c₂)
+    let p₁ = PRel Eq (PVar x) (PCon (B True NoPV))
+    let p₂ = PRel Eq (PVar x) (PCon (B False NoPV))
+    let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
     t <- join t₁ t₂
     return $ If x ė₁ ė₂ pv `withType` (t, c)
 

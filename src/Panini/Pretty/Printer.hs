@@ -159,7 +159,7 @@ instance Pretty Constant where
 -------------------------------------------------------------------------------
 
 isT :: Reft -> Bool
-isT (Known (PTrue _)) = True
+isT (Known PTrue) = True
 isT _ = False
 
 arr :: Doc Ann -> Doc Ann -> Doc Ann
@@ -200,15 +200,8 @@ instance Pretty Reft where
 
 instance Pretty Pred where
   pretty p0 = annotate Predicate $ case p0 of
-    PVar n -> pretty n
-    PCon c -> pretty c
-    PFun f ps -> pretty f <> funargs ps
     PAppK k xs -> pretty k <> funargs xs
     PNot p1 -> prettyUnary p0 p1 (sym "~")
-    PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
-    PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
-    PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
-    PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
     PRel Ne  p1 p2 -> prettyOp p0 p1 p2 (sym "/=")
     PRel Eq  p1 p2 -> prettyOp p0 p1 p2 (sym "=")
     PRel Le  p1 p2 -> prettyOp p0 p1 p2 (sym "<=")
@@ -240,6 +233,9 @@ instance Pretty Pred where
 
     PExists x b p -> parens $ 
       sym "exists " <> pretty x <> sym ":" <> pretty b <> sym "." <+> pretty p
+    
+    PTrue  -> "true"
+    PFalse -> "false"
 
 -- TODO: unicode
 instance Pretty KVar where
@@ -259,7 +255,9 @@ prettyUnary o l docO = docO <> parensIf (pO > pL) (pretty l)
    (pO, _) = fixity o
    (pL, _) = fixity l
 
-prettyOp :: Pred -> Pred -> Pred -> Doc Ann -> Doc Ann
+prettyOp :: 
+  (Fixity a, Fixity b, Fixity c, Pretty b, Pretty c) => 
+  a -> b -> c -> Doc Ann -> Doc Ann
 prettyOp o l r docO = case a of
   InfixL -> parensIf (pO > pL)  docL <+> docO <+> parensIf (pO >= pR) docR
   InfixN -> parensIf (pO >= pL) docL <+> docO <+> parensIf (pO >= pR) docR
@@ -283,10 +281,6 @@ data Assoc = Prefix | InfixL | InfixN | InfixR
 
 instance Fixity Pred where
   fixity (PNot _)       = (7, Prefix)
-  fixity (PBin Mul _ _) = (6, InfixL)
-  fixity (PBin Div _ _) = (6, InfixL)
-  fixity (PBin Add _ _) = (5, InfixL)
-  fixity (PBin Sub _ _) = (5, InfixL)
   fixity (PRel Eq _ _)  = (4, InfixN)
   fixity (PRel Ne _ _)  = (4, InfixN)
   fixity (PRel Ge _ _)  = (4, InfixN)
@@ -301,6 +295,26 @@ instance Fixity Pred where
 
 fixity' :: Fixity a => a -> Int
 fixity' = fst . fixity
+
+-------------------------------------------------------------------------------
+
+instance Pretty PExpr where
+  pretty p0 = case p0 of
+    PVar n -> pretty n
+    PCon c -> pretty c
+    PFun f ps -> pretty f <> funargs ps
+    PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
+    PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
+    PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
+    PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
+
+instance Fixity PExpr where
+  fixity (PBin Mul _ _) = (6, InfixL)
+  fixity (PBin Div _ _) = (6, InfixL)
+  fixity (PBin Add _ _) = (5, InfixL)
+  fixity (PBin Sub _ _) = (5, InfixL)
+  fixity _              = (9, InfixL)
+
 
 -------------------------------------------------------------------------------
 

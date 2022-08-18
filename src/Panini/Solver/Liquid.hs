@@ -58,7 +58,7 @@ instance SMTLib2 FlatCon where
 
 -- | Flatten a constraint.
 flat :: Con -> [FlatCon]
-flat c₀ = [simpl [] [PTrue NoPV] c' | c' <- split c₀]
+flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
   where
     split (CAll x b p c) = [CAll x b p c' | c' <- split c]
     split (CHead p)      = [CHead p]

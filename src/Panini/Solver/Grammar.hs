@@ -21,11 +21,11 @@ import Data.Set qualified as Set
 solve :: Con -> Pred
 solve c = 
   let t = traceGraph "trace.svg" $ solve' c
-  in t `seq` PFalse NoPV
+  in t `seq` PFalse
 
 solve' :: Con -> Tree
 --solve' = last . iterateUntilStable reduce . treeify
-solve' = reduce . treeify . CAll "s" TString (PTrue NoPV)
+solve' = reduce . treeify . CAll "s" TString PTrue
 
 iterateUntilStable :: (GraphViz a, Eq a) => (a -> a) -> a -> [a]
 iterateUntilStable f = go 0 . iterate f
@@ -256,17 +256,17 @@ treeify = goC
     goP (PAnd [p])     = goP p
     goP (PAnd (p:ps))  = TAnd (goP p) (goP (PAnd ps))
     goP (PIff p q)     = TIff (goP p) (goP q)
-    goP (PTrue _)      = TTrue
-    goP (PFalse _)     = TFalse
+    goP  PTrue         = TTrue
+    goP  PFalse        = TFalse
     goP p              = TTerm [abstract p]
 
 abstract :: Pred -> APred
 abstract = \case
-  PNot (PCon (B b pv)) -> abstract $ PCon (B (not b) pv)  
+  -- PNot (PCon (B b pv)) -> abstract $ PCon (B (not b) pv)  
   PNot (PRel r x y)    -> abstract $ PRel (invRel r) x y
 
-  PVar x        -> AEq x $ ABool $ aBoolEq True
-  PNot (PVar x) -> AEq x $ ABool $ aBoolEq False
+  -- PVar x        -> AEq x $ ABool $ aBoolEq True
+  -- PNot (PVar x) -> AEq x $ ABool $ aBoolEq False
   
   PRel r y@(PCon _) x@(PVar _) -> abstract $ PRel (convRel r) x y
   PRel r  (PVar x) (PCon (I i _)) -> AEq x $ AInteger $ aIntegerRel r i
@@ -291,13 +291,13 @@ abstract = \case
 
   p -> AUnknown p
 
-pattern PConChar :: Char -> Pred
+pattern PConChar :: Char -> PExpr
 pattern PConChar c <- PCon (S (Text.unpack -> [c]) _)
 
-pattern PStrLen :: Name -> Pred
+pattern PStrLen :: Name -> PExpr
 pattern PStrLen x <- PFun "len" [PVar x]
 
-pattern PStrAt :: Name -> Pred -> Pred
+pattern PStrAt :: Name -> PExpr -> PExpr
 pattern PStrAt x p <- PFun "charat" [PVar x, p]
 
 -- | Inverse of a relation, e.g., ≥ to <.
