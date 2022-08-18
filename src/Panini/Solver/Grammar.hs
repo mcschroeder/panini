@@ -60,11 +60,20 @@ reduce = rewrite go
     go (TTerm xs) | hasBot xs = Just TFalse
 
     go (TImpl (TOr t1 t2) t3) = Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
-    go (TImpl t1 t2) = Just $ TOr (negT t1) (TAnd t1 t2)
+    go (TImpl t1 t2) = Just $ TOr (TNot t1) (TAnd t1 t2)
 
-    go (TIff t1 t2) = Just $ TOr (TAnd t1 t2) (TAnd (negT t1) (negT t2))
+    go (TIff t1 t2) = Just $ TOr (TAnd t1 t2) (TAnd (TNot t1) (TNot t2))
 
     go (TAll _ _ t) = Just t
+
+    go (TNot (TOr t1 t2)) = Just $ TAnd (TNot t1) (TNot t2)
+    go (TNot (TAnd t1 t2)) = Just $ TOr (TNot t1) (TNot t2)
+    go (TNot (TImpl t1 t2)) = Just $ TAnd t1 (TNot t2)
+    go (TNot (TIff t1 t2)) = Just $ TOr (TAnd (TNot t1) t2) (TAnd t1 (TNot t2))
+    go (TNot (TTerm xs)) = Just $ TTerm (negA xs)
+    go (TNot TTrue) = Just TFalse
+    go (TNot TFalse) = Just TTrue
+
 
     -- go (TAll _ TUnit t) = Just t
     -- go (TAll x TBool (TTerm xs)) 
@@ -96,17 +105,6 @@ hasBot = any go
     go2 (AChar a) = a == (⊥)
     go2 (AVar _) = False
 
-negT :: Tree -> Tree
-negT = \case
-  TOr t1 t2 -> TAnd (negT t1) (negT t2)
-  TAnd t1 t2 -> TOr (negT t1) (negT t2)
-  TImpl t1 t2 -> TAnd t1 (negT t2)
-  TAll x b t -> TAll x b (negT t) -- TODO: ???
-  TIff t1 t2 -> TOr (TAnd (negT t1) t2) (TAnd t1 (negT t2))
-  TTerm xs -> TTerm (negA xs)
-  TTrue -> TFalse
-  TFalse -> TTrue
-
 negA :: APredSet -> APredSet
 negA = map go
   where
@@ -126,6 +124,7 @@ data Tree
   | TImpl Tree Tree      -- p ==> q
   | TAll Name Base Tree  -- ∀x:b. p
   | TIff Tree Tree       -- p <==> q
+  | TNot Tree            -- ¬p
   | TTerm APredSet
   | TTrue
   | TFalse
@@ -225,6 +224,7 @@ instance GraphViz Tree where
       dag (TTerm fs)  = BoxNode (termLabel fs) []
       dag TTrue = Node [Shape None, Label "⊤"] []
       dag TFalse = Node [Shape None, Label "⊥"] []
+      dag (TNot p) = CircleNode "¬" [dag p]
       termLabel [x] = rend $ pretty x
       termLabel xs = mconcat $ map ((<> "\\l")) $ List.sort $ map (rend . pretty) xs
       allLabel x b = rend $ "∀" <> pretty x <> ":" <> pretty b
