@@ -300,25 +300,6 @@ pattern PStrLen x <- PFun "len" [PVar x]
 pattern PStrAt :: Name -> PExpr -> PExpr
 pattern PStrAt x p <- PFun "charat" [PVar x, p]
 
--- | Inverse of a relation, e.g., ≥ to <.
-invRel :: Rel -> Rel
-invRel = \case
-  Eq -> Ne
-  Ne -> Eq
-  Ge -> Lt
-  Le -> Gt
-  Gt -> Le
-  Lt -> Ge
-
--- | Converse of a relation, e.g., ≥ to ≤.
-convRel :: Rel -> Rel
-convRel = \case
-  Eq -> Eq
-  Ne -> Ne
-  Ge -> Le
-  Le -> Ge
-  Gt -> Lt
-  Lt -> Gt
 
 aIntegerRel :: Rel -> Integer -> AInteger
 aIntegerRel r i = case r of

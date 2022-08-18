@@ -120,6 +120,26 @@ data Pred
 data Rel = Eq | Ne | Ge | Le | Gt | Lt
   deriving stock (Eq, Show, Read)
 
+-- | Inverse of a relation, e.g., ≥ to <.
+invRel :: Rel -> Rel
+invRel = \case
+  Eq -> Ne
+  Ne -> Eq
+  Ge -> Lt
+  Le -> Gt
+  Gt -> Le
+  Lt -> Ge
+
+-- | Converse of a relation, e.g., ≥ to ≤.
+convRel :: Rel -> Rel
+convRel = \case
+  Eq -> Eq
+  Ne -> Ne
+  Ge -> Le
+  Le -> Ge
+  Gt -> Lt
+  Lt -> Gt
+
 pEq :: PExpr -> PExpr -> Pred
 pEq = PRel Eq
 
