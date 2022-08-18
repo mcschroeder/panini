@@ -202,13 +202,8 @@ instance Pretty Pred where
   pretty p0 = annotate Predicate $ case p0 of
     PAppK k xs -> pretty k <> funargs xs
     PNot p1 -> prettyUnary p0 p1 (sym "~")
-    PRel Ne  p1 p2 -> prettyOp p0 p1 p2 (sym "/=")
-    PRel Eq  p1 p2 -> prettyOp p0 p1 p2 (sym "=")
-    PRel Le  p1 p2 -> prettyOp p0 p1 p2 (sym "<=")
-    PRel Lt  p1 p2 -> prettyOp p0 p1 p2 (sym "<")
-    PRel Ge  p1 p2 -> prettyOp p0 p1 p2 (sym ">=")
-    PRel Gt  p1 p2 -> prettyOp p0 p1 p2 (sym ">")
-    PIff     p1 p2 -> prettyOp p0 p1 p2 (sym "<=>")
+    PRel r p1 p2 -> prettyOp p0 p1 p2 (pretty r)
+    PIff p1 p2 -> prettyOp p0 p1 p2 (sym "<=>")
 
     PImpl p1 p2
       | isSimplePred p2 -> prettyOp p0 p1 p2 (sym "==>")
@@ -240,6 +235,14 @@ instance Pretty Pred where
 -- TODO: unicode
 instance Pretty KVar where
   pretty (KVar i _) = "k" <> pretty i
+
+instance Pretty Rel where
+  pretty Ne = sym "/="
+  pretty Eq = sym "="
+  pretty Le = sym "<="
+  pretty Lt = sym "<"
+  pretty Ge = sym ">="
+  pretty Gt = sym ">"
 
 isSimplePred :: Pred -> Bool
 isSimplePred (PImpl _ c) = isSimplePred c
