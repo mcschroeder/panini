@@ -4,6 +4,8 @@ module Panini.Solver.Abstract.ABool
   , aBoolEq
   ) where
 
+import Data.Hashable
+import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
 import Prelude
@@ -16,7 +18,9 @@ data ABool
   | True_
   | False_
   | Bottom
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Generic, Show, Read)
+
+instance Hashable ABool
 
 instance JoinSemilattice ABool where
   Top    ⊔ _      = Top
@@ -44,11 +48,13 @@ instance MeetSemilattice ABool where
 instance BoundedMeetSemilattice ABool where
   (⊤) = Top
 
-instance ComplementedLattice ABool where
+instance Complementable ABool where
   neg Top    = Bottom
   neg True_  = False_
   neg False_ = True_
   neg Bottom = Top
+
+instance ComplementedLattice ABool
 
 -- | The single concrete value represented by the abstract Boolean, or Nothing.
 concreteBool :: ABool -> Maybe Bool

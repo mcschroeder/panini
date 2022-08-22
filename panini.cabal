@@ -55,6 +55,7 @@ library
     , containers
     , directory
     , filepath
+    , hashable
     , haskeline
     , megaparsec == 9.2.*
     , parser-combinators
@@ -63,6 +64,7 @@ library
     , text
     , transformers
     , uniplate
+    , unordered-containers
 
   default-language: GHC2021
   default-extensions: 

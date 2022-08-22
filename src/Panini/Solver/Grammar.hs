@@ -2,9 +2,18 @@
 
 module Panini.Solver.Grammar (solve) where
 
+import Control.Applicative
+import Data.Foldable
 import Data.Generics.Uniplate.Direct
+import Data.Hashable
+import Data.HashSet (HashSet)
+import Data.HashSet qualified as HS
 import Data.List qualified as List
+import Data.Maybe
+import Data.Set qualified as Set
 import Data.Text qualified as Text
+import Debug.Trace
+import GHC.Generics
 import Panini.Pretty.Graphviz
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.ABool
@@ -13,8 +22,6 @@ import Panini.Solver.Abstract.AInteger
 import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
-import Debug.Trace
-import Data.Set qualified as Set
 
 -------------------------------------------------------------------------------
 
@@ -24,231 +31,167 @@ solve c =
   in t `seq` PFalse
 
 solve' :: Con -> Tree
---solve' = last . iterateUntilStable reduce . treeify
-solve' = reduce . treeify . CAll "s" TString PTrue
-
-iterateUntilStable :: (GraphViz a, Eq a) => (a -> a) -> a -> [a]
-iterateUntilStable f = go 0 . iterate f
-  where
-    go _ [] = []
-    go _ [x] = [x]
-    go !n (x:y:zs) 
-      | x == y = [x]
-      | otherwise = 
-        x : go (n + 1) (y:zs)
-        --traceGraph ("trace" ++ show n ++ ".svg") x `seq` x : go (n + 1) (y:zs)
+solve' = reduce . construct . CAll "s" TString PTrue
 
 -------------------------------------------------------------------------------
-
-reduce :: Tree -> Tree
-reduce = rewrite go
-  where
-    go (TAnd TTrue t2) = Just t2
-    go (TAnd t1 TTrue) = Just t1
-    go (TAnd (TTerm xs) (TTerm ys)) = Just $ TTerm (xs ⊓ ys)
-    go (TAnd TFalse _) = Just TFalse
-    go (TAnd _ TFalse) = Just TFalse
-    go (TAnd (TOr t1 t2) t3) = Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
-    go (TAnd t1 (TOr t2 t3)) = Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
-    
-    go (TOr TFalse t2) = Just t2
-    go (TOr t1 TFalse) = Just t1
-    go (TOr (TTerm xs) (TTerm ys))
-      | all (`elem` ys) xs = Just (TTerm ys)
-      | all (`elem` xs) ys = Just (TTerm xs)
-
-    go (TTerm xs) | hasBot xs = Just TFalse
-
-    go (TImpl (TOr t1 t2) t3) = Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
-    go (TImpl t1 t2) = Just $ TOr (TNot t1) (TAnd t1 t2)
-
-    go (TIff t1 t2) = Just $ TOr (TAnd t1 t2) (TAnd (TNot t1) (TNot t2))
-
-    go (TAll _ _ t) = Just t
-
-    go (TNot (TOr t1 t2)) = Just $ TAnd (TNot t1) (TNot t2)
-    go (TNot (TAnd t1 t2)) = Just $ TOr (TNot t1) (TNot t2)
-    go (TNot (TImpl t1 t2)) = Just $ TAnd t1 (TNot t2)
-    go (TNot (TIff t1 t2)) = Just $ TOr (TAnd (TNot t1) t2) (TAnd t1 (TNot t2))
-    go (TNot (TTerm xs)) = Just $ TTerm (negA xs)
-    go (TNot TTrue) = Just TFalse
-    go (TNot TFalse) = Just TTrue
-
-
-    -- go (TAll _ TUnit t) = Just t
-    -- go (TAll x TBool (TTerm xs)) 
-    --   | Just xs' <- solveForBool x xs = Just (TTerm xs')
-    -- go (TAll x TString (TTerm xs))
-    --   | Just xs' <- solveForString x xs = Just (TTerm xs')
-    
-    -- go (TAll x TInt (TTerm xs))
-    --   | Just xs' <- solveForInt x xs = Just (TTerm xs')
-    
-    -- go (TAll x TInt (TOr (TTerm xs) (TTerm ys)))
-    --   | Just xs' <- solveForInt x xs
-    --   , Just ys' <- solveForInt x ys 
-    --   = Just (TOr (TTerm xs') (TTerm ys'))
-    
-
-    go _ = Nothing
-
-hasBot :: APredSet -> Bool
-hasBot = any go
-  where
-    go (AEq _ e) = go2 e
-    go (AStrAt _ _ e2) = go2 e2
-    go (AStrLen _ e) = go2 e
-    go (AUnknown _) = False
-
-    go2 (AInteger a) = a == (⊥)
-    go2 (ABool a) = a == (⊥)
-    go2 (AChar a) = a == (⊥)
-    go2 (AVar _) = False
-
-negA :: APredSet -> APredSet
-negA = map go
-  where
-    go (AEq x e) = AEq x (go2 e)
-    go (AStrAt x e1 e2) = AStrAt x e1 (go2 e2)
-    go (AStrLen x e) = AStrLen x (go2 e)
-    go (AUnknown p) = AUnknown (PNot p)
-
-    go2 (AInteger a) = AInteger (neg a)
-    go2 (ABool a) = ABool (neg a)
-    go2 (AChar a) = AChar (neg a)
-    go2 (AVar x) = AVar x -- TODO: ?????
 
 data Tree
   = TOr Tree Tree        -- p ∨ q
   | TAnd Tree Tree       -- p ∧ q
   | TImpl Tree Tree      -- p ==> q
-  | TAll Name Base Tree  -- ∀x:b. p
   | TIff Tree Tree       -- p <==> q
   | TNot Tree            -- ¬p
-  | TTerm APredSet
+  | TAll Name Base Tree  -- ∀x:b. p
+  | TSys GSystem
   | TTrue
   | TFalse
+  | TUnknown Pred
   deriving stock (Eq, Show, Read)
+
+data GSystem = GSystem (HashSet GRel) 
+  deriving stock (Eq, Show, Read)
+
+instance PartialOrd GSystem where
+  GSystem xs ⊑ GSystem ys = xs `HS.isSubsetOf` ys
+
+instance MeetSemilattice GSystem where
+  --GSystem xs ⊓ GSystem ys = GSystem (xs `HS.union` ys)
+  GSystem xs ⊓ GSystem ys = GSystem $ HS.fromList $ partialMeets (xs `HS.union` ys)
+-- TODO: become bottom if any rel involves bottom
+
+instance BoundedMeetSemilattice GSystem where
+  (⊤) = GSystem mempty
+
+sysSingleton :: GRel -> GSystem
+sysSingleton = GSystem . HS.singleton
+
+sysFromList :: [GRel] -> GSystem
+sysFromList = GSystem . HS.fromList
+
+sysToList :: GSystem -> [GRel]
+sysToList (GSystem xs) = HS.toList xs
+
+data GRel = GRel Rel GExpr GExpr
+  deriving stock (Eq, Generic, Show, Read)
+
+instance Hashable GRel
+
+instance Complementable GRel where
+  neg (GRel r e1 e2) = GRel (invRel r) e1 e2
+
+instance PartialMeetSemilattice GRel where
+  x ⊓? y | x == y = Just x
+  
+  GRel Eq (GVar x) (GAbs a) ⊓? GRel Eq (GVar y) (GAbs b) | x == y = GRel Eq (GVar x) <$> GAbs <$> (a ⊓? b)
+
+  GRel r a@(GVar _) b ⊓? GRel s c d
+    | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ⊓? d')
+    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs s c = GRel Eq a <$> (b' ⊓? c')
+  
+  GRel r a b@(GVar _) ⊓? GRel s c d
+    | b == c, Just a' <- mkAbs r a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ⊓? d')
+    | b == d, Just a' <- mkAbs r a, Just c' <- mkAbs s c = GRel Eq b <$> (a' ⊓? c')
+
+  _ ⊓? _ = Nothing
+
+data GExpr
+  = GVar Name
+  | GCon Constant
+  | GAbs AbstractValue
+  | GStrLen Name
+  | GStrAt Name Integer
+  deriving stock (Eq, Generic, Show, Read)
+
+instance Hashable GExpr
+
+instance PartialMeetSemilattice GExpr where
+  x ⊓? y | x == y = Just x
+  GAbs a ⊓? GAbs b = GAbs <$> (a ⊓? b)
+  _ ⊓? _ = Nothing
+
+data AbstractValue
+  = AInt AInteger
+  | ABool ABool
+  | AChar AChar
+  deriving stock (Eq, Generic, Show, Read)
+
+instance Hashable AbstractValue
+
+instance PartialMeetSemilattice AbstractValue where
+  x ⊓? y | x == y = Just x
+  AInt  a ⊓? AInt  b = Just $ AInt  (a ⊓ b)
+  ABool a ⊓? ABool b = Just $ ABool (a ⊓ b)
+  AChar a ⊓? AChar b = Just $ AChar (a ⊓ b)
+  _ ⊓? _ = Nothing
+
+mkAbs :: Rel -> GExpr -> Maybe GExpr
+mkAbs Eq (GAbs a)         = Just $ GAbs a
+mkAbs Ne (GAbs (AInt  a)) = Just $ GAbs $ AInt  $ neg a
+mkAbs Ne (GAbs (ABool a)) = Just $ GAbs $ ABool $ neg a
+mkAbs Ne (GAbs (AChar a)) = Just $ GAbs $ AChar $ neg a
+mkAbs Eq (GCon (I i _))   = Just $ GAbs $ AInt  $ aIntegerEq i
+mkAbs Ne (GCon (I i _))   = Just $ GAbs $ AInt  $ aIntegerNe i
+mkAbs Lt (GCon (I i _))   = Just $ GAbs $ AInt  $ aIntegerLt i
+mkAbs Gt (GCon (I i _))   = Just $ GAbs $ AInt  $ aIntegerGt i
+mkAbs Le (GCon (I i _))   = Just $ GAbs $ AInt  $ aIntegerLe i
+mkAbs Ge (GCon (I i _))   = Just $ GAbs $ AInt  $ aIntegerGe i
+mkAbs Eq (GCon (B b _))   = Just $ GAbs $ ABool $ aBoolEq b
+mkAbs Ne (GCon (B b _))   = Just $ GAbs $ ABool $ aBoolEq (not b)
+mkAbs Eq (GConChar c)     = Just $ GAbs $ AChar $ aCharEq c
+mkAbs Ne (GConChar c)     = Just $ GAbs $ AChar $ aCharNe c
+mkAbs _ _                 = Nothing
+
+pattern GConChar :: Char -> GExpr
+pattern GConChar c <- GCon (S (Text.unpack -> [c]) _)
 
 instance Uniplate Tree where
   uniplate (TOr   t1 t2) = plate TOr   |* t1 |* t2
   uniplate (TAnd  t1 t2) = plate TAnd  |* t1 |* t2
   uniplate (TImpl t1 t2) = plate TImpl |* t1 |* t2
   uniplate (TIff  t1 t2) = plate TIff  |* t1 |* t2
+  uniplate (TNot  t)     = plate TNot  |* t
   uniplate (TAll x b t) = plate (TAll x b) |* t
   uniplate x = plate x
-
-type APredSet = [APred]
-
--- TODO: abstract variables at forall, use symbolic rep beforehand?
-
-instance MeetSemilattice APredSet where
-  xs ⊓ ys = partialMeets (xs ++ ys)
-
-data APred
-  = AEq Name AExpr           -- ^ x = α
-  | AStrAt Name AExpr AExpr  -- ^ x[α] = β
-  | AStrLen Name AExpr       -- ^ |x| = α
-  | AUnknown Pred
-  deriving stock (Eq, Show, Read)
-
-instance PartialMeetSemilattice APred where
-  AEq x a      ⊓? AEq y b      | x == y         = AEq x      <$> a ⊓? b
-  AStrAt x i a ⊓? AStrAt y j b | x == y, i == j = AStrAt x a <$> a ⊓? b
-  AStrLen x a  ⊓? AStrLen y b  | x == y         = AStrLen x  <$> a ⊓? b
-  _            ⊓? _                             = Nothing
-
-data AExpr
-  = AInteger AInteger
-  | ABool ABool
-  | AChar AChar
-  | AVar Name
-  deriving stock (Eq, Show, Read)
-
-instance PartialMeetSemilattice AExpr where
-  AInteger a ⊓? AInteger b = Just $ AInteger $ a ⊓ b
-  ABool a    ⊓? ABool b    = Just $ ABool    $ a ⊓ b
-  AChar a    ⊓? AChar b    = Just $ AChar    $ a ⊓ b
-  _          ⊓? _          = Nothing
-
-
-solveFor :: Name -> APredSet -> Maybe APredSet
-solveFor x ps0 = undefined
-
-
-
-
-
-solveForBool :: Name -> APredSet -> Maybe APredSet
-solveForBool x ps = case filter (\p -> isLHS x p || isRHS x p) ps of
-  [] -> Just ps
-  [p@(AEq v (ABool _))] | v == x -> Just $ ps List.\\ [p]
-  _ -> Nothing
-
-solveForString :: Name -> APredSet -> Maybe APredSet
-solveForString x ps = case (filter (isLHS x) ps, filter (isRHS x) ps, filter (\p -> not (isLHS x p || isRHS x p)) ps) of
-  ([],[],qs) -> Just qs
-  ([AEq _ e], [AStrAt s i (AVar _)], qs) -> Just $ AStrAt s i e : qs
-  _ -> Nothing
-
-solveForInt :: Name -> APredSet -> Maybe APredSet
-solveForInt x ps = case (filter (isLHS x) ps, filter (isRHS x) ps, filter (\p -> not (isLHS x p || isRHS x p)) ps) of
-  ([],[],qs) -> Just qs
-  ([AEq _ e], [AStrLen s (AVar _)], qs) -> Just $ AStrLen s e : qs
-  _ -> Nothing
-
-isLHS :: Name -> APred -> Bool
-isLHS v (AEq y _)             = y == v
-isLHS v (AStrAt _ (AVar y) _) = y == v
-isLHS v (AStrAt y _ _)        = y == v
-isLHS v (AStrLen y _)         = y == v
-isLHS _ _                     = False
-
-isRHS :: Name -> APred -> Bool
-isRHS v (AEq _ (AVar y))      = y == v
-isRHS v (AStrAt _ _ (AVar y)) = y == v
-isRHS v (AStrLen _ (AVar y))  = y == v
-isRHS _ _                     = False
-
-
--------------------------------------------------------------------------------
 
 instance GraphViz Tree where
   dot = fromDAG . dag
     where
-      dag (TOr   p q) = CircleNode "∨" [dag p, dag q]
-      dag (TAnd  p q) = CircleNode "∧" [dag p, dag q]
-      dag (TImpl  p q) = CircleNode "⇒" [dag p, dag q]
-      dag (TAll x b p) = CircleNode (allLabel x b) [dag p]
-      dag (TIff p q) = CircleNode "⇔" [dag p, dag q]
-      dag (TTerm fs)  = BoxNode (termLabel fs) []
-      dag TTrue = Node [Shape None, Label "⊤"] []
-      dag TFalse = Node [Shape None, Label "⊥"] []
-      dag (TNot p) = CircleNode "¬" [dag p]
-      termLabel [x] = rend $ pretty x
-      termLabel xs = mconcat $ map ((<> "\\l")) $ List.sort $ map (rend . pretty) xs
-      allLabel x b = rend $ "∀" <> pretty x <> ":" <> pretty b
+      dag = \case
+        TOr   p q -> CircleNode "∨" [dag p, dag q]
+        TAnd  p q -> CircleNode "∧" [dag p, dag q]
+        TImpl p q -> CircleNode "⇒" [dag p, dag q]
+        TIff  p q -> CircleNode "⇔" [dag p, dag q]
+        TNot  p   -> CircleNode "¬" [dag p]
+        TAll x b p -> CircleNode (labAll x b) [dag p]
+        TSys xs -> BoxNode (labSys xs) []
+        TTrue  -> Node [Shape None, Label "⊤"] []
+        TFalse -> Node [Shape None, Label "⊥"] []
+        TUnknown p -> Node [Shape None, Label (labUnknown p)] []
+    
+      labAll x b = rend $ "∀" <> pretty x <> ":" <> pretty b
+      labSys s = rend $ mconcat $ map ((<> "\\l") . pretty) $ sysToList s
+      labUnknown p = rend $ "⟨ " <> pretty p <> " ⟩"    
       rend = renderDoc (RenderOptions False True Nothing)
 
-instance Pretty APred where
-  pretty (AEq x a) = pretty x <> " = " <> pretty a
-  pretty (AStrAt x a b) = pretty x <> "[" <> pretty a <> "] = " <> pretty b
-  pretty (AStrLen x a) = "|" <> pretty x <> "| = " <> pretty a
-  pretty (AUnknown p) = "⟨ " <> pretty p <> " ⟩"
+instance Pretty GRel where
+  pretty (GRel r e1 e2) = pretty e1 <> " " <> pretty r <> " " <> pretty e2
 
-instance Pretty AExpr where
-  pretty (AInteger a) = pretty a
+instance Pretty GExpr where
+  pretty (GVar x) = pretty x
+  pretty (GCon c) = pretty c
+  pretty (GAbs a) = pretty a
+  pretty (GStrLen s) = "|" <> pretty s <> "|"
+  pretty (GStrAt s i) = pretty s <> "[" <> pretty i <> "]"
+
+instance Pretty AbstractValue where
+  pretty (AInt a) = pretty a
   pretty (ABool a) = pretty a
   pretty (AChar a) = pretty a
-  pretty (AVar x) = pretty x
 
 -------------------------------------------------------------------------------
 
--- TODO: thought: the tree is a just a reification of the analysis process,
--- i.e., the (Heyting?) algebra, where each op (/\, \/, ==>, ...) is explicit
-
-treeify :: Con -> Tree
-treeify = goC
+construct :: Con -> Tree
+construct = goC
   where
     goC (CAnd c1 c2)   = TAnd (goC c1) (goC c2)    
     goC (CAll x b p c) = TAll x b (TImpl (goP p) (goC c))
@@ -256,56 +199,89 @@ treeify = goC
     goP (PAnd [p])     = goP p
     goP (PAnd (p:ps))  = TAnd (goP p) (goP (PAnd ps))
     goP (PIff p q)     = TIff (goP p) (goP q)
-    goP  PTrue         = TTrue
-    goP  PFalse        = TFalse
-    goP p              = TTerm [abstract p]
-
-abstract :: Pred -> APred
-abstract = \case
-  -- PNot (PCon (B b pv)) -> abstract $ PCon (B (not b) pv)  
-  PNot (PRel r x y)    -> abstract $ PRel (invRel r) x y
-
-  -- PVar x        -> AEq x $ ABool $ aBoolEq True
-  -- PNot (PVar x) -> AEq x $ ABool $ aBoolEq False
-  
-  PRel r y@(PCon _) x@(PVar _) -> abstract $ PRel (convRel r) x y
-  PRel r  (PVar x) (PCon (I i _)) -> AEq x $ AInteger $ aIntegerRel r i
-  PRel Eq (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq b
-  PRel Ne (PVar x) (PCon (B b _)) -> AEq x $ ABool $ aBoolEq (not b)
-  PRel Eq (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharEq c
-  PRel Ne (PVar x) (PConChar c)   -> AEq x $ AChar $ aCharNe c
-  
-  PRel Eq (PVar x) (PVar y) -> AEq x (AVar y)
-
-  PRel r y x@(PStrLen _) -> abstract $ PRel (convRel r) x y
-  PRel r  (PStrLen s) (PCon (I i _)) -> AStrLen s $ AInteger $ aIntegerRel r i
-  PRel Eq (PStrLen s) (PVar x)       -> AStrLen s $ AVar x
-
-  PRel r y x@(PStrAt _ _) -> abstract $ PRel (convRel r) x y  
-  PRel Eq (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharEq c)
-  PRel Ne (PStrAt s (PCon (I i _))) (PConChar c) -> AStrAt s (AInteger $ aIntegerEq i) (AChar $ aCharNe c)
-  PRel Eq (PStrAt s (PCon (I i _))) (PVar y)     -> AStrAt s (AInteger $ aIntegerEq i) (AVar y)  
-  PRel Eq (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharEq c)
-  PRel Ne (PStrAt s (PVar x))       (PConChar c) -> AStrAt s (AVar x) (AChar $ aCharNe c)
-  PRel Eq (PStrAt s (PVar x))       (PVar y)     -> AStrAt s (AVar x) (AVar y)
-
-  p -> AUnknown p
-
-pattern PConChar :: Char -> PExpr
-pattern PConChar c <- PCon (S (Text.unpack -> [c]) _)
+    goP (PNot p)       = TNot (goP p)
+    goP PTrue          = TTrue
+    goP PFalse         = TFalse
+    goP (PRel r e1 e2) = TSys $ sysSingleton $ GRel r (goE e1) (goE e2)
+    goP p              = TUnknown p
+    goE (PVar x)       = GVar x
+    goE (PCon c)       = GCon c
+    goE (PStrLen s)    = GStrLen s
+    goE (PStrAt s i)   = GStrAt s i
+    goE _              = undefined
 
 pattern PStrLen :: Name -> PExpr
-pattern PStrLen x <- PFun "len" [PVar x]
+pattern PStrLen s <- PFun "len" [PVar s]
 
-pattern PStrAt :: Name -> PExpr -> PExpr
-pattern PStrAt x p <- PFun "charat" [PVar x, p]
+pattern PStrAt :: Name -> Integer -> PExpr
+pattern PStrAt s i <- PFun "charat" [PVar s, PCon (I i _)]
 
+-------------------------------------------------------------------------------
 
-aIntegerRel :: Rel -> Integer -> AInteger
-aIntegerRel r i = case r of
-  Eq -> aIntegerEq i
-  Ne -> aIntegerNe i
-  Gt -> aIntegerGt i
-  Ge -> aIntegerGe i
-  Lt -> aIntegerLt i
-  Le -> aIntegerLe i
+reduce :: Tree -> Tree
+reduce = rewrite $ \case
+  
+  TAnd TTrue t2 -> Just t2
+  TAnd t1 TTrue -> Just t1
+  TAnd TFalse _ -> Just TFalse
+  TAnd _ TFalse -> Just TFalse    
+  TAnd (TOr t1 t2) t3 -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
+  TAnd t1 (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
+  TAnd (TSys xs) (TSys ys) -> Just $ TSys (xs ⊓ ys)
+    
+  TOr TFalse t2 -> Just t2
+  TOr t1 TFalse -> Just t1
+  TOr (TSys xs) (TSys ys)
+    | xs ⊑ ys -> Just $ TSys ys
+    | ys ⊑ xs -> Just $ TSys xs
+
+  TImpl (TOr t1 t2) t3 -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
+  TImpl t1          t2 -> Just $ TOr (TNot t1) (TAnd t1 t2)
+
+  TIff t1 t2 -> Just $ TOr (TAnd t1 t2) (TAnd (TNot t1) (TNot t2))
+
+  TNot (TNot t)       -> Just t
+  TNot (TOr t1 t2)    -> Just $ TAnd (TNot t1) (TNot t2)
+  TNot (TAnd t1 t2)   -> Just $ TOr (TNot t1) (TNot t2)
+  TNot (TImpl t1 t2)  -> Just $ TAnd t1 (TNot t2)
+  TNot (TIff t1 t2)   -> Just $ TOr (TAnd (TNot t1) t2) (TAnd t1 (TNot t2))
+  TNot TTrue          -> Just TFalse
+  TNot TFalse         -> Just TTrue
+    
+  TNot (TSys xs) -> case sysToList xs of
+    [] -> undefined -- TODO
+    [x] -> Just $ TSys $ sysSingleton $ neg x
+    ys  -> Just $ foldr1 TOr $ map (TSys . sysSingleton . neg) ys
+  
+  --TAll x _b t -> Just $ eliminate x t
+
+  _ -> Nothing
+
+-------------------------------------------------------------------------------
+
+eliminate :: Name -> Tree -> Tree
+eliminate x (TSys s) = TSys (elim x s)
+eliminate x (TOr t1 t2) = TOr (eliminate x t1) (eliminate x t2)
+eliminate _ t = t
+
+elim :: Name -> GSystem -> GSystem
+elim x s = case partialMeets defs of
+  [GRel Eq _ e] -> sysFromList $ map (use e) rest
+  _ -> GSystem mempty -- TODO: should be bottom, not top
+  where
+    (defs, rest) = List.partition def $ sysToList s    
+    def (GRel _ (GVar y) (GCon _)) = y == x
+    def (GRel _ (GCon _) (GVar y)) = y == x
+    def _                          = False    
+
+    use e (GRel r a b) = GRel r (useE e a) (useE e b)
+    useE e (GVar y) | y == x = e
+    --useE e (GStrAt s i) | s == x = GStrAt e i
+    --useE e (GStrLen s) | s == x = GStrLen e
+    useE _ a = a
+
+  -- get definitions of x in s
+  -- combine those definitions into a single one (if not possible, fail)
+  -- replace uses with new definition
+    
+

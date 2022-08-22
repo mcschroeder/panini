@@ -3,6 +3,10 @@ module Panini.Solver.Abstract.Lattice where
 import Data.Foldable
 import Prelude
 
+-- TODO: should be super class of lattices
+class PartialOrd a where
+  (⊑) :: a -> a -> Bool
+
 class MeetSemilattice a where
   (⊓) :: a -> a -> a
 
@@ -46,5 +50,8 @@ class PartialJoinSemilattice a where
 
 type PartialLattice a = (PartialMeetSemilattice a, PartialJoinSemilattice a)
 
-class BoundedLattice a => ComplementedLattice a where  
+class Complementable a where
   neg :: a -> a
+
+class (BoundedLattice a, Complementable a) => ComplementedLattice a where  
+  -- TODO: document that neg has to fulfill certain laws here

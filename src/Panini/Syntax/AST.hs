@@ -1,8 +1,10 @@
 -- TODO: module documentation
 module Panini.Syntax.AST where
 
+import Data.Hashable
 import Data.String
 import Data.Text (Text)
+import GHC.Generics
 import Panini.Syntax.Names
 import Panini.Syntax.Provenance
 import Prelude
@@ -51,6 +53,13 @@ instance Eq Constant where
   I a _ == I b _ = a == b
   S a _ == S b _ = a == b
   _     == _     = False
+
+-- | Hashing constants ignores provenance.
+instance Hashable Constant where
+  hashWithSalt s (U _)   = s `hashWithSalt` (0 :: Int)
+  hashWithSalt s (B a _) = s `hashWithSalt` (1 :: Int) `hashWithSalt` a
+  hashWithSalt s (I a _) = s `hashWithSalt` (2 :: Int) `hashWithSalt` a
+  hashWithSalt s (S a _) = s `hashWithSalt` (3 :: Int) `hashWithSalt` a
 
 instance HasProvenance Constant where
   getPV (U pv) = pv
@@ -118,7 +127,9 @@ data Pred
   deriving stock (Eq, Show, Read)
 
 data Rel = Eq | Ne | Ge | Le | Gt | Lt
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Ord, Generic, Show, Read)
+
+instance Hashable Rel
 
 -- | Inverse of a relation, e.g., ≥ to <.
 invRel :: Rel -> Rel

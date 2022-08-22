@@ -13,7 +13,9 @@ module Panini.Solver.Abstract.AInteger
   , aIntegerLe
   ) where
 
+import Data.Hashable
 import Data.List (intersperse)
+import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
 import Prelude hiding (isInfinite)
@@ -26,7 +28,8 @@ newtype AInteger = AInteger IntervalSequence
   deriving newtype 
     ( MeetSemilattice, BoundedMeetSemilattice
     , JoinSemilattice, BoundedJoinSemilattice
-    , ComplementedLattice
+    , Complementable, ComplementedLattice
+    , Hashable
     )
 
 -- | Does an abstract integer represent an infinite number of values?
@@ -104,7 +107,7 @@ instance MeetSemilattice IntervalSequence where
 instance BoundedMeetSemilattice IntervalSequence where
   (⊤) = [(⊤)]
 
-instance ComplementedLattice IntervalSequence where
+instance Complementable IntervalSequence where
   neg [] = [(⊤)]  
   neg (x:xs)
     | In a@(Fin _) _ <- x = In NegInf (pred <$> a) : go (x:xs)
@@ -114,11 +117,15 @@ instance ComplementedLattice IntervalSequence where
       go [In _ b@(Fin _)] = [In (succ <$> b) PosInf]
       go _ = []  
 
+instance ComplementedLattice IntervalSequence
+
 -------------------------------------------------------------------------------
 
 -- | An integer interval @[a..b]@ where @a <= b@.
 data Interval = In (Inf Integer) (Inf Integer)
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Generic, Show, Read)
+
+instance Hashable Interval
 
 -- | Create a singleton interval @[a..a]@.
 singleton :: Integer -> Interval
@@ -161,7 +168,9 @@ instance Pretty Interval where
 
 -- | A type extended with negative and positive infinity.
 data Inf a = NegInf | Fin a | PosInf
-  deriving stock (Eq, Functor, Show, Read)
+  deriving stock (Functor, Eq, Generic, Show, Read)
+
+instance Hashable a => Hashable (Inf a)
 
 instance Ord a => Ord (Inf a) where
   compare NegInf NegInf   = EQ

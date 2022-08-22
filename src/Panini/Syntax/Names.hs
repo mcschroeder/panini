@@ -2,6 +2,7 @@
 module Panini.Syntax.Names where
 
 import Data.Char (isDigit)
+import Data.Hashable
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -26,6 +27,11 @@ instance Eq Name where
 -- | Ordering between names ignores provenance.
 instance Ord Name where
   Name a _ <= Name b _ = a <= b
+
+-- | Hashing names ignores provenance.
+instance Hashable Name where
+  hashWithSalt s (Name x _) = hashWithSalt s x
+  hash (Name x _) = hash x
 
 instance IsString Name where
   fromString s = Name (Text.pack s) NoPV

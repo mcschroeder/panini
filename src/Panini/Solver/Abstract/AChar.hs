@@ -4,9 +4,11 @@ module Panini.Solver.Abstract.AChar
   , aCharNe
   ) where
 
+import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import Data.List (intersperse)
+import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
 import Prelude
@@ -15,7 +17,9 @@ import Prelude
 
 -- | An abstract character.
 data AChar = AChar Bool IntSet
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Generic, Show, Read)
+
+instance Hashable AChar
 
 instance MeetSemilattice AChar where
   AChar True  xs ⊓ AChar True  ys = AChar True  (I.intersection xs ys)
@@ -35,8 +39,10 @@ instance JoinSemilattice AChar where
 instance BoundedJoinSemilattice AChar where
   (⊥) = AChar True mempty
 
-instance ComplementedLattice AChar where
+instance Complementable AChar where
   neg (AChar b xs) = AChar (not b) xs
+
+instance ComplementedLattice AChar
 
 -- | An abstract character @= c@.
 aCharEq :: Char -> AChar
