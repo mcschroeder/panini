@@ -10,7 +10,6 @@ import Data.HashSet (HashSet)
 import Data.HashSet qualified as HS
 import Data.List qualified as List
 import Data.Maybe
-import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Debug.Trace
 import GHC.Generics
@@ -86,13 +85,29 @@ instance PartialMeetSemilattice GRel where
 
   GRel r a@(GVar _) b ⊓? GRel s c d
     | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ⊓? d')
-    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs s c = GRel Eq a <$> (b' ⊓? c')
-  
+    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs (convRel s) c = GRel Eq a <$> (b' ⊓? c')
+
   GRel r a b@(GVar _) ⊓? GRel s c d
-    | b == c, Just a' <- mkAbs r a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ⊓? d')
-    | b == d, Just a' <- mkAbs r a, Just c' <- mkAbs s c = GRel Eq b <$> (a' ⊓? c')
+    | b == c, Just a' <- mkAbs (convRel r) a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ⊓? d')
+    | b == d, Just a' <- mkAbs (convRel r) a, Just c' <- mkAbs (convRel s) c = GRel Eq b <$> (a' ⊓? c')
+
+  GRel r a@(GStrLen _) b ⊓? GRel s c d
+    | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ⊓? d')
+    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs (convRel s) c = GRel Eq a <$> (b' ⊓? c')
+
+  GRel r a b@(GStrLen _) ⊓? GRel s c d
+    | b == c, Just a' <- mkAbs (convRel r) a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ⊓? d')
+    | b == d, Just a' <- mkAbs (convRel r) a, Just c' <- mkAbs (convRel s) c = GRel Eq b <$> (a' ⊓? c')
 
   _ ⊓? _ = Nothing
+
+hasBot :: GRel -> Bool
+hasBot (GRel _ e1 e2) = go e1 || go e2
+  where
+    go (GAbs (AInt  a)) = a == (⊥)
+    go (GAbs (ABool a)) = a == (⊥)
+    go (GAbs (AChar a)) = a == (⊥)
+    go _                = False
 
 data GExpr
   = GVar Name
@@ -116,6 +131,11 @@ data AbstractValue
   deriving stock (Eq, Generic, Show, Read)
 
 instance Hashable AbstractValue
+
+instance Complementable AbstractValue where
+  neg (AInt  a) = AInt  (neg a)
+  neg (ABool a) = ABool (neg a)
+  neg (AChar a) = AChar (neg a)
 
 instance PartialMeetSemilattice AbstractValue where
   x ⊓? y | x == y = Just x
@@ -188,6 +208,10 @@ instance Pretty AbstractValue where
   pretty (ABool a) = pretty a
   pretty (AChar a) = pretty a
 
+instance Pretty GSystem where
+  pretty (GSystem xs) = 
+    "{" <> (mconcat $ List.intersperse ", " $ map pretty $ HS.toList xs) <> "}"
+
 -------------------------------------------------------------------------------
 
 construct :: Con -> Tree
@@ -218,70 +242,104 @@ pattern PStrAt s i <- PFun "charat" [PVar s, PCon (I i _)]
 
 -------------------------------------------------------------------------------
 
+-- TODO: maybe we don't really need TNot, if we only ever negate TSys?
+
 reduce :: Tree -> Tree
 reduce = rewrite $ \case
-  
-  TAnd TTrue t2 -> Just t2
-  TAnd t1 TTrue -> Just t1
-  TAnd TFalse _ -> Just TFalse
-  TAnd _ TFalse -> Just TFalse    
-  TAnd (TOr t1 t2) t3 -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
-  TAnd t1 (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
-  TAnd (TSys xs) (TSys ys) -> Just $ TSys (xs ⊓ ys)
-    
+
+  TOr TTrue _ -> Just TTrue
+  TOr _ TTrue -> Just TTrue 
   TOr TFalse t2 -> Just t2
   TOr t1 TFalse -> Just t1
   TOr (TSys xs) (TSys ys)
     | xs ⊑ ys -> Just $ TSys ys
     | ys ⊑ xs -> Just $ TSys xs
-
-  TImpl (TOr t1 t2) t3 -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
-  TImpl t1          t2 -> Just $ TOr (TNot t1) (TAnd t1 t2)
-
-  TIff t1 t2 -> Just $ TOr (TAnd t1 t2) (TAnd (TNot t1) (TNot t2))
-
-  TNot (TNot t)       -> Just t
-  TNot (TOr t1 t2)    -> Just $ TAnd (TNot t1) (TNot t2)
-  TNot (TAnd t1 t2)   -> Just $ TOr (TNot t1) (TNot t2)
-  TNot (TImpl t1 t2)  -> Just $ TAnd t1 (TNot t2)
-  TNot (TIff t1 t2)   -> Just $ TOr (TAnd (TNot t1) t2) (TAnd t1 (TNot t2))
-  TNot TTrue          -> Just TFalse
-  TNot TFalse         -> Just TTrue
-    
-  TNot (TSys xs) -> case sysToList xs of
-    [] -> undefined -- TODO
-    [x] -> Just $ TSys $ sysSingleton $ neg x
-    ys  -> Just $ foldr1 TOr $ map (TSys . sysSingleton . neg) ys
   
-  --TAll x _b t -> Just $ eliminate x t
+  TAnd TTrue t2 -> Just t2
+  TAnd t1 TTrue -> Just t1
+  TAnd TFalse _ -> Just TFalse
+  TAnd _ TFalse -> Just TFalse
+  TAnd (TSys xs) (TSys ys) -> Just $ TSys (xs ⊓ ys)
+  TAnd t1 (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
+  TAnd (TOr t1 t2) t3 -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
 
+  TImpl TTrue t -> Just t
+  TImpl t TTrue -> Just $ TOr t (TNot t)
+  TImpl TFalse _ -> Just TTrue
+  TImpl t TFalse -> Just $ TNot t
+
+  TImpl t1 (TOr t2 t3) -> Just $ TOr (TImpl t1 t2) (TImpl t1 t3)
+  TImpl (TOr t1 t2) t3 -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)    
+  TImpl (TSys xs) (TSys ys) -> Just $ TOr (TNot (TSys xs)) (TSys (xs ⊓ ys))
+
+  TIff (TSys xs) (TSys ys) -> 
+    let zs = xs ⊓ ys in Just $ TOr (TSys zs) (TNot (TSys zs))
+
+  TNot TTrue -> Just TFalse
+  TNot TFalse -> Just TTrue
+
+  -- TNot (TSys xs) -> case sysToList xs of
+  --   [x] -> Just $ TSys $ sysSingleton $ neg x
+  --   _ -> Nothing
+
+  -- TODO: systematize this
+  TNot (TSys xs) 
+    | [r1@(GRel _ (GVar "n") (GCon _)), r2@(GRel Eq (GVar "n") (GStrLen "s"))] <- sysToList xs
+    -> Just $ TSys $ sysFromList [neg r1, r2]
+  
+  -- TODO: is this correct?? NB: it is not
+  TNot (TSys xs) -> 
+    let xs' = sysFromList $ map neg $ sysToList xs
+    in trace ("¬" <> showPretty xs <> " ≡ " <> showPretty xs') $ Just $ TSys xs'
+
+  TSys xs | any hasBot (sysToList xs) -> Just TFalse
+
+  --TAll x b t | x `elem` ["p3","p2","n","y","_1","_2","x","p1","s"] -> Just $ eliminate x b t
+  TAll x b t -> Just $ eliminate x b t
+  
   _ -> Nothing
 
 -------------------------------------------------------------------------------
 
-eliminate :: Name -> Tree -> Tree
-eliminate x (TSys s) = TSys (elim x s)
-eliminate x (TOr t1 t2) = TOr (eliminate x t1) (eliminate x t2)
-eliminate _ t = t
-
-elim :: Name -> GSystem -> GSystem
-elim x s = case partialMeets defs of
-  [GRel Eq _ e] -> sysFromList $ map (use e) rest
-  _ -> GSystem mempty -- TODO: should be bottom, not top
+eliminate :: Name -> Base -> Tree -> Tree
+eliminate _ TUnit t = t
+eliminate x b (TSys s) = case partialMeets (topdef:defs) of
+  [] -> TSys $ sysFromList rest
+  [GRel r _ e] | Just e' <- mkAbs r e -> 
+    let zs = map (use e') rest 
+    in if null zs then TTrue else TSys $ sysFromList zs
+  pfff -> error $ unlines $ map showPretty pfff --TFalse
   where
+    topdef = case b of
+      TInt -> GRel Eq (GVar x) (GAbs (AInt (⊤)))
+      TBool -> GRel Eq (GVar x) (GAbs (ABool (⊤)))
+      TString -> GRel Eq (GVar x) (GAbs (AChar (⊤))) -- TODO
+
     (defs, rest) = List.partition def $ sysToList s    
     def (GRel _ (GVar y) (GCon _)) = y == x
+    def (GRel _ (GVar y) (GAbs _)) = y == x
     def (GRel _ (GCon _) (GVar y)) = y == x
+    def (GRel _ (GAbs _) (GVar y)) = y == x
     def _                          = False    
 
-    use e (GRel r a b) = GRel r (useE e a) (useE e b)
+    use e (GRel r e1 e2) = norm $ GRel r (useE e e1) (useE e e2)
     useE e (GVar y) | y == x = e
     --useE e (GStrAt s i) | s == x = GStrAt e i
     --useE e (GStrLen s) | s == x = GStrLen e
     useE _ a = a
 
-  -- get definitions of x in s
-  -- combine those definitions into a single one (if not possible, fail)
-  -- replace uses with new definition
-    
+eliminate x b t = descend (eliminate x b) t
 
+norm :: GRel -> GRel
+norm = \case
+  GRel r a@(GCon _) b@(GVar _)     -> norm $ GRel (convRel r) b a
+  GRel r a@(GAbs _) b@(GVar _)     -> norm $ GRel (convRel r) b a
+  GRel r a@(GVar _) b@(GStrAt _ _) -> norm $ GRel (convRel r) b a
+  GRel r a@(GCon _) b@(GStrAt _ _) -> norm $ GRel (convRel r) b a
+  GRel r a@(GAbs _) b@(GStrAt _ _) -> norm $ GRel (convRel r) b a
+  GRel r a@(GCon _) b@(GStrLen _)  -> norm $ GRel (convRel r) b a
+  GRel r a@(GAbs _) b@(GStrLen _)  -> norm $ GRel (convRel r) b a
+
+  GRel Ne a (GAbs b) -> GRel Eq a (GAbs (neg b))
+
+  x -> x

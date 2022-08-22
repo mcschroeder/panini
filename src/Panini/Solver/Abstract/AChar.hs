@@ -55,7 +55,7 @@ aCharNe = AChar False . I.singleton . fromEnum
 instance Pretty AChar where
   pretty (AChar True cs) = case map (toEnum @Char) $ I.toAscList cs of
     []  -> "∅"
-    [x] -> pretty x
+    [x] -> "\"" <> pretty x <> "\""
     xs  -> "{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
   
   pretty (AChar False cs) = case map (toEnum @Char) $ I.toAscList cs of
