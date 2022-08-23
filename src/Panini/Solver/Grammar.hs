@@ -247,54 +247,41 @@ pattern PStrAt s i <- PFun "charat" [PVar s, PCon (I i _)]
 reduce :: Tree -> Tree
 reduce = rewrite $ \case
 
-  TOr TTrue _ -> Just TTrue
-  TOr _ TTrue -> Just TTrue 
-  TOr TFalse t2 -> Just t2
-  TOr t1 TFalse -> Just t1
-  TOr (TSys xs) (TSys ys)
-    | xs ⊑ ys -> Just $ TSys ys
-    | ys ⊑ xs -> Just $ TSys xs
+  TOr TTrue     _                   -> Just TTrue
+  TOr _         TTrue               -> Just TTrue 
+  TOr TFalse    t2                  -> Just t2
+  TOr t1        TFalse              -> Just t1
+  TOr (TSys xs) (TSys ys) | xs ⊑ ys -> Just $ TSys ys
+  TOr (TSys xs) (TSys ys) | ys ⊑ xs -> Just $ TSys xs
   
-  TAnd TTrue t2 -> Just t2
-  TAnd t1 TTrue -> Just t1
-  TAnd TFalse _ -> Just TFalse
-  TAnd _ TFalse -> Just TFalse
-  TAnd (TSys xs) (TSys ys) -> Just $ TSys (xs ⊓ ys)
-  TAnd t1 (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
-  TAnd (TOr t1 t2) t3 -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
+  TAnd TTrue       t2          -> Just t2
+  TAnd t1          TTrue       -> Just t1
+  TAnd TFalse      _           -> Just TFalse
+  TAnd _           TFalse      -> Just TFalse
+  TAnd (TSys xs)   (TSys ys)   -> Just $ TSys (xs ⊓ ys)
+  TAnd t1          (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
+  TAnd (TOr t1 t2) t3          -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
 
-  TImpl TTrue t -> Just t
-  TImpl t TTrue -> Just $ TOr t (TNot t)
-  TImpl TFalse _ -> Just TTrue
-  TImpl t TFalse -> Just $ TNot t
+  TImpl TTrue        t           -> Just t
+  TImpl t            TTrue       -> Just $ TOr t (TNot t)
+  TImpl TFalse       _           -> Just TTrue
+  TImpl t            TFalse      -> Just $ TNot t
+  TImpl t1           (TOr t2 t3) -> Just $ TOr (TImpl t1 t2) (TImpl t1 t3)
+  TImpl (TOr t1 t2)  t3          -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
+  TImpl (TAnd t1 t2) t3          -> Just $ TOr (TImpl t1 t3) (TImpl t2 t3)
+  TImpl (TSys xs)    (TSys ys)   -> Just $ TOr (TNot (TSys xs)) (TSys (xs ⊓ ys))
 
-  TImpl t1 (TOr t2 t3) -> Just $ TOr (TImpl t1 t2) (TImpl t1 t3)
-  TImpl (TOr t1 t2) t3 -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)    
-  TImpl (TSys xs) (TSys ys) -> Just $ TOr (TNot (TSys xs)) (TSys (xs ⊓ ys))
+  TIff t1 t2 -> Just $ TAnd (TImpl t1 t2) (TImpl t2 t1)
 
-  TIff (TSys xs) (TSys ys) -> 
-    let zs = xs ⊓ ys in Just $ TOr (TSys zs) (TNot (TSys zs))
-
-  TNot TTrue -> Just TFalse
-  TNot TFalse -> Just TTrue
-
-  -- TNot (TSys xs) -> case sysToList xs of
-  --   [x] -> Just $ TSys $ sysSingleton $ neg x
-  --   _ -> Nothing
-
-  -- TODO: systematize this
-  TNot (TSys xs) 
-    | [r1@(GRel _ (GVar "n") (GCon _)), r2@(GRel Eq (GVar "n") (GStrLen "s"))] <- sysToList xs
-    -> Just $ TSys $ sysFromList [neg r1, r2]
-  
-  -- TODO: is this correct?? NB: it is not
-  TNot (TSys xs) -> 
-    let xs' = sysFromList $ map neg $ sysToList xs
-    in trace ("¬" <> showPretty xs <> " ≡ " <> showPretty xs') $ Just $ TSys xs'
+  TNot TTrue     -> Just TFalse
+  TNot TFalse    -> Just TTrue
+  TNot (TNot t)  -> Just t  
+  TNot (TSys xs) -> case sysToList xs of
+    [x] -> Just $ TSys $ sysSingleton $ neg x
+    _   -> Nothing  -- TODO: is it really possible to never need this?
 
   TSys xs | any hasBot (sysToList xs) -> Just TFalse
 
-  --TAll x b t | x `elem` ["p3","p2","n","y","_1","_2","x","p1","s"] -> Just $ eliminate x b t
   TAll x b t -> Just $ eliminate x b t
   
   _ -> Nothing
