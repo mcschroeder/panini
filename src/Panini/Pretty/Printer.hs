@@ -306,21 +306,18 @@ instance Pretty PExpr where
     PVar n -> pretty n
     PCon c -> pretty c
     PFun f ps -> pretty f <> funargs ps
-    PBin Mul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
-    PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
-    PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
-    PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
+    PMul p1 p2 -> prettyOp p0 p1 p2 (sym "*")
+    PAdd p1 p2 -> prettyOp p0 p1 p2 (sym "+")
+    PSub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
     PStrLen p -> "|" <> pretty p <> "|"
     PStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
     PStrSub p1 p2 p3 -> pretty p1 <> "[" <> pretty p2 <> ".." <> pretty p3 <> "]"
 
 instance Fixity PExpr where
-  fixity (PBin Mul _ _) = (6, InfixL)
-  fixity (PBin Div _ _) = (6, InfixL)
-  fixity (PBin Add _ _) = (5, InfixL)
-  fixity (PBin Sub _ _) = (5, InfixL)
-  fixity _              = (9, InfixL)
-
+  fixity (PMul _ _) = (6, InfixL)
+  fixity (PAdd _ _) = (5, InfixL)
+  fixity (PSub _ _) = (5, InfixL)
+  fixity _          = (9, InfixL)
 
 -------------------------------------------------------------------------------
 

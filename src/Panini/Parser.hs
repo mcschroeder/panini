@@ -381,11 +381,10 @@ pexprTerm = choice
 pexprOps :: [[Operator Parser PExpr]]
 pexprOps =
   [ [ Postfix opSubStr ]
-  , [ infixL (op "*") (PBin Mul)
-    , infixL (op "/") (PBin Div)
+  , [ infixL (op "*") (PMul)
     ]
-  , [ infixL (op "+") (PBin Add)
-    , infixL (op "-") (PBin Sub)
+  , [ infixL (op "+") (PAdd)
+    , infixL (op "-") (PSub)
     ]
   ]
 

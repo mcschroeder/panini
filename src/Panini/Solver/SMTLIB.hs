@@ -53,7 +53,9 @@ instance SMTLib2 Pred where
 instance SMTLib2 PExpr where
   encode (PVar n) = encode n
   encode (PCon c) = encode c
-  encode (PBin o e1 e2) = sexpr [encode o, encode e1, encode e2]
+  encode (PAdd e1 e2) = sexpr ["+", encode e1, encode e2]
+  encode (PSub e1 e2) = sexpr ["-", encode e1, encode e2]
+  encode (PMul e1 e2) = sexpr ["*", encode e1, encode e2]
   encode (PFun x ps) = sexpr (encode x : map encode ps)
   encode (PStrLen p) = sexpr ["str.len", encode p]
   encode (PStrAt p1 p2) = sexpr ["str.at", encode p1, encode p2]
@@ -67,7 +69,7 @@ encodeSubstring p1 p2 p3 =
   where
     offset = case (p2,p3) of
       (PCon (I i _), PCon (I j _)) -> PCon (I (j - i) NoPV)
-      _                            -> PBin Sub p3 p2
+      _                            -> PSub p3 p2
 
 -- TODO: would kvars ever even be part of something sent to the solver?
 -- TODO: ensure uniqueness
@@ -83,12 +85,6 @@ instance SMTLib2 Constant where
   encode (B False _) = "false"
   encode (I x _) = LB.fromString (show x)
   encode (S x _) = LB.fromString (show x)
-
-instance SMTLib2 Bop where
-  encode Add = "+"
-  encode Sub = "-"
-  encode Mul = "*"
-  encode Div = "/"
 
 instance SMTLib2 Rel where
   encode Eq = "="
