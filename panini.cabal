@@ -44,7 +44,10 @@ library
     Panini.Solver.Z3
     Panini.Syntax
     Panini.Syntax.AST
+    Panini.Syntax.Constraints
     Panini.Syntax.Names
+    Panini.Syntax.Predicates
+    Panini.Syntax.Primitives
     Panini.Syntax.Provenance
     Panini.Syntax.Substitution
 
