@@ -372,20 +372,34 @@ pexpr = makeExprParser pexprTerm pexprOps
 
 pexprTerm :: Parser PExpr
 pexprTerm = choice
-  [ try $ PCon <$> constant <* notFollowedBy "("
+  [ try $ PStrLen <$ symbol "|" <*> pexpr <* symbol "|"
+  , try $ PCon <$> constant <* notFollowedBy "("
   , try $ PVar <$> name <* notFollowedBy "("
   , PFun <$> name <*> parens (sepBy1 pexpr ",")
   ]
 
 pexprOps :: [[Operator Parser PExpr]]
 pexprOps =
-  [ [ infixL (op "*") (PBin Mul)
+  [ [ Postfix opSubStr ]
+  , [ infixL (op "*") (PBin Mul)
     , infixL (op "/") (PBin Div)
     ]
   , [ infixL (op "+") (PBin Add)
     , infixL (op "-") (PBin Sub)
     ]
   ]
+
+opSubStr :: Parser (PExpr -> PExpr)
+opSubStr = foldr1 (flip (.)) <$> some subscripts
+  where
+    subscripts = do
+      symbol "["
+      i <- pexpr
+      jm <- optional $ symbol ".." >> pexpr
+      symbol "]"
+      case jm of
+        Just j -> return $ \s -> PStrSub s i j
+        Nothing -> return $ \s -> PStrAt s i
 
 prefix :: Functor m => m b -> (a -> a) -> Operator m a
 prefix p f = Prefix (f <$ p)

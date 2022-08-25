@@ -1,10 +1,10 @@
-(0 < len(s)) /\ forall x:string. (x = charat(s,0)) ==>
+(0 < |s|) /\ forall x:string. (x = s[0]) ==>
     forall p1:bool. (p1 = true <=> x = "a") ==>
       (forall _1:unit. (p1 = true) ==>
-        forall n:int. (n >= 0 /\ n = len(s)) ==>
+        forall n:int. (n >= 0 /\ n = |s|) ==>
           forall p2:bool. (p2 = true <=> n = 1) ==>
             p2 = true)
     /\ forall _2:unit. (p1 = false) ==>
-          (1 < len(s)) /\ forall y:string. (y = charat(s,1)) ==>
+          (1 < |s|) /\ forall y:string. (y = s[1]) ==>
             forall p3:bool. (p3 = true <=> y = "b") ==>
               p3 = true

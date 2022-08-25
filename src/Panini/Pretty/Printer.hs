@@ -310,6 +310,9 @@ instance Pretty PExpr where
     PBin Div p1 p2 -> prettyOp p0 p1 p2 (sym "/")
     PBin Add p1 p2 -> prettyOp p0 p1 p2 (sym "+")
     PBin Sub p1 p2 -> prettyOp p0 p1 p2 (sym "-")
+    PStrLen p -> "|" <> pretty p <> "|"
+    PStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
+    PStrSub p1 p2 p3 -> pretty p1 <> "[" <> pretty p2 <> ".." <> pretty p3 <> "]"
 
 instance Fixity PExpr where
   fixity (PBin Mul _ _) = (6, InfixL)

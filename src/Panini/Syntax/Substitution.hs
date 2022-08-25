@@ -123,12 +123,18 @@ instance Subable PExpr where
     PCon c       -> PCon c
     PBin o p₁ p₂ -> PBin o (subst x y p₁) (subst x y p₂)
     PFun f ps    -> PFun f (map (subst x y) ps)  -- TODO: what about f?
+    PStrLen p    -> PStrLen (subst x y p)
+    PStrAt p₁ p₂ -> PStrAt (subst x y p₁) (subst x y p₂)
+    PStrSub p₁ p₂ p₃ -> PStrSub (subst x y p₁) (subst x y p₂) (subst x y p₃)
   
   freeVars = \case
     PVar n        -> [n]
     PBin _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PFun f ps     -> concatMap freeVars ps ++ [f]
     PCon _        -> []
+    PStrLen p     -> freeVars p
+    PStrAt p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    PStrSub p₁ p₂ p₃ -> freeVars p₁ ++ freeVars p₂ ++ freeVars p₃
 
 instance Subable Con where
   subst x y = \case

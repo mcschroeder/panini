@@ -9,17 +9,10 @@ import Prelude
 import System.Exit
 import System.Process
 
--- TODO: encode string ops more safely/consistently
-
 smtValid :: SMTLib2 a => [a] -> IO Bool
 smtValid cs = do
   let foralls = map (Text.unpack . printSMTLib2) cs
-  let declares = 
-        [ "(define-fun length ((s String)) Int (str.len s))"
-        , "(define-fun substring ((s String) (i Int) (n Int)) String (str.substr s i n))"
-        -- "(declare-fun length ((String)) Int)"
-        -- , "(declare-fun substring ((String) (Int)) String)"
-        ]
+  let declares = []
   let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
   let query = unlines $ declares ++ asserts ++ ["(check-sat)"]
   putStrLn query

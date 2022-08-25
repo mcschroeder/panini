@@ -55,6 +55,19 @@ instance SMTLib2 PExpr where
   encode (PCon c) = encode c
   encode (PBin o e1 e2) = sexpr [encode o, encode e1, encode e2]
   encode (PFun x ps) = sexpr (encode x : map encode ps)
+  encode (PStrLen p) = sexpr ["str.len", encode p]
+  encode (PStrAt p1 p2) = sexpr ["str.at", encode p1, encode p2]
+  encode (PStrSub p1 p2 p3) = encodeSubstring p1 p2 p3
+
+-- NB: we represent the substring operation using [start..end] ranges,
+-- but SMTLIB/Z3Str expects start plus length, so we have to convert
+encodeSubstring :: PExpr -> PExpr -> PExpr -> Builder
+encodeSubstring p1 p2 p3 = 
+  sexpr ["str.substr", encode p1, encode p2, encode offset]
+  where
+    offset = case (p2,p3) of
+      (PCon (I i _), PCon (I j _)) -> PCon (I (j - i) NoPV)
+      _                            -> PBin Sub p3 p2
 
 -- TODO: would kvars ever even be part of something sent to the solver?
 -- TODO: ensure uniqueness

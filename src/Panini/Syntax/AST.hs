@@ -186,6 +186,9 @@ data PExpr
   | PVar Name             -- x
   | PBin Bop PExpr PExpr  -- e1 o e2
   | PFun Name [PExpr]     -- f(e1,e2,...)
+  | PStrLen PExpr         -- |s|
+  | PStrAt PExpr PExpr    -- s[i]
+  | PStrSub PExpr PExpr PExpr -- s[i..j]
   deriving stock (Eq, Show, Read)
 
 data Bop = Add | Sub | Mul | Div

@@ -11,7 +11,7 @@ import Data.HashSet qualified as HS
 import Data.List qualified as List
 import Data.Maybe
 import Data.Text qualified as Text
-import Debug.Trace
+--import Debug.Trace
 import GHC.Generics
 import Panini.Pretty.Graphviz
 import Panini.Pretty.Printer
@@ -230,15 +230,9 @@ construct = goC
     goP p              = TUnknown p
     goE (PVar x)       = GVar x
     goE (PCon c)       = GCon c
-    goE (PStrLen s)    = GStrLen s
-    goE (PStrAt s i)   = GStrAt s i
+    goE (PStrLen (PVar s)) = GStrLen s  -- TODO
+    goE (PStrAt (PVar s) (PCon (I i _))) = GStrAt s i  -- TODO
     goE _              = undefined
-
-pattern PStrLen :: Name -> PExpr
-pattern PStrLen s <- PFun "len" [PVar s]
-
-pattern PStrAt :: Name -> Integer -> PExpr
-pattern PStrAt s i <- PFun "charat" [PVar s, PCon (I i _)]
 
 -------------------------------------------------------------------------------
 
@@ -258,9 +252,9 @@ reduce = rewrite $ \case
   TAnd t1          TTrue       -> Just t1
   TAnd TFalse      _           -> Just TFalse
   TAnd _           TFalse      -> Just TFalse
-  TAnd (TSys xs)   (TSys ys)   -> Just $ TSys (xs ⊓ ys)
   TAnd t1          (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
   TAnd (TOr t1 t2) t3          -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
+  TAnd (TSys xs)   (TSys ys)   -> Just $ TSys (xs ⊓ ys)
 
   TImpl TTrue        t           -> Just t
   TImpl t            TTrue       -> Just $ TOr t (TNot t)
@@ -269,7 +263,7 @@ reduce = rewrite $ \case
   TImpl t1           (TOr t2 t3) -> Just $ TOr (TImpl t1 t2) (TImpl t1 t3)
   TImpl (TOr t1 t2)  t3          -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
   TImpl (TAnd t1 t2) t3          -> Just $ TOr (TImpl t1 t3) (TImpl t2 t3)
-  TImpl (TSys xs)    (TSys ys)   -> Just $ TOr (TNot (TSys xs)) (TSys (xs ⊓ ys))
+  TImpl t1           t2          -> Just $ TOr (TNot t1) (TAnd t1 t2)
 
   TIff t1 t2 -> Just $ TAnd (TImpl t1 t2) (TImpl t2 t1)
 
