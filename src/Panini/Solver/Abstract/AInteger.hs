@@ -1,10 +1,10 @@
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Panini.Solver.Abstract.AInteger
   ( AInteger
-  , isInfinite
-  , isEmpty
-  , concreteInteger
+  , concreteSize
+  , concreteValues
   , aIntegerEq
   , aIntegerNe
   , aIntegerGt
@@ -32,21 +32,36 @@ newtype AInteger = AInteger IntervalSequence
     , Hashable
     )
 
--- | Does an abstract integer represent an infinite number of values?
-isInfinite :: AInteger -> Bool
-isInfinite (AInteger (In NegInf _ : _))     = True
-isInfinite (AInteger (last -> In _ PosInf)) = True
-isInfinite _                                = False
+-- | The number of concrete values represented by the abstract integer (i.e.,
+-- the length of the list returned by 'concreteValues'), or 'Nothing' if the
+-- number of concrete values is infinite.
+concreteSize :: AInteger -> Maybe Integer
+concreteSize (AInteger xs) = go 0 xs
+  where
+    go n (In (Fin a) (Fin b) : ys) = go (n + 1 + b - a) ys
+    go n []                        = Just n
+    go _ _                         = Nothing
 
--- | Does an abstract integer represent no values?
-isEmpty :: AInteger -> Bool
-isEmpty (AInteger []) = True
-isEmpty _             = False
+-- | The concrete values represented by the abstract integer. 
+--
+-- Note that this is potentially an infinite list. If the number of values is
+-- finite, or if they approach only positive infinity (+∞), the values are
+-- returned in ascending order. If the values (also) tend toward negative
+-- infinity (-∞), no ordering guarantees are given.
+concreteValues :: AInteger -> [Integer]
+concreteValues (AInteger xs) = go xs
+  where
+    go (In (Fin a) (Fin b) : ys) = [a..b] ++ go ys
+    go (In (Fin a) PosInf  : _ ) = [a..]
+    go (In NegInf  (Fin b) : ys) = interleave [b,b-1..] (go ys)
+    go (In NegInf  PosInf  : _ ) = interleave [0..] [-1,-2..]
+    go []                        = []
+    go _                         = error "impossible"
 
--- | The single concrete value represented by the abstract integer, or Nothing.
-concreteInteger :: AInteger -> Maybe Integer
-concreteInteger (AInteger [In (Fin a) (Fin b)]) | a == b = Just a
-concreteInteger _                                        = Nothing
+-- | Interleaves two lists.
+interleave :: [a] -> [a] -> [a]
+interleave (x:xs) ys = x : interleave ys xs
+interleave []     ys = ys
 
 -- | An abstract integer @= i@.
 aIntegerEq :: Integer -> AInteger
@@ -80,7 +95,7 @@ instance Pretty AInteger where
 
 -------------------------------------------------------------------------------
 
--- | An ordered list of non-overlapping intervals.
+-- | An ordered list of non-overlapping integer intervals.
 type IntervalSequence = [Interval]
 
 instance JoinSemilattice IntervalSequence where

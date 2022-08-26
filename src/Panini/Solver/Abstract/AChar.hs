@@ -1,5 +1,7 @@
 module Panini.Solver.Abstract.AChar
   ( AChar
+  , concreteSize
+  , concreteValues
   , aCharEq
   , aCharNe
   ) where
@@ -43,6 +45,17 @@ instance Complementable AChar where
   neg (AChar b xs) = AChar (not b) xs
 
 instance ComplementedLattice AChar
+
+-- | The number of concrete values represented by the abstract character.
+concreteSize :: AChar -> Int
+concreteSize (AChar True  cs) = I.size cs
+concreteSize (AChar False cs) = fromEnum @Char maxBound - I.size cs
+
+-- | The concrete values represented by the abstract character.
+concreteValues :: AChar -> [Char]
+concreteValues (AChar True  cs) = map (toEnum @Char) $ I.toAscList cs
+concreteValues (AChar False cs) = 
+  filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
 -- | An abstract character @= c@.
 aCharEq :: Char -> AChar
