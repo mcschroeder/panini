@@ -47,8 +47,8 @@ instance SMTLib2 Pred where
   encode (PExists x b p) = sexpr ["exists", sexpr [sort], encode p]
     where
       sort = sexpr [encode x, encode b]
-  encode PTrue = sexpr ["true"]
-  encode PFalse = sexpr ["false"]
+  encode PTrue = "true"
+  encode PFalse = "false"
 
 instance SMTLib2 PExpr where
   encode (PVar n) = encode n
