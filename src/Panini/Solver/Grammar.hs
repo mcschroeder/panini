@@ -11,13 +11,15 @@ import Data.HashSet qualified as HS
 import Data.List qualified as List
 import Data.Maybe
 import Data.Text qualified as Text
---import Debug.Trace
+import Debug.Trace
 import GHC.Generics
 import Panini.Pretty.Graphviz
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.ABool
 import Panini.Solver.Abstract.AChar
+import Panini.Solver.Abstract.AChar qualified as AC
 import Panini.Solver.Abstract.AInteger
+import Panini.Solver.Abstract.AInteger qualified as AI
 import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
@@ -27,7 +29,7 @@ import Prelude
 solve :: Con -> Pred
 solve c = 
   let t = traceGraph "trace.svg" $ solve' c
-  in t `seq` PFalse
+  in trace (showPretty t) t `seq` destruct t
 
 solve' :: Con -> Tree
 solve' = reduce . construct . CAll "s" TString PTrue
@@ -193,6 +195,19 @@ instance GraphViz Tree where
       labUnknown p = rend $ "⟨ " <> pretty p <> " ⟩"    
       rend = renderDoc (RenderOptions False True Nothing)
 
+instance Pretty Tree where
+  pretty = \case
+    TOr t1 t2 -> pretty t1 <> "\\/" <> pretty t2
+    TAnd t1 t2 -> pretty t1 <> "/\\" <> pretty t2
+    TImpl t1 t2 -> pretty t1 <> "==>" <> pretty t2
+    TIff t1 t2 -> pretty t1 <> "<==>" <> pretty t2
+    TNot t1 -> "~" <> pretty t1
+    TAll x b t -> "forall " <> pretty x <> ":" <> pretty b <> ". " <> pretty t
+    TSys s -> "{" <> (mconcat $ List.intersperse ", " $ map pretty $ sysToList s) <> "}"
+    TTrue -> "⊤"
+    TFalse -> "⊥"
+    TUnknown p -> pretty p
+
 instance Pretty GRel where
   pretty (GRel r e1 e2) = pretty e1 <> " " <> pretty r <> " " <> pretty e2
 
@@ -233,6 +248,24 @@ construct = goC
     goE (PStrLen (PVar s)) = GStrLen s  -- TODO
     goE (PStrAt (PVar s) (PCon (I i _))) = GStrAt s i  -- TODO
     goE _              = undefined
+
+destruct :: Tree -> Pred
+destruct = goT
+  where
+    goT (TOr t1 t2) = goT t1 `pOr` goT t2
+    goT (TSys s)    = PAnd $ map goR $ sysToList s
+    goT _           = undefined
+
+    goR (GRel Eq e1 (GAbs (AInt  a))) = AI.toPred (goE e1) a
+    goR (GRel Eq e1 (GAbs (AChar a))) = AC.toPred (goE e1) a
+
+    goR (GRel r e1 e2) = PRel r (goE e1) (goE e2)
+
+    goE (GVar x)     = PVar x
+    goE (GCon c)     = PCon c
+    goE (GStrLen s)  = PStrLen (PVar s)
+    goE (GStrAt s i) = PStrAt (PVar s) (PCon (I i NoPV))
+    goE _            = undefined
 
 -------------------------------------------------------------------------------
 

@@ -1,10 +1,10 @@
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Panini.Solver.Abstract.AInteger
   ( AInteger
   , concreteSize
   , concreteValues
+  , toPred
   , aIntegerEq
   , aIntegerNe
   , aIntegerGt
@@ -18,7 +18,8 @@ import Data.List (intersperse)
 import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
-import Prelude hiding (isInfinite)
+import Panini.Syntax
+import Prelude
 
 -------------------------------------------------------------------------------
 
@@ -87,6 +88,23 @@ aIntegerLt a = AInteger [In NegInf (Fin (a - 1))]
 aIntegerLe :: Integer -> AInteger
 aIntegerLe a = AInteger [In NegInf (Fin a)]
 
+toPred :: PExpr -> AInteger -> Pred
+toPred lhs (AInteger xs) = case xs of
+  []                                          -> PFalse
+  In NegInf  PosInf  : []                     -> PTrue
+  In (Fin a) (Fin b) : [] | a == b            -> mkRel Eq a
+  In (Fin a) (Fin b) : []                     -> mkRel Ge a `pAnd` mkRel Le b
+  In NegInf  (Fin b) : []                     -> mkRel Le b
+  In (Fin a) PosInf  : []                     -> mkRel Ge a
+  In NegInf  _       : (last -> In _ (Fin b)) -> mkAnd $ mkRel Le b : holeRels
+  In (Fin a) _       : (last -> In _ PosInf ) -> mkAnd $ mkRel Ge a : holeRels
+  In NegInf  _       : (last -> In _ PosInf ) -> mkAnd $ holeRels
+  _                                           -> error "impossible"
+ where
+  mkAnd     = foldr pAnd PTrue
+  mkRel r i = PRel r lhs (PCon (I i NoPV))
+  holeRels  = map (mkRel Ne) (holes xs)
+
 instance Pretty AInteger where
   pretty (AInteger [])  = "∅"
   pretty (AInteger [x]) = pretty x
@@ -133,6 +151,11 @@ instance Complementable IntervalSequence where
       go _ = []  
 
 instance ComplementedLattice IntervalSequence
+
+-- | Returns all "holes" inbetween intervals.
+holes :: IntervalSequence -> [Integer]
+holes (In _ (Fin b) : y@(In (Fin c) _) : ys) = [b + 1 .. c - 1] ++ holes (y:ys)
+holes _                                      = []
 
 -------------------------------------------------------------------------------
 

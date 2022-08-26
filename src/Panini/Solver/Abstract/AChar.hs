@@ -4,6 +4,7 @@ module Panini.Solver.Abstract.AChar
   , concreteValues
   , aCharEq
   , aCharNe
+  , toPred
   ) where
 
 import Data.Hashable
@@ -13,7 +14,9 @@ import Data.List (intersperse)
 import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
+import Panini.Syntax
 import Prelude
+import Data.Text qualified as Text
 
 -------------------------------------------------------------------------------
 
@@ -46,6 +49,9 @@ instance Complementable AChar where
 
 instance ComplementedLattice AChar
 
+toCharList :: IntSet -> [Char]
+toCharList = map (toEnum @Char) . I.toAscList
+
 -- | The number of concrete values represented by the abstract character.
 concreteSize :: AChar -> Int
 concreteSize (AChar True  cs) = I.size cs
@@ -53,7 +59,7 @@ concreteSize (AChar False cs) = fromEnum @Char maxBound - I.size cs
 
 -- | The concrete values represented by the abstract character.
 concreteValues :: AChar -> [Char]
-concreteValues (AChar True  cs) = map (toEnum @Char) $ I.toAscList cs
+concreteValues (AChar True  cs) = toCharList cs
 concreteValues (AChar False cs) = 
   filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
@@ -65,13 +71,20 @@ aCharEq = AChar True . I.singleton . fromEnum
 aCharNe :: Char -> AChar
 aCharNe = AChar False . I.singleton . fromEnum
 
+toPred :: PExpr -> AChar -> Pred
+toPred lhs (AChar b cs) = case b of
+  True  -> foldr pOr PFalse $ map (mkRel Eq) $ toCharList cs
+  False -> foldr pAnd PTrue $ map (mkRel Ne) $ toCharList cs
+ where
+  mkRel r c = PRel r lhs (PCon (S (Text.singleton c) NoPV))  
+
 instance Pretty AChar where
-  pretty (AChar True cs) = case map (toEnum @Char) $ I.toAscList cs of
+  pretty (AChar True cs) = case toCharList cs of
     []  -> "∅"
     [x] -> "\"" <> pretty x <> "\""
     xs  -> "{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
   
-  pretty (AChar False cs) = case map (toEnum @Char) $ I.toAscList cs of
+  pretty (AChar False cs) = case toCharList cs of
     []  -> "Σ"
     [x] -> "Σ∖" <> pretty x
     xs  -> "Σ∖{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
