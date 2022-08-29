@@ -1,8 +1,13 @@
 module Panini.Error where
 
+import Data.Text qualified as Text
 import Data.Text (Text)
+import Panini.Pretty.Printer
 import Panini.Syntax
 import Prelude
+import Data.List qualified as List
+
+-------------------------------------------------------------------------------
 
 data Error
   = AlreadyDefined Name
@@ -34,4 +39,70 @@ instance HasProvenance Error where
   setPV _ e@(CantSynth _e) = e -- TODO
   setPV pv (ParserError _ e) = ParserError pv e
 
+-------------------------------------------------------------------------------
 
+instance Pretty Error where
+  pretty e = case prettyLoc $ getPV e of
+    (loc, Just src) -> message loc <\\> src
+    (loc, Nothing ) -> message loc
+    where
+      message o  = nest 2 (header o <\\> reason)
+      header o   = annotate Message (o <> ":" <+> annotate AError "error:")
+      reason     = prettyErrorMessage e
+
+prettyLoc :: PV -> (Doc, Maybe Doc)
+prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))
+prettyLoc (FromSource l Nothing) = (pretty l, Nothing)
+prettyLoc (Derived pv _) = prettyLoc pv
+prettyLoc NoPV = ("<unknown location>", Nothing)
+
+prettyErrorMessage :: Error -> Doc
+prettyErrorMessage = \case
+  AlreadyDefined x -> pretty x <+> msg "is already defined"    
+  VarNotInScope n -> msg "Variable not in scope:" <+> pretty n  
+  MissingType n -> msg "Missing type definition for" <+> pretty n  
+  
+  InvalidSubtypeBase (t1,b1) (t2,b2) -> bullets
+    [ pretty b1 <+> msg "is not a subtype of" <+> pretty b2
+    , group $ nest 4 (msg "Therefore," <\> pretty t1) <\> 
+      nest 4 (msg "is not a subtype of" <\> pretty t2)
+    ]  
+  
+  InvalidSubtype t1 t2 -> 
+    pretty t1 <+> msg "is not a subtype of" <+> pretty t2  
+  
+  ExpectedFunType e t -> bullets
+    [ pretty t <+> msg "is not a function type"
+    , group $ nest 4 $ msg "Expected a function type for expression:" <\> 
+      pretty e
+    ]
+
+  CantSynth e -> 
+    group $ nest 4 $ msg "Can't synthesize type for expression:" <\> pretty e
+
+  ParserError _ e -> msg $ Text.stripEnd e
+
+  where
+    msg     = annotate Message . pretty @Text
+    bullets = mconcat . List.intersperse "\n" . map ("•" <+>)
+
+wavyDiagnostic :: SrcLoc -> Text -> Doc
+wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
+  annM (mPadding   <+> "|") <\\>
+  annM (lineNumber <+> "|") <+> offendingLine <\\>
+  annM (mPadding   <+> "|") <+> errorPointer
+  where
+    annM           = annotate Margin
+    annE           = annotate AError
+    mPadding       = pretty $ replicate (length (show l1)) ' '
+    lineNumber     = pretty $ show l1
+    offendingLine  = pretty lineL <> annE (pretty lineE) <> pretty lineR
+    errorPointer   = pretty pPadding <> annE (pretty pointer)
+    (lineL, s')    = Text.splitAt (c1 - 1) s
+    (lineE, lineR) = Text.splitAt eLen s'
+    pointer        = replicate pLen '^'
+    pPadding       = if pLen > 0 then replicate pShift ' ' else ""
+    pLen           = if pShift + eLen > sLen then sLen - pShift + 1 else eLen
+    pShift         = c1 - 1
+    eLen           = if l1 == l2 then c2 - c1 else 1
+    sLen           = Text.length s

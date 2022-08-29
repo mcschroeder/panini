@@ -1,8 +1,9 @@
 module Panini.Syntax.Constraints where
 
+import Panini.Pretty.Printer
 import Panini.Syntax.Names
-import Panini.Syntax.Primitives
 import Panini.Syntax.Predicates
+import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -25,3 +26,15 @@ cAnd :: Con -> Con -> Con
 cAnd CTrue c2    = c2
 cAnd c1    CTrue = c1
 cAnd c1    c2    = CAnd c1 c2
+
+------------------------------------------------------------------------------
+
+instance Pretty Con where
+  pretty = annotate Predicate . \case
+    CHead p -> pretty p
+    CAnd c1 c2 -> pretty c1 <+> symAnd <\> pretty c2
+    CAll x b p c -> parens $ case c of
+      CHead _ ->          forall_ <+> pretty p <+> symImplies <+> pretty c
+      _       -> nest 2 $ forall_ <+> pretty p <+> symImplies <\> pretty c
+      where
+        forall_ = symAll <> pretty x <> symColon <> pretty b <> symDot

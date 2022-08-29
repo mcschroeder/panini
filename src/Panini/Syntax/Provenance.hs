@@ -10,6 +10,7 @@ module Panini.Syntax.Provenance
 import Data.ByteString qualified as BS
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
+import Panini.Pretty.Printer
 import Prelude
 import System.IO
 import Control.Monad
@@ -23,6 +24,14 @@ data SrcLoc = SrcLoc
   , end   :: (Int, Int)  -- ^ (line, column)
   }
   deriving stock (Eq, Ord, Show, Read)
+
+instance Pretty SrcLoc where
+  pretty (SrcLoc f (l1, c1) (l2, c2))
+    | l1 == l2, c1 == c2 = flc
+    | l1 == l2           = flc <> "-" <> pretty c2
+    | otherwise          = flc <> "-" <> pretty l2 <> ":" <> pretty c2
+    where
+      flc = pretty f <> ":" <> pretty l1 <> ":" <> pretty c1
 
 -- | Provenance information: where something comes from.
 data PV

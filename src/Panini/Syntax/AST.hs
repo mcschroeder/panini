@@ -1,6 +1,7 @@
 -- TODO: module documentation
 module Panini.Syntax.AST where
 
+import Panini.Pretty.Printer
 import Panini.Syntax.Constraints
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -20,6 +21,16 @@ data Statement
   | Import FilePath                  -- import m
   deriving stock (Show, Read)
 
+instance Pretty Program where
+  pretty = vcat . map pretty
+
+instance Pretty Statement where
+  pretty (Assume x t) = prettyKeyword "assume" <+> pretty x <+> prettyKeywordSymbol ":" <+> pretty t
+  pretty (Define x t e) = 
+    prettyKeyword "define" <+> pretty x <+> prettyKeyword ":" <+> pretty t <\> prettyKeywordSymbol "=" <+> pretty e
+  pretty (Import m) = 
+    prettyKeyword "import" <+> pretty m
+
 ------------------------------------------------------------------------------
 
 -- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
@@ -36,6 +47,25 @@ data Term a
 type Untyped = ()
 type Typed = (Type, Con)
 -- TODO: type Verified = (Type, Con, Assignment)
+
+instance Pretty (Term a) where
+  pretty (Var x _) = pretty x
+  pretty (Con c _) = pretty c
+  pretty (App e x _ _) = pretty e <+> pretty x  
+  pretty (Lam x t e _ _) = nest 2 $ group $ prettyKeywordSymbol "\\" <> pretty x <> prettyKeywordSymbol ":" <> pretty t <> prettyKeywordSymbol "." <\> pretty e
+  pretty (Let x e1 e2 _ _) = 
+    prettyKeyword "let" <+> pretty x <+> prettyKeywordSymbol "=" <+> group (pretty e1 <\> prettyKeyword "in") <\\> 
+    pretty e2
+  
+  pretty (Rec x t e1 e2 _ _) =
+    prettyKeyword "rec" <+> pretty x <+> prettyKeywordSymbol ":" <+> pretty t <\> 
+    prettyKeywordSymbol "=" <+> group (pretty e1 <\> prettyKeyword "in") <\\>
+    pretty e2
+  
+  pretty (If x e1 e2 _ _) = group $
+    prettyKeyword "if" <+> pretty x <+> 
+    nest 2 (prettyKeyword "then" <\> pretty e1) <\> 
+    nest 2 (prettyKeyword "else" <\> pretty e2)
 
 ------------------------------------------------------------------------------
 
@@ -56,10 +86,46 @@ isBaseType :: Type -> Bool
 isBaseType (TBase _ _ _ _) = True
 isBaseType _ = False
 
+
+instance Pretty Type where
+  pretty (TFun x t1@(TBase v t r _) t2 _)
+    | x == v, isT r, isDummy x =         pretty t  `arr` pretty t2
+    | x == v, isT r            = x `col` pretty t  `arr` pretty t2
+    | x == v                   =         pretty t1 `arr` pretty t2
+  
+  pretty (TFun x t1@(TFun _ _ _ _) t2 _)
+    | isDummy x =         parens (pretty t1) `arr` pretty t2
+    | otherwise = x `col` parens (pretty t1) `arr` pretty t2
+  
+  pretty (TFun x t1 t2 _)
+    | isDummy x =         pretty t1 `arr` pretty t2
+    | otherwise = x `col` pretty t1 `arr` pretty t2
+
+  pretty (TBase v t r _)
+    | isT r, isDummy v =                  pretty t
+    | otherwise        = braces $ v `col` pretty t <+> "|" <+> pretty r
+
+
+isT :: Reft -> Bool
+isT (Known PTrue) = True
+isT _ = False
+
+
+arr :: Doc -> Doc -> Doc
+arr a b = a <+> symArrow <+> b
+
+col :: Name -> Doc -> Doc
+col x a = pretty x <> symColon <> a
+
+
 data Reft
   = Unknown     -- ?
   | Known Pred  -- p
   deriving stock (Eq, Show, Read)
+
+instance Pretty Reft where
+  pretty Unknown = prettySymbol "?"
+  pretty (Known p) = pretty p
 
 instance HasProvenance Type where
   getPV (TBase _ _ _ pv) = pv

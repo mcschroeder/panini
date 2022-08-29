@@ -2,7 +2,8 @@ module Panini.Syntax.Predicates where
 
 import Data.Hashable
 import Data.String
-import GHC.Generics
+import GHC.Generics (Generic)
+import Panini.Pretty.Printer
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
@@ -47,6 +48,34 @@ pOr (POr ps)   q          = POr (ps ++ [q])
 pOr p          (POr qs)   = POr (p:qs)
 pOr p          q          = POr [p,q]
 
+instance Pretty Pred where
+  pretty p0 = annotate Predicate $ case p0 of
+    PAppK k xs -> pretty k <> prettyTuple xs
+    PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
+    PRel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
+    PIff   p1 p2 -> prettyL p0 p1 <+> symIff     <+> prettyR p0 p2
+    PImpl  p1 p2 -> prettyL p0 p1 <+> symImplies <+> prettyR p0 p2
+    PAnd ps -> concatWith (\a b -> a <+> symAnd <+> b) $ map (prettyL p0) ps
+    POr  ps -> concatWith (\a b -> a <+> symOr  <+> b) $ map (prettyL p0) ps
+    PExists x b p -> parens $ 
+      symExists <> pretty x <> symColon <> pretty b <> symDot <+> pretty p    
+    PTrue  -> "true"
+    PFalse -> "false"
+
+instance HasFixity Pred where
+  fixity (PNot _)       = Prefix
+  fixity (PRel Eq _ _)  = Infix NoAss 4
+  fixity (PRel Ne _ _)  = Infix NoAss 4
+  fixity (PRel Ge _ _)  = Infix NoAss 4
+  fixity (PRel Le _ _)  = Infix NoAss 4
+  fixity (PRel Gt _ _)  = Infix NoAss 4
+  fixity (PRel Lt _ _)  = Infix NoAss 4
+  fixity (PAnd _)       = Infix NoAss 3
+  fixity (POr _)        = Infix NoAss 3
+  fixity (PImpl _ _)    = Infix NoAss 1
+  fixity (PIff _ _)     = Infix NoAss 1
+  fixity _              = Infix LeftAss 9
+
 ------------------------------------------------------------------------------
 
 -- | A relation between two expressions.
@@ -60,6 +89,15 @@ data Rel
   deriving stock (Eq, Ord, Generic, Show, Read)
 
 instance Hashable Rel
+
+instance Pretty Rel where
+  pretty = \case
+    Ne -> symNe
+    Eq -> symEq
+    Le -> symLe
+    Lt -> symLt
+    Ge -> symGe
+    Gt -> symGt
 
 -- | Inverse of a relation, e.g., ≥ to <.
 invRel :: Rel -> Rel
@@ -100,6 +138,25 @@ data PExpr
   | PFun Name [PExpr]          -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@
   deriving stock (Eq, Show, Read)
 
+instance Pretty PExpr where
+  pretty p0 = case p0 of
+    PVar n -> pretty n
+    PCon c -> pretty c
+    PFun f ps -> pretty f <> prettyTuple ps
+    PMul p1 p2 -> prettyL p0 p1 <+> prettySymbol "*" <+> prettyR p0 p2
+    PAdd p1 p2 -> prettyL p0 p1 <+> prettySymbol "+" <+> prettyR p0 p2
+    PSub p1 p2 -> prettyL p0 p1 <+> prettySymbol "-" <+> prettyR p0 p2
+    PStrLen p -> "|" <> pretty p <> "|"
+    PStrAt p1 p2 -> pretty p1 <> brackets (pretty p2)
+    PStrSub p1 p2 p3 -> 
+      pretty p1 <> brackets (pretty p2 <> symDotDot <> pretty p3)
+
+instance HasFixity PExpr where
+  fixity (PMul _ _) = Infix LeftAss 6
+  fixity (PAdd _ _) = Infix LeftAss 5
+  fixity (PSub _ _) = Infix LeftAss 5
+  fixity _          = Infix LeftAss 9
+
 ------------------------------------------------------------------------------
 
 -- | A /refinement variable/ κ represents an unknown refinement over some free
@@ -121,3 +178,6 @@ data KVar = KVar Int [Base]
 -- | The parameters of a κ-variable.
 kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]
+
+instance Pretty KVar where
+  pretty (KVar i _) = symKappa <> pretty i

@@ -7,6 +7,7 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read
+import Panini.Pretty.Printer
 import Panini.Syntax.Provenance
 import Prelude
 
@@ -35,6 +36,9 @@ instance Hashable Name where
 
 instance IsString Name where
   fromString s = Name (Text.pack s) NoPV
+
+instance Pretty Name where
+  pretty (Name x _) = pretty x
 
 dummyName :: Name
 dummyName = "_"

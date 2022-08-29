@@ -2,6 +2,7 @@ module Panini.Syntax.Primitives where
 
 import Data.Hashable
 import Data.Text (Text)
+import Panini.Pretty.Printer
 import Panini.Syntax.Provenance
 import Prelude
 
@@ -14,6 +15,12 @@ data Base
   | TInt
   | TString
   deriving stock (Ord, Eq, Show, Read)
+
+instance Pretty Base where
+  pretty TUnit = "unit"
+  pretty TBool = "bool"
+  pretty TInt = "int"
+  pretty TString = "string"
 
 ------------------------------------------------------------------------------
 
@@ -49,3 +56,10 @@ instance HasProvenance Constant where
   setPV pv (B x _) = B x pv
   setPV pv (I x _) = I x pv
   setPV pv (S x _) = S x pv
+
+instance Pretty Constant where
+  pretty (U _) = "unit"
+  pretty (B True _) = "true"
+  pretty (B False _) = "false"
+  pretty (I c _) = pretty c
+  pretty (S t _) = viaShow t
