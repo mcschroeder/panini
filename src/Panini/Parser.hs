@@ -322,7 +322,9 @@ predicate = makeExprParser predTerm predOps
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
-  , predRel
+  , try predRel
+  , PTrue <$ keyword "true"
+  , PFalse <$ keyword "false"
   ]
 
 predOps :: [[Operator Parser Pred]]
