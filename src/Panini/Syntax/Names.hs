@@ -38,7 +38,7 @@ instance IsString Name where
   fromString s = Name (Text.pack s) NoPV
 
 instance Pretty Name where
-  pretty (Name x _) = pretty x
+  pretty (Name x _) = identifier VarIdent $ pretty x
 
 dummyName :: Name
 dummyName = "_"
@@ -59,4 +59,4 @@ nextSubscript :: Name -> Name
 nextSubscript (Name n pv) = case decimal @Int $ Text.takeWhileEnd isDigit n of
   Left _      -> Name (Text.append n "1") (Derived pv "rename")
   Right (i,_) -> Name (Text.dropWhileEnd isDigit n <> i') (Derived pv "rename")
-                   where i' = Text.pack $ show (i + 1) 
+                   where i' = Text.pack $ show (i + 1)

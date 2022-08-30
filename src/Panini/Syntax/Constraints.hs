@@ -30,7 +30,7 @@ cAnd c1    c2    = CAnd c1 c2
 ------------------------------------------------------------------------------
 
 instance Pretty Con where
-  pretty = annotate Predicate . \case
+  pretty = \case
     CHead p -> pretty p
     CAnd c1 c2 -> pretty c1 <+> symAnd <\> pretty c2
     CAll x b p c -> parens $ case c of

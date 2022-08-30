@@ -134,15 +134,15 @@ showState = do
   ElabState{environment} <- lift get
   forM_ (Map.toAscList environment) $ \(_,def) -> case def of
     Assumed{_name,_givenType} ->
-      outputStrLn $ "✳️  " ++ prettyS _name ++ " : " ++ prettyS _givenType
+      outputStrLn $ "✳️  " ++ showPretty _name ++ " : " ++ showPretty _givenType
     Rejected{_name,_givenType,_typeError} ->
-      outputStrLn $ "❗ " ++ prettyS _name ++ " : " ++ prettyS _givenType ++ "  [type error]"
+      outputStrLn $ "❗ " ++ showPretty _name ++ " : " ++ showPretty _givenType ++ "  [type error]"
     Inferred{_name,_inferredType,_vc} ->
-      outputStrLn $ "❓ " ++ prettyS _name ++ " : " ++ prettyS _inferredType
+      outputStrLn $ "❓ " ++ showPretty _name ++ " : " ++ showPretty _inferredType
     Invalid{_name,_inferredType,_vc} ->
-      outputStrLn $ "‼️  " ++ prettyS _name ++ " : " ++ prettyS _inferredType ++ "  [solver error]"
+      outputStrLn $ "‼️  " ++ showPretty _name ++ " : " ++ showPretty _inferredType ++ "  [solver error]"
     Verified{_name,_inferredType,_vc,_solution} ->
-      outputStrLn $ "✅ " ++ prettyS _name ++ " : " ++ prettyS _inferredType
+      outputStrLn $ "✅ " ++ showPretty _name ++ " : " ++ showPretty _inferredType
 
 
 
@@ -248,11 +248,7 @@ extractLines (l1,_) (l2,_) =
 outputPretty :: Pretty a => a -> InputT Elab ()
 outputPretty x = do
   ansiColors <- liftIO $ hSupportsANSIColor stdout
-  fixedWidth <- liftIO $ fmap snd <$> getTerminalSize
-  let opts = RenderOptions {unicodeSymbols = True, ansiColors, fixedWidth}
+  let styling = if ansiColors then Just defaultStyling else Nothing
+  fixedWidth <- liftIO $ fmap snd <$> getTerminalSize  
+  let opts = RenderOptions {unicode = True, styling, fixedWidth}
   outputStrLn $ Text.unpack $ renderDoc opts $ pretty x
-
-prettyS :: Pretty a => a -> String
-prettyS x =
-  let opts = RenderOptions {unicodeSymbols = True, ansiColors = True, fixedWidth = Nothing}
-  in Text.unpack $ renderDoc opts $ pretty x

@@ -47,7 +47,7 @@ instance Pretty Error where
     (loc, Nothing ) -> message loc
     where
       message o  = nest 2 (header o <\\> reason)
-      header o   = annotate Message (o <> ":" <+> annotate AError "error:")
+      header o   = aMessage (o <> ":" <+> anError "error:")
       reason     = prettyErrorMessage e
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
@@ -83,21 +83,19 @@ prettyErrorMessage = \case
   ParserError _ e -> msg $ Text.stripEnd e
 
   where
-    msg     = annotate Message . pretty @Text
+    msg     = aMessage . pretty @Text
     bullets = mconcat . List.intersperse "\n" . map ("•" <+>)
 
 wavyDiagnostic :: SrcLoc -> Text -> Doc
 wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
-  annM (mPadding   <+> "|") <\\>
-  annM (lineNumber <+> "|") <+> offendingLine <\\>
-  annM (mPadding   <+> "|") <+> errorPointer
+  marginalia (mPadding   <+> "│") <\\>
+  marginalia (lineNumber <+> "│") <+> offendingLine <\\>
+  marginalia (mPadding   <+> "│") <+> errorPointer
   where
-    annM           = annotate Margin
-    annE           = annotate AError
     mPadding       = pretty $ replicate (length (show l1)) ' '
     lineNumber     = pretty $ show l1
-    offendingLine  = pretty lineL <> annE (pretty lineE) <> pretty lineR
-    errorPointer   = pretty pPadding <> annE (pretty pointer)
+    offendingLine  = pretty lineL <> anError (pretty lineE) <> pretty lineR
+    errorPointer   = pretty pPadding <> anError (pretty pointer)
     (lineL, s')    = Text.splitAt (c1 - 1) s
     (lineE, lineR) = Text.splitAt eLen s'
     pointer        = replicate pLen '^'

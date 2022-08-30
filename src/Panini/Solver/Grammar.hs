@@ -193,7 +193,7 @@ instance GraphViz Tree where
       labAll x b = rend $ "∀" <> pretty x <> ":" <> pretty b
       labSys s = rend $ mconcat $ map ((<> "\\l") . pretty) $ sysToList s
       labUnknown p = rend $ "⟨ " <> pretty p <> " ⟩"    
-      rend = renderDoc (RenderOptions False True Nothing)
+      rend = renderDoc_
 
 instance Pretty Tree where
   pretty = \case

@@ -8,8 +8,10 @@
 -------------------------------------------------------------------------------
 module Panini.Solver.Fusion (sat) where
 
+import Control.Monad
 import Data.Map qualified as Map
 import Data.Set qualified as Set
+import Panini.Pretty.Printer
 import Panini.Solver.Assignment
 import Panini.Solver.Liquid
 import Panini.Solver.Simplify
@@ -18,20 +20,23 @@ import Prelude
 
 sat :: Con -> [Pred] -> IO Bool
 sat c q = do
+  putStrLn "--- constraint:"
+  putStrLn $ showPretty c  
   let ks = kvars c
-  let ks' = Set.toList ks  -- TODO: cut set
+  let ks' = Set.toList $ ks -- TODO: cut set
   let c1 = simplify c
-  -- putStrLn "--- simplified constraint:"
-  -- outputPretty c1
+  putStrLn "--- simplified constraint:"
+  putStrLn $ showPretty c1
   let c' = simplify $ elim ks' c1
-  -- putStrLn "--- after fusion:"
-  -- outputPretty c'
-  -- putStrLn "---"
+  putStrLn "--- after fusion:"
+  putStrLn $ showPretty c'
+  putStrLn "---"
   r <- solve c' q
   case r of
-    Just _s -> do
-      -- forM_ (Map.toList s) $ \(k,(xs,p)) -> do
-      --   outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
+    Just s -> do
+      putStrLn "--- kvar assignments:"
+      forM_ (Map.toList s) $ \(k,p) -> do
+        putStrLn $ showPretty $ pretty k <+> symMapsTo <+> pretty p
       return True
     Nothing -> return False
 

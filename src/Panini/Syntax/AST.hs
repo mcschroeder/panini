@@ -25,11 +25,11 @@ instance Pretty Program where
   pretty = vcat . map pretty
 
 instance Pretty Statement where
-  pretty (Assume x t) = prettyKeyword "assume" <+> pretty x <+> prettyKeywordSymbol ":" <+> pretty t
-  pretty (Define x t e) = 
-    prettyKeyword "define" <+> pretty x <+> prettyKeyword ":" <+> pretty t <\> prettyKeywordSymbol "=" <+> pretty e
-  pretty (Import m) = 
-    prettyKeyword "import" <+> pretty m
+  pretty = \case
+    Assume x t   -> keyword "assume" <+> pretty x <+> symColon <+> pretty t
+    Define x t e -> keyword "define" <+> pretty x <+> symColon <+> pretty t 
+                    <\> symEq <+> pretty e
+    Import m     -> keyword "import" <+> pretty m
 
 ------------------------------------------------------------------------------
 
@@ -51,21 +51,25 @@ type Typed = (Type, Con)
 instance Pretty (Term a) where
   pretty (Var x _) = pretty x
   pretty (Con c _) = pretty c
+  
   pretty (App e x _ _) = pretty e <+> pretty x  
-  pretty (Lam x t e _ _) = nest 2 $ group $ prettyKeywordSymbol "\\" <> pretty x <> prettyKeywordSymbol ":" <> pretty t <> prettyKeywordSymbol "." <\> pretty e
+  
+  pretty (Lam x t e _ _) = 
+    nest 2 $ group $ symLambda <> pretty x <> symColon <> pretty t <> symDot 
+                     <\> pretty e
+  
   pretty (Let x e1 e2 _ _) = 
-    prettyKeyword "let" <+> pretty x <+> prettyKeywordSymbol "=" <+> group (pretty e1 <\> prettyKeyword "in") <\\> 
-    pretty e2
+    keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> keyword "in") 
+    <\\> pretty e2
   
   pretty (Rec x t e1 e2 _ _) =
-    prettyKeyword "rec" <+> pretty x <+> prettyKeywordSymbol ":" <+> pretty t <\> 
-    prettyKeywordSymbol "=" <+> group (pretty e1 <\> prettyKeyword "in") <\\>
-    pretty e2
+    keyword "rec" <+> pretty x <+> symColon <+> pretty t 
+    <\> symEq <+> group (pretty e1 <\> keyword "in") 
+    <\\> pretty e2
   
   pretty (If x e1 e2 _ _) = group $
-    prettyKeyword "if" <+> pretty x <+> 
-    nest 2 (prettyKeyword "then" <\> pretty e1) <\> 
-    nest 2 (prettyKeyword "else" <\> pretty e2)
+    keyword "if" <+> pretty x <+> nest 2 (keyword "then" <\> pretty e1) 
+                              <\> nest 2 (keyword "else" <\> pretty e2)
 
 ------------------------------------------------------------------------------
 
@@ -82,41 +86,31 @@ data Type
   | TFun Name Type Type PV   -- x:t₁ → t₂
   deriving stock (Show, Read)
 
-isBaseType :: Type -> Bool
-isBaseType (TBase _ _ _ _) = True
-isBaseType _ = False
-
-
 instance Pretty Type where
-  pretty (TFun x t1@(TBase v t r _) t2 _)
-    | x == v, isT r, isDummy x =         pretty t  `arr` pretty t2
-    | x == v, isT r            = x `col` pretty t  `arr` pretty t2
-    | x == v                   =         pretty t1 `arr` pretty t2
+  pretty = \case
+    TFun x t1@(TBase v t r _) t2 _
+      | x == v, isT r, isDummy x ->         pretty t  `arr` pretty t2
+      | x == v, isT r            -> x `col` pretty t  `arr` pretty t2
+      | x == v                   ->         pretty t1 `arr` pretty t2
   
-  pretty (TFun x t1@(TFun _ _ _ _) t2 _)
-    | isDummy x =         parens (pretty t1) `arr` pretty t2
-    | otherwise = x `col` parens (pretty t1) `arr` pretty t2
+    TFun x t1@(TFun _ _ _ _) t2 _
+      | isDummy x ->         parens (pretty t1) `arr` pretty t2
+      | otherwise -> x `col` parens (pretty t1) `arr` pretty t2
   
-  pretty (TFun x t1 t2 _)
-    | isDummy x =         pretty t1 `arr` pretty t2
-    | otherwise = x `col` pretty t1 `arr` pretty t2
+    TFun x t1 t2 _
+      | isDummy x ->         pretty t1 `arr` pretty t2
+      | otherwise -> x `col` pretty t1 `arr` pretty t2
 
-  pretty (TBase v t r _)
-    | isT r, isDummy v =                  pretty t
-    | otherwise        = braces $ v `col` pretty t <+> "|" <+> pretty r
-
-
-isT :: Reft -> Bool
-isT (Known PTrue) = True
-isT _ = False
-
-
-arr :: Doc -> Doc -> Doc
-arr a b = a <+> symArrow <+> b
-
-col :: Name -> Doc -> Doc
-col x a = pretty x <> symColon <> a
-
+    TBase v t r _
+      | isT r, isDummy v ->                  pretty t
+      | otherwise        -> braces $ v `col` pretty t <+> "|" <+> pretty r
+   
+   where    
+    isT (Known PTrue) = True
+    isT _             = False
+    
+    arr a b = a <+> symArrow <+> b
+    col x a = pretty x <> symColon <> a
 
 data Reft
   = Unknown     -- ?
@@ -124,7 +118,7 @@ data Reft
   deriving stock (Eq, Show, Read)
 
 instance Pretty Reft where
-  pretty Unknown = prettySymbol "?"
+  pretty Unknown   = "?"
   pretty (Known p) = pretty p
 
 instance HasProvenance Type where

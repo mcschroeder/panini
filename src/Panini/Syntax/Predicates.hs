@@ -49,14 +49,14 @@ pOr p          (POr qs)   = POr (p:qs)
 pOr p          q          = POr [p,q]
 
 instance Pretty Pred where
-  pretty p0 = annotate Predicate $ case p0 of
+  pretty p0 = case p0 of
     PAppK k xs -> pretty k <> prettyTuple xs
     PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
     PRel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
     PIff   p1 p2 -> prettyL p0 p1 <+> symIff     <+> prettyR p0 p2
     PImpl  p1 p2 -> prettyL p0 p1 <+> symImplies <+> prettyR p0 p2
-    PAnd ps -> concatWith (\a b -> a <+> symAnd <+> b) $ map (prettyL p0) ps
-    POr  ps -> concatWith (\a b -> a <+> symOr  <+> b) $ map (prettyL p0) ps
+    PAnd ps -> concatWith symAnd $ map (prettyL p0) ps
+    POr  ps -> concatWith symOr  $ map (prettyL p0) ps
     PExists x b p -> parens $ 
       symExists <> pretty x <> symColon <> pretty b <> symDot <+> pretty p    
     PTrue  -> "true"
@@ -143,13 +143,13 @@ instance Pretty PExpr where
     PVar n -> pretty n
     PCon c -> pretty c
     PFun f ps -> pretty f <> prettyTuple ps
-    PMul p1 p2 -> prettyL p0 p1 <+> prettySymbol "*" <+> prettyR p0 p2
-    PAdd p1 p2 -> prettyL p0 p1 <+> prettySymbol "+" <+> prettyR p0 p2
-    PSub p1 p2 -> prettyL p0 p1 <+> prettySymbol "-" <+> prettyR p0 p2
+    PMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
+    PAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2
+    PSub p1 p2 -> prettyL p0 p1 <+> "-" <+> prettyR p0 p2
     PStrLen p -> "|" <> pretty p <> "|"
-    PStrAt p1 p2 -> pretty p1 <> brackets (pretty p2)
+    PStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
     PStrSub p1 p2 p3 -> 
-      pretty p1 <> brackets (pretty p2 <> symDotDot <> pretty p3)
+      pretty p1 <> "[" <> pretty p2 <> symDotDot <> pretty p3 <> "]"
 
 instance HasFixity PExpr where
   fixity (PMul _ _) = Infix LeftAss 6
@@ -180,4 +180,4 @@ kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]
 
 instance Pretty KVar where
-  pretty (KVar i _) = symKappa <> pretty i
+  pretty (KVar i _) = highlight $ identifier VarIdent $ symKappa <> subscript i
