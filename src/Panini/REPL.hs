@@ -18,6 +18,7 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Elaborator
 import Panini.Error
+import Panini.Logger
 import Panini.Parser
 import Panini.Pretty.Printer
 import Panini.Solver.Grammar qualified
@@ -118,7 +119,8 @@ evaluateInput input = do
 
 loadFiles :: [FilePath] -> InputT Elab ()
 loadFiles fs = forM_ fs $ \f -> do
-  src <- liftIO $ Text.readFile f
+  lift $ logBegin f
+  src <- lift $ logTimeM Trace "REPL" "Read source file" $ liftIO $ Text.readFile f
   case parseProgram f src of
     Left err1 -> outputPretty err1
     Right prog -> do
@@ -127,7 +129,9 @@ loadFiles fs = forM_ fs $ \f -> do
         Left err2 -> do
           err2' <- liftIO $ updatePV addSourceLines err2
           outputPretty err2'
-        Right () -> return ()
+        Right () -> do
+          lift logEnd
+          return ()
 
 showState :: InputT Elab ()
 showState = do

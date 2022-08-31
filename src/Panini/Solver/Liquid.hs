@@ -12,9 +12,11 @@
 module Panini.Solver.Liquid (solve) where
 
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
+import Panini.Logger
 import Panini.Solver.Assignment
 import Panini.Solver.SMTLIB
 import Panini.Solver.Z3
@@ -22,12 +24,10 @@ import Panini.Syntax
 import Prelude
 
 -- | Solve a Horn constraint given a set of candidates.
-solve :: Con -> [Pred] -> IO (Maybe Assignment)
+solve :: (MonadIO m, HasLogger m) => Con -> [Pred] -> m (Maybe Assignment)
 solve c qs = do
-  let cs = flat c
-  -- putStrLn "---"
-  -- mapM_ (putStrLn . showPretty) cs
-  -- putStrLn "---"
+  cs <- logTime Info "Liquid" "Flatten constraint" $ flat c
+  --logData Trace cs
   let (csk,csp) = partition horny cs
   
   -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
@@ -75,7 +75,7 @@ horny _                      = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given constraints is found.
-fixpoint :: [FlatCon] -> Assignment -> IO Assignment
+fixpoint :: (MonadIO m, HasLogger m) => [FlatCon] -> Assignment -> m Assignment
 fixpoint cs s = do  
   r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
   case r of
@@ -83,7 +83,7 @@ fixpoint cs s = do
     _   -> return s
 
 -- | Weaken an assignment to satisfy a given constraint.
-weaken :: Assignment -> FlatCon -> IO Assignment
+weaken :: (MonadIO m, HasLogger m) => Assignment -> FlatCon -> m Assignment
 weaken s (FAll xs p (PAppK k ys)) =
   case Map.lookup k s of
     Nothing -> error $ "missing Horn assignment for " ++ show k

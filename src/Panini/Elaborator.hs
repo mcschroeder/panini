@@ -11,11 +11,13 @@ import Data.Map qualified as Map
 import Data.Text.IO qualified as Text
 import Panini.Error
 import Panini.Infer
+import Panini.Logger
 import Panini.Parser
+import Panini.Pretty.Printer
 import Panini.Solver.Assignment
+import Panini.Solver.Fusion qualified
 import Panini.Syntax
 import Prelude
-import Panini.Solver.Fusion qualified
 
 -------------------------------------------------------------------------------
 
@@ -37,13 +39,18 @@ tryError m = catchError (Right <$> m) (return . Left)
 -- | Elaborator state.
 data ElabState = ElabState
   { environment :: Environment
+  , logger :: Logger
   }
 
 -- | Initial (empty) elaborator state.
 initState :: ElabState
 initState = ElabState 
   { environment = mempty
+  , logger = Logger { logLevel = Debug }
   }
+
+instance HasLogger Elab where
+  getLogger = gets logger
 
 -------------------------------------------------------------------------------
 
@@ -180,6 +187,7 @@ elaborateStatement = \case
       Nothing -> envExtend x (Assumed x t)    
   
   Define x t0 e -> do
+    logMessage Info "Elab" $ "Elaborate definition of " ++ showPretty x
     def0 <- envLookup x
     case def0 of
       Just _  -> throwError $ AlreadyDefined x
@@ -192,7 +200,7 @@ elaborateStatement = \case
             throwError err -- ?
           Right (_e',t,vc) -> do
             envExtend x (Inferred x t0 e t vc)
-            r <- liftIO $ Panini.Solver.Fusion.sat vc []
+            r <- Panini.Solver.Fusion.sat vc []
             case r of
               True -> envExtend x (Verified x t0 e t vc mempty)  -- TODO: assignment
               False -> envExtend x (Invalid x t0 e t vc Nothing)

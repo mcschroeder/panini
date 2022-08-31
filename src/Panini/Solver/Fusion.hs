@@ -9,34 +9,39 @@
 module Panini.Solver.Fusion (sat) where
 
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Map qualified as Map
 import Data.Set qualified as Set
-import Panini.Pretty.Printer
+import Panini.Logger
 import Panini.Solver.Assignment
 import Panini.Solver.Liquid
 import Panini.Solver.Simplify
 import Panini.Syntax
 import Prelude
 
-sat :: Con -> [Pred] -> IO Bool
+sat :: (MonadIO m, HasLogger m) => Con -> [Pred] -> m Bool
 sat c q = do
-  putStrLn "--- constraint:"
-  putStrLn $ showPretty c  
   let ks = kvars c
   let ks' = Set.toList $ ks -- TODO: cut set
-  let c1 = simplify c
-  putStrLn "--- simplified constraint:"
-  putStrLn $ showPretty c1
-  let c' = simplify $ elim ks' c1
-  putStrLn "--- after fusion:"
-  putStrLn $ showPretty c'
-  putStrLn "---"
-  r <- solve c' q
+
+  c1 <- logTime Info "Fusion" "Simplify constraint" 
+      $ simplify c
+  logData Debug c1
+
+  c2 <- logTime Info "Fusion" "Eliminate acyclic κ-variables" 
+      $ elim ks' c1
+  logData Trace c2
+
+  c3 <- logTime Info "Fusion" "Simplify constraint" 
+      $ simplify c2
+  logData Debug c3
+
+  r <- solve c3 q
   case r of
-    Just s -> do
-      putStrLn "--- kvar assignments:"
-      forM_ (Map.toList s) $ \(k,p) -> do
-        putStrLn $ showPretty $ pretty k <+> symMapsTo <+> pretty p
+    Just _s -> do
+      -- putStrLn "--- kvar assignments:"
+      -- forM_ (Map.toList s) $ \(k,p) -> do
+      --   putStrLn $ showPretty $ pretty k <+> symMapsTo <+> pretty p
       return True
     Nothing -> return False
 

@@ -27,6 +27,7 @@ library
     Panini.Elaborator
     Panini.Error
     Panini.Infer
+    Panini.Logger
     Panini.Parser
     Panini.Pretty.Graphviz
     Panini.Pretty.Printer
@@ -55,9 +56,11 @@ library
       base ^>=4.16
     , ansi-terminal
     , bytestring
+    , clock
     , containers
     , directory
     , filepath
+    , formatting
     , hashable
     , haskeline
     , megaparsec == 9.2.*
