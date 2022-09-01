@@ -1,5 +1,6 @@
 module Panini.Solver.Assignment where
 
+import Data.Generics.Uniplate.Operations
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -19,39 +20,16 @@ class HasKVars a where
   apply :: Assignment -> a -> a
 
 instance HasKVars Pred where
-  kvars = \case
-    PAppK k _ -> Set.singleton k
-    PAnd ps      -> foldMap kvars ps
-    POr ps       -> foldMap kvars ps
-    PImpl p1 p2  -> kvars p1 <> kvars p2
-    PIff p1 p2   -> kvars p1 <> kvars p2
-    PNot p       -> kvars p
-    _            -> mempty
-
-  apply s = \case
+  kvars p = Set.fromList [k | PAppK k _ <- universe p]
+  apply s = transform $ \case
     PAppK k ys -> case Map.lookup k s of
       Just p  -> substN ys (kparams k) p
       Nothing -> PAppK k ys
-    PRel r e1 e2 -> PRel r e1 e2
-    PAnd ps      -> PAnd (map (apply s) ps)
-    POr ps       -> POr (map (apply s) ps)
-    PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
-    PIff p1 p2   -> PIff (apply s p1) (apply s p2)
-    PNot p       -> PNot (apply s p)
-    PExists x b p -> PExists x b (apply s p)
-    PTrue  -> PTrue
-    PFalse -> PFalse
+    p -> p
 
 instance HasKVars Con where
-  kvars = \case
-    CHead p      -> kvars p
-    CAnd c1 c2   -> kvars c1 <> kvars c2
-    CAll _ _ p c -> kvars p <> kvars c
-
-  apply s = \case
-    CAll x b p c -> CAll x b (apply s p) (apply s c)
-    CAnd c1 c2   -> CAnd (apply s c1) (apply s c2)
-    CHead p      -> CHead (apply s p)
+  kvars c = foldMap kvars $ universeBi @Con @Pred  c
+  apply s = transformBi @Con @Pred (apply s)
 
 instance (Functor t, Foldable t, HasKVars a) => HasKVars (t a) where
   kvars = foldMap kvars

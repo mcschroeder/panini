@@ -1,5 +1,6 @@
 module Panini.Syntax.Predicates where
 
+import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
@@ -47,6 +48,27 @@ pOr (POr ps)   (POr qs)   = POr (ps ++ qs)
 pOr (POr ps)   q          = POr (ps ++ [q])
 pOr p          (POr qs)   = POr (p:qs)
 pOr p          q          = POr [p,q]
+
+instance Uniplate Pred where
+  uniplate = \case
+    PAnd ps       -> plate PAnd ||* ps
+    POr ps        -> plate POr ||* ps
+    PImpl p q     -> plate PImpl |* p |* q
+    PIff p q      -> plate PIff |* p |* q
+    PNot p        -> plate PNot |* p
+    PExists x b p -> plate PExists |- x |- b |* p
+    p             -> plate p
+
+instance Biplate Pred PExpr where
+  biplate = \case
+    PRel r e1 e2  -> plate PRel |- r |* e1 |* e2
+    PAnd ps       -> plate PAnd ||+ ps
+    POr ps        -> plate POr ||+ ps
+    PImpl p q     -> plate PImpl |+ p |+ q
+    PIff p q      -> plate PIff |+ p |+ q
+    PNot p        -> plate PNot |+ p
+    PExists x b p -> plate PExists |- x |- b |+ p
+    p             -> plate p
 
 instance Pretty Pred where
   pretty p0 = case p0 of
@@ -137,6 +159,17 @@ data PExpr
   | PStrSub PExpr PExpr PExpr  -- ^ substring @s[i..j]@ (inclusive bounds)
   | PFun Name [PExpr]          -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@
   deriving stock (Eq, Show, Read)
+
+instance Uniplate PExpr where
+  uniplate = \case
+    PAdd e1 e2       -> plate PAdd |* e1 |* e2
+    PSub e1 e2       -> plate PSub |* e1 |* e2
+    PMul e1 e2       -> plate PMul |* e1 |* e2
+    PStrLen e1       -> plate PStrLen |* e1
+    PStrAt e1 e2     -> plate PStrAt |* e1 |* e2
+    PStrSub e1 e2 e3 -> plate PStrSub |* e1 |* e2 |* e3
+    PFun f es        -> plate PFun |- f ||* es
+    e                -> plate e
 
 instance Pretty PExpr where
   pretty p0 = case p0 of

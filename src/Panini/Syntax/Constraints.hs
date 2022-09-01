@@ -1,5 +1,6 @@
 module Panini.Syntax.Constraints where
 
+import Data.Generics.Uniplate.Direct
 import Panini.Pretty.Printer
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -27,7 +28,17 @@ cAnd CTrue c2    = c2
 cAnd c1    CTrue = c1
 cAnd c1    c2    = CAnd c1 c2
 
-------------------------------------------------------------------------------
+instance Uniplate Con where
+  uniplate = \case
+    CHead p      -> plate CHead |- p
+    CAnd c1 c2   -> plate CAnd |* c1 |* c2
+    CAll x b p c -> plate CAll |- x |- b |- p |* c
+
+instance Biplate Con Pred where
+  biplate = \case
+    CHead p      -> plate CHead |* p
+    CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
+    CAll x b p c -> plate CAll |- x |- b |* p |+ c
 
 instance Pretty Con where
   pretty = \case
