@@ -19,7 +19,7 @@ data Pred
   | PAnd [Pred]             -- ^ conjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
   | POr [Pred]              -- ^ disjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
   | PImpl Pred Pred         -- ^ implication @p₁ ⟹ p₂@
-  | PIff Pred Pred          -- ^ if-and-onlyy-if @p₁ ⟺ p₂@
+  | PIff Pred Pred          -- ^ if-and-only-if @p₁ ⟺ p₂@
   | PNot Pred               -- ^ negation @¬p@
   | PAppK KVar [Name]       -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists Name Base Pred  -- ^ existential quantification @∃x:b. p@
