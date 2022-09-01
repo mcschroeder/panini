@@ -24,17 +24,17 @@ sat c q = do
   let ks = kvars c
   let ks' = Set.toList $ ks -- TODO: cut set
 
-  c1 <- logTime Info "Fusion" "Simplify constraint" 
-      $ simplify c
+  logMessage Debug "Fusion" "Simplify constraint"
+  let c1 = simplify c
   logData Debug c1
 
-  c2 <- logTime Info "Fusion" "Eliminate acyclic κ-variables" 
-      $ elim ks' c1
+  logMessage Info "Fusion" "Eliminate acyclic κ variables"
+  let c2 = elim ks' c1
   logData Trace c2
 
-  c3 <- logTime Info "Fusion" "Simplify constraint" 
-      $ simplify c2
-  logData Debug c3
+  logMessage Debug "Fusion" "Simplify constraint"
+  let c3 = simplify c2
+  logData Trace c3
 
   r <- solve c3 q
   case r of

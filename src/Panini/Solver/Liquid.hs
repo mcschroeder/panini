@@ -27,19 +27,24 @@ import Prelude
 -- | Solve a Horn constraint given a set of candidates.
 solve :: (MonadIO m, HasLogger m) => Con -> [Pred] -> m (Maybe Assignment)
 solve c qs = do
-  cs <- logTime Info "Liquid" "Flatten constraint" $ flat c
+  logMessage Debug "Liquid" "Flatten constraint"
+  let cs = flat c
   logData Trace $ prettyList cs
+  
   let (csk,csp) = partition horny cs
   
   -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
   -- this is clearly not good
   let ks = kvars csk
-  let s0 = Map.fromList $ map (\k -> (k, PAnd qs)) $ Set.toList ks
-  
+  let qs' = if null qs then PTrue else PAnd qs
+  let s0 = Map.fromList $ map (\k -> (k, qs')) $ Set.toList ks
+
+  logMessage Info "Liquid" "Iteratively weaken σ"
   s <- fixpoint csk s0
+  --logData Trace $ prettyMap s
+
   r <- smtValid (map (apply s) csp)
   if r then return (Just s) else return Nothing
-
 
 -- | A flat constraint of the form ∀(x₁:b₁,x₂:b₂,…). p ⇒ q where q is either a
 -- single κ-variable application κ(y̅) or a concrete predicate free of

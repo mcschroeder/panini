@@ -9,7 +9,7 @@ module Panini.Pretty.Printer
   , orASCII
   , subscript
   , concatWithOp
-  , prettyTuple, prettyList
+  , prettyTuple, prettyList, prettyMap
   , parens, brackets, braces
   , symDot, symDotDot, symColon, symArrow, symMapsTo
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
@@ -159,19 +159,19 @@ concatWithOp :: Doc -> [Doc] -> Doc
 concatWithOp op = PP.fillSep . List.intersperse op
 
 prettyTuple :: Pretty a => [a] -> Doc
-prettyTuple = tupled . map pretty
-  where
-    tupled = PP.group . PP.encloseSep lp rp co
-    lp = PP.flatAlt (lparen <> PP.space) lparen
-    rp = PP.flatAlt (PP.space <> rparen) rparen
-    co = symComma <> PP.space
+prettyTuple = listed lparen rparen . map pretty
 
 prettyList :: Pretty a => [a] -> Doc
-prettyList = listed . map pretty
+prettyList = listed lbracket rbracket. map pretty
+
+prettyMap :: (Pretty a, Pretty b) => [(a,b)] -> Doc
+prettyMap = listed lbrace rbrace . map (\(a,b) -> pretty a <> " ↦ " <> pretty b)
+
+listed :: Doc -> Doc -> [Doc] -> Doc
+listed bra ket = PP.group . PP.encloseSep lp rp co
   where
-    listed = PP.group . PP.encloseSep lp rp co
-    lp = PP.flatAlt (lbracket <> PP.space) lbracket
-    rp = PP.flatAlt (PP.space <> rbracket) rbracket
+    lp = PP.flatAlt (bra <> PP.space) bra
+    rp = PP.flatAlt (PP.space <> ket) ket
     co = symComma <> PP.space
 
 parens :: Doc -> Doc

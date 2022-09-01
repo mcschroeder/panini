@@ -13,14 +13,17 @@ import Control.Monad.IO.Class
 
 smtValid :: (MonadIO m, HasLogger m) => SMTLIB a => [a] -> m Bool
 smtValid cs = do
-  query <- logTimeM Trace "Z3" "Encode SMTLIB query" $ do
-    let foralls = map (Text.unpack . toSMTLIB) cs
-    let declares = []
-    let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
-    return $ unlines $ declares ++ asserts ++ ["(check-sat)"]
+  logMessage Trace "Z3" "Encode SMT-LIB query"
+  let foralls = map (Text.unpack . toSMTLIB) cs
+  let declares = []
+  let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
+  let query = unlines $ declares ++ asserts ++ ["(check-sat)"]
   logData Trace query
-  (code, output, _) <- logTimeM Info "Z3" "Solve query with Z3" $ 
-    liftIO $ readProcessWithExitCode "z3" ["-smt2", "-in"] query
+
+  logMessage Debug "Z3" "Check satisfiability"
+  (code, output, _) <- liftIO $ readProcessWithExitCode "z3" ["-smt2", "-in"] query
+  logData Trace output
+
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of
       "sat" -> return True

@@ -120,7 +120,8 @@ evaluateInput input = do
 loadFiles :: [FilePath] -> InputT Elab ()
 loadFiles fs = forM_ fs $ \f -> do
   lift $ logBegin f
-  src <- lift $ logTimeM Trace "REPL" "Read source file" $ liftIO $ Text.readFile f
+  lift $ logMessage Trace "REPL" $ "Read source file: " ++ f
+  src <- liftIO $ Text.readFile f
   case parseProgram f src of
     Left err1 -> outputPretty err1
     Right prog -> do

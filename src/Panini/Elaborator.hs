@@ -46,7 +46,7 @@ data ElabState = ElabState
 initState :: ElabState
 initState = ElabState 
   { environment = mempty
-  , logger = Logger { logLevel = Debug }
+  , logger = newLogger
   }
 
 instance HasLogger Elab where
