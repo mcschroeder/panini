@@ -18,6 +18,7 @@ data Error
   | ExpectedFunType (Term Untyped) Type
   | CantSynth (Term Untyped)
   | ParserError PV Text
+  | SolverError Text
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
@@ -29,6 +30,7 @@ instance HasProvenance Error where
   getPV (ExpectedFunType _e _) = NoPV --getPV e
   getPV (CantSynth _e) = NoPV --getPV e
   getPV (ParserError pv _) = pv
+  getPV (SolverError _) = NoPV
 
   setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
   setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
@@ -38,6 +40,7 @@ instance HasProvenance Error where
   setPV _ e@(ExpectedFunType _e _) = e -- TODO
   setPV _ e@(CantSynth _e) = e -- TODO
   setPV pv (ParserError _ e) = ParserError pv e
+  setPV _ e@(SolverError _) = e
 
 -------------------------------------------------------------------------------
 
@@ -81,6 +84,9 @@ prettyErrorMessage = \case
     group $ nest 4 $ msg "Can't synthesize type for expression:" <\> pretty e
 
   ParserError _ e -> msg $ Text.stripEnd e
+
+  SolverError e -> bullets
+    [ msg "The SMT solver returned some unexpected output:" <\> pretty e ]
 
   where
     msg     = aMessage . pretty @Text

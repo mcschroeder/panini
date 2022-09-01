@@ -5,6 +5,7 @@ import Data.Char (isSpace)
 import Control.Monad.IO.Class
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
+import Panini.Error
 import Panini.Logger
 import Panini.Monad
 import Panini.Solver.SMTLIB
@@ -31,5 +32,5 @@ smtValid cs = do
     ExitSuccess -> case dropWhileEnd isSpace output of
       "sat"   -> return True
       "unsat" -> return False
-      x       -> error x
-    ExitFailure _ -> error output
+      x       -> throwError $ SolverError $ Text.pack x
+    ExitFailure _ -> throwError $ SolverError $ Text.pack output
