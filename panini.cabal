@@ -25,9 +25,11 @@ library
   hs-source-dirs: src
   exposed-modules:
     Panini.Elaborator
+    Panini.Elaborator.Environment
     Panini.Error
     Panini.Infer
     Panini.Logger
+    Panini.Monad
     Panini.Parser
     Panini.Pretty.Graphviz
     Panini.Pretty.Printer

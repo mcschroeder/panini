@@ -17,6 +17,7 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
+import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.Solver.Assignment
 import Panini.Solver.SMTLIB
@@ -25,7 +26,7 @@ import Panini.Syntax
 import Prelude
 
 -- | Solve a Horn constraint given a set of candidates.
-solve :: (MonadIO m, HasLogger m) => Con -> [Pred] -> m (Maybe Assignment)
+solve :: Con -> [Pred] -> Pan (Maybe Assignment)
 solve c qs = do
   logMessage Debug "Liquid" "Flatten constraint"
   let cs = flat c
@@ -89,7 +90,7 @@ horny _                      = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given constraints is found.
-fixpoint :: (MonadIO m, HasLogger m) => [FlatCon] -> Assignment -> m Assignment
+fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
 fixpoint cs s = do  
   r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
   case r of
@@ -97,7 +98,7 @@ fixpoint cs s = do
     _   -> return s
 
 -- | Weaken an assignment to satisfy a given constraint.
-weaken :: (MonadIO m, HasLogger m) => Assignment -> FlatCon -> m Assignment
+weaken :: Assignment -> FlatCon -> Pan Assignment
 weaken s (FAll xs p (PAppK k ys)) =
   case Map.lookup k s of
     Nothing -> error $ "missing Horn assignment for " ++ show k

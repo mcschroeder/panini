@@ -17,8 +17,10 @@ import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Elaborator
+import Panini.Elaborator.Environment
 import Panini.Error
 import Panini.Logger
+import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
 import Panini.Solver.Grammar qualified
@@ -31,7 +33,7 @@ import System.IO
 -------------------------------------------------------------------------------
 
 -- | Panini REPL.
-repl :: InputT Elab ()
+repl :: InputT Pan ()
 repl = loop
   where
     prompt = "Panini> "
@@ -68,7 +70,7 @@ repl = loop
                     $ map (uncurry zip . bimap (tail . inits) repeat) commands
     
 
-commands :: [(String, String -> InputT Elab ())]
+commands :: [(String, String -> InputT Pan ())]
 commands = 
   [ ("format", formatInput)
   , ("type", synthesizeType)
@@ -78,7 +80,7 @@ commands =
   , ("grammar", solveGrammarFile . head . words)
   ]
 
-solveGrammarFile :: FilePath -> InputT Elab ()
+solveGrammarFile :: FilePath -> InputT Pan ()
 solveGrammarFile f = do
   src <- liftIO $ Text.readFile f
   case parseConstraint f src of
@@ -88,7 +90,7 @@ solveGrammarFile f = do
       let c' = Panini.Solver.Grammar.solve c
       outputPretty c'
 
-formatInput :: String -> InputT Elab ()
+formatInput :: String -> InputT Pan ()
 formatInput input = do
   case parseTerm "<repl>" $ Text.pack input of
     Left err -> do
@@ -96,7 +98,7 @@ formatInput input = do
       outputPretty err'
     Right e -> outputPretty e
 
-synthesizeType :: String -> InputT Elab ()
+synthesizeType :: String -> InputT Pan ()
 synthesizeType _input = undefined -- do
   -- e <- lift $ lift $ except $ parseInput input  
   -- g <- lift $ gets pan_types
@@ -108,7 +110,7 @@ synthesizeType _input = undefined -- do
   --     outputPretty vc
   --     outputPretty t
 
-evaluateInput :: String -> InputT Elab ()
+evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
   res <- lift $ tryError $ elaborateProgram =<< lift (except $ parseInput input) 
   case res of
@@ -117,7 +119,7 @@ evaluateInput input = do
       outputPretty err'
     Right () -> return ()
 
-loadFiles :: [FilePath] -> InputT Elab ()
+loadFiles :: [FilePath] -> InputT Pan ()
 loadFiles fs = forM_ fs $ \f -> do
   lift $ logBegin f
   lift $ logMessage Trace "REPL" $ "Read source file: " ++ f
@@ -134,9 +136,9 @@ loadFiles fs = forM_ fs $ \f -> do
           lift logEnd
           return ()
 
-showState :: InputT Elab ()
+showState :: InputT Pan ()
 showState = do
-  ElabState{environment} <- lift get
+  PanState{environment} <- lift get
   forM_ (Map.toAscList environment) $ \(_,def) -> case def of
     Assumed{_name,_givenType} ->
       outputStrLn $ "✳️  " ++ showPretty _name ++ " : " ++ showPretty _givenType
@@ -181,7 +183,7 @@ showState = do
   --   --     forM_ (Map.toList s) $ \(k,(xs,p)) -> do
   --   --       outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
 
-forgetVars :: [String] -> InputT Elab ()
+forgetVars :: [String] -> InputT Pan ()
 forgetVars _xs = undefined --do
   -- forM_ xs $ \x -> do
   --   let n = Name (Text.pack x) NoPV
@@ -195,7 +197,7 @@ forgetVars _xs = undefined --do
 -------------------------------------------------------------------------------
 
 -- | Panini REPL settings with working autocomplete.
-replSettings :: Maybe FilePath -> Settings Elab
+replSettings :: Maybe FilePath -> Settings Pan
 replSettings histFile =
   Settings
     { complete = autocomplete,
@@ -204,7 +206,7 @@ replSettings histFile =
     }
 
 -- TODO: improve this hacky implementation
-autocomplete :: CompletionFunc Elab
+autocomplete :: CompletionFunc Pan
 autocomplete = fallbackCompletion completeCommands completeFiles
   where
     completeCommands = completeWord' Nothing isSpace $ \str -> do
@@ -250,7 +252,7 @@ extractLines :: (Int,Int) -> (Int,Int) -> String -> String
 extractLines (l1,_) (l2,_) = 
   unlines . take (l2 + 1 - l1) . drop (l1 - 1) . lines
 
-outputPretty :: Pretty a => a -> InputT Elab ()
+outputPretty :: Pretty a => a -> InputT Pan ()
 outputPretty x = do
   ansiColors <- liftIO $ hSupportsANSIColor stdout
   let styling = if ansiColors then Just defaultStyling else Nothing

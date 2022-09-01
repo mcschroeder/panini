@@ -9,17 +9,17 @@
 module Panini.Solver.Fusion (sat) where
 
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
+import Panini.Monad
 import Panini.Solver.Assignment
 import Panini.Solver.Liquid
 import Panini.Solver.Simplify
 import Panini.Syntax
 import Prelude
 
-sat :: (MonadIO m, HasLogger m) => Con -> [Pred] -> m Bool
+sat :: Con -> [Pred] -> Pan Bool
 sat c q = do
   let ks = kvars c
   let ks' = Set.toList $ ks -- TODO: cut set

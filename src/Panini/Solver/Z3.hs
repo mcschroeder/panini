@@ -2,16 +2,19 @@
 module Panini.Solver.Z3 (smtValid) where
 
 import Data.Char (isSpace)
+import Control.Monad.IO.Class
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
 import Panini.Logger
+import Panini.Monad
 import Panini.Solver.SMTLIB
 import Prelude
 import System.Exit
 import System.Process
-import Control.Monad.IO.Class
 
-smtValid :: (MonadIO m, HasLogger m) => SMTLIB a => [a] -> m Bool
+-------------------------------------------------------------------------------
+
+smtValid :: SMTLIB a => [a] -> Pan Bool
 smtValid cs = do
   logMessage Trace "Z3" "Encode SMT-LIB query"
   let foralls = map (Text.unpack . toSMTLIB) cs
@@ -26,7 +29,7 @@ smtValid cs = do
 
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of
-      "sat" -> return True
+      "sat"   -> return True
       "unsat" -> return False
-      x -> error x    
+      x       -> error x
     ExitFailure _ -> error output
