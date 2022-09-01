@@ -1,10 +1,6 @@
 -- | Conversion of predicate logic constraints (`Con`) to SMT-LIB syntax. See
 -- https://smtlib.cs.uiowa.edu for more information about the output format.
-module Panini.Solver.SMTLIB
-  ( printSMTLib2
-  , SMTLib2(..)
-  , sexpr
-  ) where
+module Panini.Solver.SMTLIB (SMTLIB(..), toSMTLIB, sexpr) where
 
 import Data.Text (Text)
 import Data.Text.Lazy qualified as LT
@@ -15,55 +11,53 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
-printSMTLib2 :: SMTLib2 a => a -> Text
-printSMTLib2 = LT.toStrict . LB.toLazyText . encode
+class SMTLIB a where
+  encode :: a -> Builder
+
+toSMTLIB :: SMTLIB a => a -> Text
+toSMTLIB = LT.toStrict . LB.toLazyText . encode
 
 ------------------------------------------------------------------------------
 
-class SMTLib2 a where
-  encode :: a -> Builder
-
-parens :: Builder -> Builder
-parens a = "(" <> a <> ")"
-
-(<+>) :: Builder -> Builder -> Builder
-(<+>) a b = a <> " " <> b
-
 sexpr :: [Builder] -> Builder
-sexpr  = parens . foldr1 (<+>)
+sexpr xs = "(" <> foldr1 (\a b -> a <> " " <> b) xs <> ")"
 
-instance SMTLib2 Con where
-  encode (CHead p) = encode p
-  encode (CAnd c1 c2) = sexpr ["and", encode c1, encode c2]
-  encode (CAll x b p c) = sexpr ["forall", sexpr [sort], impl]
-    where
-      sort = sexpr [encode x, encode b]
-      impl = sexpr ["=>", encode p, encode c]
+instance SMTLIB Con where
+  encode = \case
+    CHead p      -> encode p
+    CAnd c1 c2   -> sexpr ["and", encode c1, encode c2]
+    CAll x b p c -> sexpr [ "forall"
+                          , sexpr [sexpr [encode x, encode b]]
+                          , sexpr ["=>", encode p, encode c]
+                          ]
 
-instance SMTLib2 Pred where
-  encode (PRel r e1 e2) = sexpr [encode r, encode e1, encode e2]
-  encode (PAnd ps) = sexpr ("and" : map encode ps)
-  encode (POr ps) = sexpr ("or" : map encode ps)
-  encode (PImpl p1 p2) = sexpr ["=>", encode p1, encode p2]
-  encode (PIff p1 p2) = sexpr ["iff", encode p1, encode p2]
-  encode (PNot p) = sexpr ["not", encode p]
-  encode (PAppK k xs) = sexpr (encode k : map encode xs)
-  encode (PExists x b p) = sexpr ["exists", sexpr [sort], encode p]
-    where
-      sort = sexpr [encode x, encode b]
-  encode PTrue = "true"
-  encode PFalse = "false"
+instance SMTLIB Pred where
+  encode = \case
+    PTrue         -> "true"
+    PFalse        -> "false"
+    PRel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
+    PAnd ps       -> sexpr ("and" : map encode ps)
+    POr ps        -> sexpr ("or" : map encode ps)
+    PImpl p1 p2   -> sexpr ["=>", encode p1, encode p2]
+    PIff p1 p2    -> sexpr ["iff", encode p1, encode p2]
+    PNot p        -> sexpr ["not", encode p]
+    PAppK k xs    -> sexpr (encode k : map encode xs)
+    PExists x b p -> sexpr [ "exists"
+                           , sexpr [sexpr [encode x, encode b]]
+                           , encode p
+                           ]
 
-instance SMTLib2 PExpr where
-  encode (PVar n) = encode n
-  encode (PCon c) = encode c
-  encode (PAdd e1 e2) = sexpr ["+", encode e1, encode e2]
-  encode (PSub e1 e2) = sexpr ["-", encode e1, encode e2]
-  encode (PMul e1 e2) = sexpr ["*", encode e1, encode e2]
-  encode (PFun x ps) = sexpr (encode x : map encode ps)
-  encode (PStrLen p) = sexpr ["str.len", encode p]
-  encode (PStrAt p1 p2) = sexpr ["str.at", encode p1, encode p2]
-  encode (PStrSub p1 p2 p3) = encodeSubstring p1 p2 p3
+instance SMTLIB PExpr where
+  encode = \case
+    PVar n           -> encode n
+    PCon c           -> encode c
+    PAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
+    PSub e1 e2       -> sexpr ["-", encode e1, encode e2]
+    PMul e1 e2       -> sexpr ["*", encode e1, encode e2]
+    PFun x ps        -> sexpr (encode x : map encode ps)
+    PStrLen p        -> sexpr ["str.len", encode p]
+    PStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
+    PStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
 
 -- NB: we represent the substring operation using [start..end] ranges,
 -- but SMTLIB/Z3Str expects start plus length, so we have to convert
@@ -75,31 +69,33 @@ encodeSubstring p1 p2 p3 =
       (PCon (I i _), PCon (I j _)) -> PCon (I (j - i) NoPV)
       _                            -> PSub p3 p2
 
--- TODO: would kvars ever even be part of something sent to the solver?
 -- TODO: ensure uniqueness
-instance SMTLib2 KVar where
+instance SMTLIB KVar where
   encode (KVar i _) = "k" <> LB.fromString (show i)
 
-instance SMTLib2 Name where
+instance SMTLIB Name where
   encode (Name n _) = LB.fromText n
 
-instance SMTLib2 Constant where
-  encode (U _) = "0"  -- TODO
-  encode (B True _) = "true"
-  encode (B False _) = "false"
-  encode (I x _) = LB.fromString (show x)
-  encode (S x _) = LB.fromString (show x)
+instance SMTLIB Constant where
+  encode = \case
+    U       _ -> "0"  -- TODO
+    B True  _ -> "true"
+    B False _ -> "false"
+    I x     _ -> LB.fromString (show x)
+    S x     _ -> LB.fromString (show x)
 
-instance SMTLib2 Rel where
-  encode Eq = "="
-  encode Ne = "disequal"
-  encode Ge = ">="
-  encode Le = "<="
-  encode Gt = ">"
-  encode Lt = "<"
+instance SMTLIB Rel where
+  encode = \case
+    Eq -> "="
+    Ne -> "disequal"
+    Ge -> ">="
+    Le -> "<="
+    Gt -> ">"
+    Lt -> "<"
 
-instance SMTLib2 Base where
-  encode TUnit = "Int"  -- TODO
-  encode TBool = "Bool"
-  encode TInt = "Int"
-  encode TString = "String"
+instance SMTLIB Base where
+  encode = \case
+    TUnit   -> "Int"  -- TODO
+    TBool   -> "Bool"
+    TInt    -> "Int"
+    TString -> "String"

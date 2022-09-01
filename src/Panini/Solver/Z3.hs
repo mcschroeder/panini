@@ -11,10 +11,10 @@ import System.Exit
 import System.Process
 import Control.Monad.IO.Class
 
-smtValid :: (MonadIO m, HasLogger m) => SMTLib2 a => [a] -> m Bool
+smtValid :: (MonadIO m, HasLogger m) => SMTLIB a => [a] -> m Bool
 smtValid cs = do
   query <- logTimeM Trace "Z3" "Encode SMTLIB query" $ do
-    let foralls = map (Text.unpack . printSMTLib2) cs
+    let foralls = map (Text.unpack . toSMTLIB) cs
     let declares = []
     let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
     return $ unlines $ declares ++ asserts ++ ["(check-sat)"]

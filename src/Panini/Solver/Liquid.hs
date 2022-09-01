@@ -50,7 +50,7 @@ instance HasKVars FlatCon where
   kvars (FAll _ p q) = kvars p <> kvars q
   apply s (FAll xs p q) = FAll xs (apply s p) (apply s q)
 
-instance SMTLib2 FlatCon where
+instance SMTLIB FlatCon where
   encode (FAll xs p q) = sexpr ["forall", sorts, impl]
     where
       sorts = sexpr $ map sort xs
