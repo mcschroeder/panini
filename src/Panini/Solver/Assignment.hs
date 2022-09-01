@@ -34,7 +34,7 @@ instance HasKVars Pred where
       Nothing -> PAppK k ys
     PRel r e1 e2 -> PRel r e1 e2
     PAnd ps      -> PAnd (map (apply s) ps)
-    POr ps       -> PAnd (map (apply s) ps)
+    POr ps       -> POr (map (apply s) ps)
     PImpl p1 p2  -> PImpl (apply s p1) (apply s p2)
     PIff p1 p2   -> PIff (apply s p1) (apply s p2)
     PNot p       -> PNot (apply s p)
