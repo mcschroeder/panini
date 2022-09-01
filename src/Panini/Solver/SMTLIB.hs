@@ -1,6 +1,10 @@
 -- | Conversion of predicate logic constraints (`Con`) to SMT-LIB syntax. See
 -- https://smtlib.cs.uiowa.edu for more information about the output format.
-module Panini.Solver.SMTLIB where
+module Panini.Solver.SMTLIB
+  ( printSMTLib2
+  , SMTLib2(..)
+  , sexpr
+  ) where
 
 import Data.Text (Text)
 import Data.Text.Lazy qualified as LT

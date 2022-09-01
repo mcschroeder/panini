@@ -54,8 +54,13 @@ logData l a = do
   Logger{logLevel} <- getLogger
   unless (logLevel < l) $ liftIO $ do
     w <- getTermWidth
+    let opts = RenderOptions 
+          { styling = Just defaultStyling
+          , unicode = True
+          , fixedWidth = Just w
+          }
     putStrLn $ replicate 8 '─' ++ "─┴─" ++ replicate (w - 8 - 3) '─'
-    Text.putStrLn $ renderDoc_ $ pretty a
+    Text.putStrLn $ renderDoc opts $ pretty a
     putStrLn $ replicate 8 '─' ++ "─┬─" ++ replicate (w - 8 - 3) '─'
 
 logTime :: (HasLogger m, MonadIO m) => LogLevel -> LogSource -> String -> a -> m a

@@ -4,17 +4,18 @@ module Panini.Pretty.Printer
   , Doc
   , Ann(..), IdentKind(..), LitKind(..)
   , Style(..), defaultStyling
-  , (<+>), (<\>), (<\\>), PP.vcat, PP.group, PP.nest, PP.viaShow
+  , (<+>), (<\>), (<\\>), PP.vcat, PP.vsep, PP.sep, PP.hang, PP.group, PP.nest, PP.viaShow
   , keyword, literal, identifier, aMessage, anError, marginalia, highlight
   , orASCII
   , subscript
-  , concatWith
-  , prettyTuple
+  , concatWithOp
+  , prettyTuple, prettyList
   , parens, brackets, braces
   , symDot, symDotDot, symColon, symArrow, symMapsTo
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
   , symNe, symEq, symLe, symLt, symGe, symGt
   , symLambda, symKappa
+  , symUnit, symBool, symNat, symInt, symString
   , HasFixity(..), Fixity(..), Associativity(..)
   , needsParensLeftOf, needsParensRightOf, needsParensPrefixedBy
   , parensIf, prettyL, prettyR
@@ -64,6 +65,7 @@ data Ann
   | Identifier IdentKind  -- ^ Identifiers, like variables and types.
   | Literal LitKind       -- ^ Literals, e.g., integers or strings.
   | Bracket BraKind       -- ^ Matched nesting symbols, e.g., parentheses.
+  | Separator             -- ^ Syntactic separators, e.g., commas.
   | Highlight             -- ^ Highlighted piece of syntax, something notable.
   | Message               -- ^ Any kind of message from the compiler.
   | Error                 -- ^ Something erroneous.
@@ -104,6 +106,7 @@ defaultStyling = \case
     StringLit -> s { fgColor = Just (Dull, Red) }
     OtherLit  -> s { fgColor = Just (Dull, Red) }
   Bracket _ -> s { fgColor = Just (Vivid, Black)}
+  Separator -> s { fgColor = Just (Vivid, Black)}
   Highlight -> s { bgColor = Just (Vivid, Yellow)}
   Message -> s { bold = Just True }
   Error   -> s { bold = Just True, fgColor = Just (Vivid, Red) }
@@ -152,32 +155,50 @@ subscript i = fromString (map go ds) `orASCII` (fromString ds)
     ds = show i
     go c = if isDigit c then chr (ord c + 8272) else c
 
--- | Concate all documents in the list with the given operator spaced between.
---
--- >>> concatWith symAnd ["a","b","c"]
--- a ∧ b ∧ c
----
-concatWith :: Foldable t => Doc -> t Doc -> Doc
-concatWith op = PP.concatWith (\a b -> a <+> op <+> b)
+concatWithOp :: Doc -> [Doc] -> Doc
+concatWithOp op = PP.fillSep . List.intersperse op
 
 prettyTuple :: Pretty a => [a] -> Doc
-prettyTuple = parens . mconcat . List.intersperse "," . map pretty
+prettyTuple = tupled . map pretty
+  where
+    tupled = PP.group . PP.encloseSep lp rp co
+    lp = PP.flatAlt (lparen <> PP.space) lparen
+    rp = PP.flatAlt (PP.space <> rparen) rparen
+    co = symComma <> PP.space
+
+prettyList :: Pretty a => [a] -> Doc
+prettyList = listed . map pretty
+  where
+    listed = PP.group . PP.encloseSep lp rp co
+    lp = PP.flatAlt (lbracket <> PP.space) lbracket
+    rp = PP.flatAlt (PP.space <> rbracket) rbracket
+    co = symComma <> PP.space
 
 parens :: Doc -> Doc
-parens d = 
-  PP.annotate (Bracket OpenBra) "(" <> d <> PP.annotate (Bracket CloseBra) ")"
+parens d = lparen <> d <> rparen
 
 brackets :: Doc -> Doc
-brackets d =
-  PP.annotate (Bracket OpenBra) "[" <> d <> PP.annotate (Bracket CloseBra) "]"
+brackets d = lbracket <> d <> rbracket
 
 braces :: Doc -> Doc
-braces d =
-  PP.annotate (Bracket OpenBra) "{" <> d <> PP.annotate (Bracket CloseBra) "}"
+braces d = lbrace <> d <> rbrace
+
+lparen, rparen :: Doc
+lparen = PP.annotate (Bracket OpenBra) "("
+rparen = PP.annotate (Bracket CloseBra) ")"
+
+lbracket, rbracket :: Doc
+lbracket = PP.annotate (Bracket OpenBra) "["
+rbracket = PP.annotate (Bracket CloseBra) "]"
+
+lbrace, rbrace :: Doc
+lbrace = PP.annotate (Bracket OpenBra) "{"
+rbrace = PP.annotate (Bracket CloseBra) "}"
 
 -------------------------------------------------------------------------------
 
-symDot, symDotDot, symColon, symArrow, symMapsTo :: Doc
+symComma, symDot, symDotDot, symColon, symArrow, symMapsTo :: Doc
+symComma  = PP.annotate Separator ","
 symDot    = "."
 symDotDot = ".."
 symColon  = ":"
@@ -204,6 +225,13 @@ symGt = ">"
 symLambda, symKappa :: Doc
 symLambda = "λ" `orASCII` "\\"
 symKappa  = "κ" `orASCII` "k"
+
+symUnit, symBool, symNat, symInt, symString :: Doc
+symUnit = "𝟙" `orASCII` "unit"
+symBool = "𝔹" `orASCII` "bool"
+symNat = "ℕ" `orASCII` "nat"
+symInt = "ℤ" `orASCII` "int"
+symString = "𝕊" `orASCII` "string"
 
 -------------------------------------------------------------------------------
 

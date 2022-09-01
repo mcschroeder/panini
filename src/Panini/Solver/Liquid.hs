@@ -17,6 +17,7 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
+import Panini.Pretty.Printer
 import Panini.Solver.Assignment
 import Panini.Solver.SMTLIB
 import Panini.Solver.Z3
@@ -27,7 +28,7 @@ import Prelude
 solve :: (MonadIO m, HasLogger m) => Con -> [Pred] -> m (Maybe Assignment)
 solve c qs = do
   cs <- logTime Info "Liquid" "Flatten constraint" $ flat c
-  --logData Trace cs
+  logData Trace $ prettyList cs
   let (csk,csp) = partition horny cs
   
   -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
@@ -55,6 +56,14 @@ instance SMTLib2 FlatCon where
       sorts = sexpr $ map sort xs
       sort (x,b) = sexpr [encode x, encode b]
       impl = sexpr ["=>", encode p, encode q]
+
+instance Pretty FlatCon where
+  pretty (FAll xs p q) = hang 2 $ sep 
+    [ symAll <> binders xs <> symDot
+    , pretty p <+> symImplies <+> pretty q
+    ]
+   where
+    binders = prettyTuple . map (\(x,b) -> pretty x <> symColon <> pretty b)
 
 -- | Flatten a constraint.
 flat :: Con -> [FlatCon]

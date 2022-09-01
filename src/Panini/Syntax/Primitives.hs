@@ -17,10 +17,10 @@ data Base
   deriving stock (Ord, Eq, Show, Read)
 
 instance Pretty Base where
-  pretty TUnit   = identifier TypeIdent "unit"
-  pretty TBool   = identifier TypeIdent "bool"
-  pretty TInt    = identifier TypeIdent "int"
-  pretty TString = identifier TypeIdent "string"
+  pretty TUnit   = identifier TypeIdent symUnit
+  pretty TBool   = identifier TypeIdent symBool
+  pretty TInt    = identifier TypeIdent symInt
+  pretty TString = identifier TypeIdent symString
 
 ------------------------------------------------------------------------------
 

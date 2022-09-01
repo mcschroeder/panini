@@ -50,13 +50,13 @@ pOr p          q          = POr [p,q]
 
 instance Pretty Pred where
   pretty p0 = case p0 of
-    PAppK k xs -> pretty k <> prettyTuple xs
+    PAppK k xs -> highlight $ pretty k <> prettyTuple xs
     PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
     PRel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
     PIff   p1 p2 -> prettyL p0 p1 <+> symIff     <+> prettyR p0 p2
     PImpl  p1 p2 -> prettyL p0 p1 <+> symImplies <+> prettyR p0 p2
-    PAnd ps -> concatWith symAnd $ map (prettyL p0) ps
-    POr  ps -> concatWith symOr  $ map (prettyL p0) ps
+    PAnd ps -> concatWithOp symAnd $ map (prettyL p0) ps
+    POr  ps -> concatWithOp symOr  $ map (prettyL p0) ps
     PExists x b p -> parens $ 
       symExists <> pretty x <> symColon <> pretty b <> symDot <+> pretty p    
     PTrue  -> "true"
@@ -180,4 +180,4 @@ kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]
 
 instance Pretty KVar where
-  pretty (KVar i _) = highlight $ identifier VarIdent $ symKappa <> subscript i
+  pretty (KVar i _) = identifier VarIdent $ symKappa <> subscript i
