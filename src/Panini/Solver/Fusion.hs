@@ -9,7 +9,10 @@
 module Panini.Solver.Fusion (sat) where
 
 import Control.Monad
-import Data.Map qualified as Map
+import Data.Bifunctor
+import Data.Graph qualified as Graph
+import Data.Map.Strict qualified as Map
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Monad
@@ -21,14 +24,18 @@ import Prelude
 
 sat :: Con -> [Pred] -> Pan Bool
 sat c q = do
-  let ks = kvars c
-  let ks' = Set.toList $ ks -- TODO: cut set
-
   logMessage Debug "Fusion" "Simplify constraint"
   let c1 = simplifyCon c
   logData Debug c1
 
-  logMessage Info "Fusion" "Eliminate acyclic κ variables"
+  logMessage Info "Fusion" "Find set of cut variables Κ̂"
+  let ks_cut = cutVars c1
+  logData Trace ks_cut
+
+  logMessage Info "Fusion" "Compute exact solutions for non-cut variables"
+  let ks = kvars c1
+  let ks' = Set.toList $ ks Set.\\ ks_cut
+  logData Trace ks'
   let c2 = elim ks' c1
   logData Trace c2
 
@@ -94,3 +101,47 @@ elim' s (CAll x b p c) = CAll x b (apply s p) (elim' s c)
 elim' s (CHead (PAppK k _)) 
   | k `Map.member` s   = CTrue
 elim' _ c              = c
+
+-------------------------------------------------------------------------------
+
+-- | The dependencies @deps c@ between the κ variables of a constraint @c@ is
+-- the set of pairs (κ,κ') where κ appears in a body (hypothesis) for a clause
+-- where κ' is in the head (goal).
+deps :: Con -> Set (KVar, KVar)
+deps = Set.unions . map depsF . flat
+  where
+    depsF (FAll _ p q) = Set.cartesianProduct (kvars p) (kvars q)
+
+-- | A set Κ̂ of κ-variables /cuts/ a constraint c if the dependencies between
+-- the κ variables in c /without Κ̂/ are acyclic. In other words, @cutVars c@
+-- returns those κ variables of @c@ that make the satisfaction problem for @c@
+-- undecidable.
+cutVars :: Con -> Set KVar
+cutVars = go mempty . deps
+  where
+    go ks ds = case findCyclicK (scc ds) of
+      Just k  -> go (Set.insert k ks) (depsK k ds)
+      Nothing -> ks
+
+    -- removes the given κ variable from the dependency set
+    depsK :: KVar -> Set (KVar, KVar) -> Set (KVar, KVar)
+    depsK k = Set.filter (\(a,b) -> a /= k && b /= k)
+
+    -- the strongly connected components (SCCs) of the dependency set
+    scc :: Set (KVar, KVar) -> [Graph.SCC KVar]
+    scc = Graph.stronglyConnComp . adjList
+
+    -- an adjacency list representation of the dependency set (cf. Data.Graph)
+    adjList :: Set (KVar, KVar) -> [(KVar, Int, [Int])]
+    adjList = map (\(k@(KVar i _), is) -> (k, i, is))
+            . Map.toList
+            . Map.fromAscListWith (++) 
+            . map (second (\(KVar i _) -> [i])) 
+            . Set.toAscList
+
+    -- the first cyclic κ variable in a list of SCCs
+    findCyclicK :: [Graph.SCC KVar] -> Maybe KVar
+    findCyclicK xs = case xs of
+      Graph.CyclicSCC (k:_) : _  -> Just k
+      []                         -> Nothing
+      _                     : vs -> findCyclicK vs
