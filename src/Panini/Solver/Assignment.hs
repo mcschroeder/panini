@@ -31,6 +31,10 @@ instance HasKVars Con where
   kvars c = foldMap kvars $ universeBi @Con @Pred  c
   apply s = transformBi @Con @Pred (apply s)
 
+instance HasKVars FlatCon where
+  kvars (FAll _ p q) = kvars p <> kvars q
+  apply s (FAll xs p q) = FAll xs (apply s p) (apply s q)
+
 instance (Functor t, Foldable t, HasKVars a) => HasKVars (t a) where
   kvars = foldMap kvars
   apply s = fmap (apply s)

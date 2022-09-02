@@ -12,7 +12,6 @@
 module Panini.Solver.Liquid (solve) where
 
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
@@ -20,7 +19,6 @@ import Panini.Logger
 import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.Solver.Assignment
-import Panini.Solver.SMTLIB
 import Panini.Solver.Z3
 import Panini.Syntax
 import Prelude
@@ -46,42 +44,6 @@ solve c qs = do
 
   r <- smtValid (map (apply s) csp)
   if r then return (Just s) else return Nothing
-
--- | A flat constraint of the form ∀(x₁:b₁,x₂:b₂,…). p ⇒ q where q is either a
--- single κ-variable application κ(y̅) or a concrete predicate free of
--- κ-variables.
-data FlatCon = FAll [(Name,Base)] Pred Pred
-
-instance HasKVars FlatCon where
-  kvars (FAll _ p q) = kvars p <> kvars q
-  apply s (FAll xs p q) = FAll xs (apply s p) (apply s q)
-
-instance SMTLIB FlatCon where
-  encode (FAll xs p q) = sexpr ["forall", sorts, impl]
-    where
-      sorts = sexpr $ map sort xs
-      sort (x,b) = sexpr [encode x, encode b]
-      impl = sexpr ["=>", encode p, encode q]
-
-instance Pretty FlatCon where
-  pretty (FAll xs p q) = hang 2 $ sep 
-    [ symAll <> binders xs <> symDot
-    , pretty p <+> symImplies <+> pretty q
-    ]
-   where
-    binders = prettyTuple . map (\(x,b) -> pretty x <> symColon <> pretty b)
-
--- | Flatten a constraint.
-flat :: Con -> [FlatCon]
-flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
-  where
-    split (CAll x b p c) = [CAll x b p c' | c' <- split c]
-    split (CHead p)      = [CHead p]
-    split (CAnd c₁ c₂)   = split c₁ ++ split c₂
-
-    simpl xs ps (CAll x b p c) = simpl ((x,b):xs) (p:ps) c
-    simpl xs ps (CHead q)      = FAll (reverse xs) (PAnd $ reverse ps) q
-    simpl _  _  (CAnd _ _)     = error "impossible"
 
 -- | Whether or not a flat constraint has a κ application in its head.
 horny :: FlatCon -> Bool

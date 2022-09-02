@@ -1,6 +1,6 @@
 -- | Conversion of predicate logic constraints (`Con`) to SMT-LIB syntax. See
 -- https://smtlib.cs.uiowa.edu for more information about the output format.
-module Panini.Solver.SMTLIB (SMTLIB(..), toSMTLIB, sexpr) where
+module Panini.Solver.SMTLIB (SMTLIB(..), toSMTLIB) where
 
 import Data.Text (Text)
 import Data.Text.Lazy qualified as LT
@@ -22,14 +22,20 @@ toSMTLIB = LT.toStrict . LB.toLazyText . encode
 sexpr :: [Builder] -> Builder
 sexpr xs = "(" <> foldr1 (\a b -> a <> " " <> b) xs <> ")"
 
+sorts :: [(Name, Base)] -> Builder
+sorts = sexpr . map (\(x,b) -> sexpr [encode x, encode b])
+
 instance SMTLIB Con where
   encode = \case
     CHead p      -> encode p
     CAnd c1 c2   -> sexpr ["and", encode c1, encode c2]
-    CAll x b p c -> sexpr [ "forall"
-                          , sexpr [sexpr [encode x, encode b]]
+    CAll x b p c -> sexpr [ "forall", sorts [(x,b)]
                           , sexpr ["=>", encode p, encode c]
                           ]
+
+instance SMTLIB FlatCon where
+  encode (FAll xs p q) = sexpr [ "forall", sorts xs
+                               , sexpr ["=>", encode p, encode q]]
 
 instance SMTLIB Pred where
   encode = \case
@@ -42,10 +48,7 @@ instance SMTLIB Pred where
     PIff p1 p2    -> sexpr ["iff", encode p1, encode p2]
     PNot p        -> sexpr ["not", encode p]
     PAppK k xs    -> sexpr (encode k : map encode xs)
-    PExists x b p -> sexpr [ "exists"
-                           , sexpr [sexpr [encode x, encode b]]
-                           , encode p
-                           ]
+    PExists x b p -> sexpr [ "exists", sorts [(x,b)], encode p]
 
 instance SMTLIB PExpr where
   encode = \case

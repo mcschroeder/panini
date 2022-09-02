@@ -52,3 +52,31 @@ instance Pretty Con where
       _       -> nest 2 $ forall_ <+> pretty p <+> symImplies <\> pretty c
       where
         forall_ = symAll <> pretty x <> symColon <> pretty b <> symDot
+
+------------------------------------------------------------------------------
+
+-- | A flat constraint of the form ∀(x₁:b₁,x₂:b₂,…). p ⇒ q where q is either a
+-- single κ-variable application κ(y̅) or a concrete predicate free of
+-- κ-variables.
+data FlatCon = FAll [(Name,Base)] Pred Pred
+
+-- | Flatten a constraint.
+flat :: Con -> [FlatCon]
+flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
+  where
+    split (CAll x b p c) = [CAll x b p c' | c' <- split c]
+    split (CHead p)      = [CHead p]
+    split (CAnd c₁ c₂)   = split c₁ ++ split c₂
+
+    simpl xs ps (CAll x b p c) = simpl ((x,b):xs) (p:ps) c
+    simpl xs ps (CHead q)      = FAll (reverse xs) (PAnd $ reverse ps) q
+    simpl _  _  (CAnd _ _)     = error "impossible"
+
+
+instance Pretty FlatCon where
+  pretty (FAll xs p q) = hang 2 $ sep 
+    [ symAll <> binders xs <> symDot
+    , pretty p <+> symImplies <+> pretty q
+    ]
+   where
+    binders = prettyTuple . map (\(x,b) -> pretty x <> symColon <> pretty b)
