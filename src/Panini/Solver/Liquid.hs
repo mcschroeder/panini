@@ -17,7 +17,6 @@ import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Monad
-import Panini.Pretty.Printer
 import Panini.Solver.Assignment
 import Panini.Solver.Z3
 import Panini.Syntax
@@ -28,7 +27,7 @@ solve :: Con -> [Pred] -> Pan (Maybe Assignment)
 solve c qs = do
   logMessage Debug "Liquid" "Flatten constraint"
   let cs = flat c
-  logData Trace $ prettyList cs
+  logData Trace cs
   
   let (csk,csp) = partition horny cs
   
@@ -40,7 +39,7 @@ solve c qs = do
 
   logMessage Info "Liquid" "Iteratively weaken σ"
   s <- fixpoint csk s0
-  --logData Trace $ prettyMap s
+  --logData Trace s
 
   r <- smtValid (map (apply s) csp)
   if r then return (Just s) else return Nothing

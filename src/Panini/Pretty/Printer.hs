@@ -24,7 +24,12 @@ module Panini.Pretty.Printer
 
 import Data.Char
 import Data.List qualified as List
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Maybe
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LT
@@ -34,7 +39,6 @@ import Prettyprinter ((<+>))
 import Prettyprinter qualified as PP
 import Prettyprinter.Render.Util.SimpleDocTree
 import System.Console.ANSI
-import Data.String
 
 -------------------------------------------------------------------------------
 
@@ -48,8 +52,17 @@ instance Pretty Char    where pretty = PP.pretty
 instance Pretty Integer where pretty = PP.pretty
 instance Pretty Int     where pretty = PP.pretty
 
-instance (Pretty a, Pretty b) => Pretty (a,b) where 
-  pretty (a,b) = "(" <> pretty a <> "," <+> pretty b <> ")"
+instance (Pretty a, Pretty b) => Pretty (a,b) where
+  pretty (a,b) = listed lparen rparen [pretty a, pretty b]
+
+instance {-# OVERLAPPABLE #-} Pretty a => Pretty [a] where
+  pretty xs = prettyList xs
+
+instance Pretty a => Pretty (Set a) where
+  pretty = prettySet . Set.toAscList
+
+instance (Pretty a, Pretty b) => Pretty (Map a b) where
+  pretty = prettyMap . Map.toAscList
 
 -- | A pretty version of 'show', mainly intended for debugging.
 -- Use 'renderDoc' for any serious pretty printing.
@@ -162,7 +175,10 @@ prettyTuple :: Pretty a => [a] -> Doc
 prettyTuple = listed lparen rparen . map pretty
 
 prettyList :: Pretty a => [a] -> Doc
-prettyList = listed lbracket rbracket. map pretty
+prettyList = listed lbracket rbracket . map pretty
+
+prettySet :: Pretty a => [a] -> Doc
+prettySet = listed lbrace rbrace . map pretty
 
 prettyMap :: (Pretty a, Pretty b) => [(a,b)] -> Doc
 prettyMap = listed lbrace rbrace . map (\(a,b) -> pretty a <> " ↦ " <> pretty b)
