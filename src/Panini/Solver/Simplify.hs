@@ -1,85 +1,93 @@
--- TODO: module documentation
-module Panini.Solver.Simplify where
+-- | This module contains functions to simplify predicates and constraints by
+-- applying basic logical equivalences and dropping unnecessary quantifiers.
+module Panini.Solver.Simplify (simplifyCon, simplifyPred) where
 
+import Data.Generics.Uniplate.Operations
 import Panini.Syntax
 import Prelude
 
-class Simplifable a where
-  simplify :: a -> a
+------------------------------------------------------------------------------
 
-instance Simplifable Pred where
-  -- TODO: preserve provenance information
-  simplify = \case
-    PAnd (simplifyAnd -> ps)
-      | []  <- ps -> PTrue
-      | [p] <- ps -> p
-      | otherwise -> PAnd ps
-    
-    POr (simplifyOr -> ps)
-      | []  <- ps -> PFalse
-      | [p] <- ps -> p
-      | otherwise -> POr ps
-    
-    PNot (simplify -> p) -> PNot p
-
-    PImpl (simplify -> p) (simplify -> q)
-      | PTrue <- p -> q
-      | PTrue <- q -> PTrue
-      | otherwise  -> PImpl p q
-  
-    PIff (simplify -> p) (simplify -> q)
-      | PTrue <- p -> q
-      | PTrue <- q -> p
-      | otherwise  -> PIff p q
-
-    PExists x b (simplify -> p)      
-      | trivialExists x b p -> PTrue  -- TODO: information loss?
-      | x `elem` freeVars p -> PExists x b p      
-      | otherwise           -> p
-  
-    p -> p
-
---TODO: this is a hack; depending on the sort of x, it might not even be sound!
-trivialExists :: Name -> Base -> Pred -> Bool
-trivialExists x _ = \case
-  PRel Eq (PVar v1) (PVar v2) -> v1 == x || v2 == x
-  _                           -> False
-
-instance Simplifable Con where
-  simplify = \case
-    CHead (simplify -> p) -> CHead p
-    CAnd (simplify -> c1) (simplify -> c2)
-      | CTrue <- c1 -> c2
-      | CTrue <- c2 -> c1
-      | otherwise   -> CAnd c1 c2
-    CAll x b (simplify -> p) (simplify -> c)
-      | CTrue <- c -> CTrue
-      | PTrue <- p, x `notElem` (freeVars p ++ freeVars c) -> CAll x b p c
-      | otherwise -> CAll x b p c
-
-simplifyAnd :: [Pred] -> [Pred]
-simplifyAnd = go []
+simplifyCon :: Con -> Con
+simplifyCon = transform go . transformBi simplifyPred
   where
-    go qs [] = reverse qs
-    go qs ((simplify -> p) : ps)
-      | PFalse <- p = [p]
-      | taut p      = go qs ps
-      | otherwise   = go (p:qs) ps
+    go = \case
+      CHead p -> CHead (simplifyPred p)
+  
+      CAnd CTrue  c2     -> c2
+      CAnd c1     CTrue  -> c1
+      CAnd CFalse _      -> CFalse
+      CAnd _      CFalse -> CFalse      
 
-simplifyOr :: [Pred] -> [Pred]
-simplifyOr = go []
+      CAll _ _ PFalse _     -> CTrue
+      CAll _ _ _      CTrue -> CTrue
+      
+      CAll x _ p c
+        | x `notElem` (freeVars p <> freeVars c) -> case (p,c) of
+          (PTrue , _      ) -> c
+          (_     , CFalse ) -> CHead (PNot p)
+          (_     , CHead q) -> CHead (PImpl p q)
+          _                 -> CAll dummyName TUnit p c
+        
+        | CHead q <- c, p == q -> CTrue
+      
+      p -> p
+
+simplifyPred :: Pred -> Pred
+simplifyPred = transform $ \case  
+  PAnd ps -> case simplifyAnds ps of
+    [ ] -> PTrue
+    [p] -> p
+    ps' -> PAnd ps'
+
+  POr ps -> case simplifyOrs ps of
+    [ ] -> PFalse
+    [p] -> p
+    ps' -> POr ps'
+  
+  PImpl PTrue  b      -> b
+  PImpl PFalse _      -> PTrue
+  PImpl _      PTrue  -> PTrue
+  PImpl a      PFalse -> PNot a
+  
+  PImpl a b | a == b -> PTrue
+
+  PIff PTrue  b      -> b
+  PIff PFalse b      -> PNot b
+  PIff a      PTrue  -> a
+  PIff a      PFalse -> PNot a
+
+  PIff a b | a == b -> PTrue
+
+  PExists x _ p
+    | x `notElem` freeVars p -> p
+  
+  PExists x _ (PRel Eq (PVar v1) (PVar v2))  -- ∃x. x = y
+    | x == v1 || x == v2 -> PTrue
+
+  PRel Eq p q | p == q -> PTrue
+  PRel Le p q | p == q -> PTrue
+  PRel Ge p q | p == q -> PTrue
+  PRel Ne p q | p == q -> PFalse
+  PRel Lt p q | p == q -> PFalse
+  PRel Gt p q | p == q -> PFalse
+
+  p -> p
+
+simplifyAnds :: [Pred] -> [Pred]
+simplifyAnds = go []
   where
-    go qs [] = reverse qs
-    go qs ((simplify -> p) : ps)
-      | PTrue  <- p = [p]
-      | PFalse <- p = go qs ps
-      | otherwise   = go (p:qs) ps
+    go qs (PTrue   : ps) = go qs ps
+    go _  (PFalse  : _ ) = [PFalse]
+    go qs (PAnd rs : ps) = go qs (rs ++ ps)
+    go qs (p       : ps) = go (p:qs) ps
+    go qs []             = reverse qs
 
-taut :: Pred -> Bool
-taut PTrue         = True
-taut (PAnd [])     = True
-taut (PAnd ps)     = all taut ps
-taut (PRel Eq p q) = p == q
-taut (PRel Le p q) = p == q
-taut (PRel Ge p q) = p == q
-taut _             = False
+simplifyOrs :: [Pred] -> [Pred]
+simplifyOrs = go []
+  where
+    go qs (POr rs : ps) = go qs (rs ++ ps)
+    go _  (PTrue  : _ ) = [PTrue]
+    go qs (PFalse : ps) = go qs ps
+    go qs (p      : ps) = go (p:qs) ps
+    go qs []            = reverse qs

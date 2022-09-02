@@ -17,7 +17,7 @@ data Pred
   | PFalse
   | PRel Rel PExpr PExpr    -- ^ binary relation @e₁ R e₂@
   | PAnd [Pred]             -- ^ conjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
-  | POr [Pred]              -- ^ disjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
+  | POr [Pred]              -- ^ disjunction @p₁ ∨ p₂ ∨ … ∨ pₙ@
   | PImpl Pred Pred         -- ^ implication @p₁ ⟹ p₂@
   | PIff Pred Pred          -- ^ if-and-only-if @p₁ ⟺ p₂@
   | PNot Pred               -- ^ negation @¬p@

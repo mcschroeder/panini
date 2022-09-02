@@ -22,6 +22,9 @@ data Con
 pattern CTrue :: Con
 pattern CTrue = CHead PTrue
 
+pattern CFalse :: Con
+pattern CFalse = CHead PFalse
+
 -- | Smart constructor for `CAnd`, eliminates redundant true values.
 cAnd :: Con -> Con -> Con
 cAnd CTrue c2    = c2

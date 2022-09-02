@@ -25,7 +25,7 @@ sat c q = do
   let ks' = Set.toList $ ks -- TODO: cut set
 
   logMessage Debug "Fusion" "Simplify constraint"
-  let c1 = simplify c
+  let c1 = simplifyCon c
   logData Debug c1
 
   logMessage Info "Fusion" "Eliminate acyclic κ variables"
@@ -33,7 +33,7 @@ sat c q = do
   logData Trace c2
 
   logMessage Debug "Fusion" "Simplify constraint"
-  let c3 = simplify c2
+  let c3 = simplifyCon c2
   logData Trace c3
 
   r <- solve c3 q
