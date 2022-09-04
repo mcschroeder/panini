@@ -45,20 +45,23 @@ logBegin _ = do
   Logger{} <- getLogger
   liftIO $ do
     w <- getTermWidth
-    putStrLn $ replicate 8 '─' ++ "─┬─" ++ replicate (w - 8 - 3) '─'
+    putStr $ "╭" ++ replicate 8 '─' ++ "─┬─" ++ replicate (w - 8 - 5) '─' ++ "╮"
 
 logEnd :: (HasLogger m, MonadIO m) => m ()
 logEnd = do
   Logger{} <- getLogger
   liftIO $ do
     w <- getTermWidth
-    putStrLn $ replicate 8 '─' ++ "─┴─" ++ replicate (w - 8 - 3) '─'
+    putStrLn $ "╰" ++ replicate 8 '─' ++ "─┴─" ++ replicate (w - 8 - 5) '─' ++ "╯"
 
 logMessage :: (HasLogger m, MonadIO m) => LogLevel -> LogSource -> String -> m ()
 logMessage l s m = do
   logger <- getLogger
   unless (logger.level < l) $ liftIO $ do
-    fprintLn (lpadded 8 ' ' string % " │ " % string) s m
+    fprint ("│" % lpadded 8 ' ' string % " │ " % string) s m
+    w <- getTermWidth
+    setCursorColumn (w - 1)
+    putStrLn "│"
 
 logData :: (HasLogger m, MonadIO m, Pretty a) => LogLevel -> a -> m ()  
 logData l a = do
@@ -70,9 +73,9 @@ logData l a = do
           , unicode = True
           , fixedWidth = Just w
           }
-    putStrLn $ replicate w '╌'
+    putStrLn $ "╰" ++ replicate 8 '─' ++ "─┴─" ++ replicate (w - 8 - 5) '─' ++ "╯"
     Text.putStrLn $ renderDoc opts $ pretty a
-    putStrLn $ replicate w '╌'
+    putStrLn $ "╭" ++ replicate 8 '─' ++ "─┬─" ++ replicate (w - 8 - 5) '─' ++ "╮"
 
 getTermWidth :: IO Int
 getTermWidth = fromMaybe 80 <$> fmap snd <$> getTerminalSize
