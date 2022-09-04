@@ -52,8 +52,7 @@ instance SMTLIB Pred where
 
 instance SMTLIB PExpr where
   encode = \case
-    PVar n           -> encode n
-    PCon c           -> encode c
+    PVal v           -> encode v
     PAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
     PSub e1 e2       -> sexpr ["-", encode e1, encode e2]
     PMul e1 e2       -> sexpr ["*", encode e1, encode e2]
@@ -75,6 +74,10 @@ encodeSubstring p1 p2 p3 =
 -- TODO: ensure uniqueness
 instance SMTLIB KVar where
   encode (KVar i _) = "k" <> LB.fromString (show i)
+
+instance SMTLIB Value where
+  encode (Var x) = encode x
+  encode (Con c) = encode c
 
 instance SMTLIB Name where
   encode (Name n _) = LB.fromText n

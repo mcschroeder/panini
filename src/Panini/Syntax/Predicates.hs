@@ -21,7 +21,7 @@ data Pred
   | PImpl Pred Pred         -- ^ implication @p₁ ⟹ p₂@
   | PIff Pred Pred          -- ^ if-and-only-if @p₁ ⟺ p₂@
   | PNot Pred               -- ^ negation @¬p@
-  | PAppK KVar [Name]       -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
+  | PAppK KVar [Value]      -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists Name Base Pred  -- ^ existential quantification @∃x:b. p@
   deriving stock (Eq, Show, Read)
 
@@ -149,8 +149,7 @@ pEq = PRel Eq
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
 data PExpr  
-  = PCon Constant              -- ^ constant @c@  
-  | PVar Name                  -- ^ variable @x@
+  = PVal Value                 -- ^ constant @c@ or variable @x@  
   | PAdd PExpr PExpr           -- ^ integer addition @e₁ + e₂@
   | PSub PExpr PExpr           -- ^ integer subtraction @e₁ - e₂@
   | PMul PExpr PExpr           -- ^ integer multiplication @e₁ * e₂@
@@ -159,6 +158,12 @@ data PExpr
   | PStrSub PExpr PExpr PExpr  -- ^ substring @s[i..j]@ (inclusive bounds)
   | PFun Name [PExpr]          -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@
   deriving stock (Eq, Show, Read)
+
+pattern PVar :: Name -> PExpr
+pattern PVar x = PVal (Var x)
+
+pattern PCon :: Constant -> PExpr
+pattern PCon c = PVal (Con c)
 
 instance Uniplate PExpr where
   uniplate = \case
@@ -173,8 +178,7 @@ instance Uniplate PExpr where
 
 instance Pretty PExpr where
   pretty p0 = case p0 of
-    PVar n -> pretty n
-    PCon c -> pretty c
+    PVal v -> pretty v
     PFun f ps -> pretty f <> prettyTuple ps
     PMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
     PAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2

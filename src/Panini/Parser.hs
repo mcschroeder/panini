@@ -179,17 +179,23 @@ import_ = do
 
 -------------------------------------------------------------------------------
 
+value :: Parser Value
+value = choice
+  [ Con <$> constant
+  , Var <$> name 
+  ]
+
 term :: Parser (Term Untyped)
 term = do
   e1 <- term1
   let mkApp e x = App e x NoPV ()  -- TODO: figure out the provenance here
-  (foldl' mkApp e1 <$> some (try name)) <|> pure e1
+  (foldl' mkApp e1 <$> some (try value)) <|> pure e1
 
 term1 :: Parser (Term Untyped)
 term1 = choice
   [ try $ parens term
 
-  , try $ If <$ keyword "if" <*> name 
+  , try $ If <$ keyword "if" <*> value 
              <* keyword "then" <*> term 
              <* keyword "else" <*> term
              <*> pure NoPV -- TODO: add term provenance
@@ -214,10 +220,7 @@ term1 = choice
               <*> pure NoPV -- TODO: add term provenance
               <*> pure ()
 
-  , Con <$> constant
-        <*> pure ()
-  
-  , Var <$> name 
+  , Val <$> value
         <*> pure ()
   ]
 

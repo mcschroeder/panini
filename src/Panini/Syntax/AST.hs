@@ -35,13 +35,12 @@ instance Pretty Statement where
 
 -- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
 data Term a
-  = Con Constant                       a -- c
-  | Var Name                           a -- x
-  | App (Term a) Name               PV a -- e x
+  = Val Value                          a -- v
+  | App (Term a) Value              PV a -- e v
   | Lam Name Type (Term a)          PV a -- \x:t. e   -- TODO: unrefined type only?
   | Let Name (Term a) (Term a)      PV a -- let x = e1 in e2
   | Rec Name Type (Term a) (Term a) PV a -- rec x : t = e1 in e2
-  | If Name (Term a) (Term a)       PV a -- if x then e1 else e2
+  | If Value (Term a) (Term a)      PV a -- if v then e1 else e2
   deriving stock (Show, Read)
 
 type Untyped = ()
@@ -49,8 +48,7 @@ type Typed = (Type, Con)
 -- TODO: type Verified = (Type, Con, Assignment)
 
 instance Pretty (Term a) where
-  pretty (Var x _) = pretty x
-  pretty (Con c _) = pretty c
+  pretty (Val v _) = pretty v
   
   pretty (App e x _ _) = pretty e <+> pretty x  
   

@@ -71,16 +71,16 @@ infer :: Term Untyped -> Infer (Term Typed, Type, Con)
 infer = \case
   
   -- inf/var ----------------------------------------------
-  Var x _ -> do
+  Val (Var x) _ -> do
     t <- self x <$> lookupInContext x
-    return $ Var x `withType` (t, CTrue)
+    return $ Val (Var x) `withType` (t, CTrue)
   
   -- inf/con ----------------------------------------------
-  Con c _ -> do
+  Val (Con c) _ -> do
     let v = dummyName
     let b = primType c
     let t = TBase v b (Known (PVar v `pEq` PCon c)) (getPV c)
-    return $ Con c `withType` (t, CTrue)
+    return $ Val (Con c) `withType` (t, CTrue)
     where
       primType (U   _) = TUnit
       primType (B _ _) = TBool
@@ -88,16 +88,16 @@ infer = \case
       primType (S _ _) = TString
   
   -- inf/app ----------------------------------------------
-  App e x pv _ -> do
+  App e v pv _ -> do
     (ė, tₑ, cₑ) <- infer e
     case tₑ of
       TBase _ _ _ _ -> failWith undefined  --  $ ExpectedFunType ė t
       TFun y t₁ t₂ _ -> do
-        tₓ <- self x <$> lookupInContext x
-        cₓ <- sub tₓ t₁
-        let t = subst x y t₂
-        let c = cₑ ∧ cₓ
-        return $ App ė x pv `withType` (t, c)
+        (_, tᵥ, _) <- infer (Val v ())
+        cᵥ <- sub tᵥ t₁
+        let t = subst v y t₂
+        let c = cₑ ∧ cᵥ
+        return $ App ė v pv `withType` (t, c)
   
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv _ -> do
@@ -128,16 +128,16 @@ infer = \case
     return $ Rec x t̃₁ ė₁ ė₂ pv `withType` (t₂, c)
 
   -- inf/if -----------------------------------------------
-  If x e₁ e₂ pv _ -> do
-    -- TODO: check that x is bool
+  If v e₁ e₂ pv _ -> do
+    -- TODO: check that v is bool
     (ė₁, t₁, c₁) <- infer e₁
     (ė₂, t₂, c₂) <- infer e₂
-    let y = freshName "y" (x : freeVars c₁ ++ freeVars c₂)
-    let p₁ = PRel Eq (PVar x) (PCon (B True NoPV))
-    let p₂ = PRel Eq (PVar x) (PCon (B False NoPV))
+    let y = freshName "y" (freeVars v ++ freeVars c₁ ++ freeVars c₂)
+    let p₁ = PVal v `pEq` PCon (B True  NoPV)
+    let p₂ = PVal v `pEq` PCon (B False NoPV)
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
     t <- join t₁ t₂
-    return $ If x ė₁ ė₂ pv `withType` (t, c)
+    return $ If v ė₁ ė₂ pv `withType` (t, c)
 
 
 (∧) :: Con -> Con -> Con
@@ -148,7 +148,7 @@ self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst v' x p) `pAnd` (PVar v' `pEq` PVar x)
+        p' = (subst (Var v') x p) `pAnd` (PVar v' `pEq` PVar x)
     in TBase v' b (Known p') pv  
   t -> t
 
@@ -160,7 +160,7 @@ fresh = go []
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
       κ <- freshK (b:ts)
-      let p = PAppK κ (v:xs)
+      let p = PAppK κ (Var v : xs)
       return $ TBase v b (Known p) (Derived pv "ins/hole")
     
     -- ins/conc -------------------------------------------
@@ -169,7 +169,7 @@ fresh = go []
     -- ins/fun --------------------------------------------
     go g (TFun x s t pv) = do
       ŝ <- go g s
-      t̂ <- go ((x,s):g) t
+      t̂ <- go ((Var x, s) : g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
       
 -- | Returns the non-refined version of a type.
@@ -183,12 +183,12 @@ sub lhs rhs = case (lhs, rhs) of
   
   -- sub/base ---------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
-    | b₁ == b₂ -> return $ CAll v₁ b₁ p₁ $ CHead $ subst v₁ v₂ p₂
+    | b₁ == b₂ -> return $ CAll v₁ b₁ p₁ $ CHead $ subst (Var v₁) v₂ p₂
 
   -- sub/fun ----------------------------------------------
   (TFun x₁ s₁ t₁ _, TFun x₂ s₂ t₂ _) -> do
     cᵢ <- sub s₂ s₁
-    cₒ <- sub (subst x₂ x₁ t₁) t₂
+    cₒ <- sub (subst (Var x₂) x₁ t₁) t₂
     return $ cᵢ ∧ (cImpl x₂ s₂ cₒ)
 
   _ -> failWith $ InvalidSubtype lhs rhs
@@ -197,7 +197,7 @@ sub lhs rhs = case (lhs, rhs) of
 -- | Generalized implication that drops binders with non-basic types.
 cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> CAll x b (subst x v p) c
+  TBase v b (Known p) _ -> CAll x b (subst (Var x) v p) c
   _                     -> c
 
 -- | The join (⊔) of two types.
@@ -206,7 +206,7 @@ join t₁ t₂ = case (t₁, t₂) of
   -- join/base --------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
     | b₁ == b₂ -> 
-        let p = p₁ `pOr` subst v₁ v₂ p₂
+        let p = p₁ `pOr` subst (Var v₁) v₂ p₂
         in return $ TBase v₁ b₁ (Known p) NoPV -- TODO: join provenance
   
   _ -> error "invalid join"  -- TODO: correct error

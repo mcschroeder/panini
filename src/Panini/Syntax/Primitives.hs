@@ -2,8 +2,10 @@ module Panini.Syntax.Primitives where
 
 import Data.Hashable
 import Data.Text (Text)
+import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Syntax.Provenance
+import Panini.Syntax.Names
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -63,3 +65,17 @@ instance Pretty Constant where
   pretty (B False _) = literal OtherLit "false"
   pretty (I c     _) = literal NumberLit $ pretty c
   pretty (S t     _) = literal StringLit $ viaShow t
+
+------------------------------------------------------------------------------
+
+-- | A value is either a primitive constant or a variable.
+data Value
+  = Con Constant 
+  | Var Name
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable Value
+
+instance Pretty Value where
+  pretty (Con c) = pretty c
+  pretty (Var x) = pretty x
