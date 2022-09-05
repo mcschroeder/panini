@@ -30,6 +30,15 @@ envExtend x d = modify' $ \s -> s { environment = Map.insert x d s.environment }
 envDelete :: Name -> Pan ()
 envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
 
+-- | Convert an elaborator environment to a typechecking context by throwing
+-- away all non-final definitions.
+envToContext :: Environment -> Context 
+envToContext = Map.mapMaybe go
+  where
+    go (Assumed   {_givenType})    = Just _givenType
+    go (Verified  {_inferredType}) = Just _inferredType
+    go _                           = Nothing
+
 -------------------------------------------------------------------------------
 
 elaborateProgram :: Program -> Pan ()
@@ -38,25 +47,32 @@ elaborateProgram = mapM_ elaborateStatement
 elaborateStatement :: Statement -> Pan ()
 elaborateStatement = \case
   Assume x t -> do
+    logMessage Debug "Elab" $ "Assume " ++ showPretty x
+    logData Trace t
     def0 <- envLookup x
     case def0 of
       Just _  -> throwError $ AlreadyDefined x
       Nothing -> envExtend x (Assumed x t)    
   
-  Define x t0 e -> do
-    logMessage Info "Elab" $ "Elaborate definition of " ++ showPretty x
+  stmt@(Define x t0 e) -> do
+    logMessage Info "Elab" $ "Define " ++ showPretty x
+    logData Trace stmt
     def0 <- envLookup x
     case def0 of
       Just _  -> throwError $ AlreadyDefined x
       Nothing -> do
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
-        case runInfer (infer g' e) of
+        logMessage Info "Infer" "Infer type"
+        r1 <- tryError $ infer g' e
+        case r1 of
           Left err -> do
             envExtend x (Rejected x t0 e err)
             throwError err -- ?
           Right (_e',t,vc) -> do
             envExtend x (Inferred x t0 e t vc)
+            logData Trace t
+            logData Trace vc
             r <- Panini.Solver.Fusion.sat vc []
             case r of
               True -> envExtend x (Verified x t0 e t vc mempty)  -- TODO: assignment

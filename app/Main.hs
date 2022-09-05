@@ -3,7 +3,6 @@ module Main where
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Panini.Elaborator
 import Panini.Monad
 import Panini.REPL
 import System.Console.Haskeline

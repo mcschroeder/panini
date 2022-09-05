@@ -1,38 +1,13 @@
 module Panini.Infer where
 
-import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
 import Panini.Error
+import Panini.Monad
 import Panini.Syntax
 import Prelude
-
-------------------------------------------------------------------------------
-
--- | Type inference monad.
-type Infer a = StateT InferState (Either Error) a
-
--- | Type inference state.
-data InferState = InferState 
-  { kvarCount :: !Int  -- ^ source of fresh Horn variable names
-  }
-
-runInfer :: Infer a -> Either Error a
-runInfer m = do
-  let s0 = InferState { kvarCount = 0 }
-  (x,_) <- runStateT m s0
-  return x
-
-failWith :: Error -> Infer a
-failWith = lift . Left
-
-freshK :: [Base] -> Infer KVar
-freshK ts = do
-  i <- gets kvarCount
-  modify $ \s -> s { kvarCount = i + 1}
-  return $ KVar i ts
 
 ------------------------------------------------------------------------------
 
@@ -42,13 +17,13 @@ type Context = Map Name Type
 withType :: ((Type, Con) -> Term Typed) -> (Type, Con) -> (Term Typed, Type, Con)
 withType f (t,vc) = (f (t,vc), t, vc)
 
-infer :: Context -> Term Untyped -> Infer (Term Typed, Type, Con)
+infer :: Context -> Term Untyped -> Pan (Term Typed, Type, Con)
 infer g = \case
   
   -- inf/var ----------------------------------------------
   Val (Var x) _ -> do
     case Map.lookup x g of
-      Nothing -> failWith $ VarNotInScope x
+      Nothing -> throwError $ VarNotInScope x
       Just t -> return $ Val (Var x) `withType` (self x t, CTrue)
   
   -- inf/con ----------------------------------------------
@@ -67,7 +42,7 @@ infer g = \case
   App e v pv _ -> do
     (ė, tₑ, cₑ) <- infer g e
     case tₑ of
-      TBase _ _ _ _ -> failWith undefined  --  $ ExpectedFunType ė t
+      TBase _ _ _ _ -> undefined  --  $ ExpectedFunType ė t
       TFun y t₁ t₂ _ -> do
         (_, tᵥ, _) <- infer g (Val v ())
         cᵥ <- sub tᵥ t₁
@@ -129,7 +104,7 @@ self x = \case
   t -> t
 
 -- | Hole instantiation (▷).
-fresh :: Type -> Infer Type  -- TODO: replace Infer monad with source constraint?
+fresh :: Type -> Pan Type  -- TODO: replace Infer monad with source constraint?
 fresh = go []
   where
     -- ins/hole -------------------------------------------
@@ -147,14 +122,20 @@ fresh = go []
       ŝ <- go g s
       t̂ <- go ((Var x, s) : g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
-      
+
+freshK :: [Base] -> Pan KVar
+freshK ts = do
+  i <- gets kvarCount
+  modify $ \s -> s { kvarCount = i + 1}
+  return $ KVar i ts
+
 -- | Returns the non-refined version of a type.
 shape :: Type -> Type
 shape (TBase v b _ pv) = TBase v b Unknown pv
 shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) pv
 
 -- | Subtyping (⩽).
-sub :: Type -> Type -> Infer Con
+sub :: Type -> Type -> Pan Con
 sub lhs rhs = case (lhs, rhs) of
   
   -- sub/base ---------------------------------------------
@@ -167,7 +148,7 @@ sub lhs rhs = case (lhs, rhs) of
     cₒ <- sub (subst (Var x₂) x₁ t₁) t₂
     return $ cᵢ ∧ (cImpl x₂ s₂ cₒ)
 
-  _ -> failWith $ InvalidSubtype lhs rhs
+  _ -> throwError $ InvalidSubtype lhs rhs
 
 
 -- | Generalized implication that drops binders with non-basic types.
@@ -177,7 +158,7 @@ cImpl x t c = case t of
   _                     -> c
 
 -- | The join (⊔) of two types.
-join :: Type -> Type -> Infer Type
+join :: Type -> Type -> Pan Type
 join t₁ t₂ = case (t₁, t₂) of
   -- join/base --------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)

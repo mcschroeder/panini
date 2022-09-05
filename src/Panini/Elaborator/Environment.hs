@@ -1,9 +1,7 @@
 module Panini.Elaborator.Environment where
 
 import Data.Map (Map)
-import Data.Map qualified as Map
 import Panini.Error
-import Panini.Infer
 import Panini.Solver.Assignment
 import Panini.Syntax
 import Prelude
@@ -105,13 +103,3 @@ data Definition
       }
   
   deriving stock (Show, Read)
-
-
--- | Convert an elaborator environment to a typechecking context by throwing
--- away all non-final definitions.
-envToContext :: Environment -> Context 
-envToContext = Map.mapMaybe go
-  where
-    go (Assumed   {_givenType})    = Just _givenType
-    go (Verified  {_inferredType}) = Just _inferredType
-    go _                           = Nothing

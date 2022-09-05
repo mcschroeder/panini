@@ -35,14 +35,16 @@ tryError :: Pan a -> Pan (Either Error a)
 tryError m = catchError (Right <$> m) (return . Left)
 
 data PanState = PanState
-  { environment :: Environment
-  , logger :: Logger
+  { environment :: !Environment  -- ^ elaborator environment
+  , logger      :: !Logger
+  , kvarCount   :: !Int          -- ^ source for fresh κ-variable names
   }
 
 initState :: PanState
 initState = PanState 
   { environment = mempty
   , logger = newLogger
+  , kvarCount = 0
   }
 
 instance HasLogger Pan where

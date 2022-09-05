@@ -128,12 +128,12 @@ loadFiles fs = forM_ fs $ \f -> do
     Left err1 -> outputPretty err1
     Right prog -> do
       res <- lift $ tryError $ elaborateProgram prog
+      lift logEnd
       case res of
         Left err2 -> do
           err2' <- liftIO $ updatePV addSourceLines err2
           outputPretty err2'
         Right () -> do
-          lift logEnd
           return ()
 
 showState :: InputT Pan ()
