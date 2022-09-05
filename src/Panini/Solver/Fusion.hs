@@ -6,7 +6,7 @@
 --   * Benjamin Cosman and Ranjit Jhala. 2017. Local Refinement Typing.
 --     ICFP. https://doi.org/10.1145/3110270
 -------------------------------------------------------------------------------
-module Panini.Solver.Fusion (sat) where
+module Panini.Solver.Fusion (solve) where
 
 import Control.Monad
 import Data.Bifunctor
@@ -17,13 +17,15 @@ import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Monad
 import Panini.Solver.Assignment
-import Panini.Solver.Liquid
+import Panini.Solver.Liquid qualified as Liquid
 import Panini.Solver.Simplify
 import Panini.Syntax
 import Prelude
 
-sat :: Con -> [Pred] -> Pan Bool
-sat c q = do
+-- | Solve a Horn constraint using refinement FUSION. 
+-- This corresponds to the `sat` function from Cosman and Jhala (2017).
+solve :: Con -> [Pred] -> Pan (Maybe Assignment)
+solve c q = do
   logMessage Debug "Fusion" "Simplify constraint"
   let c1 = simplifyCon c
   logData Debug c1
@@ -43,14 +45,16 @@ sat c q = do
   let c3 = simplifyCon c2
   logData Trace c3
 
-  r <- solve c3 q
+  logMessage Info "Fusion" "Compute approximate solutions for residuals"
+  r <- Liquid.solve c3 q
   case r of
-    Just _s -> do
-      -- putStrLn "--- kvar assignments:"
-      -- forM_ (Map.toList s) $ \(k,p) -> do
-      --   putStrLn $ showPretty $ pretty k <+> symMapsTo <+> pretty p
-      return True
-    Nothing -> return False
+    Just s -> do
+      logMessage Info "Fusion" "Found satisfying assignment"
+      logData Trace s
+      return (Just s)
+    Nothing -> do
+      logMessage Info "Fusion" "Unsatisfiable"
+      return Nothing
 
 -- | Eliminates a set of acyclic κ-variables iteratively via 'elim1'.
 elim :: [KVar] -> Con -> Con

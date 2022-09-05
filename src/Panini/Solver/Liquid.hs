@@ -39,10 +39,17 @@ solve c qs = do
 
   logMessage Info "Liquid" "Iteratively weaken σ"
   s <- fixpoint csk s0
-  --logData Trace s
+  logData Trace s
 
   r <- smtValid (map (apply s) csp)
-  if r then return (Just s) else return Nothing
+  if r 
+    then do
+      logMessage Info "Liquid" "Found satisfying assignment"
+      logData Trace s
+      return (Just s) 
+    else do
+      logMessage Info "Liquid" "Unsatisfiable"
+      return Nothing
 
 -- | Whether or not a flat constraint has a κ application in its head.
 horny :: FlatCon -> Bool

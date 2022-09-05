@@ -12,7 +12,7 @@ import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
-import Panini.Solver.Fusion qualified
+import Panini.Solver.Fusion qualified as Fusion
 import Panini.Syntax
 import Prelude
 
@@ -64,6 +64,7 @@ elaborateStatement = \case
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
         logMessage Info "Infer" "Infer type"
+        logData Trace g'
         r1 <- tryError $ infer g' e
         case r1 of
           Left err -> do
@@ -73,10 +74,10 @@ elaborateStatement = \case
             envExtend x (Inferred x t0 e t vc)
             logData Trace t
             logData Trace vc
-            r <- Panini.Solver.Fusion.sat vc []
+            r <- Fusion.solve vc []
             case r of
-              True -> envExtend x (Verified x t0 e t vc mempty)  -- TODO: assignment
-              False -> envExtend x (Invalid x t0 e t vc Nothing)
+              Just s -> envExtend x (Verified x t0 e t vc s)
+              Nothing -> envExtend x (Invalid x t0 e t vc Nothing)
   
   Import m -> do
     src <- liftIO $ Text.readFile m  -- TODO: handle error
