@@ -51,7 +51,7 @@ elaborateStatement = \case
       Nothing -> do
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
-        case runInferWithContext g' $ infer e of
+        case runInfer (infer g' e) of
           Left err -> do
             envExtend x (Rejected x t0 e err)
             throwError err -- ?

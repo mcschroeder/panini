@@ -16,18 +16,14 @@ type Infer a = StateT InferState (Either Error) a
 
 -- | Type inference state.
 data InferState = InferState 
-  { context :: Context -- ^ mappings of variables to types (Γ)
-  , kvarCount :: !Int  -- ^ source of fresh Horn variable names
+  { kvarCount :: !Int  -- ^ source of fresh Horn variable names
   }
 
 runInfer :: Infer a -> Either Error a
 runInfer m = do
-  let s0 = InferState { context = mempty, kvarCount = 0 }
+  let s0 = InferState { kvarCount = 0 }
   (x,_) <- runStateT m s0
   return x
-
-runInferWithContext :: Context -> Infer a -> Either Error a
-runInferWithContext g m = runInfer $ modify' (\s -> s { context = g }) >> m
 
 failWith :: Error -> Infer a
 failWith = lift . Left
@@ -40,40 +36,20 @@ freshK ts = do
 
 ------------------------------------------------------------------------------
 
+-- | Mappings of variables to types (Γ)
 type Context = Map Name Type
-
--- | Returns the type of the given variable name in the current context; raises
--- an error if the name is unknown.
-lookupInContext :: Name -> Infer Type
-lookupInContext x = do
-  g <- gets context
-  case Map.lookup x g of
-    Nothing -> failWith $ VarNotInScope x
-    Just t -> return t
-
--- | Extends a typing context with the given mapping.
---
--- Usage: @modify' (x ↦ t)@ or @'with' (x ↦ t) /something/@.
-(↦) :: Name -> Type -> InferState -> InferState
-(↦) x t s = s { context = Map.insert x t s.context }
-
--- | @with f m@ runs action @m@ on a state modified by (stricty) applying @f@
--- and returns the result without modifying the outer computation's state.
-with :: Monad m => (s -> s) -> StateT s m a -> StateT s m a
-with f m = lift . evalStateT (modify' f >> m) =<< get
-
-------------------------------------------------------------------------------
 
 withType :: ((Type, Con) -> Term Typed) -> (Type, Con) -> (Term Typed, Type, Con)
 withType f (t,vc) = (f (t,vc), t, vc)
 
-infer :: Term Untyped -> Infer (Term Typed, Type, Con)
-infer = \case
+infer :: Context -> Term Untyped -> Infer (Term Typed, Type, Con)
+infer g = \case
   
   -- inf/var ----------------------------------------------
   Val (Var x) _ -> do
-    t <- self x <$> lookupInContext x
-    return $ Val (Var x) `withType` (t, CTrue)
+    case Map.lookup x g of
+      Nothing -> failWith $ VarNotInScope x
+      Just t -> return $ Val (Var x) `withType` (self x t, CTrue)
   
   -- inf/con ----------------------------------------------
   Val (Con c) _ -> do
@@ -89,11 +65,11 @@ infer = \case
   
   -- inf/app ----------------------------------------------
   App e v pv _ -> do
-    (ė, tₑ, cₑ) <- infer e
+    (ė, tₑ, cₑ) <- infer g e
     case tₑ of
       TBase _ _ _ _ -> failWith undefined  --  $ ExpectedFunType ė t
       TFun y t₁ t₂ _ -> do
-        (_, tᵥ, _) <- infer (Val v ())
+        (_, tᵥ, _) <- infer g (Val v ())
         cᵥ <- sub tᵥ t₁
         let t = subst v y t₂
         let c = cₑ ∧ cᵥ
@@ -103,15 +79,15 @@ infer = \case
   Lam x t̃₁ e pv _ -> do
     t̂₁ <- fresh (shape t̃₁)
     ĉ₁ <- sub t̃₁ t̂₁
-    (ė, t₂, c₂) <- with (x ↦ t̂₁) (infer e)
+    (ė, t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ NoPV
     let c = ĉ₁ ∧ (cImpl x t̂₁ c₂)
     return $ Lam x t̃₁ ė pv `withType` (t, c)
   
   -- inf/let ----------------------------------------------
   Let x e₁ e₂ pv _ -> do
-    (ė₁, t₁, c₁) <- infer e₁
-    (ė₂, t₂, c₂) <- with (x ↦ t₁) (infer e₂)
+    (ė₁, t₁, c₁) <- infer g e₁
+    (ė₂, t₂, c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = c₁ ∧ (cImpl x t₁ c₂) ∧ ĉ₂
@@ -120,8 +96,8 @@ infer = \case
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv _ -> do
     t̂₁ <- fresh (shape t̃₁)
-    (ė₁, t₁, c₁) <- with (x ↦ t̂₁) (infer e₁)
-    (ė₂, t₂, c₂) <- with (x ↦ t₁) (infer e₂)
+    (ė₁, t₁, c₁) <- infer (Map.insert x t̂₁ g) e₁
+    (ė₂, t₂, c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = (cImpl x t̂₁ c₁) ∧ (cImpl x t₁ c₂) ∧ ĉ₂
@@ -130,8 +106,8 @@ infer = \case
   -- inf/if -----------------------------------------------
   If v e₁ e₂ pv _ -> do
     -- TODO: check that v is bool
-    (ė₁, t₁, c₁) <- infer e₁
-    (ė₂, t₂, c₂) <- infer e₂
+    (ė₁, t₁, c₁) <- infer g e₁
+    (ė₂, t₂, c₂) <- infer g e₂
     let y = freshName "y" (freeVars v ++ freeVars c₁ ++ freeVars c₂)
     let p₁ = PVal v `pEq` PCon (B True  NoPV)
     let p₂ = PVal v `pEq` PCon (B False NoPV)
