@@ -93,7 +93,7 @@ instance SMTLIB Constant where
 instance SMTLIB Rel where
   encode = \case
     Eq -> "="
-    Ne -> "disequal"
+    Ne -> "distinct"
     Ge -> ">="
     Le -> "<="
     Gt -> ">"
