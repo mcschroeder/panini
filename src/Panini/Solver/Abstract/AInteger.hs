@@ -11,6 +11,10 @@ module Panini.Solver.Abstract.AInteger
   , aIntegerGe
   , aIntegerLt
   , aIntegerLe
+  , aIntegerGtA
+  , aIntegerGeA
+  , aIntegerLtA
+  , aIntegerLeA 
   ) where
 
 import Data.Hashable
@@ -87,6 +91,30 @@ aIntegerLt a = AInteger [In NegInf (Fin (a - 1))]
 -- | An abstract integer @≤ i@, i.e., @[-∞..i]@.
 aIntegerLe :: Integer -> AInteger
 aIntegerLe a = AInteger [In NegInf (Fin a)]
+
+-- TODO: document
+aIntegerGtA :: AInteger -> AInteger
+aIntegerGtA (AInteger xs) = case xs of
+  []               -> AInteger []
+  (last -> In _ b) -> AInteger [In (succ <$> b) PosInf]
+
+-- TODO: document
+aIntegerGeA :: AInteger -> AInteger
+aIntegerGeA (AInteger xs) = case xs of
+  []               -> AInteger []
+  (last -> In _ b) -> AInteger [In b PosInf]
+
+-- TODO: document
+aIntegerLtA :: AInteger -> AInteger
+aIntegerLtA (AInteger xs) = case xs of
+  []         -> AInteger []
+  In a _ : _ -> AInteger [In NegInf (pred <$> a)]
+
+-- TODO: document
+aIntegerLeA :: AInteger -> AInteger
+aIntegerLeA (AInteger xs) = case xs of
+  []         -> AInteger []
+  In a _ : _ -> AInteger [In NegInf a]
 
 toPred :: PExpr -> AInteger -> Pred
 toPred lhs (AInteger xs) = case xs of

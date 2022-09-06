@@ -12,7 +12,7 @@ import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
-import Panini.Solver.Fusion qualified as Fusion
+import Panini.Solver
 import Panini.Syntax
 import Prelude
 
@@ -74,7 +74,7 @@ elaborateStatement = \case
             envExtend x (Inferred x t0 e t vc)
             logData Trace t
             logData Trace vc
-            r <- Fusion.solve vc []
+            r <- solve vc
             case r of
               Just s -> envExtend x (Verified x t0 e t vc s)
               Nothing -> envExtend x (Invalid x t0 e t vc Nothing)

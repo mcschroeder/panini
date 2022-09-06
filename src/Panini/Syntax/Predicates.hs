@@ -212,6 +212,7 @@ instance HasFixity PExpr where
 data KVar = KVar Int [Base]
   deriving stock (Ord, Eq, Show, Read)
 
+-- TODO: ensure uniqueness
 -- | The parameters of a κ-variable.
 kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]

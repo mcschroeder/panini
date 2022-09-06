@@ -53,10 +53,12 @@ infer g = \case
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv _ -> do
     t̂₁ <- fresh (shape t̃₁)
-    ĉ₁ <- sub t̃₁ t̂₁
+    -- ĉ₁ <- sub t̃₁ t̂₁
     (ė, t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ NoPV
-    let c = ĉ₁ ∧ (cImpl x t̂₁ c₂)
+    -- TODO: when is ĉ₁ appropriate/necessary?
+    -- let c = ĉ₁ ∧ (cImpl x t̂₁ c₂)
+    let c = (cImpl x t̂₁ c₂)
     return $ Lam x t̃₁ ė pv `withType` (t, c)
   
   -- inf/let ----------------------------------------------

@@ -6,7 +6,7 @@
 --   * Benjamin Cosman and Ranjit Jhala. 2017. Local Refinement Typing.
 --     ICFP. https://doi.org/10.1145/3110270
 -------------------------------------------------------------------------------
-module Panini.Solver.Fusion (solve) where
+module Panini.Solver.Fusion (solve, elim, cutVars) where
 
 import Control.Monad
 import Data.Bifunctor
@@ -17,21 +17,19 @@ import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Monad
 import Panini.Solver.Assignment
-import Panini.Solver.Liquid qualified as Liquid
 import Panini.Solver.Simplify
 import Panini.Syntax
 import Prelude
 
--- | Solve a Horn constraint using refinement FUSION. 
--- This corresponds to the `sat` function from Cosman and Jhala (2017).
-solve :: Con -> [Pred] -> Pan (Maybe Assignment)
-solve c q = do
+-- | Eliminate acyclic κ-variables from a constraint using refinment FUSION.
+solve :: Con -> Pan Con
+solve c = do
   logMessage Debug "Fusion" "Simplify constraint"
   let c1 = simplifyCon c
   logData Debug c1
 
   logMessage Info "Fusion" "Find set of cut variables Κ̂"
-  let ks_cut = cutVars c1
+  let ks_cut = cutVars c1 -- `Set.union` Set.singleton (KVar 0 [TString])
   logData Trace ks_cut
 
   logMessage Info "Fusion" "Compute exact solutions for non-cut variables"
@@ -44,17 +42,8 @@ solve c q = do
   logMessage Debug "Fusion" "Simplify constraint"
   let c3 = simplifyCon c2
   logData Trace c3
-
-  logMessage Info "Fusion" "Compute approximate solutions for residuals"
-  r <- Liquid.solve c3 q
-  case r of
-    Just s -> do
-      logMessage Info "Fusion" "Found satisfying assignment"
-      logData Trace s
-      return (Just s)
-    Nothing -> do
-      logMessage Info "Fusion" "Unsatisfiable"
-      return Nothing
+  
+  return c3
 
 -- | Eliminates a set of acyclic κ-variables iteratively via 'elim1'.
 elim :: [KVar] -> Con -> Con

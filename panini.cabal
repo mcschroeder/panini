@@ -34,6 +34,7 @@ library
     Panini.Pretty.Graphviz
     Panini.Pretty.Printer
     Panini.REPL
+    Panini.Solver
     Panini.Solver.Abstract.ABool
     Panini.Solver.Abstract.AChar
     Panini.Solver.Abstract.AInteger
