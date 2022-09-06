@@ -4,7 +4,9 @@ module Panini.Pretty.Printer
   , Doc
   , Ann(..), IdentKind(..), LitKind(..)
   , Style(..), defaultStyling
-  , (<+>), (<\>), (<\\>), PP.vcat, PP.vsep, PP.sep, PP.hang, PP.group, PP.nest, PP.viaShow
+  , (<+>), (<\>), (<\\>), PP.vcat, PP.vsep, PP.sep
+  , PP.align, PP.hang, PP.group, PP.nest
+  , PP.viaShow
   , keyword, literal, identifier, aMessage, anError, marginalia, highlight
   , orASCII
   , subscript

@@ -46,10 +46,10 @@ instance Biplate Con Pred where
 instance Pretty Con where
   pretty = \case
     CHead p -> pretty p
-    CAnd c1 c2 -> pretty c1 <+> symAnd <\> pretty c2
+    CAnd c1 c2 -> align $ pretty c1 <+> symAnd <\> pretty c2
     CAll x b p c -> parens $ case c of
       CHead _ ->          forall_ <+> pretty p <+> symImplies <+> pretty c
-      _       -> nest 2 $ forall_ <+> pretty p <+> symImplies <\> pretty c
+      _       -> hang 2 $ forall_ <+> pretty p <+> symImplies <\> pretty c
       where
         forall_ = symAll <> pretty x <> symColon <> pretty b <> symDot
 
