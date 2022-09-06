@@ -64,6 +64,10 @@ instance Pretty a => Pretty (Set a) where
 instance (Pretty a, Pretty b) => Pretty (Map a b) where
   pretty = prettyMap . Map.toAscList
 
+instance Pretty a => Pretty (Maybe a) where
+  pretty Nothing = "Nothing"
+  pretty (Just a) = pretty a
+
 -- | A pretty version of 'show', mainly intended for debugging.
 -- Use 'renderDoc' for any serious pretty printing.
 showPretty :: Pretty a => a -> String
