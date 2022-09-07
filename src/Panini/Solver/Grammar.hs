@@ -336,7 +336,7 @@ eliminateVar x b t = descend (eliminateVar x b) t
 
 useDef :: Name -> GExpr -> GRel -> GRel
 useDef x e = \case
-  GRel r (GVar y) e2 | x == y, Just e' <- mkAbs r e -> GRel Eq e2 e'
+  GRel r (GVar y) e2 | x == y, Just e' <- mkAbs (convRel r) e -> GRel Eq e2 e'
   GRel r e1 (GVar y) | x == y, Just e' <- mkAbs r e -> GRel Eq e1 e'
   r -> r
 
@@ -354,37 +354,6 @@ isDef x = \case
   GRel _ (GCon _) (GVar y) -> y == x
   GRel _ (GAbs _) (GVar y) -> y == x
   _                        -> False
-
--- eliminate :: Name -> Base -> Tree -> Tree
--- eliminate _ TUnit t = t
--- eliminate x b (TSys s) = case partialMeets (topdef:defs) of
---   [] -> TSys $ sysFromList rest
---   [GRel r _ e] | Just e' <- mkAbs r e -> 
---     let zs = map (use e') rest 
---     in if null zs then TTrue else TSys $ sysFromList zs
---   pfff -> error $ unlines $ map showPretty pfff --TFalse
---   where
---     topdef = case b of
---       TInt -> GRel Eq (GVar x) (GAbs (AInt (⊤)))
---       TBool -> GRel Eq (GVar x) (GAbs (ABool (⊤)))
---       TString -> GRel Eq (GVar x) (GAbs (AChar (⊤))) -- TODO
-
---     (defs, rest) = List.partition def $ sysToList s    
---     def (GRel _ (GVar y) (GCon _)) = y == x
---     def (GRel _ (GVar y) (GAbs _)) = y == x
---     def (GRel _ (GCon _) (GVar y)) = y == x
---     def (GRel _ (GAbs _) (GVar y)) = y == x
---     def _                          = False    
-
---     use e (GRel Eq e1 e2) = GRel Eq (useE e e1) (useE e e2)
---     use _ (GRel r e1 e2) = GRel r e1 e2
--- --    use e (GRel r e1 e2) = norm $ GRel r (useE e e1) (useE e e2)
---     useE e (GVar y) | y == x = e
---     --useE e (GStrAt s i) | s == x = GStrAt e i
---     --useE e (GStrLen s) | s == x = GStrLen e
---     useE _ a = a
-
--- eliminate x b t = descend (eliminate x b) t
 
 norm :: GRel -> GRel
 norm = \case
