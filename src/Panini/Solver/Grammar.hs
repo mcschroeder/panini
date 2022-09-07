@@ -326,7 +326,7 @@ eliminateVar x b (TSys s) =
   in case partialMeets (topDef x b : defs) of
     [GRel r (GVar y) e] | x == y, Just e' <- mkAbs r e -> 
       case map (useDef x e') rest of
-        [] -> TTrue
+        [] -> TFalse
         zs -> TSys (sysFromList zs)
     
     [] -> TSys (sysFromList rest)  
