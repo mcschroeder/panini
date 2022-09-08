@@ -4,6 +4,8 @@ module Panini.Solver.Abstract.AInteger
   ( AInteger
   , concreteSize
   , concreteValues
+  , aMinimum
+  , aMaximum
   , toPred
   , aIntegerEq
   , aIntegerNe
@@ -14,7 +16,8 @@ module Panini.Solver.Abstract.AInteger
   , aIntegerGtA
   , aIntegerGeA
   , aIntegerLtA
-  , aIntegerLeA 
+  , aIntegerLeA
+  , Inf(..)
   ) where
 
 import Data.Hashable
@@ -67,6 +70,20 @@ concreteValues (AInteger xs) = go xs
 interleave :: [a] -> [a] -> [a]
 interleave (x:xs) ys = x : interleave ys xs
 interleave []     ys = ys
+
+-- | The smallest value represented by the abstract integer, which might be -∞
+-- or +∞, or 'Nothing' if the integer is ⊥.
+aMinimum :: AInteger -> Maybe (Inf Integer)
+aMinimum (AInteger xs) = case xs of
+  []         -> Nothing
+  In a _ : _ -> Just a
+
+-- | The largest value represented by the abstract integer, which might +∞ or
+-- -∞, or 'Nothing' if the integer is ⊥.
+aMaximum :: AInteger -> Maybe (Inf Integer)
+aMaximum (AInteger xs) = case xs of
+  []               -> Nothing
+  (last -> In _ b) -> Just b
 
 -- | An abstract integer @= i@.
 aIntegerEq :: Integer -> AInteger

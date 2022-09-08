@@ -104,6 +104,7 @@ instance PartialMeetSemilattice GRel where
   _ ⊓? _ = Nothing
 
 hasBot :: GRel -> Bool
+hasBot (GRel Eq (GStrLen _) (GAbs (AInt a))) = aMinimum a < Just (Fin 0)
 hasBot (GRel _ e1 e2) = go e1 || go e2
   where
     go (GAbs (AInt  a)) = a == (⊥)
