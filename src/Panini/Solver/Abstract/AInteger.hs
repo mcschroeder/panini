@@ -163,6 +163,8 @@ instance MeetSemilattice IntervalSequence where
     | y `before` x   = (x:xs) ⊓ ys
     | x `contains` y = (x ⊓ y) : ((x:xs) ⊓ ys)
     | y `contains` x = (x ⊓ y) : (xs ⊓ (y:ys))
+    | x `overlaps` y = (x ⊓ y) : (xs ⊓ (y:ys))
+    | y `overlaps` x = (x ⊓ y) : ((x:xs) ⊓ ys)
     | otherwise      = (x ⊓ y) : (xs ⊓ ys)
 
 instance BoundedMeetSemilattice IntervalSequence where
@@ -211,10 +213,16 @@ before (In _ b) (In c _) = b < c
 
 -- | @[a..b]@ contains @[c..d]@ if @a <= c@ and @d <= b@.
 --
--- This is not the "contains" relation from Allen's interval algebra, 
--- but is equivalent to "contains or equals or starts or is finished by".
+-- This is not the "contains" relation from Allen's interval algebra, but is
+-- equivalent to "contains or equals or is started by or is finished by".
 contains :: Interval -> Interval -> Bool
 contains (In a b) (In c d) = a <= c && d <= b
+
+-- | @[a..b]@ overlaps @[c..d]@ if @a <= c@ and @c <= b@ and @b < d@.
+--
+-- This is the "overlaps" relation in Allen's interval algebra.
+overlaps :: Interval -> Interval -> Bool
+overlaps (In a b) (In c d) = a <= c && c <= b && b < d
 
 instance JoinSemilattice Interval where
   In a b ⊔ In c d = In (min a c) (max b d)
