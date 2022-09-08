@@ -16,7 +16,9 @@ data Base
   | TBool
   | TInt
   | TString
-  deriving stock (Ord, Eq, Show, Read)
+  deriving stock (Ord, Eq, Show, Read, Generic)
+
+instance Hashable Base
 
 instance Pretty Base where
   pretty TUnit   = identifier TypeIdent symUnit

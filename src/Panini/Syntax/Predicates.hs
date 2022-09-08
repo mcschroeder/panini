@@ -23,7 +23,9 @@ data Pred
   | PNot Pred               -- ^ negation @¬p@
   | PAppK KVar [Value]      -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists Name Base Pred  -- ^ existential quantification @∃x:b. p@
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable Pred
 
 -- | Smart constructor for `PAnd`, eliminates redundant values and merges
 -- adjacent `PAnd` lists.
@@ -157,7 +159,9 @@ data PExpr
   | PStrAt PExpr PExpr         -- ^ character at index @s[i]@
   | PStrSub PExpr PExpr PExpr  -- ^ substring @s[i..j]@ (inclusive bounds)
   | PFun Name [PExpr]          -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable PExpr
 
 pattern PVar :: Name -> PExpr
 pattern PVar x = PVal (Var x)
@@ -210,7 +214,9 @@ instance HasFixity PExpr where
 --
 -- In the literature, κ-variables are sometimes referred to as /Horn variables/.
 data KVar = KVar Int [Base]
-  deriving stock (Ord, Eq, Show, Read)
+  deriving stock (Ord, Eq, Show, Read, Generic)
+
+instance Hashable KVar
 
 -- TODO: ensure uniqueness
 -- | The parameters of a κ-variable.
