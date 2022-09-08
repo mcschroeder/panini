@@ -11,7 +11,6 @@ import Data.HashSet qualified as HS
 import Data.List qualified as List
 import Data.Maybe
 import Data.Text qualified as Text
---import Debug.Trace
 import GHC.Generics
 import Panini.Pretty.Graphviz
 import Panini.Pretty.Printer
@@ -23,16 +22,18 @@ import Panini.Solver.Abstract.AInteger qualified as AI
 import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
+--import Debug.Trace
 
 -------------------------------------------------------------------------------
 
 solve :: Con -> Pred
 solve = destruct . solve'
-  -- let t = traceGraph "trace.svg" $ solve' c
-  -- in trace (showPretty t) t `seq` destruct t
+-- solve c =
+--   let t = traceGraph "trace.svg" $ solve' c
+--   in trace (showPretty t) t `seq` destruct t
 
 solve' :: Con -> Tree
-solve' = reduce . construct -- . CAll "s" TString PTrue
+solve' = reduce . construct
 
 -------------------------------------------------------------------------------
 
@@ -48,6 +49,7 @@ data Tree
   | TFalse
   | TUnknown Pred
   deriving stock (Eq, Show, Read)
+
 
 data GSystem = GSystem (HashSet GRel) 
   deriving stock (Eq, Show, Read)
@@ -67,7 +69,7 @@ sysSingleton :: GRel -> GSystem
 sysSingleton = GSystem . HS.singleton
 
 sysFromList :: [GRel] -> GSystem
-sysFromList = GSystem . HS.fromList
+sysFromList = GSystem . HS.fromList . partialMeets
 
 sysToList :: GSystem -> [GRel]
 sysToList (GSystem xs) = HS.toList xs
@@ -275,49 +277,34 @@ destruct = goT
 
 -------------------------------------------------------------------------------
 
--- TODO: maybe we don't really need TNot, if we only ever negate TSys?
-
 reduce :: Tree -> Tree
 reduce = rewrite $ \case
+  TAnd (TSys s1) (TSys s2) -> Just $ TSys (s1 ⊓ s2)
+  TIff t1@(TSys _) t2@(TSys _) -> Just $ TOr (TAnd (TNot t1) (TNot t2)) (TAnd t1 t2)
+  TImpl (TSys s1) (TSys s2) | s2 ⊑ s1 -> Just $ TSys s1
+  TImpl (TOr t1@(TSys _) t2@(TSys _)) t3@(TSys _) -> Just $ TOr (TImpl t1 t3) (TImpl t2 t3)
+  TNot (TSys s1) | [x] <- sysToList s1 -> Just $ TSys $ sysSingleton $ neg x
+  TSys s1 | any hasBot (sysToList s1) -> Just TFalse
 
-  TOr TTrue     _                   -> Just TTrue
-  TOr _         TTrue               -> Just TTrue 
-  TOr TFalse    t2                  -> Just t2
-  TOr t1        TFalse              -> Just t1
-  TOr (TSys xs) (TSys ys) | xs ⊑ ys -> Just $ TSys ys
-  TOr (TSys xs) (TSys ys) | ys ⊑ xs -> Just $ TSys xs
-  
-  TAnd TTrue       t2          -> Just t2
-  TAnd t1          TTrue       -> Just t1
-  TAnd TFalse      _           -> Just TFalse
-  TAnd _           TFalse      -> Just TFalse
-  TAnd t1          (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
-  TAnd (TOr t1 t2) t3          -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
-  TAnd (TSys xs)   (TSys ys)   -> Just $ TSys (xs ⊓ ys)
+  TAnd t3 (TOr t1 t2) | all qfree [t1,t2,t3] -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
+  TAnd (TOr t1 t2) t3 | all qfree [t1,t2,t3] -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)      
+  TOr t TFalse -> Just t
+  TOr TFalse t -> Just t
+  TOr t1 t2 | t1 == t2 -> Just t1
+  TImpl t1 t2 | all qfree [t1,t2] -> Just $ TOr (TNot t1) (TAnd t1 t2)  
+  TNot (TNot t) -> Just t
+  TNot (TOr t1 t2) -> Just $ TAnd (TNot t1) (TNot t2)
 
-  TImpl TTrue        t           -> Just t
-  TImpl t            TTrue       -> Just $ TOr t (TNot t)
-  TImpl TFalse       _           -> Just TTrue
-  TImpl t            TFalse      -> Just $ TNot t
-  TImpl t1           (TOr t2 t3) -> Just $ TOr (TImpl t1 t2) (TImpl t1 t3)
-  TImpl (TOr t1 t2)  t3          -> Just $ TAnd (TImpl t1 t3) (TImpl t2 t3)
-  TImpl (TAnd t1 t2) t3          -> Just $ TOr (TImpl t1 t3) (TImpl t2 t3)
-  TImpl t1           t2          -> Just $ TOr (TNot t1) (TAnd t1 t2)
+  TAll x b t | qfree t -> Just $ eliminateVar x b t
 
-  TIff t1 t2 -> Just $ TAnd (TImpl t1 t2) (TImpl t2 t1)
-
-  TNot TTrue     -> Just TFalse
-  TNot TFalse    -> Just TTrue
-  TNot (TNot t)  -> Just t  
-  TNot (TSys xs) -> case sysToList xs of
-    [x] -> Just $ TSys $ sysSingleton $ neg x
-    _   -> Nothing  -- TODO: is it really possible to never need this?
-
-  TSys xs | any hasBot (sysToList xs) -> Just TFalse
-
-  TAll x b t -> Just $ eliminateVar x b t
-  
   _ -> Nothing
+
+qfree :: Tree -> Bool
+qfree = not . any isAll . universe
+
+isAll :: Tree -> Bool
+isAll (TAll _ _ _) = True
+isAll _            = False
 
 -------------------------------------------------------------------------------
 
