@@ -34,6 +34,7 @@ instance SMTLIB Con where
                           ]
 
 instance SMTLIB FlatCon where
+  encode (FAll [] p q) = sexpr ["=>", encode p, encode q]
   encode (FAll xs p q) = sexpr [ "forall", sorts xs
                                , sexpr ["=>", encode p, encode q]]
 
