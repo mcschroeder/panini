@@ -42,7 +42,7 @@ infer g = \case
   App e v pv _ -> do
     (ė, tₑ, cₑ) <- infer g e
     case tₑ of
-      TBase _ _ _ _ -> undefined  --  $ ExpectedFunType ė t
+      TBase _ _ _ _ -> throwError $ ExpectedFunType e tₑ
       TFun y t₁ t₂ _ -> do
         (_, tᵥ, _) <- infer g (Val v ())
         cᵥ <- sub tᵥ t₁
