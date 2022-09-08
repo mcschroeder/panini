@@ -255,14 +255,14 @@ construct = goC
     goE (PCon c)       = GCon c
     goE (PStrLen (PVar s)) = GStrLen s  -- TODO
     goE (PStrAt (PVar s) (PCon (I i _))) = GStrAt s i  -- TODO
-    goE _              = undefined
+    goE e              = error $ "not implemented for " ++ showPretty e
 
 destruct :: Tree -> Pred
 destruct = goT
   where
     goT (TOr t1 t2) = goT t1 `pOr` goT t2
     goT (TSys s)    = PAnd $ map goR $ sysToList s
-    goT _           = undefined
+    goT t           = error $ "not implemented for " ++ showPretty t
 
     goR (GRel Eq e1 (GAbs (AInt  a))) = AI.toPred (goE e1) a
     goR (GRel Eq e1 (GAbs (AChar a))) = AC.toPred (goE e1) a
@@ -273,7 +273,7 @@ destruct = goT
     goE (GCon c)     = PCon c
     goE (GStrLen s)  = PStrLen (PVar s)
     goE (GStrAt s i) = PStrAt (PVar s) (PCon (I i NoPV))
-    goE _            = undefined
+    goE e            = error $ "not implemented for " ++ showPretty e
 
 -------------------------------------------------------------------------------
 
