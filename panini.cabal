@@ -37,7 +37,7 @@ library
     Panini.Solver
     Panini.Solver.Abstract.ABool
     Panini.Solver.Abstract.AChar
-    Panini.Solver.Abstract.AInteger
+    Panini.Solver.Abstract.AInt
     Panini.Solver.Abstract.Lattice
     Panini.Solver.Assignment
     Panini.Solver.Fusion

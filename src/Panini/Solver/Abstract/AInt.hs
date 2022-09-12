@@ -1,7 +1,7 @@
 {-# LANGUAGE StrictData #-}
 
-module Panini.Solver.Abstract.AInteger
-  ( AInteger
+module Panini.Solver.Abstract.AInt
+  ( AInt
   , concreteSize
   , concreteValues
   , aMinimum
@@ -31,7 +31,7 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- | An abstract integer.
-newtype AInteger = AInteger IntervalSequence
+newtype AInt = AInt IntervalSequence
   deriving stock (Eq, Show, Read)
   deriving newtype 
     ( MeetSemilattice, BoundedMeetSemilattice
@@ -43,8 +43,8 @@ newtype AInteger = AInteger IntervalSequence
 -- | The number of concrete values represented by the abstract integer (i.e.,
 -- the length of the list returned by 'concreteValues'), or 'Nothing' if the
 -- number of concrete values is infinite.
-concreteSize :: AInteger -> Maybe Integer
-concreteSize (AInteger xs) = go 0 xs
+concreteSize :: AInt -> Maybe Integer
+concreteSize (AInt xs) = go 0 xs
   where
     go n (In (Fin a) (Fin b) : ys) = go (n + 1 + b - a) ys
     go n []                        = Just n
@@ -56,8 +56,8 @@ concreteSize (AInteger xs) = go 0 xs
 -- finite, or if they approach only positive infinity (+∞), the values are
 -- returned in ascending order. If the values (also) tend toward negative
 -- infinity (-∞), no ordering guarantees are given.
-concreteValues :: AInteger -> [Integer]
-concreteValues (AInteger xs) = go xs
+concreteValues :: AInt -> [Integer]
+concreteValues (AInt xs) = go xs
   where
     go (In (Fin a) (Fin b) : ys) = [a..b] ++ go ys
     go (In (Fin a) PosInf  : _ ) = [a..]
@@ -73,68 +73,68 @@ interleave []     ys = ys
 
 -- | The smallest value represented by the abstract integer, which might be -∞
 -- or +∞, or 'Nothing' if the integer is ⊥.
-aMinimum :: AInteger -> Maybe (Inf Integer)
-aMinimum (AInteger xs) = case xs of
+aMinimum :: AInt -> Maybe (Inf Integer)
+aMinimum (AInt xs) = case xs of
   []         -> Nothing
   In a _ : _ -> Just a
 
 -- | The largest value represented by the abstract integer, which might +∞ or
 -- -∞, or 'Nothing' if the integer is ⊥.
-aMaximum :: AInteger -> Maybe (Inf Integer)
-aMaximum (AInteger xs) = case xs of
+aMaximum :: AInt -> Maybe (Inf Integer)
+aMaximum (AInt xs) = case xs of
   []               -> Nothing
   (last -> In _ b) -> Just b
 
 -- | An abstract integer @= i@.
-aIntegerEq :: Integer -> AInteger
-aIntegerEq a = AInteger [singleton a]
+aIntegerEq :: Integer -> AInt
+aIntegerEq a = AInt [singleton a]
 
 -- | An abstract integer @≠ i@, i.e., @{[-∞..i-1],[i+1..+∞]}@.
-aIntegerNe :: Integer -> AInteger
-aIntegerNe a = AInteger [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
+aIntegerNe :: Integer -> AInt
+aIntegerNe a = AInt [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
 
 -- | An abstract integer @> i@, i.e., @[i+1..+∞]@.
-aIntegerGt :: Integer -> AInteger
-aIntegerGt a = AInteger [In (Fin (a + 1)) PosInf]
+aIntegerGt :: Integer -> AInt
+aIntegerGt a = AInt [In (Fin (a + 1)) PosInf]
 
 -- | An abstract integer @≥ i@, i.e., @[i..+∞]@.
-aIntegerGe :: Integer -> AInteger
-aIntegerGe a = AInteger [In (Fin a) PosInf]
+aIntegerGe :: Integer -> AInt
+aIntegerGe a = AInt [In (Fin a) PosInf]
 
 -- | An abstract integer @< i@, i.e., @[-∞..i-1]@.
-aIntegerLt :: Integer -> AInteger
-aIntegerLt a = AInteger [In NegInf (Fin (a - 1))]
+aIntegerLt :: Integer -> AInt
+aIntegerLt a = AInt [In NegInf (Fin (a - 1))]
 
 -- | An abstract integer @≤ i@, i.e., @[-∞..i]@.
-aIntegerLe :: Integer -> AInteger
-aIntegerLe a = AInteger [In NegInf (Fin a)]
+aIntegerLe :: Integer -> AInt
+aIntegerLe a = AInt [In NegInf (Fin a)]
 
 -- TODO: document
-aIntegerGtA :: AInteger -> AInteger
-aIntegerGtA (AInteger xs) = case xs of
-  []               -> AInteger []
-  (last -> In _ b) -> AInteger [In (succ <$> b) PosInf]
+aIntegerGtA :: AInt -> AInt
+aIntegerGtA (AInt xs) = case xs of
+  []               -> AInt []
+  (last -> In _ b) -> AInt [In (succ <$> b) PosInf]
 
 -- TODO: document
-aIntegerGeA :: AInteger -> AInteger
-aIntegerGeA (AInteger xs) = case xs of
-  []               -> AInteger []
-  (last -> In _ b) -> AInteger [In b PosInf]
+aIntegerGeA :: AInt -> AInt
+aIntegerGeA (AInt xs) = case xs of
+  []               -> AInt []
+  (last -> In _ b) -> AInt [In b PosInf]
 
 -- TODO: document
-aIntegerLtA :: AInteger -> AInteger
-aIntegerLtA (AInteger xs) = case xs of
-  []         -> AInteger []
-  In a _ : _ -> AInteger [In NegInf (pred <$> a)]
+aIntegerLtA :: AInt -> AInt
+aIntegerLtA (AInt xs) = case xs of
+  []         -> AInt []
+  In a _ : _ -> AInt [In NegInf (pred <$> a)]
 
 -- TODO: document
-aIntegerLeA :: AInteger -> AInteger
-aIntegerLeA (AInteger xs) = case xs of
-  []         -> AInteger []
-  In a _ : _ -> AInteger [In NegInf a]
+aIntegerLeA :: AInt -> AInt
+aIntegerLeA (AInt xs) = case xs of
+  []         -> AInt []
+  In a _ : _ -> AInt [In NegInf a]
 
-toPred :: PExpr -> AInteger -> Pred
-toPred lhs (AInteger xs) = case xs of
+toPred :: PExpr -> AInt -> Pred
+toPred lhs (AInt xs) = case xs of
   []                                          -> PFalse
   In NegInf  PosInf  : []                     -> PTrue
   In (Fin a) (Fin b) : [] | a == b            -> mkRel Eq a
@@ -150,10 +150,10 @@ toPred lhs (AInteger xs) = case xs of
   mkRel r i = PRel r lhs (PCon (I i NoPV))
   holeRels  = map (mkRel Ne) (holes xs)
 
-instance Pretty AInteger where
-  pretty (AInteger [])  = "∅"
-  pretty (AInteger [x]) = pretty x
-  pretty (AInteger xs)  =
+instance Pretty AInt where
+  pretty (AInt [])  = "∅"
+  pretty (AInt [x]) = pretty x
+  pretty (AInt xs)  =
     "{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
 
 -------------------------------------------------------------------------------

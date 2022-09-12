@@ -17,8 +17,8 @@ import Panini.Pretty.Printer
 import Panini.Solver.Abstract.ABool
 import Panini.Solver.Abstract.AChar
 import Panini.Solver.Abstract.AChar qualified as AC
-import Panini.Solver.Abstract.AInteger
-import Panini.Solver.Abstract.AInteger qualified as AI
+import Panini.Solver.Abstract.AInt
+import Panini.Solver.Abstract.AInt qualified as AI
 import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
@@ -130,7 +130,7 @@ instance PartialMeetSemilattice GExpr where
   _ ⊓? _ = Nothing
 
 data AbstractValue
-  = AInt AInteger
+  = AInt AInt
   | ABool ABool
   | AChar AChar
   deriving stock (Eq, Generic, Show, Read)
