@@ -21,7 +21,6 @@ module Panini.Solver.Abstract.AInt
   ) where
 
 import Data.Hashable
-import Data.List (intersperse)
 import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
@@ -153,8 +152,7 @@ toPred lhs (AInt xs) = case xs of
 instance Pretty AInt where
   pretty (AInt [])  = "∅"
   pretty (AInt [x]) = pretty x
-  pretty (AInt xs)  =
-    "{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
+  pretty (AInt xs)  = prettySet xs
 
 -------------------------------------------------------------------------------
 

@@ -11,7 +11,7 @@ module Panini.Pretty.Printer
   , orASCII
   , subscript
   , concatWithOp
-  , prettyTuple, prettyList, prettyMap
+  , prettyTuple, prettyList, prettySet, prettyMap
   , parens, brackets, braces
   , symDot, symDotDot, symColon, symArrow, symMapsTo
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists

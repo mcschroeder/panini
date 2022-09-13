@@ -10,7 +10,6 @@ module Panini.Solver.Abstract.AChar
 import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
-import Data.List (intersperse)
 import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.Lattice
@@ -82,9 +81,9 @@ instance Pretty AChar where
   pretty (AChar True cs) = case toCharList cs of
     []  -> "∅"
     [x] -> "\"" <> pretty x <> "\""
-    xs  -> "{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
+    xs  -> prettySet xs
   
   pretty (AChar False cs) = case toCharList cs of
     []  -> "Σ"
     [x] -> "Σ∖" <> pretty x
-    xs  -> "Σ∖{" <> (mconcat $ intersperse "," $ map pretty xs) <> "}"
+    xs  -> "Σ∖" <> prettySet xs
