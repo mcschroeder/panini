@@ -16,8 +16,8 @@ type Program = [Statement]
 
 -- | Statements are top-level declarations.
 data Statement
-  = Assume Name Type                 -- assume x : t
-  | Define Name Type (Term Untyped)  -- define x : t = e
+  = Assume Name Type                 -- x : t
+  | Define Name Type (Term Untyped)  -- x : t = e
   | Import FilePath                  -- import m
   deriving stock (Show, Read)
 
