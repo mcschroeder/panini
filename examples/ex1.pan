@@ -1,11 +1,11 @@
-assert : { b:bool | b = true } -> unit
-equals : (a:int) -> (b:int) -> { c:bool | c = true <=> a = b }
-length : (s:string) -> { n:int | n >= 0 /\ n = |s| }
-charAt : (s:string) -> { i:int | i >= 0 /\ i < |s| } -> { t:string | t = s[i] }
-match  : (s:string) -> (t:string) -> { b:bool | b = true <=> s = t }
+assert : { b:𝔹 | b = true } → 𝟙
+equals : (a:ℤ) → (b:ℤ) → { c:𝔹 | c = true ⟺ a = b }
+length : (s:𝕊) → { n:ℤ | n ≥ 0 ∧ n = |s| }
+charAt : (s:𝕊) → { i:ℤ | i ≥ 0 ∧ i < |s| } → { t:𝕊 | t = s[i] }
+match  : (s:𝕊) → (t:𝕊) → { b:𝔹 | b = true ⟺ s = t }
 
-f : string -> unit =
-  \s:string.
+f : 𝕊 → 𝟙 
+= λs:𝕊.
     let x = charAt s 0 in
     let p1 = match x "a" in
     if p1 then

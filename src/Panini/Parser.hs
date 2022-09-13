@@ -299,10 +299,10 @@ type1 = choice
 
 baseType :: Parser Base
 baseType = choice
-  [ TUnit <$ keyword "unit"
-  , TBool <$ keyword "bool"
-  , TInt <$ keyword "int"
-  , TString <$ keyword "string"
+  [ TUnit <$ (keyword "unit" <|> keyword "𝟙")
+  , TBool <$ (keyword "bool" <|> keyword "𝔹")
+  , TInt <$ (keyword "int" <|> keyword "ℤ")
+  , TString <$ (keyword "string" <|> keyword "𝕊")
   ] <?> "base type"
 
 refinement :: Parser Reft
@@ -469,11 +469,11 @@ symDisj = op "\\/" <|> symbol "∨"
 
 -- | Parses an implication symbol.
 symImpl :: Parser ()
-symImpl = op "==>" <|> symbol "⇒"
+symImpl = op "==>" <|> symbol "⇒" <|> symbol "⟹"
 
 -- | Parses an if-and-only-if symbol.
 symIff :: Parser ()
-symIff = op "<=>" <|> symbol "⇔"
+symIff = op "<=>" <|> symbol "⇔" <|> symbol "⟺"
 
 symAll :: Parser ()
 symAll = op "forall" <|> symbol "∀"
