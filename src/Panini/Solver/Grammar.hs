@@ -59,7 +59,7 @@ instance PartialOrd GSystem where
 
 instance MeetSemilattice GSystem where
   --GSystem xs ⊓ GSystem ys = GSystem (xs `HS.union` ys)
-  GSystem xs ⊓ GSystem ys = GSystem $ HS.fromList $ partialMeets (xs `HS.union` ys)
+  GSystem xs ∧ GSystem ys = GSystem $ HS.fromList $ partialMeets (xs `HS.union` ys)
 -- TODO: become bottom if any rel involves bottom
 
 instance BoundedMeetSemilattice GSystem where
@@ -83,27 +83,27 @@ instance Complementable GRel where
   neg (GRel r e1 e2) = norm $ GRel (invRel r) e1 e2
 
 instance PartialMeetSemilattice GRel where
-  x ⊓? y | x == y = Just x
+  x ∧? y | x == y = Just x
   
-  GRel Eq (GVar x) (GAbs a) ⊓? GRel Eq (GVar y) (GAbs b) | x == y = GRel Eq (GVar x) <$> GAbs <$> (a ⊓? b)
+  GRel Eq (GVar x) (GAbs a) ∧? GRel Eq (GVar y) (GAbs b) | x == y = GRel Eq (GVar x) <$> GAbs <$> (a ∧? b)
 
-  GRel r a@(GVar _) b ⊓? GRel s c d
-    | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ⊓? d')
-    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs (convRel s) c = GRel Eq a <$> (b' ⊓? c')
+  GRel r a@(GVar _) b ∧? GRel s c d
+    | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ∧? d')
+    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs (convRel s) c = GRel Eq a <$> (b' ∧? c')
 
-  GRel r a b@(GVar _) ⊓? GRel s c d
-    | b == c, Just a' <- mkAbs (convRel r) a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ⊓? d')
-    | b == d, Just a' <- mkAbs (convRel r) a, Just c' <- mkAbs (convRel s) c = GRel Eq b <$> (a' ⊓? c')
+  GRel r a b@(GVar _) ∧? GRel s c d
+    | b == c, Just a' <- mkAbs (convRel r) a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ∧? d')
+    | b == d, Just a' <- mkAbs (convRel r) a, Just c' <- mkAbs (convRel s) c = GRel Eq b <$> (a' ∧? c')
 
-  GRel r a@(GStrLen _) b ⊓? GRel s c d
-    | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ⊓? d')
-    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs (convRel s) c = GRel Eq a <$> (b' ⊓? c')
+  GRel r a@(GStrLen _) b ∧? GRel s c d
+    | a == c, Just b' <- mkAbs r b, Just d' <- mkAbs s d = GRel Eq a <$> (b' ∧? d')
+    | a == d, Just b' <- mkAbs r b, Just c' <- mkAbs (convRel s) c = GRel Eq a <$> (b' ∧? c')
 
-  GRel r a b@(GStrLen _) ⊓? GRel s c d
-    | b == c, Just a' <- mkAbs (convRel r) a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ⊓? d')
-    | b == d, Just a' <- mkAbs (convRel r) a, Just c' <- mkAbs (convRel s) c = GRel Eq b <$> (a' ⊓? c')
+  GRel r a b@(GStrLen _) ∧? GRel s c d
+    | b == c, Just a' <- mkAbs (convRel r) a, Just d' <- mkAbs s d = GRel Eq b <$> (a' ∧? d')
+    | b == d, Just a' <- mkAbs (convRel r) a, Just c' <- mkAbs (convRel s) c = GRel Eq b <$> (a' ∧? c')
 
-  _ ⊓? _ = Nothing
+  _ ∧? _ = Nothing
 
 hasBot :: GRel -> Bool
 hasBot (GRel Eq (GStrLen _) (GAbs (AInt a))) = aMinimum a < Just (Fin 0)
@@ -125,9 +125,9 @@ data GExpr
 instance Hashable GExpr
 
 instance PartialMeetSemilattice GExpr where
-  x ⊓? y | x == y = Just x
-  GAbs a ⊓? GAbs b = GAbs <$> (a ⊓? b)
-  _ ⊓? _ = Nothing
+  x ∧? y | x == y = Just x
+  GAbs a ∧? GAbs b = GAbs <$> (a ∧? b)
+  _ ∧? _ = Nothing
 
 data AbstractValue
   = AInt AInt
@@ -143,11 +143,11 @@ instance Complementable AbstractValue where
   neg (AChar a) = AChar (neg a)
 
 instance PartialMeetSemilattice AbstractValue where
-  x ⊓? y | x == y = Just x
-  AInt  a ⊓? AInt  b = Just $ AInt  (a ⊓ b)
-  ABool a ⊓? ABool b = Just $ ABool (a ⊓ b)
-  AChar a ⊓? AChar b = Just $ AChar (a ⊓ b)
-  _ ⊓? _ = Nothing
+  x ∧? y | x == y = Just x
+  AInt  a ∧? AInt  b = Just $ AInt  (a ∧ b)
+  ABool a ∧? ABool b = Just $ ABool (a ∧ b)
+  AChar a ∧? AChar b = Just $ AChar (a ∧ b)
+  _ ∧? _ = Nothing
 
 mkAbs :: Rel -> GExpr -> Maybe GExpr
 mkAbs Eq (GAbs a)         = Just $ GAbs a
@@ -279,7 +279,7 @@ destruct = goT
 
 reduce :: Tree -> Tree
 reduce = rewrite $ \case
-  TAnd (TSys s1) (TSys s2) -> Just $ TSys (s1 ⊓ s2)
+  TAnd (TSys s1) (TSys s2) -> Just $ TSys (s1 ∧ s2)
   TIff t1@(TSys _) t2@(TSys _) -> Just $ TOr (TAnd (TNot t1) (TNot t2)) (TAnd t1 t2)
   TImpl (TSys s1) (TSys s2) | s2 ⊑ s1 -> Just $ TSys s1
   TImpl (TOr t1@(TSys _) t2@(TSys _)) t3@(TSys _) -> Just $ TOr (TImpl t1 t3) (TImpl t2 t3)

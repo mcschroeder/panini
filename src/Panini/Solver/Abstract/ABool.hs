@@ -23,27 +23,27 @@ data ABool
 instance Hashable ABool
 
 instance JoinSemilattice ABool where
-  Top    ⊔ _      = Top
-  _      ⊔ Top    = Top
-  True_  ⊔ False_ = Top
-  False_ ⊔ True_  = Top
-  True_  ⊔ True_  = True_
-  False_ ⊔ False_ = False_
-  Bottom ⊔ x      = x
-  x      ⊔ Bottom = x
+  Top    ∨ _      = Top
+  _      ∨ Top    = Top
+  True_  ∨ False_ = Top
+  False_ ∨ True_  = Top
+  True_  ∨ True_  = True_
+  False_ ∨ False_ = False_
+  Bottom ∨ x      = x
+  x      ∨ Bottom = x
 
 instance BoundedJoinSemilattice ABool where
   (⊥) = Bottom
 
 instance MeetSemilattice ABool where
-  Bottom ⊓ _      = Bottom
-  _      ⊓ Bottom = Bottom
-  True_  ⊓ False_ = Bottom
-  False_ ⊓ True_  = Bottom
-  True_  ⊓ True_  = True_
-  False_ ⊓ False_ = False_
-  Top    ⊓ x      = x
-  x      ⊓ Top    = x
+  Bottom ∧ _      = Bottom
+  _      ∧ Bottom = Bottom
+  True_  ∧ False_ = Bottom
+  False_ ∧ True_  = Bottom
+  True_  ∧ True_  = True_
+  False_ ∧ False_ = False_
+  Top    ∧ x      = x
+  x      ∧ Top    = x
 
 instance BoundedMeetSemilattice ABool where
   (⊤) = Top

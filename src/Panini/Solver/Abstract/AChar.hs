@@ -26,19 +26,19 @@ data AChar = AChar Bool IntSet
 instance Hashable AChar
 
 instance MeetSemilattice AChar where
-  AChar True  xs ⊓ AChar True  ys = AChar True  (I.intersection xs ys)
-  AChar False xs ⊓ AChar False ys = AChar False (I.union xs ys)
-  AChar True  xs ⊓ AChar False ys = AChar True  (I.difference xs ys)
-  AChar False xs ⊓ AChar True  ys = AChar True  (I.difference ys xs)
+  AChar True  xs ∧ AChar True  ys = AChar True  (I.intersection xs ys)
+  AChar False xs ∧ AChar False ys = AChar False (I.union xs ys)
+  AChar True  xs ∧ AChar False ys = AChar True  (I.difference xs ys)
+  AChar False xs ∧ AChar True  ys = AChar True  (I.difference ys xs)
 
 instance BoundedMeetSemilattice AChar where
   (⊤) = AChar False mempty
 
 instance JoinSemilattice AChar where
-  AChar True  xs ⊔ AChar True  ys = AChar True  (I.union xs ys)
-  AChar False xs ⊔ AChar False ys = AChar False (I.intersection xs ys)
-  AChar True  xs ⊔ AChar False ys = AChar False (I.difference ys xs)
-  AChar False xs ⊔ AChar True  ys = AChar False (I.difference xs ys)
+  AChar True  xs ∨ AChar True  ys = AChar True  (I.union xs ys)
+  AChar False xs ∨ AChar False ys = AChar False (I.intersection xs ys)
+  AChar True  xs ∨ AChar False ys = AChar False (I.difference ys xs)
+  AChar False xs ∨ AChar True  ys = AChar False (I.difference xs ys)
 
 instance BoundedJoinSemilattice AChar where
   (⊥) = AChar True mempty

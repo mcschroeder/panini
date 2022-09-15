@@ -160,27 +160,27 @@ instance Pretty AInt where
 type IntervalSequence = [Interval]
 
 instance JoinSemilattice IntervalSequence where
-  []     ⊔ ys        = ys
-  xs     ⊔ []        = xs
-  (x:xs) ⊔ (y:ys)
-    | x `precedes` y = x : (xs ⊔ (y:ys))
-    | y `precedes` x = y : ((x:xs) ⊔ ys)
-    | otherwise      = ((x ⊔ y) : xs) ⊔ ys 
+  []     ∨ ys        = ys
+  xs     ∨ []        = xs
+  (x:xs) ∨ (y:ys)
+    | x `precedes` y = x : (xs ∨ (y:ys))
+    | y `precedes` x = y : ((x:xs) ∨ ys)
+    | otherwise      = ((x ∨ y) : xs) ∨ ys 
 
 instance BoundedJoinSemilattice IntervalSequence where
   (⊥) = []
 
 instance MeetSemilattice IntervalSequence where
-  []     ⊓ _         = []
-  _      ⊓ []        = []
-  (x:xs) ⊓ (y:ys)
-    | x `before` y   = xs ⊓ (y:ys)
-    | y `before` x   = (x:xs) ⊓ ys
-    | x `contains` y = (x ⊓ y) : ((x:xs) ⊓ ys)
-    | y `contains` x = (x ⊓ y) : (xs ⊓ (y:ys))
-    | x `overlaps` y = (x ⊓ y) : (xs ⊓ (y:ys))
-    | y `overlaps` x = (x ⊓ y) : ((x:xs) ⊓ ys)
-    | otherwise      = (x ⊓ y) : (xs ⊓ ys)
+  []     ∧ _         = []
+  _      ∧ []        = []
+  (x:xs) ∧ (y:ys)
+    | x `before` y   = xs ∧ (y:ys)
+    | y `before` x   = (x:xs) ∧ ys
+    | x `contains` y = (x ∧ y) : ((x:xs) ∧ ys)
+    | y `contains` x = (x ∧ y) : (xs ∧ (y:ys))
+    | x `overlaps` y = (x ∧ y) : (xs ∧ (y:ys))
+    | y `overlaps` x = (x ∧ y) : ((x:xs) ∧ ys)
+    | otherwise      = (x ∧ y) : (xs ∧ ys)
 
 instance BoundedMeetSemilattice IntervalSequence where
   (⊤) = [(⊤)]
@@ -240,10 +240,10 @@ overlaps :: Interval -> Interval -> Bool
 overlaps (In a b) (In c d) = a <= c && c <= b && b < d
 
 instance JoinSemilattice Interval where
-  In a b ⊔ In c d = In (min a c) (max b d)
+  In a b ∨ In c d = In (min a c) (max b d)
 
 instance MeetSemilattice Interval where
-  In a b ⊓ In c d = In (max a c) (min b d)
+  In a b ∧ In c d = In (max a c) (min b d)
 
 instance BoundedMeetSemilattice Interval where
   (⊤) = In NegInf PosInf
