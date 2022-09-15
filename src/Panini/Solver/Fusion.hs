@@ -14,6 +14,7 @@ import Data.Graph qualified as Graph
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Panini.Algebra.Lattice
 import Panini.Logger
 import Panini.Monad
 import Panini.Solver.Assignment
@@ -67,8 +68,8 @@ skipHypos c              = c
 -- | @sol1 κ c@ returns a predicate that is guaranteed to satisfy all clauses in
 -- c where κ appears as the head.
 sol1 :: KVar -> Con -> Pred
-sol1 k (CAnd c1 c2)   = (sol1 k c1) `pOr` (sol1 k c2)
-sol1 k (CAll x b p c) = PExists x b (p `pAnd` sol1 k c)
+sol1 k (CAnd c1 c2)   = sol1 k c1 ∨ sol1 k c2
+sol1 k (CAll x b p c) = PExists x b (p ∧ sol1 k c)
 sol1 k (CHead (PAppK k2 ys))
   | k == k2           = PAnd $ map (\(x,y) -> PVar x `pEq` PVal y)
                              $ zip (kparams k) ys
@@ -89,7 +90,7 @@ scope _ c                                      = c
 -- | Eliminates all κ-variables from a constraint by replacing each
 -- body-occurrence of a κ by σ(κ) and each head-occurrence of a κ by /true./
 elim' :: Assignment -> Con -> Con
-elim' s (CAnd c1 c2)   = elim' s c1 `cAnd` elim' s c2
+elim' s (CAnd c1 c2)   = elim' s c1 ∧ elim' s c2
 elim' s (CAll x b p c) = CAll x b (apply s p) (elim' s c)
 elim' s (CHead (PAppK k _)) 
   | k `Map.member` s   = CTrue

@@ -4,6 +4,7 @@ import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
+import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
@@ -27,29 +28,31 @@ data Pred
 
 instance Hashable Pred
 
--- | Smart constructor for `PAnd`, eliminates redundant values and merges
--- adjacent `PAnd` lists.
-pAnd :: Pred -> Pred -> Pred
-pAnd PTrue       q           = q
-pAnd PFalse      _           = PFalse
-pAnd p           PTrue       = p
-pAnd _           PFalse      = PFalse
-pAnd (PAnd ps)   (PAnd qs)   = PAnd (ps ++ qs)
-pAnd (PAnd ps)   q           = PAnd (ps ++ [q])
-pAnd p           (PAnd qs)   = PAnd (p:qs)
-pAnd p           q           = PAnd [p,q]
+instance MeetSemilattice Pred where
+  PTrue   ∧ q       = q
+  PFalse  ∧ _       = PFalse
+  p       ∧ PTrue   = p
+  _       ∧ PFalse  = PFalse
+  PAnd ps ∧ PAnd qs = PAnd (ps ++ qs)
+  PAnd ps ∧ q       = PAnd (ps ++ [q])
+  p       ∧ PAnd qs = PAnd (p:qs)
+  p       ∧ q       = PAnd [p,q]
 
--- | Smart constructor for `POr`, eliminates redundant values and merges
--- adjacent `POr` lists.
-pOr :: Pred -> Pred -> Pred
-pOr PFalse     q          = q
-pOr PTrue      _          = PTrue
-pOr p          PFalse     = p
-pOr _          PTrue      = PTrue
-pOr (POr ps)   (POr qs)   = POr (ps ++ qs)
-pOr (POr ps)   q          = POr (ps ++ [q])
-pOr p          (POr qs)   = POr (p:qs)
-pOr p          q          = POr [p,q]
+instance BoundedMeetSemilattice Pred where
+  (⊤) = PTrue
+
+instance JoinSemilattice Pred where
+  PFalse ∨ q      = q
+  PTrue  ∨ _      = PTrue
+  p      ∨ PFalse = p
+  _      ∨ PTrue  = PTrue
+  POr ps ∨ POr qs = POr (ps ++ qs)
+  POr ps ∨ q      = POr (ps ++ [q])
+  p      ∨ POr qs = POr (p:qs)
+  p      ∨ q      = POr [p,q]
+
+instance BoundedJoinSemilattice Pred where
+  (⊥) = PFalse
 
 instance Uniplate Pred where
   uniplate = \case

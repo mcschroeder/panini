@@ -137,15 +137,14 @@ toPred lhs (AInt xs) = case xs of
   []                                          -> PFalse
   In NegInf  PosInf  : []                     -> PTrue
   In (Fin a) (Fin b) : [] | a == b            -> mkRel Eq a
-  In (Fin a) (Fin b) : []                     -> mkRel Ge a `pAnd` mkRel Le b
+  In (Fin a) (Fin b) : []                     -> mkRel Ge a ∧ mkRel Le b
   In NegInf  (Fin b) : []                     -> mkRel Le b
   In (Fin a) PosInf  : []                     -> mkRel Ge a
-  In NegInf  _       : (last -> In _ (Fin b)) -> mkAnd $ mkRel Le b : holeRels
-  In (Fin a) _       : (last -> In _ PosInf ) -> mkAnd $ mkRel Ge a : holeRels
-  In NegInf  _       : (last -> In _ PosInf ) -> mkAnd $ holeRels
+  In NegInf  _       : (last -> In _ (Fin b)) -> meets $ mkRel Le b : holeRels
+  In (Fin a) _       : (last -> In _ PosInf ) -> meets $ mkRel Ge a : holeRels
+  In NegInf  _       : (last -> In _ PosInf ) -> meets $ holeRels
   _                                           -> error "impossible"
  where
-  mkAnd     = foldr pAnd PTrue
   mkRel r i = PRel r lhs (PCon (I i NoPV))
   holeRels  = map (mkRel Ne) (holes xs)
 

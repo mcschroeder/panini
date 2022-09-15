@@ -4,6 +4,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
+import Panini.Algebra.Lattice
 import Panini.Error
 import Panini.Monad
 import Panini.Syntax
@@ -92,16 +93,12 @@ infer g = \case
     t <- join t₁ t₂
     return $ If v ė₁ ė₂ pv `withType` (t, c)
 
-
-(∧) :: Con -> Con -> Con
-(∧) = cAnd
-
 -- | Selfification.
 self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst (Var v') x p) `pAnd` (PVar v' `pEq` PVar x)
+        p' = (subst (Var v') x p) ∧ (PVar v' `pEq` PVar x)
     in TBase v' b (Known p') pv  
   t -> t
 
@@ -165,7 +162,7 @@ join t₁ t₂ = case (t₁, t₂) of
   -- join/base --------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
     | b₁ == b₂ -> 
-        let p = p₁ `pOr` subst (Var v₁) v₂ p₂
+        let p = p₁ ∨ subst (Var v₁) v₂ p₂
         in return $ TBase v₁ b₁ (Known p) NoPV -- TODO: join provenance
   
   _ -> error "invalid join"  -- TODO: correct error

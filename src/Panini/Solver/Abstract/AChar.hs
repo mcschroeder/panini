@@ -72,8 +72,8 @@ aCharNe = AChar False . I.singleton . fromEnum
 
 toPred :: PExpr -> AChar -> Pred
 toPred lhs (AChar b cs) = case b of
-  True  -> foldr pOr PFalse $ map (mkRel Eq) $ toCharList cs
-  False -> foldr pAnd PTrue $ map (mkRel Ne) $ toCharList cs
+  True  -> joins $ map (mkRel Eq) $ toCharList cs
+  False -> meets $ map (mkRel Ne) $ toCharList cs
  where
   mkRel r c = PRel r lhs (PCon (S (Text.singleton c) NoPV))  
 

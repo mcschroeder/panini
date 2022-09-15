@@ -260,7 +260,7 @@ construct = goC
 destruct :: Tree -> Pred
 destruct = goT
   where
-    goT (TOr t1 t2) = goT t1 `pOr` goT t2
+    goT (TOr t1 t2) = goT t1 ∨ goT t2
     goT (TSys s)    = PAnd $ map goR $ sysToList s
     goT t           = error $ "not implemented for " ++ showPretty t
 

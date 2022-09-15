@@ -1,6 +1,7 @@
 module Panini.Syntax.Constraints where
 
 import Data.Generics.Uniplate.Direct
+import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -25,11 +26,13 @@ pattern CTrue = CHead PTrue
 pattern CFalse :: Con
 pattern CFalse = CHead PFalse
 
--- | Smart constructor for `CAnd`, eliminates redundant true values.
-cAnd :: Con -> Con -> Con
-cAnd CTrue c2    = c2
-cAnd c1    CTrue = c1
-cAnd c1    c2    = CAnd c1 c2
+instance MeetSemilattice Con where
+  CTrue ∧ c2    = c2
+  c1    ∧ CTrue = c1
+  c1    ∧ c2    = CAnd c1 c2
+
+instance BoundedMeetSemilattice Con where
+  (⊤) = CTrue
 
 instance Uniplate Con where
   uniplate = \case
