@@ -22,8 +22,8 @@ module Panini.Solver.Abstract.AInt
 
 import Data.Hashable
 import GHC.Generics
+import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
-import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
 

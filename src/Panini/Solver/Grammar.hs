@@ -12,6 +12,7 @@ import Data.List qualified as List
 import Data.Maybe
 import Data.Text qualified as Text
 import GHC.Generics
+import Panini.Algebra.Lattice
 import Panini.Pretty.Graphviz
 import Panini.Pretty.Printer
 import Panini.Solver.Abstract.ABool
@@ -19,7 +20,6 @@ import Panini.Solver.Abstract.AChar
 import Panini.Solver.Abstract.AChar qualified as AC
 import Panini.Solver.Abstract.AInt
 import Panini.Solver.Abstract.AInt qualified as AI
-import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
 --import Debug.Trace

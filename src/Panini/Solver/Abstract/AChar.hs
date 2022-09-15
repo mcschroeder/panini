@@ -11,8 +11,8 @@ import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import GHC.Generics
+import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
-import Panini.Solver.Abstract.Lattice
 import Panini.Syntax
 import Prelude
 import Data.Text qualified as Text

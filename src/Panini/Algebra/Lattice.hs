@@ -1,4 +1,4 @@
-module Panini.Solver.Abstract.Lattice where
+module Panini.Algebra.Lattice where
 
 import Data.Foldable
 import Prelude

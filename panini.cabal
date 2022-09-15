@@ -24,6 +24,7 @@ maintainer:         michael.schroeder@tuwien.ac.at
 library
   hs-source-dirs: src
   exposed-modules:
+    Panini.Algebra.Lattice
     Panini.Elaborator
     Panini.Elaborator.Environment
     Panini.Error
@@ -37,8 +38,7 @@ library
     Panini.Solver
     Panini.Solver.Abstract.ABool
     Panini.Solver.Abstract.AChar
-    Panini.Solver.Abstract.AInt
-    Panini.Solver.Abstract.Lattice
+    Panini.Solver.Abstract.AInt    
     Panini.Solver.Assignment
     Panini.Solver.Fusion
     Panini.Solver.Grammar
