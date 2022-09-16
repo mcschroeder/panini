@@ -1,0 +1,42 @@
+length : (s:𝕊) → { n:ℤ | n ≥ 0 ∧ n = |s| }
+charAt : (s:𝕊) → { i:ℤ | i ≥ 0 ∧ i < |s| } → { t:𝕊 | t = s[i] }
+match  : (s:𝕊) → (t:𝕊) → { b:𝔹 | b = true ⟺ s = t }
+
+add : (a:ℤ) → (b:ℤ) → { c:ℤ | c = a + b }
+lt : (a:ℤ) → (b:ℤ) → { c:𝔹 | c = true ⟺ a < b }
+eq : (a:ℤ) → (b:ℤ) → { c:𝔹 | c = true ⟺ a = b }
+
+and : (a:𝔹) → (b:𝔹) → { c:𝔹 | c = true ⟺ (a = true ∧ b = true) }
+assert : { b:𝔹 | b = true } → 𝟙
+
+parser : 𝕊 → 𝟙
+= \s:𝕊.
+    let n = length s in
+    rec go1 : ℤ → ℤ → 𝟙 = λi1:ℤ. λj1:ℤ.
+      let p1 = lt i1 n in
+      let x = charAt s i1 in
+      let p2 = match x "a" in
+      let p3 = and p1 p2 in
+      if p3 then
+        let i2 = add i1 1 in
+        let j2 = add j1 1 in 
+        go1 i2 j2
+      else
+        rec go2 : ℤ → ℤ → 𝟙 = λi3:ℤ. λk1:ℤ.
+          let p4 = lt i3 n in
+          let y = charAt s i3 in
+          let p5 = match y "b" in
+          let p6 = and p4 p5 in
+          if p6 then
+            let i4 = add i3 1 in
+            let k2 = add k1 1 in
+            go2 i4 k2
+          else
+            let p7 = eq i3 n in
+            let p8 = eq k1 j1 in
+            let p9 = and p7 p8 in
+            assert p9
+        in
+          go2 i1 0
+    in
+      go1 0 0
