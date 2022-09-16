@@ -54,7 +54,7 @@ elim (k:ks) c = elim ks (elim1 k c)
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
 -- scoped solution for κ in c.
 elim1 :: KVar -> Con -> Con
-elim1 k c = elim' sk c
+elim1 k c = simplifyCon $ elim' sk c
   where
     sk = Map.singleton k (sol1 k c')
     c' = skipHypos $ scope k c
