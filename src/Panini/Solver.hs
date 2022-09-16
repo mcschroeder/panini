@@ -14,33 +14,35 @@ import Prelude
 import Control.Applicative
 import Data.Maybe
 
+-- TODO: be strict in each of these steps
+
 solve :: Con -> Pan (Maybe Assignment)
 solve c0 = do
   logMessage Info "Solver" "Simplify constraint"
-  let c1 = simplifyCon c0
+  let !c1 = simplifyCon c0
   logData Trace c1
 
   logMessage Info "Fusion" "Find cut variables"
-  let ks_cut = Fusion.cutVars c1
+  let !ks_cut = Fusion.cutVars c1
   logData Trace ks_cut
 
   logMessage Info "Grammar" "Find grammar variables"
-  let ks_gram = grammarVars c1
+  let !ks_gram = grammarVars c1
   logData Trace ks_gram
 
-  logMessage Info "Fusion" "Compute exact solutions for non-cut and non-grammar variables"
-  let ks = kvars c1
-  let ks' = ks Set.\\ ks_cut Set.\\ (Set.fromList ks_gram)
+  logMessage Info "Fusion" "Compute exact solutions for other variables"
+  let !ks = kvars c1
+  let !ks' = ks Set.\\ ks_cut Set.\\ (Set.fromList ks_gram)
   logData Trace ks'
-  let c2 = Fusion.elim (Set.toList ks') c1
+  let !c2 = Fusion.elim (Set.toList ks') c1
   logData Trace c2
 
   logMessage Info "Solver" "Simplify constraint"
-  let c3 = simplifyCon c2
+  let !c3 = simplifyCon c2
   logData Trace c3
 
   logMessage Info "Grammar" "Find grammar consequents"
-  let cs = Map.fromList
+  let !cs = Map.fromList
          $ map (\(k,c) -> (k, fromJust c)) 
          $ filter (isJust . snd) 
          $ zip ks_gram 
@@ -48,19 +50,19 @@ solve c0 = do
   logData Trace cs
 
   logMessage Info "Grammar" "Solve grammar variables"
-  let gs = Map.map Grammar.solve cs
-  logData Trace gs
+  let !gs = Map.map Grammar.solve cs
+  logData Debug gs
 
   logMessage Info "Grammar" "Apply grammar solution"
-  let c4 = apply gs c3
+  let !c4 = apply gs c3
   logData Trace c4
 
   logMessage Info "Solver" "Simplify constraint"
-  let c5 = simplifyCon c4
+  let !c5 = simplifyCon c4
   logData Trace c5
 
-  logMessage Info "Liquid" "Compute approximate solutions for residual variables"
-  s <- Liquid.solve c5 []
+  logMessage Info "Liquid" "Compute approximate solutions for residuals"
+  !s <- Liquid.solve c5 []
   logData Trace s
 
   return s
