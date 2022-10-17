@@ -19,8 +19,9 @@ simplifyCon = transform go . transformBi simplifyPred
       CAnd CFalse _      -> CFalse
       CAnd _      CFalse -> CFalse      
 
-      CAll _ _ PFalse _ -> CTrue
-
+      CAll _ _ PFalse _     -> CTrue
+      CAll _ _ _      CTrue -> CTrue
+      
       CAll x _ p c
         | x `notElem` (freeVars p <> freeVars c) -> case (p,c) of
           (PTrue , _      ) -> c
