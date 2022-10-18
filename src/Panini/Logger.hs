@@ -37,26 +37,24 @@ data LogLevel = Info | Debug | Trace
 
 type LogSource = String
 
-class HasLogger m where
-  getLogger :: m Logger
+class Monad m => HasLogger m where
+  getLogger :: m (Maybe Logger)
+
+withLogger :: HasLogger m => (Logger -> m ()) -> m ()
+withLogger f = maybe (return ()) f =<< getLogger
 
 logBegin :: (HasLogger m, MonadIO m) => String -> m ()
-logBegin _ = do
-  Logger{} <- getLogger
-  liftIO $ do
-    w <- getTermWidth
-    putStr $ "╭" ++ replicate 8 '─' ++ "─┬─" ++ replicate (w - 8 - 5) '─' ++ "╮"
+logBegin _ = withLogger $ \_ -> liftIO $ do
+  w <- getTermWidth
+  putStr $ "╭" ++ replicate 8 '─' ++ "─┬─" ++ replicate (w - 8 - 5) '─' ++ "╮"
 
 logEnd :: (HasLogger m, MonadIO m) => m ()
-logEnd = do
-  Logger{} <- getLogger
-  liftIO $ do
-    w <- getTermWidth
-    putStrLn $ "╰" ++ replicate 8 '─' ++ "─┴─" ++ replicate (w - 8 - 5) '─' ++ "╯"
+logEnd = withLogger $ \_ -> liftIO $ do
+  w <- getTermWidth
+  putStrLn $ "╰" ++ replicate 8 '─' ++ "─┴─" ++ replicate (w - 8 - 5) '─' ++ "╯"
 
 logMessage :: (HasLogger m, MonadIO m) => LogLevel -> LogSource -> String -> m ()
-logMessage l s m = do
-  logger <- getLogger
+logMessage l s m = withLogger $ \logger -> do
   unless (logger.level < l) $ liftIO $ do
     fprint ("│" % lpadded 8 ' ' string % " │ " % string) s m
     w <- getTermWidth
@@ -64,8 +62,7 @@ logMessage l s m = do
     putStrLn "│"
 
 logData :: (HasLogger m, MonadIO m, Pretty a) => LogLevel -> a -> m ()  
-logData l a = do
-  logger <- getLogger
+logData l a = withLogger $ \logger -> do
   unless (logger.level < l) $ liftIO $ do
     w <- getTermWidth
     let opts = RenderOptions 

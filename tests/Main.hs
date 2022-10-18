@@ -41,7 +41,8 @@ inferGrammar f = do
   case parseProgram f src of
     Left err1 -> fail $ showPretty err1
     Right prog -> do
-      res <- runExceptT $ execStateT (tryError $ elaborateProgram prog) initState
+      let st0 = initState { logger = Nothing }
+      res <- runExceptT $ execStateT (tryError $ elaborateProgram prog) st0
       case res of
         Left err2 -> fail $ showPretty err2
         Right st -> case Map.lookup "f" (environment st) of

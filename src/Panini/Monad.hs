@@ -36,14 +36,14 @@ tryError m = catchError (Right <$> m) (return . Left)
 
 data PanState = PanState
   { environment :: !Environment  -- ^ elaborator environment
-  , logger      :: !Logger
+  , logger      :: !(Maybe Logger)
   , kvarCount   :: !Int          -- ^ source for fresh κ-variable names
   }
 
 initState :: PanState
 initState = PanState 
   { environment = mempty
-  , logger = newLogger
+  , logger = Just newLogger
   , kvarCount = 0
   }
 
