@@ -280,31 +280,35 @@ destruct = goT
 reduce :: Tree -> Tree
 reduce = rewrite $ \case
   TAnd (TSys s1) (TSys s2) -> Just $ TSys (s1 ∧ s2)
-  TIff t1@(TSys _) t2@(TSys _) -> Just $ TOr (TAnd (TNot t1) (TNot t2)) (TAnd t1 t2)
-  TImpl (TSys s1) (TSys s2) | s2 ⊑ s1 -> Just $ TSys s1
-  TImpl (TOr t1@(TSys _) t2@(TSys _)) t3@(TSys _) -> Just $ TOr (TImpl t1 t3) (TImpl t2 t3)
   TNot (TSys s1) | [x] <- sysToList s1 -> Just $ TSys $ sysSingleton $ neg x
   TSys s1 | any hasBot (sysToList s1) -> Just TFalse
 
-  TAnd t3 (TOr t1 t2) | all qfree [t1,t2,t3] -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
-  TAnd (TOr t1 t2) t3 | all qfree [t1,t2,t3] -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)      
+  TAnd _ TFalse -> Just TFalse
+  TAnd TFalse _ -> Just TFalse
+  TAnd t TTrue -> Just t
+  TAnd TTrue t -> Just t
+  TAnd t1 t2 | t1 == t2 -> Just t1
+  TAnd t1 (TOr t2 t3) -> Just $ TOr (TAnd t1 t2) (TAnd t1 t3)
+  TAnd (TOr t1 t2) t3 -> Just $ TOr (TAnd t1 t3) (TAnd t2 t3)
+
   TOr t TFalse -> Just t
   TOr TFalse t -> Just t
-  TOr t1 t2 | t1 == t2 -> Just t1
-  TImpl t1 t2 | all qfree [t1,t2] -> Just $ TOr (TNot t1) (TAnd t1 t2)  
-  TNot (TNot t) -> Just t
-  TNot (TOr t1 t2) -> Just $ TAnd (TNot t1) (TNot t2)
+  TOr _ TTrue -> Just TTrue
+  TOr TTrue _ -> Just TTrue
+  TOr  t1 t2 | t1 == t2 -> Just t1
 
-  TAll x b t | qfree t -> Just $ eliminateVar x b t
+  TNot (TNot t) -> Just t
+  TNot TFalse -> Just TTrue
+  TNot TTrue  -> Just TFalse
+  TNot (TOr t1 t2) -> Just $ TAnd (TNot t1) (TNot t2)
+  
+  TImpl t1 t2 -> Just $ TOr (TNot t1) (TAnd t1 t2)
+  
+  TIff t1 t2 -> Just $ TOr (TAnd (TNot t1) (TNot t2)) (TAnd t1 t2)
+
+  TAll x b t -> Just $ eliminateVar x b t
 
   _ -> Nothing
-
-qfree :: Tree -> Bool
-qfree = not . any isAll . universe
-
-isAll :: Tree -> Bool
-isAll (TAll _ _ _) = True
-isAll _            = False
 
 -------------------------------------------------------------------------------
 
