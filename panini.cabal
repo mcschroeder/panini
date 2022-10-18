@@ -119,3 +119,19 @@ executable pan
     LambdaCase
     OverloadedStrings
     ViewPatterns
+
+test-suite test
+  default-language: GHC2021
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tests
+  main-is: Main.hs
+  build-depends:
+    , base
+    , panini
+    , tasty
+    , tasty-golden    
+    , filepath
+    , text
+    , bytestring
+    , transformers
+    , containers
