@@ -65,7 +65,11 @@ solve c0 = do
   !s <- Liquid.solve c5 []
   logData Trace s
 
-  return s
+  -- TODO: include fusion assignments in final solution
+
+  case s of
+    Just s' -> return $ Just $ Map.unions [gs,s']
+    Nothing -> return Nothing
 
 grammarVars :: Con -> [KVar]
 grammarVars = go
