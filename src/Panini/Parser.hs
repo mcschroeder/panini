@@ -67,9 +67,12 @@ transformErrorBundle b = ParserError (FromSource loc (Just offLine)) errMsg
 
 type Parser = Parsec Void Text
 
--- | Consumes white space, including newlines. No comments.
+-- | Consumes white space, including newlines. Skips comments.
 whitespace :: Parser ()
-whitespace = L.space space1 empty empty
+whitespace = L.space space1 lineComment blockComment
+  where
+    lineComment = L.skipLineComment "--"
+    blockComment = L.skipBlockCommentNested "{-" "-}"
 
 -- | Parses a lexeme and consumes all white space after the lexeme.
 lexeme :: Parser a -> Parser a
