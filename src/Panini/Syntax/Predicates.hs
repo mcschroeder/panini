@@ -149,6 +149,19 @@ convRel = \case
 pEq :: PExpr -> PExpr -> Pred
 pEq = PRel Eq
 
+evalRel :: Ord a => Rel -> (a -> a -> Bool)
+evalRel = \case
+  Eq -> (==)
+  Ne -> (/=)
+  Ge -> (>=)
+  Le -> (<=)
+  Gt -> (>)
+  Lt -> (<)
+
+mkBoolPred :: Bool -> Pred
+mkBoolPred True = PTrue
+mkBoolPred False = PFalse
+
 ------------------------------------------------------------------------------
 
 -- | Expressions within predicates are built from constants, variables, linear

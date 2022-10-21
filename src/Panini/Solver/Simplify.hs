@@ -75,6 +75,8 @@ simplifyPred = transform $ \case
   PRel Lt p q | p == q -> PFalse
   PRel Gt p q | p == q -> PFalse
 
+  PRel r (PVal (Con (I a _))) (PVal (Con (I b _))) -> mkBoolPred $ evalRel r a b
+
   p -> p
 
 simplifyAnds :: [Pred] -> [Pred]
