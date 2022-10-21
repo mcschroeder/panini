@@ -262,6 +262,8 @@ destruct = goT
   where
     goT (TOr t1 t2) = goT t1 ∨ goT t2
     goT (TSys s)    = PAnd $ map goR $ sysToList s
+    goT TTrue       = PTrue
+    goT TFalse      = PFalse
     goT t           = error $ "not implemented: destruct " ++ showPretty t
 
     goR (GRel Eq e1 (GAbs (AInt  a))) = AI.toPred (goE e1) a
