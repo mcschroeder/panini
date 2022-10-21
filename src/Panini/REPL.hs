@@ -19,6 +19,7 @@ import Data.Text.IO qualified as Text
 import Panini.Elaborator
 import Panini.Elaborator.Environment
 import Panini.Error
+import Panini.Infer
 import Panini.Logger
 import Panini.Monad
 import Panini.Parser
@@ -99,17 +100,23 @@ formatInput input = do
     Right e -> outputPretty e
 
 synthesizeType :: String -> InputT Pan ()
-synthesizeType _input = undefined -- do
-  -- e <- lift $ lift $ except $ parseInput input  
-  -- g <- lift $ gets pan_types
-  -- case runTC $ synth g e of
-  --   Left err -> do
-  --     err' <- liftIO $ updatePV (addSourceLinesREPL input) err
-  --     outputPretty err'
-  --   Right (vc, t) -> do
-  --     outputPretty vc
-  --     outputPretty t
-
+synthesizeType input = do
+  case parseTerm "<repl>" $ Text.pack input of
+    Left err -> do
+      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
+      outputPretty err'
+    Right tm -> do
+      g <- lift $ envToContext <$> gets environment
+      err2 <- lift $ tryError $ infer g tm
+      case err2 of
+        Left err -> do
+          err' <- liftIO $ updatePV (addSourceLinesREPL input) err
+          outputPretty err'        
+        Right (tm',t,vc) -> do
+          outputPretty $ "⊢ " <> pretty tm'
+          outputPretty $ "↗ " <> pretty t
+          outputPretty $ "⫤ " <> pretty vc
+  
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
   res <- lift $ tryError $ elaborateProgram =<< lift (except $ parseInput input) 
