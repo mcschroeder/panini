@@ -47,7 +47,6 @@ data Tree
   | TSys GSystem
   | TTrue
   | TFalse
-  | TUnknown Pred
   deriving stock (Eq, Show, Read)
 
 
@@ -196,11 +195,9 @@ instance GraphViz Tree where
         TSys xs -> BoxNode (labSys xs) []
         TTrue  -> Node [Shape None, Label "⊤"] []
         TFalse -> Node [Shape None, Label "⊥"] []
-        TUnknown p -> Node [Shape None, Label (labUnknown p)] []
     
       labAll x b = rend $ "∀" <> pretty x <> ":" <> pretty b
       labSys s = rend $ mconcat $ map ((<> "\\l") . pretty) $ sysToList s
-      labUnknown p = rend $ "⟨ " <> pretty p <> " ⟩"    
       rend = renderDoc RenderOptions { styling = Nothing, unicode = True, fixedWidth = Nothing }
 
 instance Pretty Tree where
@@ -214,7 +211,6 @@ instance Pretty Tree where
     TSys s -> "{" <> (mconcat $ List.intersperse ", " $ map pretty $ sysToList s) <> "}"
     TTrue -> "⊤"
     TFalse -> "⊥"
-    TUnknown p -> pretty p
 
 instance Pretty GRel where
   pretty (GRel r e1 e2) = pretty e1 <> " " <> pretty r <> " " <> pretty e2
@@ -250,7 +246,7 @@ construct = goC
     goP PTrue          = TTrue
     goP PFalse         = TFalse
     goP (PRel r e1 e2) = TSys $ sysSingleton $ GRel r (goE e1) (goE e2)
-    goP p              = TUnknown p
+    goP p              = error $ "not implemented: construct " ++ showPretty p
     goE (PVar x)       = GVar x
     goE (PCon c)       = GCon c
     goE (PStrLen (PVar s)) = GStrLen s  -- TODO
