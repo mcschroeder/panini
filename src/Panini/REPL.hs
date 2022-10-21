@@ -24,6 +24,7 @@ import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
+import Panini.Solver.Simplify
 import Panini.Solver.Grammar qualified
 import Panini.Syntax
 import Prelude
@@ -115,7 +116,7 @@ synthesizeType input = do
         Right (tm',t,vc) -> do
           outputPretty $ "⊢ " <> pretty tm'
           outputPretty $ "↗ " <> pretty t
-          outputPretty $ "⫤ " <> pretty vc
+          outputPretty $ "⫤ " <> pretty (simplifyCon vc)
   
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
