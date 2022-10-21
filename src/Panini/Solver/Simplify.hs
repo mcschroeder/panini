@@ -30,6 +30,9 @@ simplifyCon = transform go . transformBi simplifyPred
           _                 -> CAll dummyName TUnit p c
         
         | CHead q <- c, p == q -> CTrue
+
+        -- ∀x. x = y ⇒ φ(x)  ≡  φ(y)  where y is a primitive value
+        | PRel Eq (PVal (Var x')) (PVal y) <- p, x == x' -> go (subst y x c)
       
       p -> p
 
