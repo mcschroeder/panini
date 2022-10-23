@@ -246,7 +246,11 @@ construct = goC
     goP PTrue          = TTrue
     goP PFalse         = TFalse
     goP (PRel r e1 e2) = TSys $ sysSingleton $ GRel r (goE e1) (goE e2)
+
+    goP (PAppK _ _)    = TTrue  -- TODO: THIS IS JUST A HACK FOR PLAYING AROUND!!!
+
     goP p              = error $ "not implemented: construct " ++ showPretty p
+    
     goE (PVar x)       = GVar x
     goE (PCon c)       = GCon c
     goE (PStrLen (PVar s)) = GStrLen s  -- TODO
