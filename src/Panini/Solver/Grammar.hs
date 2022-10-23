@@ -117,7 +117,7 @@ data GExpr
   = GVar Name
   | GCon Constant
   | GAbs AbstractValue
-  | GStrLen Name
+  | GStrLen GExpr
   | GStrAt Name Integer
   deriving stock (Eq, Generic, Show, Read)
 
@@ -253,7 +253,7 @@ construct = goC
     
     goE (PVar x)       = GVar x
     goE (PCon c)       = GCon c
-    goE (PStrLen (PVar s)) = GStrLen s  -- TODO
+    goE (PStrLen e)    = GStrLen (goE e)
     goE (PStrAt (PVar s) (PCon (I i _))) = GStrAt s i  -- TODO
     goE e              = error $ "not implemented: construct " ++ showPretty e
 
@@ -273,7 +273,7 @@ destruct = goT
 
     goE (GVar x)     = PVar x
     goE (GCon c)     = PCon c
-    goE (GStrLen s)  = PStrLen (PVar s)
+    goE (GStrLen e)  = PStrLen (goE e)
     goE (GStrAt s i) = PStrAt (PVar s) (PCon (I i NoPV))
     goE e            = error $ "not implemented: destruct " ++ showPretty e
 
@@ -332,6 +332,10 @@ useDef :: Name -> GExpr -> GRel -> GRel
 useDef x e = \case
   GRel r (GVar y) e2 | x == y, Just e' <- mkAbs (convRel r) e -> GRel Eq e2 e'
   GRel r e1 (GVar y) | x == y, Just e' <- mkAbs r e -> GRel Eq e1 e'
+
+  GRel r (GStrLen (GVar y)) e2 | x == y -> GRel r (GStrLen e) e2
+  GRel r e1 (GStrLen (GVar y)) | x == y -> GRel r e1 (GStrLen e)
+
   r -> r
 
 topDef :: Name -> Base -> GRel
@@ -343,11 +347,16 @@ topDef x = \case
 
 isDef :: Name -> GRel -> Bool
 isDef x = \case
-  GRel _ (GVar y) (GCon _) -> y == x
-  GRel _ (GVar y) (GAbs _) -> y == x
-  GRel _ (GCon _) (GVar y) -> y == x
-  GRel _ (GAbs _) (GVar y) -> y == x
-  _                        -> False
+  GRel _ (GVar y) e -> y == x && isConEx e
+  GRel _ e (GVar y) -> y == x && isConEx e
+  _                 -> False
+
+isConEx :: GExpr -> Bool
+isConEx = \case
+  GCon _    -> True
+  GAbs _    -> True
+  GStrLen e -> isConEx e
+  _         -> False
 
 norm :: GRel -> GRel
 norm = \case
