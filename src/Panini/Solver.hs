@@ -18,9 +18,9 @@ import Data.Maybe
 
 solve :: Con -> Pan (Maybe Assignment)
 solve c0 = do
-  logMessage Info "Solver" "Simplify constraint"
-  let !c1 = simplifyCon c0
-  logData Trace c1
+  -- logMessage Info "Solver" "Simplify constraint"
+  let !c1 = c0 --simplifyCon c0
+  -- logData Trace c1
 
   logMessage Info "Fusion" "Find cut variables"
   let !ks_cut = Fusion.cutVars c1
@@ -38,7 +38,7 @@ solve c0 = do
   logData Trace c2
 
   logMessage Info "Solver" "Simplify constraint"
-  let !c3 = simplifyCon c2
+  let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
   logData Trace c3
 
   logMessage Info "Grammar" "Find grammar consequents"
@@ -57,9 +57,9 @@ solve c0 = do
   let !c4 = apply gs c3
   logData Trace c4
 
-  logMessage Info "Solver" "Simplify constraint"
-  let !c5 = simplifyCon c4
-  logData Trace c5
+  -- logMessage Info "Solver" "Simplify constraint"
+  let !c5 = c4 --simplifyCon c4
+  -- logData Trace c5
 
   logMessage Info "Liquid" "Compute approximate solutions for residuals"
   !s <- Liquid.solve c5 []

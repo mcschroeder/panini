@@ -26,7 +26,7 @@ import Prelude
 solve :: Con -> Pan Con
 solve c = do
   logMessage Debug "Fusion" "Simplify constraint"
-  let c1 = simplifyCon c
+  let c1 = c --simplifyCon c
   logData Debug c1
 
   logMessage Info "Fusion" "Find set of cut variables Κ̂"
@@ -41,7 +41,7 @@ solve c = do
   logData Trace c2
 
   logMessage Debug "Fusion" "Simplify constraint"
-  let c3 = simplifyCon c2
+  let c3 = c2 --simplifyCon c2
   logData Trace c3
   
   return c3
@@ -54,7 +54,7 @@ elim (k:ks) c = elim ks (elim1 k c)
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
 -- scoped solution for κ in c.
 elim1 :: KVar -> Con -> Con
-elim1 k c = simplifyCon $ elim' sk c
+elim1 k c = {- simplifyCon $ -} elim' sk c
   where
     sk = Map.singleton k (sol1 k c')
     c' = skipHypos $ scope k c
@@ -69,11 +69,16 @@ skipHypos c              = c
 -- c where κ appears as the head.
 sol1 :: KVar -> Con -> Pred
 sol1 k (CAnd c1 c2)   = sol1 k c1 ∨ sol1 k c2
-sol1 k (CAll x b p c) = PExists x b (p ∧ sol1 k c)
+sol1 k (CAll x b p c) = mkExists x b (p ∧ sol1 k c)
 sol1 k (CHead (PAppK k2 ys))
   | k == k2           = PAnd $ map (\(x,y) -> PVar x `pEq` PVal y)
                              $ zip (kparams k) ys
 sol1 _ _              = PFalse
+
+mkExists :: Name -> Base -> Pred -> Pred
+mkExists x b p
+  | x `elem` freeVars p = PExists x b p
+  | otherwise           = p
 
 -- | @scope κ c@ returns a sub-constraint of c of the form ∀x₁:b₁. p₁ ⇒ … ⇒
 -- ∀xₙ:bₙ. pₙ ⇒ c' such that κ does not occur in p₁,…,pₙ, and all occurrences of
