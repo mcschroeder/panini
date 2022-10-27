@@ -9,7 +9,7 @@ module Panini.Pretty.Printer
   , PP.viaShow
   , keyword, literal, identifier, aMessage, anError, marginalia, highlight
   , orASCII
-  , subscript
+  , subscript, superscript
   , concatWithOp
   , prettyTuple, prettyList, prettySet, prettyMap
   , parens, brackets, braces
@@ -173,6 +173,12 @@ subscript i = fromString (map go ds) `orASCII` (fromString ds)
   where
     ds = show i
     go c = if isDigit c then chr (ord c + 8272) else c
+
+superscript :: Int -> Doc
+superscript i = fromString (map go ds) `orASCII` (fromString ds)
+  where
+    ds = show i
+    go c = if isDigit c then "⁰¹²³⁴⁵⁶⁷⁸⁹" !! digitToInt c else c
 
 concatWithOp :: Doc -> [Doc] -> Doc
 concatWithOp op = PP.fillSep . List.intersperse op
