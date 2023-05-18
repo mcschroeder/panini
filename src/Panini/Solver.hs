@@ -1,5 +1,6 @@
 module Panini.Solver (solve) where
 
+import Control.Monad
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
@@ -13,6 +14,8 @@ import Panini.Syntax
 import Prelude
 import Control.Applicative
 import Data.Maybe
+
+import Panini.Solver.Grammar2
 
 -- TODO: be strict in each of these steps
 
@@ -50,7 +53,11 @@ solve c0 = do
   logData Trace cs
 
   logMessage Info "Grammar" "Solve grammar variables"
-  let !gs = Map.map Grammar.solve cs
+  --let !gs = Map.map Grammar.solve cs
+  let !gs = Map.map (infer "z0") cs  -- TODO: generalize for variable name
+  -- !gs <- fmap Map.fromList $ forM (Map.toList cs) $ \(k,c) -> do
+  --   c' <- infer2 "s" c
+  --   return (k,c')
   logData Debug gs
 
   logMessage Info "Grammar" "Apply grammar solution"

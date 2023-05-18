@@ -49,7 +49,9 @@ instance SMTLIB Pred where
     PIff p1 p2    -> sexpr ["iff", encode p1, encode p2]
     PNot p        -> sexpr ["not", encode p]
     PAppK k xs    -> sexpr (encode k : map encode xs)
-    PExists x b p -> sexpr [ "exists", sorts [(x,b)], encode p]
+    PExists x b p -> sexpr ["exists", sorts [(x,b)], encode p]
+    
+    PReg _ _ -> error "not implemented yet" -- TODO
 
 instance SMTLIB PExpr where
   encode = \case

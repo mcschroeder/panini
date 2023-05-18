@@ -22,6 +22,10 @@ data Pred
   | PImpl Pred Pred         -- ^ implication @p₁ ⟹ p₂@
   | PIff Pred Pred          -- ^ if-and-only-if @p₁ ⟺ p₂@
   | PNot Pred               -- ^ negation @¬p@
+  
+  -- TODO: replace with proper RE type
+  | PReg Value String       -- ^ regular language membership @v ∈ RE@
+  
   | PAppK KVar [Value]      -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists Name Base Pred  -- ^ existential quantification @∃x:b. p@
   deriving stock (Eq, Show, Read, Generic)
@@ -88,6 +92,7 @@ instance Pretty Pred where
       symExists <> pretty x <> symColon <> pretty b <> symDot <+> pretty p    
     PTrue  -> "true"
     PFalse -> "false"
+    PReg v re -> pretty v <+> "∈" <+> pretty re  -- TODO: symQuery/symIn
 
 instance HasFixity Pred where
   fixity (PNot _)       = Prefix

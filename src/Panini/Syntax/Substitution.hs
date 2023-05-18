@@ -103,7 +103,8 @@ instance Subable Pred where
     PAppK k xs   -> PAppK k (map (subst x y) xs)
     PNot p₁      -> PNot (subst x y p₁)
     PTrue        -> PTrue
-    PFalse       -> PFalse
+    PFalse       -> PFalse    
+    PReg v re    -> PReg (subst x y v) re
 
   freeVars = \case
     PExists n _ p -> freeVars p \\ [n]
@@ -116,6 +117,7 @@ instance Subable Pred where
     PNot p₁       -> freeVars p₁
     PTrue         -> []
     PFalse        -> []
+    PReg v _      -> freeVars v
 
 instance Subable PExpr where
   subst x y = \case
