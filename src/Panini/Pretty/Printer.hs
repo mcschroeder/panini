@@ -11,7 +11,7 @@ module Panini.Pretty.Printer
   , orASCII
   , subscript, superscript
   , concatWithOp
-  , prettyTuple, prettyList, prettySet, prettyMap
+  , prettyTuple, prettyList, prettySet, prettySetTight, prettyMap
   , parens, brackets, braces
   , symDot, symDotDot, symColon, symArrow, symMapsTo
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
@@ -191,6 +191,9 @@ prettyList = listed lbracket rbracket . map pretty
 
 prettySet :: Pretty a => [a] -> Doc
 prettySet = listed lbrace rbrace . map pretty
+
+prettySetTight :: Pretty a => [a] -> Doc
+prettySetTight = PP.encloseSep lbrace rbrace symComma . map pretty
 
 prettyMap :: (Pretty a, Pretty b) => [(a,b)] -> Doc
 prettyMap = listed lbrace rbrace . map (\(a,b) -> pretty a <> " ↦ " <> pretty b)

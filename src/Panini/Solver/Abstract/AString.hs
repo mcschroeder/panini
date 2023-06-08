@@ -59,14 +59,17 @@ instance Pretty AString where
   pretty (AString r) = pretty $ view r
 
 instance Pretty (RegExpView Char (RegExp Char)) where
-  pretty = \case
-    One -> "ε"
-    Plus (view -> a) (view -> b) -> parens (pretty a <+> "|" <+> pretty b)
-    Times (view -> a) (view -> b) -> pretty a <> pretty b
-    Star (view -> a) -> case a of
-      Literal c -> pretty (finiteSetToAChar c) <> "*"
-      _ -> parens (pretty a) <> "*"
-    Literal c -> pretty (finiteSetToAChar c)
+  pretty = pretty' True
+   where
+    pretty' open = \case
+      One -> "ε"
+      Plus (view -> a) (view -> b) -> 
+        parensIf open $ pretty' False a <+> "|" <+> pretty' False b
+      Times (view -> a) (view -> b) -> pretty a <> pretty b
+      Star (view -> a) -> case a of
+        Literal c -> pretty (finiteSetToAChar c) <> "*"
+        _ -> parens (pretty' False a) <> "*"
+      Literal c -> pretty (finiteSetToAChar c)
 
 
 

@@ -101,10 +101,10 @@ toPred lhs (AChar b cs) = case b of
 instance Pretty AChar where
   pretty (AChar True cs) = case toCharList cs of
     []  -> "∅"
-    [x] -> "\"" <> pretty x <> "\""
-    xs  -> prettySet xs
+    [x] -> pretty x
+    xs  -> prettySetTight xs
   
   pretty (AChar False cs) = case toCharList cs of
     []  -> "Σ"
-    [x] -> "Σ∖" <> pretty x
-    xs  -> "Σ∖" <> prettySet xs
+    [x] -> parens $ "Σ∖" <> pretty x
+    xs  -> parens $ "Σ∖" <> prettySetTight xs
