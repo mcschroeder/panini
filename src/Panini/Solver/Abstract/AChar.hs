@@ -5,6 +5,8 @@ module Panini.Solver.Abstract.AChar
   , aCharEq
   , aCharNe
   , toPred
+  , aCharToFiniteSet
+  , finiteSetToAChar
   ) where
 
 import Data.Hashable
@@ -16,6 +18,25 @@ import Panini.Pretty.Printer
 import Panini.Syntax
 import Prelude
 import Data.Text qualified as Text
+
+-------------------------------------------------------------------------------
+
+import Data.Set qualified as S
+import Data.GSet -- from regexp
+
+aCharToFiniteSet :: AChar -> FiniteSet Char
+aCharToFiniteSet (AChar True xs) = These $ intSetToSetOfChar xs
+aCharToFiniteSet (AChar False xs) = ComplementOf $ intSetToSetOfChar xs
+
+intSetToSetOfChar :: IntSet -> S.Set Char
+intSetToSetOfChar = S.fromList . map (toEnum @Char) . I.toList
+
+finiteSetToAChar :: FiniteSet Char -> AChar
+finiteSetToAChar (These xs) = AChar True $ setOfCharToIntSet xs
+finiteSetToAChar (ComplementOf xs) = AChar False $ setOfCharToIntSet xs
+
+setOfCharToIntSet :: S.Set Char -> IntSet
+setOfCharToIntSet =  I.fromList . map (fromEnum @Char) . S.toList
 
 -------------------------------------------------------------------------------
 

@@ -1,4 +1,5 @@
--- TODO: replace with proper regular expression domain
+{-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Panini.Solver.Abstract.AString
   ( AString
@@ -11,75 +12,61 @@ module Panini.Solver.Abstract.AString
 import Prelude
 import Panini.Solver.Abstract.AChar
 import Panini.Algebra.Lattice
-import Panini.Pretty.Printer
+import Panini.Pretty.Printer hiding (Literal)
 import GHC.Generics (Generic)
 import Data.Hashable
 
-data AString 
-  = Zero                   -- ⊥
-  | One                    -- ε
-  | Lit AChar              -- c
-  | Times AString AString  -- ab
-  | Plus AString AString   -- a | b
-  | Star AString           -- a*
+import RegExp.RegExp
+import RegExp.Operations
 
-  | Meet AString AString  -- TODO: remove
+data AString = AString (RegExp Char)
   deriving stock (Eq, Show, Read, Generic)
 
-instance Hashable AString
+instance Hashable AString where
+  hashWithSalt s (AString r) = hashUsing view s r
 
 instance Semigroup AString where
-  One <> a = a
-  a <> One = a
-  a <> b = Times a b
-
+  AString r1 <> AString r2 = AString $ rTimes r1 r2
+  
 instance Monoid AString where
-  mempty = One
+  mempty = AString rOne
 
 instance MeetSemilattice AString where
-  Zero ∧ _ = Zero
-  _ ∧ Zero = Zero
-  Star (Lit c) ∧ a | c == (⊤) = a
-  a ∧ Star (Lit c) | c == (⊤) = a
-
-  Lit a ∧ Lit b = case a ∧ b of
-    c | c == (⊥) -> Zero
-    c            -> Lit c
-
-  a ∧ b | a == b = a
-  a ∧ b = Meet a b
+  AString r1 ∧ AString r2 = AString $ intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
-  (⊤) = Star (Lit (⊤))
+  (⊤) = aStringStar aStringSigma
 
 instance JoinSemilattice AString where
-  Zero ∨ a = a
-  a ∨ Zero = a
-  a ∨ b | a == b = a
-  a ∨ b = Plus a b
+  AString r1 ∨ AString r2 = AString $ rPlus r1 r2
   
 instance BoundedJoinSemilattice AString where
-  (⊥) = Zero
+  (⊥) = AString rZero
 
 aStringLit :: AChar -> AString
-aStringLit = Lit
+aStringLit = AString . rLiteral . aCharToFiniteSet
 
 aStringRep :: AString -> Integer -> AString
 aStringRep a n = mconcat $ replicate (fromIntegral n) a
 
 aStringSigma :: AString
-aStringSigma = Lit (⊤)
+aStringSigma = AString $ rLiteral $ aCharToFiniteSet (⊤)
 
 aStringStar :: AString -> AString
-aStringStar = Star
+aStringStar (AString r) = AString $ rStar r
 
 instance Pretty AString where
+  pretty (AString r) = pretty $ view r
+
+instance Pretty (RegExpView Char (RegExp Char)) where
   pretty = \case
-    Zero -> "∅"
     One -> "ε"
-    Lit c -> pretty c
-    Times a b -> pretty a <> pretty b
-    Plus a b -> parens (pretty a <+> "|" <+> pretty b)
-    Star (Lit c) -> pretty c <> "*"
-    Star a -> parens (pretty a) <> "*"
-    Meet a b -> pretty a <+> "⊓" <+> pretty b
+    Plus (view -> a) (view -> b) -> parens (pretty a <+> "|" <+> pretty b)
+    Times (view -> a) (view -> b) -> pretty a <> pretty b
+    Star (view -> a) -> case a of
+      Literal c -> pretty (finiteSetToAChar c) <> "*"
+      _ -> parens (pretty a) <> "*"
+    Literal c -> pretty (finiteSetToAChar c)
+
+
+
