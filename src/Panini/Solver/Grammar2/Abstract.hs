@@ -18,7 +18,7 @@ import Debug.Trace
 abstractVar :: Name -> Base -> TPred -> TExpr
 abstractVar x b p
   | x `notElem` (varsP p) = topExpr b
-  | TRel r e1 e2 <- p, x `notElem` (varsE e1) = abstractVar x b $ TRel (invRel r) e2 e1  
+  | TRel r e1 e2 <- p, x `notElem` (varsE e1) = abstractVar x b $ TRel (convRel r) e2 e1  
   | otherwise = case p of    
     TReg (TVar _) re -> TAbs $ AString $ undefined re -- TODO           -- x ∈ RE
     
