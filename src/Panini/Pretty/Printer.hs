@@ -13,7 +13,8 @@ module Panini.Pretty.Printer
   , concatWithOp
   , prettyTuple, prettyList, prettySet, prettySetTight, prettyMap
   , parens, brackets, braces
-  , symDot, symDotDot, symColon, symArrow, symMapsTo
+  , lbracket, rbracket
+  , symComma, symMid, symDot, symDotDot, symColon, symArrow, symMapsTo
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
   , symNe, symEq, symLe, symLt, symGe, symGt
   , symLambda, symKappa
@@ -228,8 +229,9 @@ rbrace = PP.annotate (Bracket CloseBra) "}"
 
 -------------------------------------------------------------------------------
 
-symComma, symDot, symDotDot, symColon, symArrow, symMapsTo :: Doc
+symComma, symMid, symDot, symDotDot, symColon, symArrow, symMapsTo :: Doc
 symComma  = PP.annotate Separator ","
+symMid  = PP.annotate Separator "|"
 symDot    = "."
 symDotDot = ".."
 symColon  = ":"
