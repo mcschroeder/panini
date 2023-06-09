@@ -24,8 +24,6 @@ import Data.Foldable
 data Tree
   = TAnd (HashSet Tree)
   | TOr (HashSet Tree)
-  -- = TAnd Tree Tree
-  -- | TOr Tree Tree
   | TImp Tree Tree
   | TIff Tree Tree
   | TNeg Tree
@@ -37,44 +35,22 @@ data Tree
 
 instance Hashable Tree
 
-tAnd :: Tree -> Tree -> Tree
-tAnd TFalse _ = TFalse
-tAnd _ TFalse = TFalse
-tAnd a TTrue = a
-tAnd TTrue a = a
-tAnd (TAnd xs) (TAnd ys) = TAnd $ HashSet.union xs ys
-tAnd (TAnd xs) y = TAnd $ HashSet.insert y xs
-tAnd x (TAnd ys) = TAnd $ HashSet.insert x ys
-tAnd a b | a == b = a
-         | otherwise = TAnd $ HashSet.fromList [a,b]
-        -- | otherwise = TAnd a b
-
-tOr :: Tree -> Tree -> Tree
-tOr _ TTrue = TTrue
-tOr TTrue _ = TTrue
-tOr TFalse a = a
-tOr a TFalse = a
-tOr (TOr xs) (TOr ys) = TOr $ HashSet.union xs ys
-tOr (TOr xs) y = TOr $ HashSet.insert y xs
-tOr x (TOr ys) = TOr $ HashSet.insert x ys
-tOr a b | a == b = a
-        | otherwise = TOr $ HashSet.fromList [a,b]
-        -- | otherwise = TOr a b
+isAnd :: Tree -> Bool
+isAnd (TAnd _) = True
+isAnd _        = False
 
 isOr :: Tree -> Bool
 isOr (TOr _) = True
-isOr _ = False
+isOr _       = False
 
 isPred :: Tree -> Bool
 isPred (TPred _) = True
-isPred _ = False
+isPred _         = False
 
 instance Uniplate Tree where
   uniplate = \case
     TAnd ts    -> plate TAnd |+ ts
     TOr  ts    -> plate TOr  |+ ts
-    -- TAnd t1 t2 -> plate TAnd |* t1 |* t2
-    -- TOr  t1 t2 -> plate TOr  |* t1 |* t2
     TImp t1 t2 -> plate TImp |* t1 |* t2
     TIff t1 t2 -> plate TIff |* t1 |* t2
     TNeg t     -> plate TNeg |* t
@@ -85,7 +61,7 @@ instance Uniplate Tree where
 
 instance Biplate [Tree] Tree where
   biplate (x:xs) = plate (:) |* x ||* xs
-  biplate x = plate x
+  biplate x      = plate x
 
 instance Biplate (HashSet Tree) Tree where
   biplate = plateProject HashSet.toList HashSet.fromList
@@ -94,8 +70,6 @@ instance Biplate Tree TExpr where
   biplate = \case
     TAnd ts    -> plate TAnd |+ ts
     TOr  ts    -> plate TOr  |+ ts
-    -- TAnd t1 t2 -> plate TAnd |+ t1 |+ t2
-    -- TOr  t1 t2 -> plate TOr  |+ t1 |+ t2
     TImp t1 t2 -> plate TImp |+ t1 |+ t2
     TIff t1 t2 -> plate TIff |+ t1 |+ t2
     TNeg t     -> plate TNeg |+ t
@@ -106,7 +80,7 @@ instance Biplate Tree TExpr where
 
 instance Biplate [Tree] TExpr where
   biplate (x:xs) = plate (:) |+ x ||+ xs
-  biplate x = plate x
+  biplate x      = plate x
 
 instance Biplate (HashSet Tree) TExpr where
   biplate = plateProject HashSet.toList HashSet.fromList
@@ -115,8 +89,6 @@ instance Pretty Tree where
   pretty t0 = case t0 of
     TAnd ts -> concatWithOp symAnd $ map (prettyL t0) $ toList ts
     TOr ts -> concatWithOp symOr $ map (prettyL t0) $ toList ts
-    -- TAnd t1 t2 -> concatWithOp symAnd $ map (prettyL t0) [t1,t2]
-    -- TOr t1 t2 -> concatWithOp symOr $ map (prettyL t0) [t1,t2]
     TImp t1 t2 -> prettyL t0 t1 <+> symImplies <+> prettyR t0 t2
     TIff t1 t2 -> prettyL t0 t1 <+> symIff <+> prettyR t0 t2
     TNeg t -> symNeg <> parensIf (t `needsParensPrefixedBy` t0) (pretty t)
@@ -130,8 +102,6 @@ instance HasFixity Tree where
   fixity (TPred _)  = Infix NoAss 4
   fixity (TAnd _)   = Infix NoAss 3
   fixity (TOr _)    = Infix NoAss 3
-  -- fixity (TAnd _ _) = Infix NoAss 3
-  -- fixity (TOr _ _)  = Infix NoAss 3
   fixity (TImp _ _) = Infix NoAss 1
   fixity (TIff _ _) = Infix NoAss 1
   fixity _          = Infix LeftAss 9
@@ -144,8 +114,6 @@ instance GraphViz Tree where
         TAnd ps 
           | all isPred ps -> CircleNode "∧" [BoxNode (labPreds $ toList ps) []]
           | otherwise -> CircleNode "∧" (map dag $ toList ps)
-        -- TOr p q -> CircleNode "∨" [dag p, dag q]
-        -- TAnd p q -> CircleNode "∧" [dag p, dag q]
         TImp p q -> CircleNode "⇒" [dag p, dag q]
         TIff  p q -> CircleNode "⇔" [dag p, dag q]
         TNeg  p   -> CircleNode "¬" [dag p]
@@ -165,6 +133,10 @@ data TPred
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable TPred
+
+instance Complementable TPred where
+  neg (TReg _e _re) = undefined -- TODO
+  neg (TRel r e1 e2) = TRel (invRel r) e1 e2
 
 instance Biplate TPred TExpr where
   biplate = \case
@@ -320,7 +292,7 @@ instance Complementable AValue where
 --     goC _                                  = error $ "not in dnf: " ++ showPretty t0
 
 mkDisjuncts :: [[TPred]] -> Tree
-mkDisjuncts = foldr tOr TFalse . map (foldr1 tAnd . map TPred) . filter (not . null)
+mkDisjuncts = TOr . HashSet.fromList . map (TAnd . HashSet.fromList . map TPred) . filter (not . null)
 
 
 toPreds :: Tree -> [[TPred]]

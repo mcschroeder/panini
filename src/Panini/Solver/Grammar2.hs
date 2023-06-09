@@ -15,6 +15,8 @@ import Panini.Pretty.Printer
 import Data.Foldable
 import Debug.Trace
 
+import Data.HashSet qualified as HashSet
+
 -------------------------------------------------------------------------------
 
 -- infer2 :: Name -> Con -> Pan Pred
@@ -54,11 +56,11 @@ abstractStringVar x p = case abstractVar x TString p of
 construct :: Con -> Tree
 construct = goC
   where
-    goC (CAnd c1 c2)   = (goC c1) `tAnd` (goC c2)
+    goC (CAnd c1 c2)   = TAnd $ HashSet.fromList [goC c1, goC c2]
     goC (CAll x b p c) = TAll x b (TImp (goP p) (goC c))
     goC (CHead p)      = goP p
     goP (PAnd [p])     = goP p
-    goP (PAnd (p:ps))  = (goP p) `tAnd` (goP (PAnd ps))
+    goP (PAnd (p:ps))  = TAnd $ HashSet.fromList [goP p, goP (PAnd ps)]
     goP (PIff p q)     = TIff (goP p) (goP q)
     goP (PNot p)       = TNeg (goP p)
     goP PTrue          = TTrue

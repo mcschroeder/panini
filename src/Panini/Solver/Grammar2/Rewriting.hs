@@ -18,6 +18,7 @@ import Debug.Trace
 import Panini.Pretty.Graphviz
 import Data.List (partition)
 import Panini.Solver.Abstract.ABool
+import Data.HashSet qualified as HashSet
 
 -- this is very different from Uniplate.rewrite!
 traceRewrite :: (Tree -> Maybe Tree) -> Tree -> Tree
@@ -37,77 +38,90 @@ traceRewrite f t0 = runST $ go 0 t0
   fn n = "rewrite-" ++ show n ++ ".svg"  
 
 
+tracer :: (Pretty a, Pretty b) => (a -> Maybe b) -> a -> Maybe b
+tracer f x = runST $ do
+  case f x of
+    Nothing -> return Nothing
+    Just x' -> do
+      traceM $ replicate 40 '-'
+      traceM $ showPretty x
+      traceM $ "⇝"
+      traceM $ showPretty x'
+      traceM $ replicate 40 '-'
+      return $ Just x'
+
+endtrace :: (GraphViz a, Pretty a) => a -> a
+endtrace !x = runST $ do
+  traceM $ replicate 40 '='
+  traceM $ "FINAL TREE"
+  traceM $ showPretty $ traceGraph ("trace_FINAL.svg") x
+  traceM $ replicate 40 '='
+  return x
+
 
 -- | Rewriting from § 4.1 in OOPSLA'23 submission.
 rewrite :: Tree -> Tree
-rewrite = Uniplate.rewrite $ \case
-  -- TAnd TFalse _ -> Just TFalse
-  -- TAnd _ TFalse -> Just TFalse
-  -- TAnd a TTrue -> Just a
-  -- TAnd TTrue a -> Just a
-  -- TAnd a b | a == b -> Just a
-
-  -- TOr _ TTrue -> Just TTrue
-  -- TOr TTrue _ -> Just TTrue
-  -- TOr TFalse a -> Just a
-  -- TOr a TFalse -> Just a
-  -- TOr a b | a == b -> Just a
-
-  TNeg TTrue -> Just TFalse
-  TNeg TFalse -> Just TTrue
-
-  TOr xs | any isOr xs -> Just $ foldr tOr TFalse xs
+rewrite = (endtrace .) $ Uniplate.rewrite $ tracer $ \case
+  TAnd xs
+    | any (== TFalse) xs -> Just TFalse
+    | any (== TTrue) xs -> Just $ TAnd $ HashSet.delete TTrue xs
+    | any isAnd xs ->
+      let (ys, zs) = partition isAnd $ toList xs
+          ys' = HashSet.unions [y | TAnd y <- ys]
+          zs' = HashSet.fromList zs
+      in Just $ TAnd $ HashSet.union ys' zs'
+    | any isOr xs ->
+      let (TOr ys : yys, zs) = partition isOr $ toList xs
+          cs = [TAnd $ HashSet.fromList $ y : (yys ++ zs) | y <- toList ys]
+      in Just $ TOr $ HashSet.fromList cs
+    | all isPred xs ->
+      if or [TPred (neg x) `HashSet.member` xs | TPred x <- toList xs]
+      then Just TFalse
+      else Nothing
+    
+  TOr xs
+    | any (== TTrue) xs -> Just TTrue
+    | any (== TFalse) xs -> Just $ TOr $ HashSet.delete TFalse xs
+    | any isOr xs -> 
+      let (ys, zs) = partition isOr $ toList xs
+          ys' = HashSet.unions [y | TOr y <- ys]
+          zs' = HashSet.fromList zs
+      in Just $ TOr $ HashSet.union ys' zs'
+    
+    -- TODO: | merge subsets
   
-  -- TODO: hack; solve this normalization more generally
-  TAnd xs | TTrue `elem` xs -> Just $ foldr tAnd TTrue xs
+  TNeg (TPred p) -> Just $ TPred (neg p)
+  TNeg (TOr xs) -> Just $ TAnd $ HashSet.fromList $ map TNeg $ toList xs
+  -- TNeg (TAnd xs) 
+  --   | all isPred xs -> 
+  --     Just $ TOr $ HashSet.fromList
+  --          $ map (TAnd . HashSet.fromList)
+  --          $ tail
+  --          $ traverse (\x -> [TPred x, TPred $ neg x]) 
+  --          $ [x | TPred x <- toList xs]
+  TNeg (TAnd xs) -> Just $ TOr $ HashSet.fromList $ map TNeg $ toList xs
 
-  TAnd xs | any isOr xs -> Just $ runST $ do
-    --traceM $ showPretty $ TAnd xs
-    let (TOr ys : yys, zs) = partition isOr $ toList xs
-    let cs = [foldr tAnd TTrue $ y : (yys ++ zs) | y <- toList ys]
-    let ds = foldr tOr TFalse cs
-    --traceM $ "⇝" ++ showPretty cs ++ "\n"
-    return ds
-    --error "HEY"
-  --   return $ TAnd xs
-      --let blah = [z `tAnd` x' | y@(TOr zs) <- ys, z <- toList zs, x' <- xs, x' /= y]
-      --traceM $ showPretty blah
-      --return $ foldr tOr TFalse blah
+  TImp a b -> Just $ TOr $ HashSet.fromList [TNeg a, TAnd $ HashSet.fromList [a,b]]
+  TIff a b -> Just $ TOr $ HashSet.fromList $ 
+                         [ TAnd $ HashSet.fromList [TNeg a, TNeg b]
+                         , TAnd $ HashSet.fromList [a,b]
+                         ]
+  
+  -- TNeg (TPred (TRel r e1 e2)) -> Just $ TPred (TRel (invRel r) e1 e2)
 
-  -- TAnd (toList -> [a, TOr (toList -> [b,c])]) -> Just $ (a `tAnd` b) `tOr` (a `tAnd` c)
-  -- TAnd (toList -> [TOr (toList -> [a,b]), c]) -> Just $ (a `tAnd` c) `tOr` (b `tAnd` c)
+  -- a | isUnsolvable a -> Just TFalse
 
-  --TAnd (toList -> xs) | any isOr xs ->    
-    --Just $ foldr tOr TFalse [x `tAnd` xs' | x@(TOr _) <- xs, let xs' = foldr tAnd TTrue $ filter (/= x) xs]
-
-  -- a `TAnd` (b `TOr` c) -> Just $ (a `tAnd` b) `tOr` (a `tAnd` c)
-  -- (a `TOr` b) `TAnd` c -> Just $ (a `tAnd` c) `tOr` (b `tAnd` c)
-
-  TNeg (TNeg a) -> Just a
-  TNeg (TAnd xs) -> Just $ foldr tOr TFalse $ map TNeg $ toList xs
-  TNeg (TOr  xs) -> Just $ foldr tAnd TTrue $ map TNeg $ toList xs
-  -- TNeg (a `TAnd` b) -> Just $ (TNeg a) `tOr` (TNeg b)
-  -- TNeg (a `TOr` b) -> Just $ (TNeg a) `tAnd` (TNeg b)
-
-  a `TImp` b -> Just $ (TNeg a) `tOr` (a `tAnd` b)
-  a `TIff` b -> Just $ ((TNeg a) `tAnd` (TNeg b)) `tOr` (a `tAnd` b)
-
-  TNeg (TPred (TRel r e1 e2)) -> Just $ TPred (TRel (invRel r) e1 e2)
-
-  a | isUnsolvable a -> Just TFalse
-
-  -- TODO: is this the right place?
   TPred p -> evalP p
 
   TAll x b t -> Just $ runST $ do
     let Name x' _ = x
     -- unless (isDummy x) $ do
     --   traceM $ replicate 40 '-'
-    --   traceM $ showPretty $ traceGraph ("trace_" ++ showPretty x' ++ "_1.svg") $ TAll x b t
+    --   traceM $ showPretty {-$ traceGraph ("trace_" ++ showPretty x' ++ "_1.svg")-} $ TAll x b t
     --   traceM "⇝"
     let t' = mkDisjuncts $ map (varElim x b) $ toPreds t
     -- unless (isDummy x) $ do
-    --   traceM $ showPretty $ traceGraph ("trace_" ++ showPretty x' ++ "_2.svg") t'
+    --   traceM $ showPretty {-$ traceGraph ("trace_" ++ showPretty x' ++ "_2.svg")-} t'
     return t'
   
   _ -> Nothing

@@ -14,6 +14,11 @@ import Debug.Trace
 
 -------------------------------------------------------------------------------
 
+-- TODO
+eval :: TExpr -> TExpr
+eval (TAdd (TCon (I 0 _)) e) = e
+eval e = e
+
 -- | Abstract Semantics of Constrained Variables ⟦□⟧↑□
 abstractVar :: Name -> Base -> TPred -> TExpr
 abstractVar x b p
@@ -22,6 +27,11 @@ abstractVar x b p
   | otherwise = case p of    
     TReg (TVar _) re -> TAbs $ AString $ undefined re -- TODO           -- x ∈ RE
     
+    -- x + a ⋈ b
+    TRel r (TAdd lhs1 lhs2) rhs1 
+      | x `elem` (varsE lhs1) -> abstractVar x b $ TRel r lhs1 $ eval (TAdd rhs1 lhs2)
+
+
     TRel Eq (TVar _) (TCon (B a _)) -> TAbs $ ABool $ aBoolEq a         -- x = a
     TRel Ne (TVar _) (TCon (B a _)) -> TAbs $ ABool $ aBoolEq (not a)   -- x ≠ a
     
@@ -60,14 +70,29 @@ abstractVar x b p
         , mconcat [ aStringRep aStringSigma i
                   , aStringStar aStringSigma]  
         ]
-                               
 
     -- |s| ≥ i
     TRel Ge (TStrLen (TVar _)) (TCon (I i _)) ->
       TAbs $ AString $ mconcat [ aStringRep aStringSigma i
                                , aStringStar aStringSigma]  -- Σ^iΣ*
 
+    TRel Ge (TStrLen (TVar _)) (TAbs (AInt a)) ->
+      case aMinimum (a ∧ aIntegerGe 0) of
+        Just (Fin i) -> TAbs $ AString $ mconcat [ aStringRep aStringSigma i
+                               , aStringStar aStringSigma]  -- Σ^iΣ*
+        _ -> TAbs $ AString (⊥)
 
+    -- |s| > i
+    TRel Gt (TStrLen (TVar _)) (TCon (I i _)) ->
+      TAbs $ AString $ mconcat [ aStringRep aStringSigma (i + 1)
+                               , aStringStar aStringSigma]  -- Σ^iΣ*                           
+
+    -- TODO: hardcoded hack?
+    -- |s| < 0
+    TRel Lt (TStrLen (TVar _)) (TCon (I 0 _)) -> TAbs $ AString (⊥)
+    TRel Lt (TStrLen (TVar _)) (TAbs (AInt a)) 
+      | aMinimum a < Just (Fin 0) -> TAbs $ AString (⊥)
+    
     -- TODO: ???? I don't know about these...
     TRel Eq (TVar _) (TVar y) -> TVar y          -- x = y
     TRel Ne (TVar _) (TVar y) -> TNot (TVar y)   -- x ≠ y
