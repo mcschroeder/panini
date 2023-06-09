@@ -80,7 +80,7 @@ instance Uniplate Tree where
     TNeg t     -> plate TNeg |* t
     TAll x b t -> plate TAll |- x |- b |* t
     TTrue      -> plate TTrue
-    TFalse     -> plate TTrue
+    TFalse     -> plate TFalse
     TPred p    -> plate TPred |- p
 
 instance Biplate [Tree] Tree where
@@ -101,7 +101,7 @@ instance Biplate Tree TExpr where
     TNeg t     -> plate TNeg |+ t
     TAll x b t -> plate TAll |- x |- b |+ t
     TTrue      -> plate TTrue
-    TFalse     -> plate TTrue
+    TFalse     -> plate TFalse
     TPred p    -> plate TPred |+ p
 
 instance Biplate [Tree] TExpr where
