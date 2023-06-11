@@ -40,16 +40,16 @@ infer g = \case
       primType (S _ _) = TString
   
   -- inf/app ----------------------------------------------
-  App e v pv _ -> do
+  App e x pv _ -> do
     (ė, tₑ, cₑ) <- infer g e
     case tₑ of
       TBase _ _ _ _ -> throwError $ ExpectedFunType e tₑ
       TFun y t₁ t₂ _ -> do
-        (_, tᵥ, _) <- infer g (Val v ())
-        cᵥ <- sub tᵥ t₁
-        let t = subst v y t₂
-        let c = cₑ ∧ cᵥ
-        return $ App ė v pv `withType` (t, c)
+        (_, tₓ, _) <- infer g (Val x ())
+        cₓ <- sub tₓ t₁
+        let t = subst x y t₂
+        let c = cₑ ∧ cₓ
+        return $ App ė x pv `withType` (t, c)
   
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv _ -> do
