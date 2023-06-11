@@ -9,6 +9,8 @@ import Panini.Error
 import Panini.Monad
 import Panini.Syntax
 import Prelude
+import Debug.Trace
+import Panini.Pretty.Printer
 
 ------------------------------------------------------------------------------
 

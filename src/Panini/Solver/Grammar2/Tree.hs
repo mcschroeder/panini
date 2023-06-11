@@ -35,6 +35,12 @@ data Tree
 
 instance Hashable Tree
 
+-- TODO: add comment that this already implements some rewrite rules
+instance Complementable Tree where
+  neg (TPred p) = TPred $ neg p
+  neg (TNeg t) = t
+  neg t = TNeg t
+
 isAnd :: Tree -> Bool
 isAnd (TAnd _) = True
 isAnd _        = False
@@ -136,7 +142,7 @@ instance Hashable TPred
 
 instance Complementable TPred where
   neg (TReg _e _re) = undefined -- TODO
-  neg (TRel r e1 e2) = TRel (invRel r) e1 e2
+  neg (TRel r e1 e2) = norm $ TRel (invRel r) e1 e2
 
 instance Biplate TPred TExpr where
   biplate = \case
@@ -152,6 +158,11 @@ instance Pretty TPred where
   pretty = \case
     TReg e re -> pretty e <+> "∈" <+> pretty re
     TRel r e1 e2 -> pretty e1 <+> pretty r <+> pretty e2
+
+-- TODO: hack
+norm :: TPred -> TPred
+norm (TRel Ne e1 (TCon (B b pv))) = TRel Eq e1 (TCon (B (not b) pv))
+norm p = p
 
 -------------------------------------------------------------------------------
 
@@ -303,6 +314,7 @@ toPreds t0@(TOr xs) = map go $ toList xs
     go x = error $ "expected TAnd or TPred instead of " ++ showPretty x ++ " in " ++ showPretty t0
     go2 (TPred p) = p
     go2 x = error $ "expected TPred instead of " ++ showPretty x ++ " in " ++ showPretty t0
+toPreds (TAnd xs) | all isPred xs = [[x | TPred x <- toList xs]]
 toPreds (TPred p) = [[p]]
 toPreds _ = error "expected TOr"
 

@@ -59,9 +59,20 @@ endtrace !x = runST $ do
   return x
 
 
+isImp :: Tree -> Bool
+isImp (TImp _ _) = True
+isImp _          = False
+
+-- TODO: new new idea: interpret Con directly:
+-- ⟦ CAnd c1 c2 ⟧   = ⟦ c1 ⟧ + ⟦ c2 ⟧
+-- ⟦ CHead p ⟧ = interpret p abstractly (∧/∨ are abstract value meet/join) 
+-- ⟦ CAll x b p c ⟧ = ⟦ p ⟧ × ⟦ c ⟧  (merge/meet together) and then resolve x
+
+
+
 -- | Rewriting from § 4.1 in OOPSLA'23 submission.
 rewrite :: Tree -> Tree
-rewrite = (endtrace .) $ Uniplate.rewrite $ tracer $ \case
+rewrite = (endtrace .) $ Uniplate.rewrite $ tracer $ \case  
   TAnd xs
     | any (== TFalse) xs -> Just TFalse
     | any (== TTrue) xs -> Just $ TAnd $ HashSet.delete TTrue xs
@@ -74,10 +85,8 @@ rewrite = (endtrace .) $ Uniplate.rewrite $ tracer $ \case
       let (TOr ys : yys, zs) = partition isOr $ toList xs
           cs = [TAnd $ HashSet.fromList $ y : (yys ++ zs) | y <- toList ys]
       in Just $ TOr $ HashSet.fromList cs
-    | all isPred xs ->
-      if or [TPred (neg x) `HashSet.member` xs | TPred x <- toList xs]
-      then Just TFalse
-      else Nothing
+    | or [neg x `HashSet.member` xs | x <- toList xs] -> Just TFalse
+    | [x] <- toList xs -> Just x
     
   TOr xs
     | any (== TTrue) xs -> Just TTrue
@@ -87,23 +96,70 @@ rewrite = (endtrace .) $ Uniplate.rewrite $ tracer $ \case
           ys' = HashSet.unions [y | TOr y <- ys]
           zs' = HashSet.fromList zs
       in Just $ TOr $ HashSet.union ys' zs'
+    | [x] <- toList xs -> Just x
     
     -- TODO: | merge subsets
   
   TNeg (TPred p) -> Just $ TPred (neg p)
-  TNeg (TOr xs) -> Just $ TAnd $ HashSet.fromList $ map TNeg $ toList xs
-  -- TNeg (TAnd xs) 
-  --   | all isPred xs -> 
+  TNeg (TOr xs) -> Just $ TAnd $ HashSet.map neg xs  
+  -- TNeg (TAnd xs) -> 
   --     Just $ TOr $ HashSet.fromList
   --          $ map (TAnd . HashSet.fromList)
   --          $ tail
-  --          $ traverse (\x -> [TPred x, TPred $ neg x]) 
-  --          $ [x | TPred x <- toList xs]
-  TNeg (TAnd xs) -> Just $ TOr $ HashSet.fromList $ map TNeg $ toList xs
+  --          $ traverse (\x -> [x, neg x]) 
+  --          $ toList xs
+  TNeg (TAnd xs) 
+    | all isPred xs -> 
+      Just $ TOr $ HashSet.fromList
+           $ map (TAnd . HashSet.fromList)
+           $ tail
+           $ traverse (\x -> [TPred x, TPred $ neg x]) 
+           $ [x | TPred x <- toList xs]
+  TNeg (TAnd xs) -> Just $ TOr $ HashSet.map neg xs
+  -- TNeg (TAnd xs) | all isPred xs -> Nothing
+  -- TNeg (TAnd xs)
+  --   | all isPred xs -> Just $ TAnd $ HashSet.map neg xs
+  --   | otherwise     -> Just $ TOr  $ HashSet.map neg xs
 
-  TImp a b -> Just $ TOr $ HashSet.fromList [TNeg a, TAnd $ HashSet.fromList [a,b]]
+  -- TImp (TOr xs) b 
+  --   | all isAnd xs
+  --   , and [ all isPred ys | TAnd ys <- toList xs] 
+  --   -> Just $ TOr $ HashSet.fromList $ map (\x -> TImp x b) $ toList xs
+
+  -- TImp (TAnd xs) b -> Just $ TOr $ HashSet.fromList $ map (\x -> TImp x b) $ toList xs
+
+  TImp (TOr xs) b
+    | all isAnd xs
+    , and [ all isPred ys | TAnd ys <- toList xs]
+    -> case b of
+      TAnd ys | all isPred ys -> Just $ TOr $ HashSet.fromList [TAnd $ HashSet.union x ys | TAnd x <- toList xs]
+      TPred y -> Just $ TOr $ HashSet.fromList [TAnd $ HashSet.union x (HashSet.singleton (TPred y)) | TAnd x <- toList xs]
+      TOr zs | all isAnd zs, and [all isPred qs | TAnd qs <- toList zs] 
+        -> Just $ TOr $ HashSet.fromList [TAnd $ HashSet.union ys qs | TAnd ys <- toList xs, TAnd qs <- toList zs]
+
+  TImp (TOr xs) b -> Just $ TAnd $ HashSet.fromList $ map (\x -> TImp x b) $ toList xs
+
+
+  TImp (TAnd xs) (TOr ys) | all isPred xs, all isAnd ys, and [all isPred zs | TAnd zs <- toList ys]
+    -> Just $ TOr $ HashSet.fromList [TAnd $ HashSet.union y xs | TAnd y <- toList ys]
+  TImp (TAnd xs) (TAnd ys) | all isPred xs, all isPred ys -> Just $ TAnd $ HashSet.union xs ys
+  TImp (TAnd xs) (TPred y) | all isPred xs -> Just $ TAnd $ HashSet.union xs $ HashSet.singleton (TPred y)
+  TImp (TPred y) (TAnd xs) | all isPred xs -> Just $ TAnd $ HashSet.union xs $ HashSet.singleton (TPred y)
+  TImp (TPred x) (TPred y) -> Just $ TAnd $ HashSet.fromList [TPred x, TPred y]
+  TImp (TPred x) (TOr ys) | all isAnd ys, and [all isPred zs | TAnd zs <- toList ys]
+    -> Just $ TOr $ HashSet.fromList [TAnd $ HashSet.union y $ HashSet.singleton (TPred x) | TAnd y <- toList ys]
+
+  -- TImp a b -> Just $ TAnd $ HashSet.fromList [a,b]
+  TImp a b -> Just $ TOr $ HashSet.fromList [neg a, b]
+  -- TImp a b -> Just $ TOr $ HashSet.fromList [neg a, TAnd $ HashSet.fromList [a,b]]
+  -- TImp a b -> Just $ TOr $ HashSet.fromList 
+  --                        [ TAnd $ HashSet.fromList [neg a, neg b]
+  --                        , TAnd $ HashSet.fromList [neg a,     b]
+  --                        , TAnd $ HashSet.fromList [    a,     b]]
+
+  -- TIff a b -> Just $ TAnd $ HashSet.fromList [TImp a b, TImp b a]
   TIff a b -> Just $ TOr $ HashSet.fromList $ 
-                         [ TAnd $ HashSet.fromList [TNeg a, TNeg b]
+                         [ TAnd $ HashSet.fromList [neg a, neg b]
                          , TAnd $ HashSet.fromList [a,b]
                          ]
   
@@ -140,8 +196,8 @@ varElim x b ps = runST $ do
 
   -- traceM $ "varElim " ++ showPretty x ++ " " ++ showPretty b ++ " " ++ showPretty ps
 
-  let bTop = topExpr b  
-  x̂sRef <- newSTRef (Map.empty :: Map.Map [Name] TExpr)
+  let bTop = topExpr b
+  x̂sRef <- newSTRef $ Map.empty
   
   forM_ [(p,v̄) | p <- ps, let v̄ = varsP p, x `elem` v̄] $ \(p,v̄) -> do
     x̂₀ <- fromMaybe bTop <$> Map.lookup v̄ <$> readSTRef x̂sRef
@@ -157,6 +213,8 @@ varElim x b ps = runST $ do
       pure ([x], x̂Self) 
     else 
       pure $ head x̂s'  -- TODO: pick "smallest" meet
+
+  -- traceM $ showPretty $ "varElim" <+> pretty x <+> pretty b <+> pretty ps <+> pretty (v̄ₘ,x̂ₘ)
 
   let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . varsP) ps
 
@@ -189,6 +247,9 @@ evalP (TReg e re) = case evalE e of
   _                -> Nothing
 
 evalP (TRel r e1 e2) = case (evalE e1, evalE e2) of
+
+  (TNot x@(TVar _), e2'@(TCon (B _ _))) -> Just $ TPred $ TRel (invRel r) x e2'
+
   (TCon (B b1 _), TCon (B b2 _)) -> case r of
     Eq | b1 == b2 -> Just TTrue
     Ne | b1 /= b2 -> Just TTrue
@@ -205,7 +266,6 @@ evalP (TRel r e1 e2) = case (evalE e1, evalE e2) of
       Ne | b1' /= b2 -> Just TTrue
       _              -> Just TFalse  -- TODO: might be hiding type error case
     
-  
   (TCon (I i1 _), TCon (I i2 _)) -> case r of
     Eq | i1 == i2 -> Just TTrue
     Ne | i1 /= i2 -> Just TTrue

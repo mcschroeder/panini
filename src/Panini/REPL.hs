@@ -116,7 +116,7 @@ synthesizeType input = do
         Right (tm',t,vc) -> do
           outputPretty $ "⊢ " <> pretty tm'
           outputPretty $ "↗ " <> pretty t
-          outputPretty $ "⫤ " <> pretty (simplifyCon vc)
+          outputPretty $ "⫤ " <> pretty vc --(simplifyCon vc)
   
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
@@ -142,6 +142,7 @@ loadFiles fs = forM_ fs $ \f -> do
           err2' <- liftIO $ updatePV addSourceLines err2
           outputPretty err2'
         Right () -> do
+          showState
           return ()
 
 showState :: InputT Pan ()

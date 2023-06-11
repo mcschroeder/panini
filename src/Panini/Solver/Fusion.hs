@@ -25,9 +25,9 @@ import Prelude
 -- | Eliminate acyclic κ-variables from a constraint using refinment FUSION.
 solve :: Con -> Pan Con
 solve c = do
-  logMessage Debug "Fusion" "Simplify constraint"
+  -- logMessage Debug "Fusion" "Simplify constraint"
   let c1 = c --simplifyCon c
-  logData Debug c1
+  -- logData Debug c1
 
   logMessage Info "Fusion" "Find set of cut variables Κ̂"
   let ks_cut = cutVars c1 -- `Set.union` Set.singleton (KVar 0 [TString])
@@ -40,9 +40,9 @@ solve c = do
   let c2 = elim ks' c1
   logData Trace c2
 
-  logMessage Debug "Fusion" "Simplify constraint"
+  -- logMessage Debug "Fusion" "Simplify constraint"
   let c3 = c2 --simplifyCon c2
-  logData Trace c3
+  -- logData Trace c3
   
   return c3
 

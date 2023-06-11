@@ -43,6 +43,7 @@ solve c0 = do
   logMessage Info "Solver" "Simplify constraint"
   let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
   logData Trace c3
+  --let !c3 = c2
 
   logMessage Info "Grammar" "Find grammar consequents"
   let !cs = Map.fromList
