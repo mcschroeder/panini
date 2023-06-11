@@ -17,6 +17,8 @@ import Debug.Trace
 -- TODO
 eval :: TExpr -> TExpr
 eval (TAdd (TCon (I 0 _)) e) = e
+eval (TAdd (TAbs (AInt a)) (TCon (I i _))) = TAbs $ AInt $ aIntegerAddI a i
+eval (TAdd (TCon (I i _)) (TAbs (AInt a))) = TAbs $ AInt $ aIntegerAddI a i
 eval e = e
 
 -- | Abstract Semantics of Constrained Variables ⟦□⟧↑□
@@ -29,7 +31,12 @@ abstractVar x b p
     
     -- x + a ⋈ b
     TRel r (TAdd lhs1 lhs2) rhs1 
+      | x `elem` (varsE lhs1) -> abstractVar x b $ TRel r lhs1 $ eval (TSub rhs1 lhs2)
+
+    -- x - a ⋈ b
+    TRel r (TSub lhs1 lhs2) rhs1 
       | x `elem` (varsE lhs1) -> abstractVar x b $ TRel r lhs1 $ eval (TAdd rhs1 lhs2)
+
 
 
     TRel Eq (TVar _) (TCon (B a _)) -> TAbs $ ABool $ aBoolEq a         -- x = a
@@ -47,17 +54,28 @@ abstractVar x b p
 
     -- x[i] = c
     TRel Eq (TStrAt (TVar _) (TCon (I i _))) (TConChar c) ->
-      TAbs $ AString $ mconcat [ aStringRep aStringSigma (i-1)
+      TAbs $ AString $ mconcat [ aStringRep aStringSigma i
                                , aStringLit (aCharEq c)
                                , aStringStar aStringSigma]  -- Σ^(i-1)cΣ*
 
     -- x[i] ≠ c
     TRel Ne (TStrAt (TVar _) (TCon (I i _))) (TConChar c) -> 
-      TAbs $ AString $ mconcat $ [ aStringRep aStringSigma (i-1)
+      TAbs $ AString $ mconcat $ [ aStringRep aStringSigma i
                                  , aStringLit (aCharNe c)
                                  , aStringStar aStringSigma]
 
     -- TODO: generalize string length abstractions via abstract int
+
+    -- TODO: find general solution
+    -- |s| = [a,∞]
+    TRel Eq (TStrLen _) (TAbs (AInt i))
+      | Just (Fin a) <- aMinimum i
+      , Just PosInf <- aMaximum i
+      , aContinuous i
+      -> TAbs $ AString $ mconcat [ aStringRep aStringSigma a
+                                  , aStringStar aStringSigma ]
+
+
 
     -- |s| = i
     TRel Eq (TStrLen (TVar _)) (TCon (I i _)) ->
@@ -103,6 +121,19 @@ abstractVar x b p
     -- x ≠ |s|
     TRel Ne (TVar _) e@(TStrLen (TVar _)) ->
       TAdd e (TAbs $ AInt $ aIntegerNe 0)  -- |s| + [-∞,-1|1,∞]
+
+    -- x < |s|
+    TRel Lt (TVar _) e@(TStrLen (TVar _)) -> 
+      TSub e (TAbs $ AInt $ aIntegerGe 1) -- |s| - [1,∞]
+    
+    -- x > |s|
+    TRel Gt (TVar _) e@(TStrLen (TVar _)) -> 
+      TAdd e (TAbs $ AInt $ aIntegerGe 1) -- |s| + [1,∞]
+
+    -- x ≥ |s|
+    TRel Ge (TVar _) e@(TStrLen (TVar _)) -> 
+      TAdd e (TAbs $ AInt $ aIntegerGe 0) -- |s| + [0,∞]
+
 
     -- TODO: ???? I don't know about these...
     TRel Eq (TVar _) e@(TStrAt (TVar _) (TCon _)) -> e       -- x = s[i]

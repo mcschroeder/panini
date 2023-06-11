@@ -17,6 +17,8 @@ module Panini.Solver.Abstract.AInt
   , aIntegerGeA
   , aIntegerLtA
   , aIntegerLeA
+  , aIntegerAddI
+  , aContinuous
   , Inf(..)
   ) where
 
@@ -84,6 +86,12 @@ aMaximum :: AInt -> Maybe (Inf Integer)
 aMaximum (AInt xs) = case xs of
   []               -> Nothing
   (last -> In _ b) -> Just b
+
+aContinuous :: AInt -> Bool
+aContinuous (AInt xs) = case xs of
+  []  -> True
+  [_] -> True
+  _   -> False
 
 -- | An abstract integer @= i@.
 aIntegerEq :: Integer -> AInt
@@ -154,6 +162,13 @@ instance Pretty AInt where
   pretty (AInt [x]) = pretty x
   pretty (AInt xs)  = PP.encloseSep lbracket rbracket symMid 
                     $ map (\(In a b) -> pretty a <> symComma <> pretty b) xs
+
+
+
+aIntegerAddI :: AInt -> Integer -> AInt
+aIntegerAddI (AInt xs) i = case xs of
+  [In (Fin a) PosInf] -> AInt [In (Fin (a + i)) PosInf]
+  _ -> undefined -- TODO
 
 -------------------------------------------------------------------------------
 
