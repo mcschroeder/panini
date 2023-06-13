@@ -36,22 +36,33 @@ infer :: Name -> Con -> Pred
   -- let t = construct c in
   -- let t' = rewrite t in
   -- trace (showPretty t') $ destruct t'
-infer s = destruct 
-        . concretizeVar s . TAbs . AString
+infer s = --destruct 
+          concretizeVar s . PAbs . AString
         . foldl' (∨) (⊥) 
         . map (foldl' (∧) (⊤) . map (abstractStringVar s))  -- TODO
-        . toPreds
+        . toPredsDNF
         . rewrite
         -- . TAll s TString
-        . construct
+        -- . construct
 
 -- TODO: either make this unnecessary or deal with errors gracefully
-abstractStringVar :: Name -> TPred -> AString
+abstractStringVar :: Name -> Pred -> AString
 abstractStringVar x p = case abstractVar x TString p of
-  TAbs (AString s) -> s
+  PAbs (AString s) -> s
   _                -> error "expected abstract string"
 
 -------------------------------------------------------------------------------
+
+-- TODO: ensure PRel at bottom
+toPredsDNF :: Pred -> [[Pred]]
+toPredsDNF (POr ps) | all isPAnd ps = [xs | PAnd xs <- ps]
+toPredsDNF (PAnd xs) | all isPRel xs = [xs]
+toPredsDNF c = error $ "expected (POr [PAnd _]) instead of " ++ showPretty c
+
+toPredsCon :: Con -> [[Pred]]
+toPredsCon (CHead (POr ps)) | all isPAnd ps = [xs | PAnd xs <- ps]
+toPredsCon c = error $ "expected CHead (POr [PAnd _]) instead of " ++ showPretty c
+
 
 construct :: Con -> Tree
 construct = goC

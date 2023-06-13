@@ -6,7 +6,7 @@ module Panini.Solver.Abstract.AInt
   , concreteValues
   , aMinimum
   , aMaximum
-  , toPred
+  -- , toPred
   , aIntegerEq
   , aIntegerNe
   , aIntegerGt
@@ -26,7 +26,7 @@ import Data.Hashable
 import GHC.Generics
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
-import Panini.Syntax
+-- import Panini.Syntax
 import Prelude
 import Prettyprinter qualified as PP
 
@@ -141,21 +141,21 @@ aIntegerLeA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf a]
 
-toPred :: PExpr -> AInt -> Pred
-toPred lhs (AInt xs) = case xs of
-  []                                          -> PFalse
-  In NegInf  PosInf  : []                     -> PTrue
-  In (Fin a) (Fin b) : [] | a == b            -> mkRel Eq a
-  In (Fin a) (Fin b) : []                     -> mkRel Ge a ∧ mkRel Le b
-  In NegInf  (Fin b) : []                     -> mkRel Le b
-  In (Fin a) PosInf  : []                     -> mkRel Ge a
-  In NegInf  _       : (last -> In _ (Fin b)) -> meets $ mkRel Le b : holeRels
-  In (Fin a) _       : (last -> In _ PosInf ) -> meets $ mkRel Ge a : holeRels
-  In NegInf  _       : (last -> In _ PosInf ) -> meets $ holeRels
-  _                                           -> error "impossible"
- where
-  mkRel r i = PRel r lhs (PCon (I i NoPV))
-  holeRels  = map (mkRel Ne) (holes xs)
+-- toPred :: PExpr -> AInt -> Pred
+-- toPred lhs (AInt xs) = case xs of
+--   []                                          -> PFalse
+--   In NegInf  PosInf  : []                     -> PTrue
+--   In (Fin a) (Fin b) : [] | a == b            -> mkRel Eq a
+--   In (Fin a) (Fin b) : []                     -> mkRel Ge a ∧ mkRel Le b
+--   In NegInf  (Fin b) : []                     -> mkRel Le b
+--   In (Fin a) PosInf  : []                     -> mkRel Ge a
+--   In NegInf  _       : (last -> In _ (Fin b)) -> meets $ mkRel Le b : holeRels
+--   In (Fin a) _       : (last -> In _ PosInf ) -> meets $ mkRel Ge a : holeRels
+--   In NegInf  _       : (last -> In _ PosInf ) -> meets $ holeRels
+--   _                                           -> error "impossible"
+--  where
+--   mkRel r i = PRel r lhs (PCon (I i NoPV))
+--   holeRels  = map (mkRel Ne) (holes xs)
 
 instance Pretty AInt where
   pretty (AInt [])  = "∅"

@@ -133,6 +133,10 @@ instance Subable PExpr where
     PStrAt p₁ p₂ -> PStrAt (subst x y p₁) (subst x y p₂)
     PStrSub p₁ p₂ p₃ -> PStrSub (subst x y p₁) (subst x y p₂) (subst x y p₃)
     PFun f ps -> PFun f (map (subst x y) ps)
+
+    --TODO
+    PNot2 p -> PNot2 (subst x y p)
+    PAbs a -> PAbs a
   
   freeVars = \case
     PVal (Var n)  -> [n]
@@ -144,6 +148,10 @@ instance Subable PExpr where
     PStrLen p     -> freeVars p
     PStrAt p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PStrSub p₁ p₂ p₃ -> freeVars p₁ ++ freeVars p₂ ++ freeVars p₃
+
+    --TODO
+    PNot2 p -> freeVars p
+    PAbs _ -> []
 
 instance Subable Con where
   subst x y = \case

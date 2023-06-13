@@ -10,6 +10,10 @@ import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
 
+import Panini.Solver.Abstract.ABool
+import Panini.Solver.Abstract.AInt
+import Panini.Solver.Abstract.AString
+
 ------------------------------------------------------------------------------
 
 -- | Predicates are terms in a Boolean logic.
@@ -180,7 +184,37 @@ data PExpr
   | PStrAt PExpr PExpr         -- ^ character at index @s[i]@
   | PStrSub PExpr PExpr PExpr  -- ^ substring @s[i..j]@ (inclusive bounds)
   | PFun Name [PExpr]          -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@
+
+  | PNot2 PExpr -- TODO: hack
+  | PAbs AValue -- TODO
   deriving stock (Eq, Show, Read, Generic)
+
+--- TODO
+data AValue
+  = ABool ABool
+  | AInt AInt
+  | AString AString
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable AValue
+
+instance Pretty AValue where
+  pretty = \case
+    ABool a -> pretty a
+    AInt a -> pretty a
+    AString a -> pretty a
+
+instance PartialMeetSemilattice AValue where
+  ABool   a ∧? ABool   b = Just $ ABool   (a ∧ b)
+  AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
+  AString a ∧? AString b = Just $ AString (a ∧ b)
+  _         ∧? _         = Nothing
+
+instance Complementable AValue where
+  neg (ABool   a) = ABool   (neg a)
+  neg (AInt    a) = AInt    (neg a)
+  neg (AString _) = undefined -- TODO: AString (neg a)
+---
 
 instance Hashable PExpr
 
@@ -199,7 +233,11 @@ instance Uniplate PExpr where
     PStrAt e1 e2     -> plate PStrAt |* e1 |* e2
     PStrSub e1 e2 e3 -> plate PStrSub |* e1 |* e2 |* e3
     PFun f es        -> plate PFun |- f ||* es
-    e                -> plate e
+    
+    --TODO
+    PNot2 e -> plate PNot2 |* e
+    PAbs a -> plate PAbs |- a
+    PVal v -> plate PVal |- v
 
 instance Pretty PExpr where
   pretty p0 = case p0 of
@@ -212,6 +250,10 @@ instance Pretty PExpr where
     PStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
     PStrSub p1 p2 p3 -> 
       pretty p1 <> "[" <> pretty p2 <> symDotDot <> pretty p3 <> "]"
+    
+    -- TODO
+    PNot2 e -> symNeg <> parens (pretty e)
+    PAbs a -> pretty a
 
 instance HasFixity PExpr where
   fixity (PMul _ _) = Infix LeftAss 6

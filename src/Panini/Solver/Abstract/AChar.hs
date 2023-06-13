@@ -4,7 +4,7 @@ module Panini.Solver.Abstract.AChar
   , concreteValues
   , aCharEq
   , aCharNe
-  , toPred
+  -- , toPred
   , aCharToFiniteSet
   , finiteSetToAChar
   ) where
@@ -15,7 +15,7 @@ import Data.IntSet qualified as I
 import GHC.Generics
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
-import Panini.Syntax
+-- import Panini.Syntax
 import Prelude
 import Data.Text qualified as Text
 
@@ -91,12 +91,12 @@ aCharEq = AChar True . I.singleton . fromEnum
 aCharNe :: Char -> AChar
 aCharNe = AChar False . I.singleton . fromEnum
 
-toPred :: PExpr -> AChar -> Pred
-toPred lhs (AChar b cs) = case b of
-  True  -> joins $ map (mkRel Eq) $ toCharList cs
-  False -> meets $ map (mkRel Ne) $ toCharList cs
- where
-  mkRel r c = PRel r lhs (PCon (S (Text.singleton c) NoPV))  
+-- toPred :: PExpr -> AChar -> Pred
+-- toPred lhs (AChar b cs) = case b of
+--   True  -> joins $ map (mkRel Eq) $ toCharList cs
+--   False -> meets $ map (mkRel Ne) $ toCharList cs
+--  where
+--   mkRel r c = PRel r lhs (PCon (S (Text.singleton c) NoPV))  
 
 instance Pretty AChar where
   pretty (AChar True cs) = case toCharList cs of

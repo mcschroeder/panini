@@ -41,7 +41,7 @@ library
     Panini.Solver.Abstract.AInt    
     Panini.Solver.Assignment
     Panini.Solver.Fusion
-    Panini.Solver.Grammar
+    Panini.Solver.Grammar2
     Panini.Solver.Liquid
     Panini.Solver.Simplify
     Panini.Solver.SMTLIB
