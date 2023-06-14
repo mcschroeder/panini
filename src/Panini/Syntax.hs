@@ -2,7 +2,7 @@
 
 module Panini.Syntax (module X) where
 
-import Panini.Syntax.AST as X
+import Panini.Language.AST as X
 import Panini.Logic.Syntax.Constraints as X
 import Panini.Syntax.Names as X
 import Panini.Logic.Syntax.Predicates as X

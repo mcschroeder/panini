@@ -12,7 +12,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Panini.Elaborator.Environment
+import Panini.Language.Elaborator.Environment
 import Panini.Error
 import Panini.Logger
 import Prelude

@@ -1,4 +1,4 @@
-module Panini.Elaborator.Environment where
+module Panini.Language.Elaborator.Environment where
 
 import Data.Map (Map)
 import Panini.Error

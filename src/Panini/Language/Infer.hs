@@ -1,4 +1,4 @@
-module Panini.Infer where
+module Panini.Language.Infer where
 
 import Control.Monad.Trans.State.Strict
 import Data.Map (Map)

@@ -29,10 +29,11 @@ library
     Panini.Abstract.AInt
     Panini.Abstract.Interpretation   
     Panini.Algebra.Lattice
-    Panini.Elaborator
-    Panini.Elaborator.Environment
     Panini.Error
-    Panini.Infer
+    Panini.Language.AST
+    Panini.Language.Elaborator
+    Panini.Language.Elaborator.Environment
+    Panini.Language.Infer
     Panini.Logger
     Panini.Logic.Simplify
     Panini.Logic.SMT.SMTLIB
@@ -50,7 +51,6 @@ library
     Panini.Pretty.Printer
     Panini.REPL
     Panini.Syntax
-    Panini.Syntax.AST
     Panini.Syntax.Names
     Panini.Syntax.Primitives
     Panini.Syntax.Provenance

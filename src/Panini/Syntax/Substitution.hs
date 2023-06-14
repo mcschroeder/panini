@@ -1,7 +1,7 @@
 module Panini.Syntax.Substitution where
 
 import Data.List ((\\))
-import Panini.Syntax.AST
+import Panini.Language.AST
 import Panini.Logic.Syntax.Constraints
 import Panini.Syntax.Names
 import Panini.Logic.Syntax.Predicates

@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Panini.Elaborator where
+module Panini.Language.Elaborator where
 
 import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Text.IO qualified as Text
-import Panini.Elaborator.Environment
+import Panini.Language.Elaborator.Environment
 import Panini.Error
-import Panini.Infer
+import Panini.Language.Infer
 import Panini.Logger
 import Panini.Monad
 import Panini.Parser

@@ -1,5 +1,5 @@
 -- TODO: module documentation
-module Panini.Syntax.AST where
+module Panini.Language.AST where
 
 import Panini.Pretty.Printer
 import Panini.Logic.Syntax.Constraints

@@ -16,10 +16,10 @@ import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
-import Panini.Elaborator
-import Panini.Elaborator.Environment
+import Panini.Language.Elaborator
+import Panini.Language.Elaborator.Environment
 import Panini.Error
-import Panini.Infer
+import Panini.Language.Infer
 import Panini.Logger
 import Panini.Monad
 import Panini.Parser
