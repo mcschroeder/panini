@@ -1,4 +1,4 @@
-module Panini.Logic.Syntax.Predicates where
+module Panini.Logic.Predicates where
 
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
@@ -6,9 +6,9 @@ import Data.String
 import GHC.Generics (Generic)
 import Panini.Abstract.AValue
 import Panini.Algebra.Lattice
+import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Syntax.Names
-import Panini.Syntax.Primitives
+import Panini.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------

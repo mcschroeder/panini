@@ -1,19 +1,22 @@
 module Panini.Logic.Solver (solve) where
 
+import Control.Applicative
 import Control.Monad
 import Data.Map qualified as Map
+import Data.Maybe
 import Data.Set qualified as Set
 import Panini.Logger
-import Panini.Monad
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Logic.Simplify
 import Panini.Logic.Solver.Assignment
 import Panini.Logic.Solver.Fusion qualified as Fusion
 import Panini.Logic.Solver.Grammar qualified as Grammar
 import Panini.Logic.Solver.Liquid qualified as Liquid
-import Panini.Logic.Simplify
-import Panini.Syntax
+import Panini.Monad
+import Panini.Primitives
+import Panini.Substitution
 import Prelude
-import Control.Applicative
-import Data.Maybe
 
 -- TODO: be strict in each of these steps
 

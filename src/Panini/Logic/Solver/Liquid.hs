@@ -16,10 +16,12 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
-import Panini.Monad
-import Panini.Logic.Solver.Assignment
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
 import Panini.Logic.SMT.Z3
-import Panini.Syntax
+import Panini.Logic.Solver.Assignment
+import Panini.Monad
+import Panini.Substitution
 import Prelude
 
 -- | Solve a Horn constraint given a set of candidates.

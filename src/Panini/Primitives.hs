@@ -1,11 +1,11 @@
-module Panini.Syntax.Primitives where
+module Panini.Primitives where
 
 import Data.Hashable
 import Data.Text (Text)
 import GHC.Generics
+import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Syntax.Provenance
-import Panini.Syntax.Names
+import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------

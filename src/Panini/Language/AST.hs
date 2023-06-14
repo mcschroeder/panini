@@ -1,12 +1,12 @@
 -- TODO: module documentation
 module Panini.Language.AST where
 
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Logic.Syntax.Constraints
-import Panini.Syntax.Names
-import Panini.Logic.Syntax.Predicates
-import Panini.Syntax.Primitives
-import Panini.Syntax.Provenance
+import Panini.Primitives
+import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------

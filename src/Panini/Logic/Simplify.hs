@@ -3,7 +3,11 @@
 module Panini.Logic.Simplify (simplifyCon, simplifyPred) where
 
 import Data.Generics.Uniplate.Operations
-import Panini.Syntax
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Names
+import Panini.Primitives
+import Panini.Substitution
 import Prelude
 
 ------------------------------------------------------------------------------

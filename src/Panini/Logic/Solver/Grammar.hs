@@ -1,35 +1,29 @@
 module Panini.Logic.Solver.Grammar (infer) where
 
-import Panini.Syntax
-import Panini.Algebra.Lattice
-import Prelude
-import Panini.Abstract.Interpretation
-import Panini.Abstract.AString
-import Panini.Abstract.AValue
-import Panini.Pretty.Printer
+import Control.Monad
+import Control.Monad.ST
 import Data.Foldable
 import Data.Generics.Uniplate.Operations qualified as Uniplate
-import Panini.Algebra.Lattice
--- import Panini.Solver.Grammar2.Tree
-import Panini.Syntax
-import Prelude
-import Control.Monad.ST
-import Data.Map.Strict qualified as Map
-import Data.STRef
-import Control.Monad
-import Data.Maybe
-import Panini.Abstract.Interpretation
-import Panini.Pretty.Printer
-import Debug.Trace
--- import Panini.Pretty.Graphviz
-import Data.List (partition)
-import Panini.Abstract.ABool
-import Panini.Abstract.AValue
 import Data.HashSet qualified as HashSet
+import Data.List (partition)
 import Data.List qualified as List
-
-
-
+import Data.Map.Strict qualified as Map
+import Data.Maybe
+import Data.STRef
+import Debug.Trace
+import Panini.Abstract.ABool
+import Panini.Abstract.AString
+import Panini.Abstract.AValue
+import Panini.Abstract.Interpretation
+import Panini.Algebra.Lattice
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Names
+import Panini.Pretty.Printer
+import Panini.Primitives
+import Panini.Substitution
+import Prelude
+import Prelude
 
 -------------------------------------------------------------------------------
 

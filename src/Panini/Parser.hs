@@ -12,20 +12,25 @@ import Control.Monad.Combinators.Expr
 import Data.Bifunctor
 import Data.Char
 import Data.List (foldl')
+import Data.List.NonEmpty qualified as NE
+import Data.Maybe
 import Data.Set qualified as Set
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
-import Panini.Syntax
+import Panini.Language.AST
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Names
+import Panini.Primitives
+import Panini.Provenance
 import Prelude
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
-import Data.List.NonEmpty qualified as NE
-import Data.Maybe
 
 -------------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 -- TODO: module documentation
-module Panini.Syntax.Names where
+module Panini.Names where
 
 import Data.Char (isDigit)
 import Data.Hashable
@@ -8,7 +8,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read
 import Panini.Pretty.Printer
-import Panini.Syntax.Provenance
+import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------

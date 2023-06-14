@@ -5,7 +5,9 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Panini.Syntax
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Substitution
 import Prelude
 
 -- | An assignment σ maps κ-variables to refinement predicates.

@@ -5,15 +5,16 @@ module Panini.Language.Elaborator where
 import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Text.IO qualified as Text
-import Panini.Language.Elaborator.Environment
 import Panini.Error
+import Panini.Language.AST
+import Panini.Language.Elaborator.Environment
 import Panini.Language.Infer
 import Panini.Logger
+import Panini.Logic.Solver
 import Panini.Monad
+import Panini.Names
 import Panini.Parser
 import Panini.Pretty.Printer
-import Panini.Logic.Solver
-import Panini.Syntax
 import Prelude
 
 -------------------------------------------------------------------------------

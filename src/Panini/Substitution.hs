@@ -1,11 +1,11 @@
-module Panini.Syntax.Substitution where
+module Panini.Substitution where
 
 import Data.List ((\\))
 import Panini.Language.AST
-import Panini.Logic.Syntax.Constraints
-import Panini.Syntax.Names
-import Panini.Logic.Syntax.Predicates
-import Panini.Syntax.Primitives
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
+import Panini.Names
+import Panini.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------

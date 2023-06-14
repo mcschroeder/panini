@@ -1,15 +1,18 @@
 module Panini.Abstract.Interpretation where
 
-import Panini.Syntax
-import Prelude
+import Data.Text qualified as Text
 import Panini.Abstract.ABool
-import Panini.Abstract.AInt
 import Panini.Abstract.AChar
+import Panini.Abstract.AInt
 import Panini.Abstract.AString
 import Panini.Abstract.AValue
-import Data.Text qualified as Text
 import Panini.Algebra.Lattice
+import Panini.Logic.Predicates
+import Panini.Names
 import Panini.Pretty.Printer
+import Panini.Primitives
+import Panini.Substitution
+import Prelude
 -- import Debug.Trace
 
 -------------------------------------------------------------------------------

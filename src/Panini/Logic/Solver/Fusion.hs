@@ -16,9 +16,13 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Algebra.Lattice
 import Panini.Logger
-import Panini.Monad
+import Panini.Logic.Constraints
+import Panini.Logic.Predicates
 import Panini.Logic.Solver.Assignment
-import Panini.Syntax
+import Panini.Monad
+import Panini.Names
+import Panini.Primitives
+import Panini.Substitution
 import Prelude
 
 -- | Eliminate acyclic κ-variables from a constraint using refinment FUSION.

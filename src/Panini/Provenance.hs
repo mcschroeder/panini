@@ -1,4 +1,4 @@
-module Panini.Syntax.Provenance
+module Panini.Provenance
   ( SrcLoc(..)
   , PV(..)
   , HasProvenance(..)
@@ -7,13 +7,13 @@ module Panini.Syntax.Provenance
   , readSrcLocLines
   ) where
 
+import Control.Monad
 import Data.ByteString qualified as BS
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
 import Panini.Pretty.Printer
 import Prelude
 import System.IO
-import Control.Monad
 
 -------------------------------------------------------------------------------
 

@@ -35,6 +35,8 @@ library
     Panini.Language.Elaborator.Environment
     Panini.Language.Infer
     Panini.Logger
+    Panini.Logic.Constraints
+    Panini.Logic.Predicates
     Panini.Logic.Simplify
     Panini.Logic.SMT.SMTLIB
     Panini.Logic.SMT.Z3
@@ -43,18 +45,15 @@ library
     Panini.Logic.Solver.Fusion
     Panini.Logic.Solver.Grammar
     Panini.Logic.Solver.Liquid
-    Panini.Logic.Syntax.Constraints
-    Panini.Logic.Syntax.Predicates
     Panini.Monad
+    Panini.Names
     Panini.Parser
     Panini.Pretty.Graphviz
     Panini.Pretty.Printer
+    Panini.Primitives
+    Panini.Provenance
     Panini.REPL
-    Panini.Syntax
-    Panini.Syntax.Names
-    Panini.Syntax.Primitives
-    Panini.Syntax.Provenance
-    Panini.Syntax.Substitution
+    Panini.Substitution
 
   build-depends:
       base ^>=4.16

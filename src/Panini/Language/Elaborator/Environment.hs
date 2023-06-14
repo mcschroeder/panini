@@ -2,8 +2,11 @@ module Panini.Language.Elaborator.Environment where
 
 import Data.Map (Map)
 import Panini.Error
+import Panini.Language.AST
+import Panini.Logic.Constraints
 import Panini.Logic.Solver.Assignment
-import Panini.Syntax
+import Panini.Names
+import Panini.Primitives
 import Prelude
 
 -------------------------------------------------------------------------------

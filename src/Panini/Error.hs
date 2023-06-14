@@ -1,11 +1,14 @@
 module Panini.Error where
 
-import Data.Text qualified as Text
-import Data.Text (Text)
-import Panini.Pretty.Printer
-import Panini.Syntax
-import Prelude
 import Data.List qualified as List
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Panini.Language.AST
+import Panini.Names
+import Panini.Pretty.Printer
+import Panini.Primitives
+import Panini.Provenance
+import Prelude
 
 -------------------------------------------------------------------------------
 

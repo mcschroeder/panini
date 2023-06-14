@@ -16,17 +16,16 @@ import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
+import Panini.Error
+import Panini.Language.AST
 import Panini.Language.Elaborator
 import Panini.Language.Elaborator.Environment
-import Panini.Error
 import Panini.Language.Infer
 import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
--- import Panini.Solver.Simplify
--- import Panini.Solver.Grammar qualified
-import Panini.Syntax
+import Panini.Provenance
 import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
