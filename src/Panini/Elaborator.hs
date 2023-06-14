@@ -12,7 +12,7 @@ import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
-import Panini.Solver
+import Panini.Logic.Solver
 import Panini.Syntax
 import Prelude
 

@@ -1,5 +1,5 @@
 -- TODO: module documentation
-module Panini.Solver.Z3 (smtValid) where
+module Panini.Logic.SMT.Z3 (smtValid) where
 
 import Data.Char (isSpace)
 import Control.Monad.IO.Class
@@ -8,7 +8,7 @@ import Data.Text qualified as Text
 import Panini.Error
 import Panini.Logger
 import Panini.Monad
-import Panini.Solver.SMTLIB
+import Panini.Logic.SMT.SMTLIB
 import Prelude
 import System.Exit
 import System.Process

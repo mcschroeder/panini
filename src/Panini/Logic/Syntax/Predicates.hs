@@ -1,4 +1,4 @@
-module Panini.Syntax.Predicates where
+module Panini.Logic.Syntax.Predicates where
 
 import Data.Generics.Uniplate.Direct
 import Data.Hashable

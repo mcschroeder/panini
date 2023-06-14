@@ -1,15 +1,15 @@
-module Panini.Solver (solve) where
+module Panini.Logic.Solver (solve) where
 
 import Control.Monad
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Monad
-import Panini.Solver.Assignment
-import Panini.Solver.Fusion qualified as Fusion
-import Panini.Solver.Grammar qualified as Grammar
-import Panini.Solver.Liquid qualified as Liquid
-import Panini.Solver.Simplify
+import Panini.Logic.Solver.Assignment
+import Panini.Logic.Solver.Fusion qualified as Fusion
+import Panini.Logic.Solver.Grammar qualified as Grammar
+import Panini.Logic.Solver.Liquid qualified as Liquid
+import Panini.Logic.Simplify
 import Panini.Syntax
 import Prelude
 import Control.Applicative

@@ -2,7 +2,7 @@ module Panini.Elaborator.Environment where
 
 import Data.Map (Map)
 import Panini.Error
-import Panini.Solver.Assignment
+import Panini.Logic.Solver.Assignment
 import Panini.Syntax
 import Prelude
 

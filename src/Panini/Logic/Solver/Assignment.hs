@@ -1,4 +1,4 @@
-module Panini.Solver.Assignment where
+module Panini.Logic.Solver.Assignment where
 
 import Data.Generics.Uniplate.Operations
 import Data.Map (Map)

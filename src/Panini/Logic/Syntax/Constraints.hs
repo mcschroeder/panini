@@ -1,10 +1,10 @@
-module Panini.Syntax.Constraints where
+module Panini.Logic.Syntax.Constraints where
 
 import Data.Generics.Uniplate.Direct
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 import Panini.Syntax.Names
-import Panini.Syntax.Predicates
+import Panini.Logic.Syntax.Predicates
 import Panini.Syntax.Primitives
 import Prelude
 

@@ -34,25 +34,24 @@ library
     Panini.Error
     Panini.Infer
     Panini.Logger
+    Panini.Logic.Simplify
+    Panini.Logic.SMT.SMTLIB
+    Panini.Logic.SMT.Z3
+    Panini.Logic.Solver
+    Panini.Logic.Solver.Assignment
+    Panini.Logic.Solver.Fusion
+    Panini.Logic.Solver.Grammar
+    Panini.Logic.Solver.Liquid
+    Panini.Logic.Syntax.Constraints
+    Panini.Logic.Syntax.Predicates
     Panini.Monad
     Panini.Parser
     Panini.Pretty.Graphviz
     Panini.Pretty.Printer
     Panini.REPL
-    Panini.Solver
-    Panini.Solver.Assignment
-    Panini.Solver.Fusion
-    Panini.Solver.Grammar
-    Panini.Solver.Grammar.Rewriting
-    Panini.Solver.Liquid
-    Panini.Solver.Simplify
-    Panini.Solver.SMTLIB
-    Panini.Solver.Z3
     Panini.Syntax
     Panini.Syntax.AST
-    Panini.Syntax.Constraints
     Panini.Syntax.Names
-    Panini.Syntax.Predicates
     Panini.Syntax.Primitives
     Panini.Syntax.Provenance
     Panini.Syntax.Substitution

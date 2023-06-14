@@ -2,9 +2,9 @@
 module Panini.Syntax.AST where
 
 import Panini.Pretty.Printer
-import Panini.Syntax.Constraints
+import Panini.Logic.Syntax.Constraints
 import Panini.Syntax.Names
-import Panini.Syntax.Predicates
+import Panini.Logic.Syntax.Predicates
 import Panini.Syntax.Primitives
 import Panini.Syntax.Provenance
 import Prelude

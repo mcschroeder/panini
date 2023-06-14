@@ -2,9 +2,9 @@ module Panini.Syntax.Substitution where
 
 import Data.List ((\\))
 import Panini.Syntax.AST
-import Panini.Syntax.Constraints
+import Panini.Logic.Syntax.Constraints
 import Panini.Syntax.Names
-import Panini.Syntax.Predicates
+import Panini.Logic.Syntax.Predicates
 import Panini.Syntax.Primitives
 import Prelude
 
