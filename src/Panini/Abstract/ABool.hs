@@ -33,7 +33,7 @@ instance JoinSemilattice ABool where
   x      ∨ Bottom = x
 
 instance BoundedJoinSemilattice ABool where
-  (⊥) = Bottom
+  bot = Bottom
 
 instance MeetSemilattice ABool where
   Bottom ∧ _      = Bottom
@@ -46,15 +46,13 @@ instance MeetSemilattice ABool where
   x      ∧ Top    = x
 
 instance BoundedMeetSemilattice ABool where
-  (⊤) = Top
+  top = Top
 
 instance Complementable ABool where
   neg Top    = Bottom
   neg True_  = False_
   neg False_ = True_
   neg Bottom = Top
-
-instance ComplementedLattice ABool
 
 -- | The single concrete value represented by the abstract Boolean, or Nothing.
 concreteBool :: ABool -> Maybe Bool

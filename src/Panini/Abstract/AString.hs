@@ -35,13 +35,13 @@ instance MeetSemilattice AString where
   AString r1 ∧ AString r2 = AString $ intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
-  (⊤) = aStringStar aStringSigma
+  top = aStringStar aStringSigma
 
 instance JoinSemilattice AString where
   AString r1 ∨ AString r2 = AString $ rPlus r1 r2
   
 instance BoundedJoinSemilattice AString where
-  (⊥) = AString rZero
+  bot = AString rZero
 
 aStringLit :: AChar -> AString
 aStringLit = AString . rLiteral . aCharToFiniteSet
@@ -50,7 +50,7 @@ aStringRep :: AString -> Integer -> AString
 aStringRep a n = mconcat $ replicate (fromIntegral n) a
 
 aStringSigma :: AString
-aStringSigma = AString $ rLiteral $ aCharToFiniteSet (⊤)
+aStringSigma = AString $ rLiteral $ aCharToFiniteSet top
 
 aStringStar :: AString -> AString
 aStringStar (AString r) = AString $ rStar r

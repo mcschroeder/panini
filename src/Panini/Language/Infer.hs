@@ -96,7 +96,7 @@ infer g = \case
     let p₁ = PVal v `pEq` PCon (B True  NoPV)
     let p₂ = PVal v `pEq` PCon (B False NoPV)
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
-    t <- join t₁ t₂
+    t <- mkJoin t₁ t₂
     return $ If v ė₁ ė₂ pv `withType` (t, c)
 
 -- | Selfification.
@@ -163,8 +163,8 @@ cImpl x t c = case t of
   _                     -> c
 
 -- | The join (⊔) of two types.
-join :: Type -> Type -> Pan Type
-join t₁ t₂ = case (t₁, t₂) of
+mkJoin :: Type -> Type -> Pan Type
+mkJoin t₁ t₂ = case (t₁, t₂) of
   -- join/base --------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
     | b₁ == b₂ -> 

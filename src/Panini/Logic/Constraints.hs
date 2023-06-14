@@ -32,7 +32,7 @@ instance MeetSemilattice Con where
   c1    ∧ c2    = CAnd c1 c2
 
 instance BoundedMeetSemilattice Con where
-  (⊤) = CTrue
+  top = CTrue
 
 instance Uniplate Con where
   uniplate = \case

@@ -101,7 +101,7 @@ abstractVar x b p
       case aMinimum (a ∧ aIntegerGe 0) of
         Just (Fin i) -> PAbs $ AString $ mconcat [ aStringRep aStringSigma i
                                , aStringStar aStringSigma]  -- Σ^iΣ*
-        _ -> PAbs $ AString (⊥)
+        _ -> PAbs $ AString bot
 
     -- |s| > i
     PRel Gt (PStrLen (PVar _)) (PCon (I i _)) ->
@@ -110,9 +110,9 @@ abstractVar x b p
 
     -- TODO: hardcoded hack?
     -- |s| < 0
-    PRel Lt (PStrLen (PVar _)) (PCon (I 0 _)) -> PAbs $ AString (⊥)
+    PRel Lt (PStrLen (PVar _)) (PCon (I 0 _)) -> PAbs $ AString bot
     PRel Lt (PStrLen (PVar _)) (PAbs (AInt a)) 
-      | aMinimum a < Just (Fin 0) -> PAbs $ AString (⊥)
+      | aMinimum a < Just (Fin 0) -> PAbs $ AString bot
     
     -- TODO: ???? I don't know about these...
     PRel Eq (PVar _) (PVar y) -> PVar y          -- x = y
@@ -145,9 +145,9 @@ abstractVar x b p
     _ -> error $ "abstraction impossible: ⟦" ++ showPretty p ++ "⟧↑" ++ showPretty x
 
 topExpr :: Base -> PExpr
-topExpr TBool = PAbs $ ABool (⊤)
-topExpr TInt = PAbs $ AInt (⊤)
-topExpr TString = PAbs $ AString (⊤)
+topExpr TBool = PAbs $ ABool top
+topExpr TInt = PAbs $ AInt top
+topExpr TString = PAbs $ AString top
 topExpr _ = undefined
 
 concretizeVar :: Name -> PExpr -> Pred2

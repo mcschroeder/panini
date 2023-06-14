@@ -53,7 +53,7 @@ instance MeetSemilattice AChar where
   AChar False xs ∧ AChar True  ys = AChar True  (I.difference ys xs)
 
 instance BoundedMeetSemilattice AChar where
-  (⊤) = AChar False mempty
+  top = AChar False mempty
 
 instance JoinSemilattice AChar where
   AChar True  xs ∨ AChar True  ys = AChar True  (I.union xs ys)
@@ -62,12 +62,10 @@ instance JoinSemilattice AChar where
   AChar False xs ∨ AChar True  ys = AChar False (I.difference xs ys)
 
 instance BoundedJoinSemilattice AChar where
-  (⊥) = AChar True mempty
+  bot = AChar True mempty
 
 instance Complementable AChar where
   neg (AChar b xs) = AChar (not b) xs
-
-instance ComplementedLattice AChar
 
 toCharList :: IntSet -> [Char]
 toCharList = map (toEnum @Char) . I.toAscList

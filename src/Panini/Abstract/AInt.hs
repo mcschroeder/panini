@@ -38,7 +38,7 @@ newtype AInt = AInt IntervalSequence
   deriving newtype 
     ( MeetSemilattice, BoundedMeetSemilattice
     , JoinSemilattice, BoundedJoinSemilattice
-    , Complementable, ComplementedLattice
+    , Complementable
     , Hashable
     )
 
@@ -184,7 +184,7 @@ instance JoinSemilattice IntervalSequence where
     | otherwise      = ((x ∨ y) : xs) ∨ ys 
 
 instance BoundedJoinSemilattice IntervalSequence where
-  (⊥) = []
+  bot = []
 
 instance MeetSemilattice IntervalSequence where
   []     ∧ _         = []
@@ -199,10 +199,10 @@ instance MeetSemilattice IntervalSequence where
     | otherwise      = (x ∧ y) : (xs ∧ ys)
 
 instance BoundedMeetSemilattice IntervalSequence where
-  (⊤) = [(⊤)]
+  top = [top]
 
 instance Complementable IntervalSequence where
-  neg [] = [(⊤)]  
+  neg [] = [top]  
   neg (x:xs)
     | In a@(Fin _) _ <- x = In NegInf (pred <$> a) : go (x:xs)
     | otherwise = go (x:xs)
@@ -210,8 +210,6 @@ instance Complementable IntervalSequence where
       go (In _ b : y@(In c _) : zs) = In (succ <$> b) (pred <$> c) : go (y:zs)
       go [In _ b@(Fin _)] = [In (succ <$> b) PosInf]
       go _ = []  
-
-instance ComplementedLattice IntervalSequence
 
 -- | Returns all "holes" inbetween intervals.
 -- holes :: IntervalSequence -> [Integer]
@@ -262,7 +260,7 @@ instance MeetSemilattice Interval where
   In a b ∧ In c d = In (max a c) (min b d)
 
 instance BoundedMeetSemilattice Interval where
-  (⊤) = In NegInf PosInf
+  top = In NegInf PosInf
 
 instance Pretty Interval where
   pretty (In a b)

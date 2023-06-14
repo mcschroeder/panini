@@ -40,7 +40,7 @@ instance MeetSemilattice Pred where
   p       ∧ q       = PAnd [p,q]
 
 instance BoundedMeetSemilattice Pred where
-  (⊤) = PTrue
+  top = PTrue
 
 instance JoinSemilattice Pred where
   PFalse ∨ q      = q
@@ -53,7 +53,7 @@ instance JoinSemilattice Pred where
   p      ∨ q      = POr [p,q]
 
 instance BoundedJoinSemilattice Pred where
-  (⊥) = PFalse
+  bot = PFalse
 
 instance Uniplate Pred where
   uniplate = \case
@@ -217,9 +217,9 @@ instance PartialMeetSemilattice PExpr where
   PAbs a ∧? PAbs b = PAbs <$> a ∧? b
   
    -- TODO: Is this correct?
-  PAbs (ABool   a) ∧? e | a == (⊤) = Just e
-  PAbs (AInt    a) ∧? e | a == (⊤) = Just e
-  PAbs (AString a) ∧? e | a == (⊤) = Just e
+  PAbs (ABool   a) ∧? e | isTop a = Just e
+  PAbs (AInt    a) ∧? e | isTop a = Just e
+  PAbs (AString a) ∧? e | isTop a = Just e
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing

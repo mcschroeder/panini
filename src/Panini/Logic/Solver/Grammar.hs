@@ -28,8 +28,8 @@ import Prelude
 
 infer :: Name -> Con -> Pred
 infer s = PPred . concretizeVar s . PAbs . AString
-        . foldl' (∨) (⊥) 
-        . map (foldl' (∧) (⊤) . map (abstractStringVar s))  -- TODO
+        . joins
+        . map (meets . map (abstractStringVar s))  -- TODO
         . toPredsDNF
         . rewrite
 
