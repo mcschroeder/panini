@@ -38,8 +38,6 @@ library
     Panini.Logic.Constraints
     Panini.Logic.Predicates
     Panini.Logic.Simplify
-    Panini.Logic.SMT.SMTLIB
-    Panini.Logic.SMT.Z3
     Panini.Logic.Solver
     Panini.Logic.Solver.Assignment
     Panini.Logic.Solver.Fusion
@@ -53,6 +51,8 @@ library
     Panini.Primitives
     Panini.Provenance
     Panini.REPL
+    Panini.SMT.SMTLIB
+    Panini.SMT.Z3
     Panini.Substitution
 
   build-depends:

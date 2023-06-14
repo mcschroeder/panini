@@ -18,7 +18,7 @@ import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Logic.Constraints
 import Panini.Logic.Predicates
-import Panini.Logic.SMT.Z3
+import Panini.SMT.Z3
 import Panini.Logic.Solver.Assignment
 import Panini.Monad
 import Panini.Substitution
