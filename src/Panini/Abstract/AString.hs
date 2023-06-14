@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Panini.Solver.Abstract.AString
+module Panini.Abstract.AString
   ( AString
   , aStringLit
   , aStringRep
@@ -10,7 +10,7 @@ module Panini.Solver.Abstract.AString
   ) where
 
 import Prelude
-import Panini.Solver.Abstract.AChar
+import Panini.Abstract.AChar
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer hiding (Literal)
 import GHC.Generics (Generic)

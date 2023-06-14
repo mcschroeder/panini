@@ -1,6 +1,6 @@
 {-# LANGUAGE StrictData #-}
 
-module Panini.Solver.Abstract.AInt
+module Panini.Abstract.AInt
   ( AInt
   , concreteSize
   , concreteValues

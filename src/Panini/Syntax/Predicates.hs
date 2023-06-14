@@ -4,15 +4,12 @@ import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
+import Panini.Abstract.AValue
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
-
-import Panini.Solver.Abstract.ABool
-import Panini.Solver.Abstract.AInt
-import Panini.Solver.Abstract.AString
 
 ------------------------------------------------------------------------------
 
@@ -206,33 +203,6 @@ data PExpr
   | PNot2 PExpr -- TODO: hack
   | PAbs AValue -- TODO
   deriving stock (Eq, Show, Read, Generic)
-
---- TODO
-data AValue
-  = ABool ABool
-  | AInt AInt
-  | AString AString
-  deriving stock (Eq, Show, Read, Generic)
-
-instance Hashable AValue
-
-instance Pretty AValue where
-  pretty = \case
-    ABool a -> pretty a
-    AInt a -> pretty a
-    AString a -> pretty a
-
-instance PartialMeetSemilattice AValue where
-  ABool   a ∧? ABool   b = Just $ ABool   (a ∧ b)
-  AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
-  AString a ∧? AString b = Just $ AString (a ∧ b)
-  _         ∧? _         = Nothing
-
-instance Complementable AValue where
-  neg (ABool   a) = ABool   (neg a)
-  neg (AInt    a) = AInt    (neg a)
-  neg (AString _) = undefined -- TODO: AString (neg a)
----
 
 instance Hashable PExpr
 

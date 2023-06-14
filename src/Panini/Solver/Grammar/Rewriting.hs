@@ -10,12 +10,13 @@ import Data.Map.Strict qualified as Map
 import Data.STRef
 import Control.Monad
 import Data.Maybe
-import Panini.Solver.Grammar.Abstract
+import Panini.Abstract.Interpretation
 import Panini.Pretty.Printer
 import Debug.Trace
 -- import Panini.Pretty.Graphviz
 import Data.List (partition)
-import Panini.Solver.Abstract.ABool
+import Panini.Abstract.ABool
+import Panini.Abstract.AValue
 import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 

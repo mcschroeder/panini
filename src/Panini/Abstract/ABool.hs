@@ -1,4 +1,4 @@
-module Panini.Solver.Abstract.ABool
+module Panini.Abstract.ABool
   ( ABool
   , concreteBool
   , aBoolEq

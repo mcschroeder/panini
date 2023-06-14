@@ -3,9 +3,10 @@ module Panini.Solver.Grammar (infer) where
 import Panini.Syntax
 import Panini.Algebra.Lattice
 import Prelude
-import Panini.Solver.Grammar.Abstract
+import Panini.Abstract.Interpretation
 import Panini.Solver.Grammar.Rewriting
-import Panini.Solver.Abstract.AString
+import Panini.Abstract.AString
+import Panini.Abstract.AValue
 import Panini.Pretty.Printer
 import Data.Foldable
 

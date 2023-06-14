@@ -1,11 +1,12 @@
-module Panini.Solver.Grammar.Abstract where
+module Panini.Abstract.Interpretation where
 
 import Panini.Syntax
 import Prelude
-import Panini.Solver.Abstract.ABool
-import Panini.Solver.Abstract.AInt
-import Panini.Solver.Abstract.AChar
-import Panini.Solver.Abstract.AString
+import Panini.Abstract.ABool
+import Panini.Abstract.AInt
+import Panini.Abstract.AChar
+import Panini.Abstract.AString
+import Panini.Abstract.AValue
 import Data.Text qualified as Text
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer

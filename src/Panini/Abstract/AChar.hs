@@ -1,4 +1,4 @@
-module Panini.Solver.Abstract.AChar
+module Panini.Abstract.AChar
   ( AChar
   , concreteSize
   , concreteValues
