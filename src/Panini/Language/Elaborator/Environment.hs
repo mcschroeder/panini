@@ -6,7 +6,6 @@ import Panini.Language.AST
 import Panini.Logic.Constraints
 import Panini.Logic.Solver.Assignment
 import Panini.Names
-import Panini.Primitives
 import Prelude
 
 -------------------------------------------------------------------------------

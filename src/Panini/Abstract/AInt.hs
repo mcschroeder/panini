@@ -214,9 +214,9 @@ instance Complementable IntervalSequence where
 instance ComplementedLattice IntervalSequence
 
 -- | Returns all "holes" inbetween intervals.
-holes :: IntervalSequence -> [Integer]
-holes (In _ (Fin b) : y@(In (Fin c) _) : ys) = [b + 1 .. c - 1] ++ holes (y:ys)
-holes _                                      = []
+-- holes :: IntervalSequence -> [Integer]
+-- holes (In _ (Fin b) : y@(In (Fin c) _) : ys) = [b + 1 .. c - 1] ++ holes (y:ys)
+-- holes _                                      = []
 
 -------------------------------------------------------------------------------
 

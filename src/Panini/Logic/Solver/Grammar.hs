@@ -23,7 +23,6 @@ import Panini.Pretty.Printer
 import Panini.Primitives
 import Panini.Substitution
 import Prelude
-import Prelude
 
 -------------------------------------------------------------------------------
 
@@ -72,10 +71,6 @@ rewrite = tracer2 $ \case
   CAll x b p1 (CHead p2) -> rewrite2 $ varElimDNF x b $ rewrite2 $ PAnd [p1,p2]
   CAll x1 b1 p1 (CAll x2 b2 p2 c2) -> rewrite2 $ varElimDNF x1 b1 $ rewrite $ CAll x2 b2 (rewrite2 $ PAnd [p1,p2]) c2
 
-isPred2 :: Pred -> Bool
-isPred2 (PPred _) = True
-isPred2 _ = True
-
 unwrapPreds :: [Pred] -> [Pred2]
 unwrapPreds [] = []
 unwrapPreds (PPred p : xs) = p : unwrapPreds xs
@@ -83,7 +78,7 @@ unwrapPreds _ = error "expected PPred"
 
 varElimDNF :: Name -> Base -> Pred -> Pred
 varElimDNF x b (POr xs) | all isPAnd xs =
-  POr $ map (\(PAnd ys) -> PAnd $ map PPred $ varElim x b $ unwrapPreds ys) xs
+  POr [PAnd $ map PPred $ varElim x b $ unwrapPreds ys | PAnd ys <- xs]
 varElimDNF x b (PAnd xs) | all isPRel xs =
   POr [PAnd (map PPred $ varElim x b $ unwrapPreds xs)]
 varElimDNF _ _ PTrue = PTrue
@@ -102,10 +97,9 @@ rewrite2 = Uniplate.rewrite $ \case
           ys' = mconcat [y | PAnd y <- ys]
           zs' = zs
       in Just $ PAnd $ ys' ++ zs'
-    | any isPOr xs ->
-      let (POr ys : yys, zs) = partition isPOr xs
-          cs = [PAnd $ y : (yys ++ zs) | y <- ys]
-      in Just $ POr cs
+    | any isPOr xs -> case partition isPOr xs of
+        (POr ys : yys, zs) -> Just $ POr $ [PAnd $ y : (yys ++ zs) | y <- ys]
+        _ -> undefined -- TODO
     | or [neg x `elem` xs | x <- xs] -> Just PFalse -- TODO: this needs a normal form / eval
     | HashSet.size (HashSet.fromList xs) < length xs -> Just $ PAnd $ List.nub xs  -- TODO
     | [x] <- xs -> Just x
@@ -203,7 +197,7 @@ varElim x b ps = runST $ do
 -- TODO: integrate into existing substitution architecture
 substExpr :: PExpr -> Name -> Pred2 -> Pred2
 substExpr x̂ x p = case p of
-  -- TReg e re -> TReg (go e) re
+  PReg _e _re -> undefined -- TODO
   PRel r e1 e2 -> PRel r (go e1) (go e2)
  where
   go = \case
@@ -212,10 +206,13 @@ substExpr x̂ x p = case p of
     PVal (Con c) -> PVal (Con c)
     PAbs a -> PAbs a
     PAdd e1 e2 -> PAdd (go e1) (go e2)
+    PMul e1 e2 -> PMul (go e1) (go e2)
     PSub e1 e2 -> PSub (go e1) (go e2)
     PStrLen e -> PStrLen (go e)
     PStrAt e1 e2 -> PStrAt (go e1) (go e2)
-    PNot2 e -> PNot2 (go e)    
+    PStrSub e1 e2 e3 -> PStrSub (go e1) (go e2) (go e3)
+    PFun f xs -> PFun f (map go xs)
+    PNot2 e -> PNot2 (go e)
 
 evalP :: Pred -> Maybe Pred
 -- evalP (TReg e re) = case evalE e of
@@ -265,6 +262,8 @@ evalP (PPred (PRel r e1 e2)) = case (evalE e1, evalE e2) of
   (e1', e2') 
     | e1' /= e1 || e2' /= e2 -> Just $ PPred $ PRel r e1' e2'
     | otherwise              -> Nothing
+
+evalP _ = Nothing
 
 evalE :: PExpr -> PExpr
 evalE = \case
