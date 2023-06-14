@@ -148,19 +148,6 @@ isPRel (PPred (PRel _ _ _)) = True
 isPRel _ = False
 
 
--- TODO: allow more expression meets
-instance PartialMeetSemilattice PExpr where  
-  PAbs a ∧? PAbs b = PAbs <$> a ∧? b
-  
-   -- TODO: Is this correct?
-  PAbs (ABool   a) ∧? e | a == (⊤) = Just e
-  PAbs (AInt    a) ∧? e | a == (⊤) = Just e
-  PAbs (AString a) ∧? e | a == (⊤) = Just e
-
-  a ∧? b | a == b    = Just a
-         | otherwise = Nothing
-
-
 -- | Algorithm 3 in OOPSLA'23 submission.
 varElim :: Name -> Base -> [Pred2] -> [Pred2]
 varElim x b ps = runST $ do

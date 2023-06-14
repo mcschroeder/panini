@@ -212,6 +212,18 @@ pattern PVar x = PVal (Var x)
 pattern PCon :: Constant -> PExpr
 pattern PCon c = PVal (Con c)
 
+-- TODO: allow more expression meets
+instance PartialMeetSemilattice PExpr where  
+  PAbs a ∧? PAbs b = PAbs <$> a ∧? b
+  
+   -- TODO: Is this correct?
+  PAbs (ABool   a) ∧? e | a == (⊤) = Just e
+  PAbs (AInt    a) ∧? e | a == (⊤) = Just e
+  PAbs (AString a) ∧? e | a == (⊤) = Just e
+
+  a ∧? b | a == b    = Just a
+         | otherwise = Nothing
+
 instance Uniplate PExpr where
   uniplate = \case
     PAdd e1 e2       -> plate PAdd |* e1 |* e2
