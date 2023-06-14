@@ -48,7 +48,7 @@ instance MeetSemilattice ABool where
 instance BoundedMeetSemilattice ABool where
   top = Top
 
-instance Complementable ABool where
+instance ComplementedLattice ABool where
   neg Top    = Bottom
   neg True_  = False_
   neg False_ = True_

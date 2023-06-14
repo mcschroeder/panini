@@ -31,7 +31,7 @@ instance PartialMeetSemilattice AValue where
   AString a ∧? AString b = Just $ AString (a ∧ b)
   _         ∧? _         = Nothing
 
-instance Complementable AValue where
-  neg (ABool   a) = ABool   (neg a)
-  neg (AInt    a) = AInt    (neg a)
-  neg (AString _) = undefined -- TODO: AString (neg a)
+-- instance Complementable AValue where
+--   neg (ABool   a) = ABool   (neg a)
+--   neg (AInt    a) = AInt    (neg a)
+--   neg (AString _) = undefined -- TODO: AString (neg a)

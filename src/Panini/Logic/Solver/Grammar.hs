@@ -125,7 +125,8 @@ rewrite2 = Uniplate.rewrite $ \case
 
   _ -> Nothing
 
-instance Complementable Pred where
+-- TODO: do we want this?
+instance ComplementedLattice Pred where
   neg (PPred (PRel r e1 e2)) = 
     let p' = PPred (PRel (invRel r) e1 e2)
     in case evalP p' of
@@ -255,6 +256,6 @@ evalP _ = Nothing
 evalE :: PExpr -> PExpr
 evalE = \case
   PNot2 (PCon (B b pv)) -> PCon (B (not b) pv)
-  PNot2 (PAbs a) -> evalE $ PAbs (neg a)
+  PNot2 (PAbs (ABool a)) -> evalE $ PAbs (ABool $ neg a)
   e -> e
 

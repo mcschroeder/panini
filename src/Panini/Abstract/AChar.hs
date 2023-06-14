@@ -64,7 +64,7 @@ instance JoinSemilattice AChar where
 instance BoundedJoinSemilattice AChar where
   bot = AChar True mempty
 
-instance Complementable AChar where
+instance ComplementedLattice AChar where
   neg (AChar b xs) = AChar (not b) xs
 
 toCharList :: IntSet -> [Char]

@@ -36,11 +36,10 @@ import Prettyprinter qualified as PP
 newtype AInt = AInt IntervalSequence
   deriving stock (Eq, Show, Read)
   deriving newtype 
-    ( MeetSemilattice, BoundedMeetSemilattice
-    , JoinSemilattice, BoundedJoinSemilattice
-    , Complementable
-    , Hashable
-    )
+    ( MeetSemilattice, JoinSemilattice
+    , BoundedMeetSemilattice, BoundedJoinSemilattice
+    , ComplementedLattice
+    , Hashable)
 
 -- | The number of concrete values represented by the abstract integer (i.e.,
 -- the length of the list returned by 'concreteValues'), or 'Nothing' if the
@@ -201,7 +200,7 @@ instance MeetSemilattice IntervalSequence where
 instance BoundedMeetSemilattice IntervalSequence where
   top = [top]
 
-instance Complementable IntervalSequence where
+instance ComplementedLattice IntervalSequence where
   neg [] = [top]  
   neg (x:xs)
     | In a@(Fin _) _ <- x = In NegInf (pred <$> a) : go (x:xs)

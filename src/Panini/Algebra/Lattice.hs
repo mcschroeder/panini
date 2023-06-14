@@ -55,11 +55,8 @@ type BoundedLattice a = (BoundedMeetSemilattice a, BoundedJoinSemilattice a)
 
 -------------------------------------------------------------------------------
 
--- TODO: change to ComplementedLattice
-class Complementable a where
+class BoundedLattice a => ComplementedLattice a where
   neg :: a -> a
-
-type ComplementedLattice a = (BoundedLattice a, Complementable a)
 
 -------------------------------------------------------------------------------
 
