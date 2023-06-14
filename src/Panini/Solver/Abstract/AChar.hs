@@ -17,7 +17,7 @@ import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 -- import Panini.Syntax
 import Prelude
-import Data.Text qualified as Text
+-- import Data.Text qualified as Text
 
 -------------------------------------------------------------------------------
 

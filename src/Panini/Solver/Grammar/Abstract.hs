@@ -1,6 +1,5 @@
-module Panini.Solver.Grammar2.Abstract where
+module Panini.Solver.Grammar.Abstract where
 
-import Panini.Solver.Grammar2.Tree
 import Panini.Syntax
 import Prelude
 import Panini.Solver.Abstract.ABool
@@ -10,7 +9,7 @@ import Panini.Solver.Abstract.AString
 import Data.Text qualified as Text
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
-import Debug.Trace
+-- import Debug.Trace
 
 -------------------------------------------------------------------------------
 
@@ -150,6 +149,7 @@ topExpr _ = undefined
 concretizeVar :: Name -> PExpr -> Pred
 concretizeVar x e = case e of
   PAbs (AString s) -> PReg (Var x) (showPretty s)
+  _ -> error $ "concretization impossible (or not yet implemented): ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
 
 -- -- | Constraint Re-Concretization ⟦□⟧↓□
 -- concretizeVar :: Name -> PExpr -> Tree

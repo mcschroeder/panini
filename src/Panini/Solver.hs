@@ -15,8 +15,6 @@ import Prelude
 import Control.Applicative
 import Data.Maybe
 
-import Panini.Solver.Grammar2
-
 -- TODO: be strict in each of these steps
 
 solve :: Con -> Pan (Maybe Assignment)
@@ -55,7 +53,7 @@ solve c0 = do
 
   logMessage Info "Grammar" "Solve grammar variables"
   --let !gs = Map.map Grammar.solve cs
-  let !gs = Map.map (infer "z0") cs  -- TODO: generalize for variable name
+  let !gs = Map.map (Grammar.infer "z0") cs  -- TODO: generalize for variable name
   -- !gs <- fmap Map.fromList $ forM (Map.toList cs) $ \(k,c) -> do
   --   c' <- infer2 "s" c
   --   return (k,c')

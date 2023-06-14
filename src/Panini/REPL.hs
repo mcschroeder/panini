@@ -24,8 +24,8 @@ import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
-import Panini.Solver.Simplify
-import Panini.Solver.Grammar qualified
+-- import Panini.Solver.Simplify
+-- import Panini.Solver.Grammar qualified
 import Panini.Syntax
 import Prelude
 import System.Console.ANSI
@@ -87,10 +87,11 @@ solveGrammarFile f = do
   src <- liftIO $ Text.readFile f
   case parseConstraint f src of
     Left err -> outputPretty err
-    Right c -> do
-      outputPretty c
-      let c' = Panini.Solver.Grammar.solve c
-      outputPretty c'
+    Right _c -> do
+      undefined
+      -- outputPretty c
+      -- let c' = Panini.Solver.Grammar.solve c
+      -- outputPretty c'
 
 formatInput :: String -> InputT Pan ()
 formatInput input = do
