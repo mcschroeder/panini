@@ -95,28 +95,36 @@ instance Subable Pred where
         ṗ = subst (Var ṅ) n p
         ṅ = freshName n (y : freeVars p)
         
-    PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
     PImpl p₁ p₂  -> PImpl (subst x y p₁) (subst x y p₂)
     PIff p₁ p₂   -> PIff  (subst x y p₁) (subst x y p₂)
     PAnd ps      -> PAnd    (map (subst x y) ps)
     POr ps       -> POr     (map (subst x y) ps)
     PAppK k xs   -> PAppK k (map (subst x y) xs)
     PNot p₁      -> PNot (subst x y p₁)
+    PPred p      -> PPred (subst x y p)
     PTrue        -> PTrue
     PFalse       -> PFalse    
-    PReg v re    -> PReg (subst x y v) re
 
   freeVars = \case
-    PExists n _ p -> freeVars p \\ [n]
-    PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    PExists n _ p -> freeVars p \\ [n]    
     PImpl p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PIff  p₁ p₂   -> freeVars p₁ ++ freeVars p₂
     PAnd ps       -> concatMap freeVars ps
     POr ps        -> concatMap freeVars ps
     PAppK _ xs    -> concatMap freeVars xs
     PNot p₁       -> freeVars p₁
+    PPred p       -> freeVars p
     PTrue         -> []
     PFalse        -> []
+    
+
+instance Subable Pred2 where
+  subst x y = \case
+    PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
+    PReg v re    -> PReg (subst x y v) re
+  
+  freeVars = \case
+    PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PReg v _      -> freeVars v
 
 instance Subable PExpr where

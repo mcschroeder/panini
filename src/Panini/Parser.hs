@@ -355,7 +355,7 @@ predRel = do
   e1 <- pexpr
   r <- relation
   e2 <- pexpr
-  return (PRel r e1 e2)
+  return (PPred (PRel r e1 e2))
 
 relation :: Parser Rel
 relation = choice

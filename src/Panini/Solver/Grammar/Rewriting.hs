@@ -40,12 +40,20 @@ rewrite = tracer2 $ \case
   CAll x b p1 (CHead p2) -> rewrite2 $ varElimDNF x b $ rewrite2 $ PAnd [p1,p2]
   CAll x1 b1 p1 (CAll x2 b2 p2 c2) -> rewrite2 $ varElimDNF x1 b1 $ rewrite $ CAll x2 b2 (rewrite2 $ PAnd [p1,p2]) c2
 
+isPred2 :: Pred -> Bool
+isPred2 (PPred _) = True
+isPred2 _ = True
+
+unwrapPreds :: [Pred] -> [Pred2]
+unwrapPreds [] = []
+unwrapPreds (PPred p : xs) = p : unwrapPreds xs
+unwrapPreds _ = error "expected PPred"
 
 varElimDNF :: Name -> Base -> Pred -> Pred
 varElimDNF x b (POr xs) | all isPAnd xs =
-  POr $ map (\(PAnd ys) -> PAnd $ varElim x b ys) xs
+  POr $ map (\(PAnd ys) -> PAnd $ map PPred $ varElim x b $ unwrapPreds ys) xs
 varElimDNF x b (PAnd xs) | all isPRel xs =
-  POr [PAnd (varElim x b xs)]
+  POr [PAnd (map PPred $ varElim x b $ unwrapPreds xs)]
 varElimDNF _ _ PTrue = PTrue
 varElimDNF _ _ PFalse = PFalse
 varElimDNF _ _ p = error $ "expected DNF instead of " ++ showPretty p
@@ -87,13 +95,13 @@ rewrite2 = Uniplate.rewrite $ \case
 
   PIff a b -> Just $ POr [ PAnd [neg a, neg b], PAnd [a, b]]
 
-  p@(PRel _ _ _) -> evalP p
+  p@(PPred _) -> evalP p
 
   _ -> Nothing
 
 instance Complementable Pred where
-  neg (PRel r e1 e2) = 
-    let p' = PRel (invRel r) e1 e2
+  neg (PPred (PRel r e1 e2)) = 
+    let p' = PPred (PRel (invRel r) e1 e2)
     in case evalP p' of
       Nothing -> p'
       Just p'' -> p''
@@ -110,7 +118,7 @@ isPAnd (PAnd _) = True
 isPAnd _ = False
 
 isPRel :: Pred -> Bool
-isPRel (PRel _ _ _) = True
+isPRel (PPred (PRel _ _ _)) = True
 isPRel _ = False
 
 
@@ -128,7 +136,7 @@ instance PartialMeetSemilattice PExpr where
 
 
 -- | Algorithm 3 in OOPSLA'23 submission.
-varElim :: Name -> Base -> [Pred] -> [Pred]
+varElim :: Name -> Base -> [Pred2] -> [Pred2]
 varElim x b ps = runST $ do
 
   -- traceM $ "varElim " ++ showPretty x ++ " " ++ showPretty b ++ " " ++ showPretty ps
@@ -161,7 +169,7 @@ varElim x b ps = runST $ do
 
 
 -- TODO: integrate into existing substitution architecture
-substExpr :: PExpr -> Name -> Pred -> Pred
+substExpr :: PExpr -> Name -> Pred2 -> Pred2
 substExpr x̂ x p = case p of
   -- TReg e re -> TReg (go e) re
   PRel r e1 e2 -> PRel r (go e1) (go e2)
@@ -184,13 +192,13 @@ evalP :: Pred -> Maybe Pred
 --   e' | e' /= e     -> Just $ TPred $ TReg e' re
 --   _                -> Nothing
 
-evalP (PRel r e1 e2) = case (evalE e1, evalE e2) of
+evalP (PPred (PRel r e1 e2)) = case (evalE e1, evalE e2) of
 
   (PVar x, PCon (B b pv)) -> case r of
-    Ne -> Just $ PRel Eq (PVar x) (PCon (B (not b) pv))
+    Ne -> Just $ PPred $ PRel Eq (PVar x) (PCon (B (not b) pv))
     _ -> Nothing
 
-  (PNot2 x@(PVar _), e2'@(PCon (B _ _))) -> Just $ PRel (invRel r) x e2'
+  (PNot2 x@(PVar _), e2'@(PCon (B _ _))) -> Just $ PPred $ PRel (invRel r) x e2'
 
   (PCon (B b1 _), PCon (B b2 _)) -> case r of
     Eq | b1 == b2 -> Just PTrue
@@ -223,7 +231,7 @@ evalP (PRel r e1 e2) = case (evalE e1, evalE e2) of
     _             -> Just PFalse  -- TODO: might be hiding type error case
   
   (e1', e2') 
-    | e1' /= e1 || e2' /= e2 -> Just $ PRel r e1' e2'
+    | e1' /= e1 || e2' /= e2 -> Just $ PPred $ PRel r e1' e2'
     | otherwise              -> Nothing
 
 evalE :: PExpr -> PExpr

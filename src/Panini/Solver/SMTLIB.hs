@@ -42,16 +42,21 @@ instance SMTLIB Pred where
   encode = \case
     PTrue         -> "true"
     PFalse        -> "false"
-    PRel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
     PAnd ps       -> sexpr ("and" : map encode ps)
     POr ps        -> sexpr ("or" : map encode ps)
     PImpl p1 p2   -> sexpr ["=>", encode p1, encode p2]
     PIff p1 p2    -> sexpr ["iff", encode p1, encode p2]
     PNot p        -> sexpr ["not", encode p]
+    PPred p       -> encode p
     PAppK k xs    -> sexpr (encode k : map encode xs)
     PExists x b p -> sexpr ["exists", sorts [(x,b)], encode p]
     
+
+instance SMTLIB Pred2 where
+  encode = \case
+    PRel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
     PReg _ _ -> error "not implemented yet" -- TODO
+
 
 instance SMTLIB PExpr where
   encode = \case
@@ -63,6 +68,8 @@ instance SMTLIB PExpr where
     PStrLen p        -> sexpr ["str.len", encode p]
     PStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
     PStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
+    PAbs _ -> undefined -- TODO
+    PNot2 _ -> undefined -- TODO
 
 -- NB: we represent the substring operation using [start..end] ranges,
 -- but SMTLIB/Z3Str expects start plus length, so we have to convert

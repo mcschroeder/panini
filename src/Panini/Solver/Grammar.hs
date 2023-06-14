@@ -13,14 +13,14 @@ import Data.Foldable
 -------------------------------------------------------------------------------
 
 infer :: Name -> Con -> Pred
-infer s = concretizeVar s . PAbs . AString
+infer s = PPred . concretizeVar s . PAbs . AString
         . foldl' (∨) (⊥) 
         . map (foldl' (∧) (⊤) . map (abstractStringVar s))  -- TODO
         . toPredsDNF
         . rewrite
 
 -- TODO: either make this unnecessary or deal with errors gracefully
-abstractStringVar :: Name -> Pred -> AString
+abstractStringVar :: Name -> Pred2 -> AString
 abstractStringVar x p = case abstractVar x TString p of
   PAbs (AString s) -> s
   _                -> error "expected abstract string"
@@ -28,7 +28,7 @@ abstractStringVar x p = case abstractVar x TString p of
 -------------------------------------------------------------------------------
 
 -- TODO: ensure PRel at bottom
-toPredsDNF :: Pred -> [[Pred]]
-toPredsDNF (POr ps) | all isPAnd ps = [xs | PAnd xs <- ps]
-toPredsDNF (PAnd xs) | all isPRel xs = [xs]
+toPredsDNF :: Pred -> [[Pred2]]
+toPredsDNF (POr ps) | all isPAnd ps = [[y | PPred y <- xs] | PAnd xs <- ps]
+toPredsDNF (PAnd xs) | all isPRel xs = [[y | PPred y <- xs]]
 toPredsDNF c = error $ "expected (POr [PAnd _]) instead of " ++ showPretty c

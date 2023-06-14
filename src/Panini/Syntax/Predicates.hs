@@ -20,16 +20,12 @@ import Panini.Solver.Abstract.AString
 data Pred
   = PTrue
   | PFalse
-  | PRel Rel PExpr PExpr    -- ^ binary relation @e₁ R e₂@
   | PAnd [Pred]             -- ^ conjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
   | POr [Pred]              -- ^ disjunction @p₁ ∨ p₂ ∨ … ∨ pₙ@
   | PImpl Pred Pred         -- ^ implication @p₁ ⟹ p₂@
   | PIff Pred Pred          -- ^ if-and-only-if @p₁ ⟺ p₂@
   | PNot Pred               -- ^ negation @¬p@
-  
-  -- TODO: replace with proper RE type
-  | PReg Value String       -- ^ regular language membership @v ∈ RE@
-  
+  | PPred Pred2             -- ^ predicate
   | PAppK KVar [Value]      -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists Name Base Pred  -- ^ existential quantification @∃x:b. p@
   deriving stock (Eq, Show, Read, Generic)
@@ -70,24 +66,28 @@ instance Uniplate Pred where
     PIff p q      -> plate PIff |* p |* q
     PNot p        -> plate PNot |* p
     PExists x b p -> plate PExists |- x |- b |* p
-    p             -> plate p
+    PPred p       -> plate PPred |- p
+    PTrue         -> plate PTrue
+    PFalse        -> plate PFalse
+    PAppK k ys    -> plate PAppK |- k |- ys
 
 instance Biplate Pred PExpr where
   biplate = \case
-    PRel r e1 e2  -> plate PRel |- r |* e1 |* e2
     PAnd ps       -> plate PAnd ||+ ps
     POr ps        -> plate POr ||+ ps
     PImpl p q     -> plate PImpl |+ p |+ q
     PIff p q      -> plate PIff |+ p |+ q
     PNot p        -> plate PNot |+ p
     PExists x b p -> plate PExists |- x |- b |+ p
-    p             -> plate p
+    PPred p       -> plate PPred |+ p    
+    PTrue         -> plate PTrue
+    PFalse        -> plate PFalse
+    PAppK k ys    -> plate PAppK |- k |- ys
 
 instance Pretty Pred where
   pretty p0 = case p0 of
     PAppK k xs -> highlight $ pretty k <> prettyTuple xs
     PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
-    PRel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
     PIff   p1 p2 -> prettyL p0 p1 <+> symIff     <+> prettyR p0 p2
     PImpl  p1 p2 -> prettyL p0 p1 <+> symImplies <+> prettyR p0 p2
     PAnd ps -> concatWithOp symAnd $ map (prettyL p0) ps
@@ -96,16 +96,11 @@ instance Pretty Pred where
       symExists <> pretty x <> symColon <> pretty b <> symDot <+> pretty p    
     PTrue  -> "true"
     PFalse -> "false"
-    PReg v re -> pretty v <+> "∈" <+> pretty re  -- TODO: symQuery/symIn
+    PPred p -> pretty p
 
 instance HasFixity Pred where
   fixity (PNot _)       = Prefix
-  fixity (PRel Eq _ _)  = Infix NoAss 4
-  fixity (PRel Ne _ _)  = Infix NoAss 4
-  fixity (PRel Ge _ _)  = Infix NoAss 4
-  fixity (PRel Le _ _)  = Infix NoAss 4
-  fixity (PRel Gt _ _)  = Infix NoAss 4
-  fixity (PRel Lt _ _)  = Infix NoAss 4
+  fixity (PPred _)      = Infix NoAss 4
   fixity (PAnd _)       = Infix NoAss 3
   fixity (POr _)        = Infix NoAss 3
   fixity (PImpl _ _)    = Infix NoAss 1
@@ -113,6 +108,29 @@ instance HasFixity Pred where
   fixity _              = Infix LeftAss 9
 
 ------------------------------------------------------------------------------
+
+-- TODO: rename
+data Pred2
+  = PRel Rel PExpr PExpr    -- ^ binary relation @e₁ R e₂@
+  
+  -- TODO: replace with proper RE type
+  | PReg Value String       -- ^ regular language membership @v ∈ RE@
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable Pred2
+
+instance Biplate Pred2 PExpr where
+  biplate = \case
+    PRel r e1 e2  -> plate PRel |- r |* e1 |* e2
+    PReg v re -> plate PReg |- v |- re
+
+instance Pretty Pred2 where
+  pretty p0 = case p0 of
+    PRel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
+    PReg v re -> pretty v <+> "∈" <+> pretty re  -- TODO: symQuery/symIn
+
+instance HasFixity Pred2 where
+  fixity _ = Infix NoAss 4
 
 -- | A relation between two expressions.
 data Rel 
@@ -156,7 +174,7 @@ convRel = \case
   Lt -> Gt
 
 pEq :: PExpr -> PExpr -> Pred
-pEq = PRel Eq
+pEq a b = PPred (PRel Eq a b)
 
 evalRel :: Ord a => Rel -> (a -> a -> Bool)
 evalRel = \case

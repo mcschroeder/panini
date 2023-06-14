@@ -65,17 +65,17 @@ simplifyPred = transform $ \case
   PExists x _ p
     | x `notElem` freeVars p -> p
   
-  PExists x _ (PRel Eq (PVar v1) (PVar v2))  -- ∃x. x = y
+  PExists x _ (PPred (PRel Eq (PVar v1) (PVar v2)))  -- ∃x. x = y
     | x == v1 || x == v2 -> PTrue
 
-  PRel Eq p q | p == q -> PTrue
-  PRel Le p q | p == q -> PTrue
-  PRel Ge p q | p == q -> PTrue
-  PRel Ne p q | p == q -> PFalse
-  PRel Lt p q | p == q -> PFalse
-  PRel Gt p q | p == q -> PFalse
+  PPred (PRel Eq p q) | p == q -> PTrue
+  PPred (PRel Le p q) | p == q -> PTrue
+  PPred (PRel Ge p q) | p == q -> PTrue
+  PPred (PRel Ne p q) | p == q -> PFalse
+  PPred (PRel Lt p q) | p == q -> PFalse
+  PPred (PRel Gt p q) | p == q -> PFalse
 
-  PRel r (PVal (Con (I a _))) (PVal (Con (I b _))) -> mkBoolPred $ evalRel r a b
+  PPred (PRel r (PVal (Con (I a _))) (PVal (Con (I b _)))) -> mkBoolPred $ evalRel r a b
 
   p -> p
 

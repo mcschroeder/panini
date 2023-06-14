@@ -21,7 +21,7 @@ eval (PAdd (PCon (I i _)) (PAbs (AInt a))) = PAbs $ AInt $ aIntegerAddI a i
 eval e = e
 
 -- | Abstract Semantics of Constrained Variables ⟦□⟧↑□
-abstractVar :: Name -> Base -> Pred -> PExpr
+abstractVar :: Name -> Base -> Pred2 -> PExpr
 abstractVar x b p
   | x `notElem` (freeVars p) = topExpr b
   | PRel r e1 e2 <- p, x `notElem` (freeVars e1) = abstractVar x b $ PRel (convRel r) e2 e1  
@@ -146,7 +146,7 @@ topExpr TInt = PAbs $ AInt (⊤)
 topExpr TString = PAbs $ AString (⊤)
 topExpr _ = undefined
 
-concretizeVar :: Name -> PExpr -> Pred
+concretizeVar :: Name -> PExpr -> Pred2
 concretizeVar x e = case e of
   PAbs (AString s) -> PReg (Var x) (showPretty s)
   _ -> error $ "concretization impossible (or not yet implemented): ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
