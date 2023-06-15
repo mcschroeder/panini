@@ -9,6 +9,7 @@ import Panini.Error
 import Panini.Language.AST
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
+import Panini.Logic.KVar
 import Panini.Logic.Predicates
 import Panini.Monad
 import Panini.Names

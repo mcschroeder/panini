@@ -7,6 +7,7 @@ import Data.Maybe
 import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Logic.Constraints
+import Panini.Logic.KVar
 import Panini.Logic.Predicates
 import Panini.Logic.Simplify
 import Panini.Logic.Solver.Assignment

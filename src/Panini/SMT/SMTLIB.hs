@@ -8,6 +8,7 @@ import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
+import Panini.Logic.KVar
 import Panini.Logic.Predicates
 import Panini.Names
 import Panini.Primitives

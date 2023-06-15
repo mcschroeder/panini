@@ -17,6 +17,7 @@ import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Logger
 import Panini.Logic.Constraints
+import Panini.Logic.KVar
 import Panini.Logic.Predicates
 import Panini.SMT.Z3
 import Panini.Logic.Solver.Assignment

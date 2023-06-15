@@ -6,6 +6,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Logic.Constraints
+import Panini.Logic.KVar
 import Panini.Logic.Predicates
 import Panini.Substitution
 import Prelude
