@@ -6,6 +6,7 @@ import Data.Generics.Uniplate.Operations
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.Predicates
+import Panini.Logic.Relations
 import Panini.Names
 import Panini.Primitives
 import Panini.Substitution
@@ -37,7 +38,7 @@ simplifyCon = transform go . transformBi simplifyPred
         | CHead q <- c, p == q -> CTrue
 
         -- ∀x. x = y ⇒ φ(x)  ≡  φ(y)  where y is a primitive value
---        | PRel Eq (PVal (Var x')) (PVal y) <- p, x == x' -> go (subst y x c)
+--        | Rel Eq (PVal (Var x')) (PVal y) <- p, x == x' -> go (subst y x c)
       
       p -> p
 
@@ -70,17 +71,17 @@ simplifyPred = transform $ \case
   PExists x _ p
     | x `notElem` freeVars p -> p
   
-  PExists x _ (PPred (PRel Eq (PVar v1) (PVar v2)))  -- ∃x. x = y
+  PExists x _ (PRel (Rel Eq (PVar v1) (PVar v2)))  -- ∃x. x = y
     | x == v1 || x == v2 -> PTrue
 
-  PPred (PRel Eq p q) | p == q -> PTrue
-  PPred (PRel Le p q) | p == q -> PTrue
-  PPred (PRel Ge p q) | p == q -> PTrue
-  PPred (PRel Ne p q) | p == q -> PFalse
-  PPred (PRel Lt p q) | p == q -> PFalse
-  PPred (PRel Gt p q) | p == q -> PFalse
+  PRel (Rel Eq p q) | p == q -> PTrue
+  PRel (Rel Le p q) | p == q -> PTrue
+  PRel (Rel Ge p q) | p == q -> PTrue
+  PRel (Rel Ne p q) | p == q -> PFalse
+  PRel (Rel Lt p q) | p == q -> PFalse
+  PRel (Rel Gt p q) | p == q -> PFalse
 
-  PPred (PRel r (PVal (Con (I a _))) (PVal (Con (I b _)))) -> mkBoolPred $ evalRel r a b
+  PRel (Rel r (PVal (Con (I a _))) (PVal (Con (I b _)))) -> mkBoolPred $ evalRel r a b
 
   p -> p
 

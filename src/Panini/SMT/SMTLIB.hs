@@ -10,6 +10,7 @@ import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.KVar
 import Panini.Logic.Predicates
+import Panini.Logic.Relations
 import Panini.Names
 import Panini.Primitives
 import Panini.Provenance
@@ -53,14 +54,14 @@ instance SMTLIB Pred where
     PImpl p1 p2   -> sexpr ["=>", encode p1, encode p2]
     PIff p1 p2    -> sexpr ["iff", encode p1, encode p2]
     PNot p        -> sexpr ["not", encode p]
-    PPred p       -> encode p
+    PRel p       -> encode p
     PAppK k xs    -> sexpr (encode k : map encode xs)
     PExists x b p -> sexpr ["exists", sorts [(x,b)], encode p]
     
 
-instance SMTLIB Pred2 where
+instance SMTLIB Rel where
   encode = \case
-    PRel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
+    Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
     PReg _ _ -> error "not implemented yet" -- TODO
 
 
@@ -106,7 +107,7 @@ instance SMTLIB Constant where
     I x     _ -> LB.fromString (show x)
     S x     _ -> LB.fromString (show x)
 
-instance SMTLIB Rel where
+instance SMTLIB Rop where
   encode = \case
     Eq -> "="
     Ne -> "distinct"

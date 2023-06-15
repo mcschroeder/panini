@@ -5,6 +5,7 @@ import Panini.Language.AST
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.Predicates
+import Panini.Logic.Relations
 import Panini.Names
 import Panini.Primitives
 import Prelude
@@ -102,7 +103,7 @@ instance Subable Pred where
     POr ps       -> POr     (map (subst x y) ps)
     PAppK k xs   -> PAppK k (map (subst x y) xs)
     PNot p₁      -> PNot (subst x y p₁)
-    PPred p      -> PPred (subst x y p)
+    PRel p      -> PRel (subst x y p)
     PTrue        -> PTrue
     PFalse       -> PFalse    
 
@@ -114,18 +115,18 @@ instance Subable Pred where
     POr ps        -> concatMap freeVars ps
     PAppK _ xs    -> concatMap freeVars xs
     PNot p₁       -> freeVars p₁
-    PPred p       -> freeVars p
+    PRel p       -> freeVars p
     PTrue         -> []
     PFalse        -> []
     
 
-instance Subable Pred2 where
+instance Subable Rel where
   subst x y = \case
-    PRel r p₁ p₂ -> PRel r (subst x y p₁) (subst x y p₂)
+    Rel r p₁ p₂ -> Rel r (subst x y p₁) (subst x y p₂)
     PReg v re    -> PReg (subst x y v) re
   
   freeVars = \case
-    PRel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    Rel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
     PReg v _      -> freeVars v
 
 instance Subable PExpr where

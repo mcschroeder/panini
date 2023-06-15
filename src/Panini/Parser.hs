@@ -24,6 +24,7 @@ import Panini.Language.AST
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.Predicates
+import Panini.Logic.Relations
 import Panini.Names
 import Panini.Primitives
 import Panini.Provenance
@@ -361,9 +362,9 @@ predRel = do
   e1 <- pexpr
   r <- relation
   e2 <- pexpr
-  return (PPred (PRel r e1 e2))
+  return (PRel (Rel r e1 e2))
 
-relation :: Parser Rel
+relation :: Parser Rop
 relation = choice
   [ Ne <$ symNe
   , Eq <$ op "="
