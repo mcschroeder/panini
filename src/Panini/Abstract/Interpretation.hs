@@ -7,6 +7,7 @@ import Panini.Abstract.AInt
 import Panini.Abstract.AString
 import Panini.Abstract.AValue
 import Panini.Algebra.Lattice
+import Panini.Logic.Expressions
 import Panini.Logic.Predicates
 import Panini.Names
 import Panini.Pretty.Printer

@@ -3,6 +3,7 @@ module Panini.Substitution where
 import Data.List ((\\))
 import Panini.Language.AST
 import Panini.Logic.Constraints
+import Panini.Logic.Expressions
 import Panini.Logic.Predicates
 import Panini.Names
 import Panini.Primitives

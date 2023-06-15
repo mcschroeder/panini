@@ -17,6 +17,7 @@ import Panini.Abstract.AValue
 import Panini.Abstract.Interpretation
 import Panini.Algebra.Lattice
 import Panini.Logic.Constraints
+import Panini.Logic.Expressions
 import Panini.Logic.Predicates
 import Panini.Names
 import Panini.Pretty.Printer

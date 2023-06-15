@@ -17,6 +17,7 @@ import Data.Set qualified as Set
 import Panini.Algebra.Lattice
 import Panini.Logger
 import Panini.Logic.Constraints
+import Panini.Logic.Expressions
 import Panini.Logic.Predicates
 import Panini.Logic.Solver.Assignment
 import Panini.Monad
