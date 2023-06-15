@@ -5,30 +5,22 @@ import Data.Hashable
 import GHC.Generics (Generic)
 import Panini.Logic.Expressions
 import Panini.Pretty.Printer
-import Panini.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------
 
 -- | Relation between expressions.
-data Rel
-  = Rel Rop PExpr PExpr    -- ^ binary relation @e₁ ⋈ e₂@
-  
-  -- TODO: replace with proper RE type
-  | PReg Value String       -- ^ regular language membership @v ∈ RE@
+data Rel = Rel Rop PExpr PExpr    -- ^ binary relation @e₁ ⋈ e₂@  
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable Rel
 
 instance Biplate Rel PExpr where
-  biplate = \case
-    Rel r e1 e2  -> plate Rel |- r |* e1 |* e2
-    PReg v re -> plate PReg |- v |- re
+  biplate (Rel r e1 e2) = plate Rel |- r |* e1 |* e2
 
 instance Pretty Rel where
   pretty p0 = case p0 of
     Rel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
-    PReg v re -> pretty v <+> "∈" <+> pretty re  -- TODO: symQuery/symIn
 
 instance HasFixity Rel where
   fixity _ = Infix NoAss 4
@@ -41,6 +33,8 @@ data Rop
   | Le  -- ^ less than or equal @≤@
   | Gt  -- ^ greater than @>@
   | Lt  -- ^ less than @<@
+  | In  -- ^ regular expression inclusion @∈@
+  | Ni  -- ^ regular language non-inclusion @∉@
   deriving stock (Eq, Ord, Generic, Show, Read)
 
 instance Hashable Rop
@@ -53,6 +47,8 @@ instance Pretty Rop where
     Lt -> symLt
     Ge -> symGe
     Gt -> symGt
+    In -> "∈" -- TODO
+    Ni -> "∉" -- TODO
 
 -- | Inverse of a relation, e.g., ≥ to <.
 invRel :: Rop -> Rop
@@ -63,6 +59,8 @@ invRel = \case
   Le -> Gt
   Gt -> Le
   Lt -> Ge
+  In -> Ni
+  Ni -> In
 
 -- | Converse of a relation, e.g., ≥ to ≤.
 convRel :: Rop -> Rop
@@ -73,6 +71,8 @@ convRel = \case
   Le -> Ge
   Gt -> Lt
   Lt -> Gt
+  In -> undefined
+  Ni -> undefined
 
 evalRel :: Ord a => Rop -> (a -> a -> Bool)
 evalRel = \case
@@ -82,3 +82,5 @@ evalRel = \case
   Le -> (<=)
   Gt -> (>)
   Lt -> (<)
+  In -> undefined
+  Ni -> undefined

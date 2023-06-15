@@ -187,7 +187,6 @@ varElim x b ps = runST $ do
 -- TODO: integrate into existing substitution architecture
 substExpr :: PExpr -> Name -> Rel -> Rel
 substExpr x̂ x p = case p of
-  PReg _e _re -> undefined -- TODO
   Rel r e1 e2 -> Rel r (go e1) (go e2)
  where
   go = \case

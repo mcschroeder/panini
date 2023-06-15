@@ -153,7 +153,7 @@ topExpr _ = undefined
 
 concretizeVar :: Name -> PExpr -> Rel
 concretizeVar x e = case e of
-  PAbs (AString s) -> PReg (Var x) (showPretty s)
+  PAbs (AString s) -> Rel In (PVar x) (PAbs (AString s))
   _ -> error $ "concretization impossible (or not yet implemented): ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
 
 -- -- | Constraint Re-Concretization ⟦□⟧↓□

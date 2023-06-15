@@ -123,11 +123,9 @@ instance Subable Pred where
 instance Subable Rel where
   subst x y = \case
     Rel r p₁ p₂ -> Rel r (subst x y p₁) (subst x y p₂)
-    PReg v re    -> PReg (subst x y v) re
   
   freeVars = \case
     Rel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
-    PReg v _      -> freeVars v
 
 instance Subable PExpr where
   subst x y = \case

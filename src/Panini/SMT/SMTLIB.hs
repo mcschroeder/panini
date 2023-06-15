@@ -62,7 +62,6 @@ instance SMTLIB Pred where
 instance SMTLIB Rel where
   encode = \case
     Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
-    PReg _ _ -> error "not implemented yet" -- TODO
 
 
 instance SMTLIB PExpr where
@@ -115,6 +114,8 @@ instance SMTLIB Rop where
     Le -> "<="
     Gt -> ">"
     Lt -> "<"
+    In -> undefined -- TODO
+    Ni -> undefined -- TODO
 
 instance SMTLIB Base where
   encode = \case
