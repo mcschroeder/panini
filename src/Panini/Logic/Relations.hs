@@ -13,6 +13,42 @@ import Prelude
 data Rel = Rel Rop PExpr PExpr    -- ^ binary relation @e₁ ⋈ e₂@  
   deriving stock (Eq, Show, Read, Generic)
 
+-- | Returns the left-hand side of a relation.
+leftSide :: Rel -> PExpr
+leftSide (Rel _ e1 _) = e1
+
+-- | Returns the right-hand side of a relation.
+rightSide :: Rel -> PExpr
+rightSide (Rel _ _ e2) = e2
+
+-- TODO: replace with Complementable instance
+-- | The inverse of a relation, e.g., @a > b@ to @a ≤ b@.
+-- Note that this changes the semantics of the relation!
+inverse :: Rel -> Rel
+inverse = \case
+  e1 :=: e2 -> e1 :≠: e2
+  e1 :≠: e2 -> e1 :=: e2
+  e1 :≥: e2 -> e1 :<: e2
+  e1 :≤: e2 -> e1 :>: e2
+  e1 :>: e2 -> e1 :≤: e2
+  e1 :<: e2 -> e1 :>: e2
+  e1 :∈: e2 -> e1 :∉: e2
+  e1 :∉: e2 -> e1 :∈: e2
+
+-- | The converse of a relation, e.g., @a > b@ to @b < a@, if it exists. This
+-- transformation switches the left and right sides of the relation, while
+-- keeping the truth value the same.
+converse :: Rel -> Maybe Rel
+converse = \case
+  e1 :=: e2 -> Just $ e2 :=: e1
+  e1 :≠: e2 -> Just $ e2 :≠: e1
+  e1 :≥: e2 -> Just $ e2 :≤: e1
+  e1 :≤: e2 -> Just $ e2 :≥: e1
+  e1 :>: e2 -> Just $ e2 :<: e1
+  e1 :<: e2 -> Just $ e2 :>: e1
+  _ :∈: _ -> Nothing
+  _ :∉: _ -> Nothing
+
 {-# COMPLETE (:=:), (:≠:), (:≥:), (:>:), (:≤:), (:<:), (:∈:), (:∉:) #-}
 
 pattern (:=:), (:≠:) :: PExpr -> PExpr -> Rel
@@ -49,8 +85,8 @@ data Rop
   | Le  -- ^ less than or equal @≤@
   | Gt  -- ^ greater than @>@
   | Lt  -- ^ less than @<@
-  | In  -- ^ regular expression inclusion @∈@
-  | Ni  -- ^ regular language non-inclusion @∉@
+  | In  -- ^ included in @∈@
+  | Ni  -- ^ not included in @∉@
   deriving stock (Eq, Ord, Generic, Show, Read)
 
 instance Hashable Rop
@@ -65,38 +101,3 @@ instance Pretty Rop where
     Gt -> symGt
     In -> "∈" -- TODO
     Ni -> "∉" -- TODO
-
--- | Inverse of a relation, e.g., ≥ to <.
-invRel :: Rop -> Rop
-invRel = \case
-  Eq -> Ne
-  Ne -> Eq
-  Ge -> Lt
-  Le -> Gt
-  Gt -> Le
-  Lt -> Ge
-  In -> Ni
-  Ni -> In
-
--- | Converse of a relation, e.g., ≥ to ≤.
-convRel :: Rop -> Rop
-convRel = \case
-  Eq -> Eq
-  Ne -> Ne
-  Ge -> Le
-  Le -> Ge
-  Gt -> Lt
-  Lt -> Gt
-  In -> undefined
-  Ni -> undefined
-
-evalRel :: Ord a => Rop -> (a -> a -> Bool)
-evalRel = \case
-  Eq -> (==)
-  Ne -> (/=)
-  Ge -> (>=)
-  Le -> (<=)
-  Gt -> (>)
-  Lt -> (<)
-  In -> undefined
-  Ni -> undefined

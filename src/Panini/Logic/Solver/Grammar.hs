@@ -129,8 +129,8 @@ rewrite2 = Uniplate.rewrite $ \case
 
 -- TODO: do we want this?
 instance ComplementedLattice Pred where
-  neg (PRel (Rel r e1 e2)) = 
-    let p' = PRel (Rel (invRel r) e1 e2)
+  neg (PRel r@(Rel _ _ _)) = 
+    let p' = PRel $ inverse r
     in case evalP p' of
       Nothing -> p'
       Just p'' -> p''
@@ -216,7 +216,10 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
     Ne -> Just $ PRel $ Rel Eq (PVar x) (PCon (B (not b) pv))
     _ -> Nothing
 
-  (PNot2 x@(PVar _), e2'@(PCon (B _ _))) -> Just $ PRel $ Rel (invRel r) x e2'
+  (PNot2 x@(PVar _), (PCon (B b pv))) -> case r of
+    Eq -> Just $ PRel $ Rel Eq x (PCon (B (not b) pv))
+    Ne -> Just $ PRel $ Rel Eq x (PCon (B b pv))
+    _ -> Nothing
 
   (PCon (B b1 _), PCon (B b2 _)) -> case r of
     Eq | b1 == b2 -> Just PTrue

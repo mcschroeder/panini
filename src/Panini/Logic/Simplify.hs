@@ -80,8 +80,11 @@ simplifyPred = transform $ \case
   PRel (Rel Ne p q) | p == q -> PFalse
   PRel (Rel Lt p q) | p == q -> PFalse
   PRel (Rel Gt p q) | p == q -> PFalse
-
-  PRel (Rel r (PVal (Con (I a _))) (PVal (Con (I b _)))) -> mkBoolPred $ evalRel r a b
+  
+  PRel (Rel r (PVal (Con (I a _))) (PVal (Con (I b _)))) -> case r of
+    Eq -> mkBoolPred $ a == b
+    Ne -> mkBoolPred $ a /= b
+    _  -> undefined -- impossible
 
   p -> p
 

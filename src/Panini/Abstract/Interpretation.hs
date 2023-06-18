@@ -27,9 +27,9 @@ eval e = e
 
 -- | Abstract Semantics of Constrained Variables ⟦□⟧↑□
 abstractVar :: Name -> Base -> Rel -> PExpr
-abstractVar x b p
-  | x `notElem` (freeVars p) = topExpr b
-  | Rel r e1 e2 <- p, x `notElem` (freeVars e1) = abstractVar x b $ Rel (convRel r) e2 e1  
+abstractVar x b p -- TODO: rename p to r
+  | x `notElem` freeVars p = topExpr b
+  | x `notElem` freeVars (leftSide p), Just r' <- converse p = abstractVar x b r'
   | otherwise = case p of    
     -- TReg (PVar _) re -> PAbs $ AString $ undefined re -- TODO           -- x ∈ RE
     
