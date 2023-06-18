@@ -89,12 +89,12 @@ aCharEq = AChar True . I.singleton . fromEnum
 aCharNe :: Char -> AChar
 aCharNe = AChar False . I.singleton . fromEnum
 
--- toPred :: PExpr -> AChar -> Pred
+-- toPred :: Expr -> AChar -> Pred
 -- toPred lhs (AChar b cs) = case b of
 --   True  -> joins $ map (mkRel Eq) $ toCharList cs
 --   False -> meets $ map (mkRel Ne) $ toCharList cs
 --  where
---   mkRel r c = PRel r lhs (PCon (S (Text.singleton c) NoPV))  
+--   mkRel r c = PRel r lhs (ECon (S (Text.singleton c) NoPV))  
 
 instance Pretty AChar where
   pretty (AChar True cs) = case toCharList cs of

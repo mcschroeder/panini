@@ -140,7 +140,7 @@ aIntegerLeA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf a]
 
--- toPred :: PExpr -> AInt -> Pred
+-- toPred :: Expr -> AInt -> Pred
 -- toPred lhs (AInt xs) = case xs of
 --   []                                          -> PFalse
 --   In NegInf  PosInf  : []                     -> PTrue
@@ -153,7 +153,7 @@ aIntegerLeA (AInt xs) = case xs of
 --   In NegInf  _       : (last -> In _ PosInf ) -> meets $ holeRels
 --   _                                           -> error "impossible"
 --  where
---   mkRel r i = PRel r lhs (PCon (I i NoPV))
+--   mkRel r i = PRel r lhs (ECon (I i NoPV))
 --   holeRels  = map (mkRel Ne) (holes xs)
 
 instance Pretty AInt where

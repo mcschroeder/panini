@@ -39,7 +39,7 @@ infer g = \case
   Val (Con c) _ -> do
     let v = dummyName
     let b = primType c
-    let t = TBase v b (Known (PVar v `pEq` PCon c)) (getPV c)
+    let t = TBase v b (Known (EVar v `pEq` ECon c)) (getPV c)
     return $ Val (Con c) `withType` (t, CTrue)
     where
       primType (U   _) = TUnit
@@ -95,8 +95,8 @@ infer g = \case
     (ė₁, t₁, c₁) <- infer g e₁
     (ė₂, t₂, c₂) <- infer g e₂
     let y = freshName "y" (freeVars v ++ freeVars c₁ ++ freeVars c₂)
-    let p₁ = PVal v `pEq` PCon (B True  NoPV)
-    let p₂ = PVal v `pEq` PCon (B False NoPV)
+    let p₁ = EVal v `pEq` ECon (B True  NoPV)
+    let p₂ = EVal v `pEq` ECon (B False NoPV)
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
     t <- mkJoin t₁ t₂
     return $ If v ė₁ ė₂ pv `withType` (t, c)
@@ -106,7 +106,7 @@ self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst (Var v') x p) ∧ (PVar v' `pEq` PVar x)
+        p' = (subst (Var v') x p) ∧ (EVar v' `pEq` EVar x)
     in TBase v' b (Known p') pv  
   t -> t
 

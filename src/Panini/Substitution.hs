@@ -127,39 +127,39 @@ instance Subable Rel where
   freeVars = \case
     Rel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
 
-instance Subable PExpr where
+instance Subable Expr where
   subst x y = \case
-    PVal (Var n)
-      | y == n    -> PVal x
-      | otherwise -> PVal (Var n)
+    EVal (Var n)
+      | y == n    -> EVal x
+      | otherwise -> EVar n
 
-    PVal (Con c) -> PVal (Con c)
-    PAdd p₁ p₂   -> PAdd (subst x y p₁) (subst x y p₂)
-    PSub p₁ p₂   -> PSub (subst x y p₁) (subst x y p₂)
-    PMul p₁ p₂   -> PMul (subst x y p₁) (subst x y p₂)
-    PStrLen p    -> PStrLen (subst x y p)
-    PStrAt p₁ p₂ -> PStrAt (subst x y p₁) (subst x y p₂)
-    PStrSub p₁ p₂ p₃ -> PStrSub (subst x y p₁) (subst x y p₂) (subst x y p₃)
-    PFun f ps -> PFun f (map (subst x y) ps)
+    EVal (Con c) -> EVal (Con c)
+    EAdd p₁ p₂   -> EAdd (subst x y p₁) (subst x y p₂)
+    ESub p₁ p₂   -> ESub (subst x y p₁) (subst x y p₂)
+    EMul p₁ p₂   -> EMul (subst x y p₁) (subst x y p₂)
+    EStrLen p    -> EStrLen (subst x y p)
+    EStrAt p₁ p₂ -> EStrAt (subst x y p₁) (subst x y p₂)
+    EStrSub p₁ p₂ p₃ -> EStrSub (subst x y p₁) (subst x y p₂) (subst x y p₃)
+    EFun f ps -> EFun f (map (subst x y) ps)
 
     --TODO
-    PNot2 p -> PNot2 (subst x y p)
-    PAbs a -> PAbs a
+    ENot p -> ENot (subst x y p)
+    EAbs a -> EAbs a
   
   freeVars = \case
-    PVal (Var n)  -> [n]
-    PVal (Con _)  -> []
-    PFun f ps     -> f : concatMap freeVars ps
-    PAdd p₁ p₂    -> freeVars p₁ ++ freeVars p₂
-    PSub p₁ p₂    -> freeVars p₁ ++ freeVars p₂
-    PMul p₁ p₂    -> freeVars p₁ ++ freeVars p₂
-    PStrLen p     -> freeVars p
-    PStrAt p₁ p₂  -> freeVars p₁ ++ freeVars p₂
-    PStrSub p₁ p₂ p₃ -> freeVars p₁ ++ freeVars p₂ ++ freeVars p₃
+    EVal (Var n)  -> [n]
+    EVal (Con _)  -> []
+    EFun f ps     -> f : concatMap freeVars ps
+    EAdd p₁ p₂    -> freeVars p₁ ++ freeVars p₂
+    ESub p₁ p₂    -> freeVars p₁ ++ freeVars p₂
+    EMul p₁ p₂    -> freeVars p₁ ++ freeVars p₂
+    EStrLen p     -> freeVars p
+    EStrAt p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+    EStrSub p₁ p₂ p₃ -> freeVars p₁ ++ freeVars p₂ ++ freeVars p₃
 
     --TODO
-    PNot2 p -> freeVars p
-    PAbs _ -> []
+    ENot p -> freeVars p
+    EAbs _ -> []
 
 instance Subable Con where
   subst x y = \case

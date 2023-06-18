@@ -14,73 +14,68 @@ import Prelude
 
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
-data PExpr  
-  = PVal Value                 -- ^ constant @c@ or variable @x@  
-  | PAdd PExpr PExpr           -- ^ integer addition @e₁ + e₂@
-  | PSub PExpr PExpr           -- ^ integer subtraction @e₁ - e₂@
-  | PMul PExpr PExpr           -- ^ integer multiplication @e₁ * e₂@
-  | PStrLen PExpr              -- ^ string length @|s|@
-  | PStrAt PExpr PExpr         -- ^ character at index @s[i]@
-  | PStrSub PExpr PExpr PExpr  -- ^ substring @s[i..j]@ (inclusive bounds)
-  | PFun Name [PExpr]          -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@
-
-  | PNot2 PExpr -- TODO: hack
-  | PAbs AValue -- TODO
+data Expr  
+  = EVal Value              -- ^ constant @c@ or variable @x@
+  | EAbs AValue             -- ^ abstract value @α@
+  | ENot Expr               -- ^ Boolean negation @¬e@
+  | EAdd Expr Expr          -- ^ integer addition @e₁ + e₂@
+  | ESub Expr Expr          -- ^ integer subtraction @e₁ - e₂@
+  | EMul Expr Expr          -- ^ integer multiplication @e₁ * e₂@
+  | EStrLen Expr            -- ^ string length @|s|@
+  | EStrAt Expr Expr        -- ^ character at index @s[i]@
+  | EStrSub Expr Expr Expr  -- ^ substring @s[i..j]@ (inclusive bounds)
+  | EFun Name [Expr]        -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@   
   deriving stock (Eq, Show, Read, Generic)
 
-instance Hashable PExpr
+instance Hashable Expr
 
-pattern PVar :: Name -> PExpr
-pattern PVar x = PVal (Var x)
+pattern EVar :: Name -> Expr
+pattern EVar x = EVal (Var x)
 
-pattern PCon :: Constant -> PExpr
-pattern PCon c = PVal (Con c)
+pattern ECon :: Constant -> Expr
+pattern ECon c = EVal (Con c)
 
 -- TODO: allow more expression meets
-instance PartialMeetSemilattice PExpr where  
-  PAbs a ∧? PAbs b = PAbs <$> a ∧? b
+instance PartialMeetSemilattice Expr where  
+  EAbs a ∧? EAbs b = EAbs <$> a ∧? b
   
    -- TODO: Is this correct?
-  PAbs (ABool   a) ∧? e | isTop a = Just e
-  PAbs (AInt    a) ∧? e | isTop a = Just e
-  PAbs (AString a) ∧? e | isTop a = Just e
+  EAbs (ABool   a) ∧? e | isTop a = Just e
+  EAbs (AInt    a) ∧? e | isTop a = Just e
+  EAbs (AString a) ∧? e | isTop a = Just e
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
 
-instance Uniplate PExpr where
+instance Uniplate Expr where
   uniplate = \case
-    PAdd e1 e2       -> plate PAdd |* e1 |* e2
-    PSub e1 e2       -> plate PSub |* e1 |* e2
-    PMul e1 e2       -> plate PMul |* e1 |* e2
-    PStrLen e1       -> plate PStrLen |* e1
-    PStrAt e1 e2     -> plate PStrAt |* e1 |* e2
-    PStrSub e1 e2 e3 -> plate PStrSub |* e1 |* e2 |* e3
-    PFun f es        -> plate PFun |- f ||* es
-    
-    --TODO
-    PNot2 e -> plate PNot2 |* e
-    PAbs a -> plate PAbs |- a
-    PVal v -> plate PVal |- v
+    EAdd e1 e2       -> plate EAdd |* e1 |* e2
+    ESub e1 e2       -> plate ESub |* e1 |* e2
+    EMul e1 e2       -> plate EMul |* e1 |* e2
+    EStrLen e1       -> plate EStrLen |* e1
+    EStrAt e1 e2     -> plate EStrAt |* e1 |* e2
+    EStrSub e1 e2 e3 -> plate EStrSub |* e1 |* e2 |* e3
+    EFun f es        -> plate EFun |- f ||* es
+    ENot e -> plate ENot |* e
+    EAbs a -> plate EAbs |- a
+    EVal v -> plate EVal |- v
 
-instance Pretty PExpr where
+instance Pretty Expr where
   pretty p0 = case p0 of
-    PVal v -> pretty v
-    PFun f ps -> pretty f <> prettyTuple ps
-    PMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
-    PAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2
-    PSub p1 p2 -> prettyL p0 p1 <+> "-" <+> prettyR p0 p2
-    PStrLen p -> "|" <> pretty p <> "|"
-    PStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
-    PStrSub p1 p2 p3 -> 
+    EVal v -> pretty v
+    EFun f ps -> pretty f <> prettyTuple ps
+    EMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
+    EAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2
+    ESub p1 p2 -> prettyL p0 p1 <+> "-" <+> prettyR p0 p2
+    EStrLen p -> "|" <> pretty p <> "|"
+    EStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
+    EStrSub p1 p2 p3 -> 
       pretty p1 <> "[" <> pretty p2 <> symDotDot <> pretty p3 <> "]"
-    
-    -- TODO
-    PNot2 e -> symNeg <> parens (pretty e)
-    PAbs a -> pretty a
+    ENot e -> symNeg <> parens (pretty e)
+    EAbs a -> pretty a
 
-instance HasFixity PExpr where
-  fixity (PMul _ _) = Infix LeftAss 6
-  fixity (PAdd _ _) = Infix LeftAss 5
-  fixity (PSub _ _) = Infix LeftAss 5
+instance HasFixity Expr where
+  fixity (EMul _ _) = Infix LeftAss 6
+  fixity (EAdd _ _) = Infix LeftAss 5
+  fixity (ESub _ _) = Infix LeftAss 5
   fixity _          = Infix LeftAss 9

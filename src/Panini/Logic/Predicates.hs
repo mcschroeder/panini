@@ -69,7 +69,7 @@ instance Uniplate Pred where
     PFalse        -> plate PFalse
     PAppK k ys    -> plate PAppK |- k |- ys
 
-instance Biplate Pred PExpr where
+instance Biplate Pred Expr where
   biplate = \case
     PAnd ps       -> plate PAnd ||+ ps
     POr ps        -> plate POr ||+ ps
@@ -109,5 +109,5 @@ mkBoolPred :: Bool -> Pred
 mkBoolPred True = PTrue
 mkBoolPred False = PFalse
 
-pEq :: PExpr -> PExpr -> Pred
+pEq :: Expr -> Expr -> Pred
 pEq a b = PRel (Rel Eq a b)

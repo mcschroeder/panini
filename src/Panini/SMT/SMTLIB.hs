@@ -64,28 +64,28 @@ instance SMTLIB Rel where
     Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
 
 
-instance SMTLIB PExpr where
+instance SMTLIB Expr where
   encode = \case
-    PVal v           -> encode v
-    PAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
-    PSub e1 e2       -> sexpr ["-", encode e1, encode e2]
-    PMul e1 e2       -> sexpr ["*", encode e1, encode e2]
-    PFun x ps        -> sexpr (encode x : map encode ps)
-    PStrLen p        -> sexpr ["str.len", encode p]
-    PStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
-    PStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
-    PAbs _ -> undefined -- TODO
-    PNot2 _ -> undefined -- TODO
+    EVal v           -> encode v
+    EAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
+    ESub e1 e2       -> sexpr ["-", encode e1, encode e2]
+    EMul e1 e2       -> sexpr ["*", encode e1, encode e2]
+    EFun x ps        -> sexpr (encode x : map encode ps)
+    EStrLen p        -> sexpr ["str.len", encode p]
+    EStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
+    EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
+    EAbs _ -> undefined -- TODO
+    ENot _ -> undefined -- TODO
 
 -- NB: we represent the substring operation using [start..end] ranges,
 -- but SMTLIB/Z3Str expects start plus length, so we have to convert
-encodeSubstring :: PExpr -> PExpr -> PExpr -> Builder
+encodeSubstring :: Expr -> Expr -> Expr -> Builder
 encodeSubstring p1 p2 p3 = 
   sexpr ["str.substr", encode p1, encode p2, encode offset]
   where
     offset = case (p2,p3) of
-      (PCon (I i _), PCon (I j _)) -> PCon (I (j - i) NoPV)
-      _                            -> PSub p3 p2
+      (ECon (I i _), ECon (I j _)) -> ECon (I (j - i) NoPV)
+      _                            -> ESub p3 p2
 
 -- TODO: ensure uniqueness
 instance SMTLIB KVar where

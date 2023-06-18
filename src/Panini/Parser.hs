@@ -374,28 +374,28 @@ relation = choice
   , Gt <$ op ">"
   ]
 
-pexpr :: Parser PExpr
+pexpr :: Parser Expr
 pexpr = makeExprParser pexprTerm pexprOps
 
-pexprTerm :: Parser PExpr
+pexprTerm :: Parser Expr
 pexprTerm = choice
-  [ try $ PStrLen <$ symbol "|" <*> pexpr <* symbol "|"
-  , try $ PCon <$> constant <* notFollowedBy "("
-  , try $ PVar <$> name <* notFollowedBy "("
-  , PFun <$> name <*> parens (sepBy1 pexpr ",")
+  [ try $ EStrLen <$ symbol "|" <*> pexpr <* symbol "|"
+  , try $ ECon <$> constant <* notFollowedBy "("
+  , try $ EVar <$> name <* notFollowedBy "("
+  , EFun <$> name <*> parens (sepBy1 pexpr ",")
   ]
 
-pexprOps :: [[Operator Parser PExpr]]
+pexprOps :: [[Operator Parser Expr]]
 pexprOps =
   [ [ Postfix opSubStr ]
-  , [ infixL (op "*") (PMul)
+  , [ infixL (op "*") (EMul)
     ]
-  , [ infixL (op "+") (PAdd)
-    , infixL (op "-") (PSub)
+  , [ infixL (op "+") (EAdd)
+    , infixL (op "-") (ESub)
     ]
   ]
 
-opSubStr :: Parser (PExpr -> PExpr)
+opSubStr :: Parser (Expr -> Expr)
 opSubStr = foldr1 (flip (.)) <$> some subscripts
   where
     subscripts = do
@@ -404,8 +404,8 @@ opSubStr = foldr1 (flip (.)) <$> some subscripts
       jm <- optional $ symbol ".." >> pexpr
       symbol "]"
       case jm of
-        Just j -> return $ \s -> PStrSub s i j
-        Nothing -> return $ \s -> PStrAt s i
+        Just j -> return $ \s -> EStrSub s i j
+        Nothing -> return $ \s -> EStrAt s i
 
 prefix :: Functor m => m b -> (a -> a) -> Operator m a
 prefix p f = Prefix (f <$ p)

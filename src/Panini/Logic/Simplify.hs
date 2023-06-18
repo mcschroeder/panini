@@ -38,7 +38,7 @@ simplifyCon = transform go . transformBi simplifyPred
         | CHead q <- c, p == q -> CTrue
 
         -- ∀x. x = y ⇒ φ(x)  ≡  φ(y)  where y is a primitive value
---        | Rel Eq (PVal (Var x')) (PVal y) <- p, x == x' -> go (subst y x c)
+--        | Rel Eq (EVal (Var x')) (EVal y) <- p, x == x' -> go (subst y x c)
       
       p -> p
 
@@ -71,7 +71,7 @@ simplifyPred = transform $ \case
   PExists x _ p
     | x `notElem` freeVars p -> p
   
-  PExists x _ (PRel (Rel Eq (PVar v1) (PVar v2)))  -- ∃x. x = y
+  PExists x _ (PRel (Rel Eq (EVar v1) (EVar v2)))  -- ∃x. x = y
     | x == v1 || x == v2 -> PTrue
 
   PRel (Rel Eq p q) | p == q -> PTrue
@@ -81,7 +81,7 @@ simplifyPred = transform $ \case
   PRel (Rel Lt p q) | p == q -> PFalse
   PRel (Rel Gt p q) | p == q -> PFalse
   
-  PRel (Rel r (PVal (Con (I a _))) (PVal (Con (I b _)))) -> case r of
+  PRel (Rel r (EVal (Con (I a _))) (EVal (Con (I b _)))) -> case r of
     Eq -> mkBoolPred $ a == b
     Ne -> mkBoolPred $ a /= b
     _  -> undefined -- impossible

@@ -10,15 +10,15 @@ import Prelude
 ------------------------------------------------------------------------------
 
 -- | Relation between expressions.
-data Rel = Rel Rop PExpr PExpr    -- ^ binary relation @e₁ ⋈ e₂@  
+data Rel = Rel Rop Expr Expr    -- ^ binary relation @e₁ ⋈ e₂@  
   deriving stock (Eq, Show, Read, Generic)
 
 -- | Returns the left-hand side of a relation.
-leftSide :: Rel -> PExpr
+leftSide :: Rel -> Expr
 leftSide (Rel _ e1 _) = e1
 
 -- | Returns the right-hand side of a relation.
-rightSide :: Rel -> PExpr
+rightSide :: Rel -> Expr
 rightSide (Rel _ _ e2) = e2
 
 -- TODO: replace with Complementable instance
@@ -51,23 +51,23 @@ converse = \case
 
 {-# COMPLETE (:=:), (:≠:), (:≥:), (:>:), (:≤:), (:<:), (:∈:), (:∉:) #-}
 
-pattern (:=:), (:≠:) :: PExpr -> PExpr -> Rel
+pattern (:=:), (:≠:) :: Expr -> Expr -> Rel
 pattern e1 :=: e2 = Rel Eq e1 e2
 pattern e1 :≠: e2 = Rel Ne e1 e2
 
-pattern  (:≥:), (:>:), (:≤:), (:<:) :: PExpr -> PExpr -> Rel
+pattern  (:≥:), (:>:), (:≤:), (:<:) :: Expr -> Expr -> Rel
 pattern e1 :≥: e2 = Rel Ge e1 e2
 pattern e1 :>: e2 = Rel Gt e1 e2
 pattern e1 :≤: e2 = Rel Le e1 e2
 pattern e1 :<: e2 = Rel Lt e1 e2
 
-pattern (:∈:), (:∉:) :: PExpr -> PExpr -> Rel
+pattern (:∈:), (:∉:) :: Expr -> Expr -> Rel
 pattern e1 :∈: e2 = Rel In e1 e2
 pattern e1 :∉: e2 = Rel Ni e1 e2
 
 instance Hashable Rel
 
-instance Biplate Rel PExpr where
+instance Biplate Rel Expr where
   biplate (Rel r e1 e2) = plate Rel |- r |* e1 |* e2
 
 instance Pretty Rel where

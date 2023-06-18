@@ -19,52 +19,52 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- TODO
-eval :: PExpr -> PExpr
-eval (PAdd (PCon (I 0 _)) e) = e
-eval (PAdd (PAbs (AInt a)) (PCon (I i _))) = PAbs $ AInt $ aIntegerAddI a i
-eval (PAdd (PCon (I i _)) (PAbs (AInt a))) = PAbs $ AInt $ aIntegerAddI a i
+eval :: Expr -> Expr
+eval (EAdd (ECon (I 0 _)) e) = e
+eval (EAdd (EAbs (AInt a)) (ECon (I i _))) = EAbs $ AInt $ aIntegerAddI a i
+eval (EAdd (ECon (I i _)) (EAbs (AInt a))) = EAbs $ AInt $ aIntegerAddI a i
 eval e = e
 
 -- | Abstract Semantics of Constrained Variables ⟦□⟧↑□
-abstractVar :: Name -> Base -> Rel -> PExpr
+abstractVar :: Name -> Base -> Rel -> Expr
 abstractVar x b p -- TODO: rename p to r
   | x `notElem` freeVars p = topExpr b
   | x `notElem` freeVars (leftSide p), Just r' <- converse p = abstractVar x b r'
   | otherwise = case p of    
-    -- TReg (PVar _) re -> PAbs $ AString $ undefined re -- TODO           -- x ∈ RE
+    -- TReg (EVar _) re -> EAbs $ AString $ undefined re -- TODO           -- x ∈ RE
     
     -- x + a ⋈ b
-    Rel r (PAdd lhs1 lhs2) rhs1 
-      | x `elem` (freeVars lhs1) -> abstractVar x b $ Rel r lhs1 $ eval (PSub rhs1 lhs2)
+    Rel r (EAdd lhs1 lhs2) rhs1 
+      | x `elem` (freeVars lhs1) -> abstractVar x b $ Rel r lhs1 $ eval (ESub rhs1 lhs2)
 
     -- x - a ⋈ b
-    Rel r (PSub lhs1 lhs2) rhs1 
-      | x `elem` (freeVars lhs1) -> abstractVar x b $ Rel r lhs1 $ eval (PAdd rhs1 lhs2)
+    Rel r (ESub lhs1 lhs2) rhs1 
+      | x `elem` (freeVars lhs1) -> abstractVar x b $ Rel r lhs1 $ eval (EAdd rhs1 lhs2)
 
 
 
-    Rel Eq (PVar _) (PCon (B a _)) -> PAbs $ ABool $ aBoolEq a         -- x = a
-    Rel Ne (PVar _) (PCon (B a _)) -> PAbs $ ABool $ aBoolEq (not a)   -- x ≠ a
+    Rel Eq (EVar _) (ECon (B a _)) -> EAbs $ ABool $ aBoolEq a         -- x = a
+    Rel Ne (EVar _) (ECon (B a _)) -> EAbs $ ABool $ aBoolEq (not a)   -- x ≠ a
     
-    Rel Eq (PVar _) (PCon (I a _)) -> PAbs $ AInt $ aIntegerEq a       -- x = a
-    Rel Ne (PVar _) (PCon (I a _)) -> PAbs $ AInt $ aIntegerNe a       -- x ≠ a
-    Rel Gt (PVar _) (PCon (I a _)) -> PAbs $ AInt $ aIntegerGt a       -- x > a
-    Rel Ge (PVar _) (PCon (I a _)) -> PAbs $ AInt $ aIntegerGe a       -- x ≥ a
-    Rel Lt (PVar _) (PCon (I a _)) -> PAbs $ AInt $ aIntegerLt a       -- x < a
-    Rel Le (PVar _) (PCon (I a _)) -> PAbs $ AInt $ aIntegerLe a       -- x ≤ a
+    Rel Eq (EVar _) (ECon (I a _)) -> EAbs $ AInt $ aIntegerEq a       -- x = a
+    Rel Ne (EVar _) (ECon (I a _)) -> EAbs $ AInt $ aIntegerNe a       -- x ≠ a
+    Rel Gt (EVar _) (ECon (I a _)) -> EAbs $ AInt $ aIntegerGt a       -- x > a
+    Rel Ge (EVar _) (ECon (I a _)) -> EAbs $ AInt $ aIntegerGe a       -- x ≥ a
+    Rel Lt (EVar _) (ECon (I a _)) -> EAbs $ AInt $ aIntegerLt a       -- x < a
+    Rel Le (EVar _) (ECon (I a _)) -> EAbs $ AInt $ aIntegerLe a       -- x ≤ a
 
-    Rel Eq (PVar _) (PConChar c) -> PAbs $ AString $ aStringLit (aCharEq c) -- x = "c"
-    Rel Ne (PVar _) (PConChar c) -> PAbs $ AString $ aStringLit (aCharNe c) -- x ≠ "c"
+    Rel Eq (EVar _) (PConChar c) -> EAbs $ AString $ aStringLit (aCharEq c) -- x = "c"
+    Rel Ne (EVar _) (PConChar c) -> EAbs $ AString $ aStringLit (aCharNe c) -- x ≠ "c"
 
     -- x[i] = c
-    Rel Eq (PStrAt (PVar _) (PCon (I i _))) (PConChar c) ->
-      PAbs $ AString $ mconcat [ aStringRep aStringSigma i
+    Rel Eq (EStrAt (EVar _) (ECon (I i _))) (PConChar c) ->
+      EAbs $ AString $ mconcat [ aStringRep aStringSigma i
                                , aStringLit (aCharEq c)
                                , aStringStar aStringSigma]  -- Σ^(i-1)cΣ*
 
     -- x[i] ≠ c
-    Rel Ne (PStrAt (PVar _) (PCon (I i _))) (PConChar c) -> 
-      PAbs $ AString $ mconcat $ [ aStringRep aStringSigma i
+    Rel Ne (EStrAt (EVar _) (ECon (I i _))) (PConChar c) -> 
+      EAbs $ AString $ mconcat $ [ aStringRep aStringSigma i
                                  , aStringLit (aCharNe c)
                                  , aStringStar aStringSigma]
 
@@ -72,96 +72,96 @@ abstractVar x b p -- TODO: rename p to r
 
     -- TODO: find general solution
     -- |s| = [a,∞]
-    Rel Eq (PStrLen _) (PAbs (AInt i))
+    Rel Eq (EStrLen _) (EAbs (AInt i))
       | Just (Fin a) <- aMinimum i
       , Just PosInf <- aMaximum i
       , aContinuous i
-      -> PAbs $ AString $ mconcat [ aStringRep aStringSigma a
+      -> EAbs $ AString $ mconcat [ aStringRep aStringSigma a
                                   , aStringStar aStringSigma ]
 
 
 
     -- |s| = i
-    Rel Eq (PStrLen (PVar _)) (PCon (I i _)) ->
-      PAbs $ AString $ aStringRep aStringSigma i  -- Σ^i
+    Rel Eq (EStrLen (EVar _)) (ECon (I i _)) ->
+      EAbs $ AString $ aStringRep aStringSigma i  -- Σ^i
 
     -- |s| ≠ i
-    Rel Ne (PStrLen (PVar _)) (PCon (I i _)) ->
-      PAbs $ AString $ joins1  -- Σ^(i-1) | Σ^(i+1)Σ*
+    Rel Ne (EStrLen (EVar _)) (ECon (I i _)) ->
+      EAbs $ AString $ joins1  -- Σ^(i-1) | Σ^(i+1)Σ*
         [ aStringRep aStringSigma (i-1)
         , mconcat [ aStringRep aStringSigma i
                   , aStringStar aStringSigma]  
         ]
 
     -- |s| ≥ i
-    Rel Ge (PStrLen (PVar _)) (PCon (I i _)) ->
-      PAbs $ AString $ mconcat [ aStringRep aStringSigma i
+    Rel Ge (EStrLen (EVar _)) (ECon (I i _)) ->
+      EAbs $ AString $ mconcat [ aStringRep aStringSigma i
                                , aStringStar aStringSigma]  -- Σ^iΣ*
 
-    Rel Ge (PStrLen (PVar _)) (PAbs (AInt a)) ->
+    Rel Ge (EStrLen (EVar _)) (EAbs (AInt a)) ->
       case aMinimum (a ∧ aIntegerGe 0) of
-        Just (Fin i) -> PAbs $ AString $ mconcat [ aStringRep aStringSigma i
+        Just (Fin i) -> EAbs $ AString $ mconcat [ aStringRep aStringSigma i
                                , aStringStar aStringSigma]  -- Σ^iΣ*
-        _ -> PAbs $ AString bot
+        _ -> EAbs $ AString bot
 
     -- |s| > i
-    Rel Gt (PStrLen (PVar _)) (PCon (I i _)) ->
-      PAbs $ AString $ mconcat [ aStringRep aStringSigma (i + 1)
+    Rel Gt (EStrLen (EVar _)) (ECon (I i _)) ->
+      EAbs $ AString $ mconcat [ aStringRep aStringSigma (i + 1)
                                , aStringStar aStringSigma]  -- Σ^iΣ*                           
 
     -- TODO: hardcoded hack?
     -- |s| < 0
-    Rel Lt (PStrLen (PVar _)) (PCon (I 0 _)) -> PAbs $ AString bot
-    Rel Lt (PStrLen (PVar _)) (PAbs (AInt a)) 
-      | aMinimum a < Just (Fin 0) -> PAbs $ AString bot
+    Rel Lt (EStrLen (EVar _)) (ECon (I 0 _)) -> EAbs $ AString bot
+    Rel Lt (EStrLen (EVar _)) (EAbs (AInt a)) 
+      | aMinimum a < Just (Fin 0) -> EAbs $ AString bot
     
     -- TODO: ???? I don't know about these...
-    Rel Eq (PVar _) (PVar y) -> PVar y          -- x = y
-    Rel Ne (PVar _) (PVar y) -> PNot2 (PVar y)   -- x ≠ y
+    Rel Eq (EVar _) (EVar y) -> EVar y          -- x = y
+    Rel Ne (EVar _) (EVar y) -> ENot (EVar y)   -- x ≠ y
 
     -- x = |s|
-    Rel Eq (PVar _) e@(PStrLen (PVar _)) -> e
+    Rel Eq (EVar _) e@(EStrLen (EVar _)) -> e
     
     -- x ≠ |s|
-    Rel Ne (PVar _) e@(PStrLen (PVar _)) ->
-      PAdd e (PAbs $ AInt $ aIntegerNe 0)  -- |s| + [-∞,-1|1,∞]
+    Rel Ne (EVar _) e@(EStrLen (EVar _)) ->
+      EAdd e (EAbs $ AInt $ aIntegerNe 0)  -- |s| + [-∞,-1|1,∞]
 
     -- x < |s|
-    Rel Lt (PVar _) e@(PStrLen (PVar _)) -> 
-      PSub e (PAbs $ AInt $ aIntegerGe 1) -- |s| - [1,∞]
+    Rel Lt (EVar _) e@(EStrLen (EVar _)) -> 
+      ESub e (EAbs $ AInt $ aIntegerGe 1) -- |s| - [1,∞]
     
     -- x > |s|
-    Rel Gt (PVar _) e@(PStrLen (PVar _)) -> 
-      PAdd e (PAbs $ AInt $ aIntegerGe 1) -- |s| + [1,∞]
+    Rel Gt (EVar _) e@(EStrLen (EVar _)) -> 
+      EAdd e (EAbs $ AInt $ aIntegerGe 1) -- |s| + [1,∞]
 
     -- x ≥ |s|
-    Rel Ge (PVar _) e@(PStrLen (PVar _)) -> 
-      PAdd e (PAbs $ AInt $ aIntegerGe 0) -- |s| + [0,∞]
+    Rel Ge (EVar _) e@(EStrLen (EVar _)) -> 
+      EAdd e (EAbs $ AInt $ aIntegerGe 0) -- |s| + [0,∞]
 
 
     -- TODO: ???? I don't know about these...
-    Rel Eq (PVar _) e@(PStrAt (PVar _) (PCon _)) -> e       -- x = s[i]
-    Rel Ne (PVar _) e@(PStrAt (PVar _) (PCon _)) -> PNot2 e  -- x ≠ s[i]
+    Rel Eq (EVar _) e@(EStrAt (EVar _) (ECon _)) -> e       -- x = s[i]
+    Rel Ne (EVar _) e@(EStrAt (EVar _) (ECon _)) -> ENot e  -- x ≠ s[i]
 
     _ -> error $ "abstraction impossible: ⟦" ++ showPretty p ++ "⟧↑" ++ showPretty x
 
-topExpr :: Base -> PExpr
-topExpr TBool = PAbs $ ABool top
-topExpr TInt = PAbs $ AInt top
-topExpr TString = PAbs $ AString top
+topExpr :: Base -> Expr
+topExpr TBool = EAbs $ ABool top
+topExpr TInt = EAbs $ AInt top
+topExpr TString = EAbs $ AString top
 topExpr _ = undefined
 
-concretizeVar :: Name -> PExpr -> Rel
+concretizeVar :: Name -> Expr -> Rel
 concretizeVar x e = case e of
-  PAbs (AString s) -> Rel In (PVar x) (PAbs (AString s))
+  EAbs (AString s) -> Rel In (EVar x) (EAbs (AString s))
   _ -> error $ "concretization impossible (or not yet implemented): ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
 
 -- -- | Constraint Re-Concretization ⟦□⟧↓□
--- concretizeVar :: Name -> PExpr -> Tree
+-- concretizeVar :: Name -> Expr -> Tree
 -- concretizeVar x e = case e of
---   PAbs (AString s) -> TPred $ PReg (PVar x) $ RE $ showPretty s  -- TODO
---   PAbs _           -> error $ "concretization impossible: ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
---   _                -> TPred $ Rel Eq (PVar x) e  -- TODO: ensure e not abstract
+--   EAbs (AString s) -> TPred $ PReg (EVar x) $ RE $ showPretty s  -- TODO
+--   EAbs _           -> error $ "concretization impossible: ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
+--   _                -> TPred $ Rel Eq (EVar x) e  -- TODO: ensure e not abstract
 
-pattern PConChar :: Char -> PExpr
-pattern PConChar c <- PCon (S (Text.unpack -> [c]) _)
+pattern PConChar :: Char -> Expr
+pattern PConChar c <- ECon (S (Text.unpack -> [c]) _)

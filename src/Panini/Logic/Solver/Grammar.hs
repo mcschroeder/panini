@@ -29,7 +29,7 @@ import Prelude
 -------------------------------------------------------------------------------
 
 infer :: Name -> Con -> Pred
-infer s = PRel . concretizeVar s . PAbs . AString
+infer s = PRel . concretizeVar s . EAbs . AString
         . joins
         . map (meets . map (abstractStringVar s))  -- TODO
         . toPredsDNF
@@ -38,7 +38,7 @@ infer s = PRel . concretizeVar s . PAbs . AString
 -- TODO: either make this unnecessary or deal with errors gracefully
 abstractStringVar :: Name -> Rel -> AString
 abstractStringVar x p = case abstractVar x TString p of
-  PAbs (AString s) -> s
+  EAbs (AString s) -> s
   _                -> error "expected abstract string"
 
 -------------------------------------------------------------------------------
@@ -185,43 +185,43 @@ varElim x b ps = runST $ do
 
 
 -- TODO: integrate into existing substitution architecture
-substExpr :: PExpr -> Name -> Rel -> Rel
+substExpr :: Expr -> Name -> Rel -> Rel
 substExpr x̂ x p = case p of
   Rel r e1 e2 -> Rel r (go e1) (go e2)
  where
   go = \case
-    PVal (Var y) | y == x -> x̂
-    PVal (Var y) -> PVal (Var y)
-    PVal (Con c) -> PVal (Con c)
-    PAbs a -> PAbs a
-    PAdd e1 e2 -> PAdd (go e1) (go e2)
-    PMul e1 e2 -> PMul (go e1) (go e2)
-    PSub e1 e2 -> PSub (go e1) (go e2)
-    PStrLen e -> PStrLen (go e)
-    PStrAt e1 e2 -> PStrAt (go e1) (go e2)
-    PStrSub e1 e2 e3 -> PStrSub (go e1) (go e2) (go e3)
-    PFun f xs -> PFun f (map go xs)
-    PNot2 e -> PNot2 (go e)
+    EVal (Var y) | y == x -> x̂
+    EVal (Var y) -> EVal (Var y)
+    EVal (Con c) -> EVal (Con c)
+    EAbs a -> EAbs a
+    EAdd e1 e2 -> EAdd (go e1) (go e2)
+    EMul e1 e2 -> EMul (go e1) (go e2)
+    ESub e1 e2 -> ESub (go e1) (go e2)
+    EStrLen e -> EStrLen (go e)
+    EStrAt e1 e2 -> EStrAt (go e1) (go e2)
+    EStrSub e1 e2 e3 -> EStrSub (go e1) (go e2) (go e3)
+    EFun f xs -> EFun f (map go xs)
+    ENot e -> ENot (go e)
 
 evalP :: Pred -> Maybe Pred
 -- evalP (TReg e re) = case evalE e of
 --   TCon (S s _)     -> Just $ undefined s re -- TODO: regex inclusion
---   PAbs (AString s) -> Just $ undefined s re -- TODO: abstract regex inclusion?
+--   EAbs (AString s) -> Just $ undefined s re -- TODO: abstract regex inclusion?
 --   e' | e' /= e     -> Just $ TPred $ TReg e' re
 --   _                -> Nothing
 
 evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
 
-  (PVar x, PCon (B b pv)) -> case r of
-    Ne -> Just $ PRel $ Rel Eq (PVar x) (PCon (B (not b) pv))
+  (EVar x, ECon (B b pv)) -> case r of
+    Ne -> Just $ PRel $ Rel Eq (EVar x) (ECon (B (not b) pv))
     _ -> Nothing
 
-  (PNot2 x@(PVar _), (PCon (B b pv))) -> case r of
-    Eq -> Just $ PRel $ Rel Eq x (PCon (B (not b) pv))
-    Ne -> Just $ PRel $ Rel Eq x (PCon (B b pv))
+  (ENot x@(EVar _), (ECon (B b pv))) -> case r of
+    Eq -> Just $ PRel $ Rel Eq x (ECon (B (not b) pv))
+    Ne -> Just $ PRel $ Rel Eq x (ECon (B b pv))
     _ -> Nothing
 
-  (PCon (B b1 _), PCon (B b2 _)) -> case r of
+  (ECon (B b1 _), ECon (B b2 _)) -> case r of
     Eq | b1 == b2 -> Just PTrue
     Ne | b1 /= b2 -> Just PTrue
     _             -> Just PFalse  -- TODO: might be hiding type error case
@@ -230,14 +230,14 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
     -- {T,F} = T  ??? true or false?
 
   -- TODO: hardcoded hack; replace with general eval
-  (PAbs (ABool b1), PCon (B b2 _)) -> case concreteBool b1 of
+  (EAbs (ABool b1), ECon (B b2 _)) -> case concreteBool b1 of
     Nothing  -> Nothing
     Just b1' -> case r of
       Eq | b1' == b2 -> Just PTrue
       Ne | b1' /= b2 -> Just PTrue
       _              -> Just PFalse  -- TODO: might be hiding type error case
     
-  (PCon (I i1 _), PCon (I i2 _)) -> case r of
+  (ECon (I i1 _), ECon (I i2 _)) -> case r of
     Eq | i1 == i2 -> Just PTrue
     Ne | i1 /= i2 -> Just PTrue
     Gt | i1 >  i2 -> Just PTrue
@@ -246,7 +246,7 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
     Le | i1 <= i2 -> Just PTrue
     _             -> Just PFalse  -- TODO: might be hiding type error case
   
-  (PCon (S s1 _), PCon (S s2 _)) -> case r of
+  (ECon (S s1 _), ECon (S s2 _)) -> case r of
     Eq | s1 == s2 -> Just PTrue
     Ne | s1 /= s2 -> Just PTrue
     _             -> Just PFalse  -- TODO: might be hiding type error case
@@ -257,9 +257,9 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
 
 evalP _ = Nothing
 
-evalE :: PExpr -> PExpr
+evalE :: Expr -> Expr
 evalE = \case
-  PNot2 (PCon (B b pv)) -> PCon (B (not b) pv)
-  PNot2 (PAbs (ABool a)) -> evalE $ PAbs (ABool $ neg a)
+  ENot (ECon (B b pv)) -> ECon (B (not b) pv)
+  ENot (EAbs (ABool a)) -> evalE $ EAbs (ABool $ neg a)
   e -> e
 
