@@ -13,6 +13,22 @@ import Prelude
 data Rel = Rel Rop PExpr PExpr    -- ^ binary relation @e₁ ⋈ e₂@  
   deriving stock (Eq, Show, Read, Generic)
 
+{-# COMPLETE (:=:), (:≠:), (:≥:), (:>:), (:≤:), (:<:), (:∈:), (:∉:) #-}
+
+pattern (:=:), (:≠:) :: PExpr -> PExpr -> Rel
+pattern e1 :=: e2 = Rel Eq e1 e2
+pattern e1 :≠: e2 = Rel Ne e1 e2
+
+pattern  (:≥:), (:>:), (:≤:), (:<:) :: PExpr -> PExpr -> Rel
+pattern e1 :≥: e2 = Rel Ge e1 e2
+pattern e1 :>: e2 = Rel Gt e1 e2
+pattern e1 :≤: e2 = Rel Le e1 e2
+pattern e1 :<: e2 = Rel Lt e1 e2
+
+pattern (:∈:), (:∉:) :: PExpr -> PExpr -> Rel
+pattern e1 :∈: e2 = Rel In e1 e2
+pattern e1 :∉: e2 = Rel Ni e1 e2
+
 instance Hashable Rel
 
 instance Biplate Rel PExpr where
