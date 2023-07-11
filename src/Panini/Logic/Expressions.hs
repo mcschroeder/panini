@@ -2,12 +2,17 @@ module Panini.Logic.Expressions where
 
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.Text (Text)
 import GHC.Generics (Generic)
 import Panini.Abstract.AValue
+import Panini.Abstract.ABool
+import Panini.Abstract.AInt
+import Panini.Abstract.AString
 import Panini.Algebra.Lattice
 import Panini.Names
 import Panini.Pretty.Printer
 import Panini.Primitives
+import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -34,6 +39,30 @@ pattern EVar x = EVal (Var x)
 
 pattern ECon :: Constant -> Expr
 pattern ECon c = EVal (Con c)
+
+pattern EBool :: Bool -> PV -> Expr
+pattern EBool b pv = ECon (B b pv)
+
+pattern EInt :: Integer -> PV -> Expr
+pattern EInt i pv = ECon (I i pv)
+
+pattern EStr :: Text -> PV -> Expr
+pattern EStr s pv = ECon (S s pv)
+
+pattern EBoolA :: ABool -> Expr
+pattern EBoolA a = EAbs (ABool a)
+
+pattern EIntA :: AInt -> Expr
+pattern EIntA a = EAbs (AInt a)
+
+pattern EStrA :: AString -> Expr
+pattern EStrA a = EAbs (AString a)
+
+pattern (:+:) :: Expr -> Expr -> Expr
+pattern e1 :+: e2 = EAdd e1 e2
+
+pattern (:-:) :: Expr -> Expr -> Expr
+pattern e1 :-: e2 = ESub e1 e2
 
 -- TODO: allow more expression meets
 instance PartialMeetSemilattice Expr where  
