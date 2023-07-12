@@ -32,7 +32,7 @@ infer :: Name -> Con -> Pred
 infer s = PRel . concretizeVar s . EAbs . AString
         . joins
         . map (meets . map (abstractStringVar s))  -- TODO
-        . toPredsDNF
+        . unwrapDNF
         . rewrite
 
 -- TODO: either make this unnecessary or deal with errors gracefully
@@ -42,16 +42,6 @@ abstractStringVar x p = case abstractVar x TString p of
   _                -> error "expected abstract string"
 
 -------------------------------------------------------------------------------
-
--- TODO: ensure Rel at bottom
-toPredsDNF :: Pred -> [[Rel]]
-toPredsDNF (POr ps) | all isPAnd ps = [[y | PRel y <- xs] | PAnd xs <- ps]
-toPredsDNF (PAnd xs) | all isPRel xs = [[y | PRel y <- xs]]
-toPredsDNF c = error $ "expected (POr [PAnd _]) instead of " ++ showPretty c
-
-
--------------------------------------------------------------------------------
-
 
 tracer2 :: (Pretty a, Pretty b) => (a -> b) -> a -> b
 tracer2 f x = runST $ do
@@ -64,44 +54,32 @@ tracer2 f x = runST $ do
   return $ x'
 
 rewrite :: Con -> Pred  -- DNF?
-rewrite = tracer2 $ \case
-  CHead p -> rewrite2 p
-  CAnd c1 c2 -> rewrite2 $ PAnd [rewrite c1, rewrite c2]  
+rewrite = tracer2 $ \case  
+  CHead p -> toDNF p
+  CAnd c1 c2 -> toDNF $ PAnd [rewrite c1, rewrite c2]
   CAll _ _ PFalse _ -> PTrue
-  CAll x b (POr ps) c -> rewrite2 $ POr $ map (\p' -> rewrite $ CAll x b p' c) ps  
-  CAll x b p (CAnd c1 c2) -> rewrite2 $ PAnd [rewrite $ CAll x b p c1, rewrite $ CAll x b p c2]
-  CAll x b p1 (CHead p2) -> rewrite2 $ varElimDNF x b $ rewrite2 $ PAnd [p1,p2]
-  CAll x1 b1 p1 (CAll x2 b2 p2 c2) -> rewrite2 $ varElimDNF x1 b1 $ rewrite $ CAll x2 b2 (rewrite2 $ PAnd [p1,p2]) c2
+  CAll x b (POr ps) c -> 
+    toDNF $ POr $ map (\p' -> rewrite $ CAll x b p' c) ps
+  CAll x b p (CAnd c1 c2) ->
+    toDNF $ PAnd [rewrite $ CAll x b p c1, rewrite $ CAll x b p c2]
+  CAll x b p1 (CHead p2) -> 
+    varElimDNF x b $ toDNF $ PAnd [p1,p2]
+  CAll x1 b1 p1 (CAll x2 b2 p2 c2) ->
+    varElimDNF x1 b1 $ rewrite $ CAll x2 b2 (toDNF $ PAnd [p1,p2]) c2
 
-unwrapPreds :: [Pred] -> [Rel]
-unwrapPreds [] = []
-unwrapPreds (PRel p : xs) = p : unwrapPreds xs
-unwrapPreds _ = error "expected PRel"
+-------------------------------------------------------------------------------
 
-varElimDNF :: Name -> Base -> Pred -> Pred
-varElimDNF x b (POr xs) | all isPAnd xs =
-  POr [PAnd $ map PRel $ varElim x b $ unwrapPreds ys | PAnd ys <- xs]
-varElimDNF x b (PAnd xs) | all isPRel xs =
-  POr [PAnd (map PRel $ varElim x b $ unwrapPreds xs)]
-varElimDNF _ _ PTrue = PTrue
-varElimDNF _ _ PFalse = PFalse
-varElimDNF _ _ p = error $ "expected DNF instead of " ++ showPretty p
-
-
--- TODO: this should always return well-formed DNF
-rewrite2 :: Pred -> Pred
-rewrite2 = Uniplate.rewrite $ \case
+toDNF :: Pred -> Pred
+toDNF = Uniplate.rewrite $ \case
   PAnd xs
     | any (== PFalse) xs -> Just PFalse
     | any (== PTrue) xs -> Just $ PAnd $ List.filter (/= PTrue) xs
     | any isPAnd xs ->
       let (ys, zs) = partition isPAnd xs
-          ys' = mconcat [y | PAnd y <- ys]
-          zs' = zs
-      in Just $ PAnd $ ys' ++ zs'
+      in Just $ PAnd $ mconcat [y | PAnd y <- ys] ++ zs
     | any isPOr xs -> case partition isPOr xs of
         (POr ys : yys, zs) -> Just $ POr $ [PAnd $ y : (yys ++ zs) | y <- ys]
-        _ -> undefined -- TODO
+        _ -> error "impossible"
     | or [neg x `elem` xs | x <- xs] -> Just PFalse -- TODO: this needs a normal form / eval
     | HashSet.size (HashSet.fromList xs) < length xs -> Just $ PAnd $ List.nub xs  -- TODO
     | [x] <- xs -> Just x
@@ -111,9 +89,7 @@ rewrite2 = Uniplate.rewrite $ \case
     | any (== PFalse) xs -> Just $ POr $ List.filter (/= PFalse) xs
     | any isPOr xs -> 
       let (ys, zs) = partition isPOr xs
-          ys' = mconcat [y | POr y <- ys]
-          zs' = zs
-      in Just $ POr $ ys' ++ zs'
+      in Just $ POr $ mconcat [y | POr y <- ys] ++ zs
     | [x] <- xs -> Just x
 
   PNot (POr xs) -> Just $ PAnd $ map neg xs  
@@ -123,33 +99,34 @@ rewrite2 = Uniplate.rewrite $ \case
 
   PIff a b -> Just $ POr [ PAnd [neg a, neg b], PAnd [a, b]]
 
-  p@(PRel _) -> evalP p
+  -- PNot (PRel r) -> Just $ PRel $ inverse r
+
+  -- p@(PRel _) -> evalP p
 
   _ -> Nothing
 
--- TODO: do we want this?
-instance ComplementedLattice Pred where
-  neg (PRel r@(Rel _ _ _)) = 
-    let p' = PRel $ inverse r
-    in case evalP p' of
-      Nothing -> p'
-      Just p'' -> p''
-  neg (PNot p) = p
-  neg p = PNot p
+unwrapDNF :: Pred -> [[Rel]]
+unwrapDNF = \case
+  POr  xs -> unOr xs
+  PAnd ys -> [unAnd ys]
+  PTrue   -> [[]]
+  PFalse  -> []
+  p -> error $ "expected POr/PAnd/PTrue/PFalse instead of " ++ showPretty p
+  where
+    unAnd ys 
+      | all isPRel ys = [y | PRel y <- ys]
+      | otherwise = error $ "expected all PRel instead of " ++ showPretty ys
+    unOr xs 
+      | all isPAnd xs = [unAnd ys | PAnd ys <- xs]
+      | otherwise = error $ "expected all PAnd instead of " ++ showPretty xs
 
+wrapDNF :: [[Rel]] -> Pred
+wrapDNF = POr . map (PAnd . map PRel)
 
-isPOr :: Pred -> Bool
-isPOr (POr _) = True
-isPOr _ = False
+-------------------------------------------------------------------------------
 
-isPAnd :: Pred -> Bool
-isPAnd (PAnd _) = True
-isPAnd _ = False
-
-isPRel :: Pred -> Bool
-isPRel (PRel (Rel _ _ _)) = True
-isPRel _ = False
-
+varElimDNF :: Name -> Base -> Pred -> Pred
+varElimDNF x b = wrapDNF . map (varElim x b) . unwrapDNF
 
 -- | Algorithm 3 in OOPSLA'23 submission.
 varElim :: Name -> Base -> [Rel] -> [Rel]
@@ -183,7 +160,6 @@ varElim x b ps = runST $ do
 
   return qs
 
-
 -- TODO: integrate into existing substitution architecture
 substExpr :: Expr -> Name -> Rel -> Rel
 substExpr x̂ x p = case p of
@@ -202,6 +178,19 @@ substExpr x̂ x p = case p of
     EStrSub e1 e2 e3 -> EStrSub (go e1) (go e2) (go e3)
     EFun f xs -> EFun f (map go xs)
     ENot e -> ENot (go e)
+
+-------------------------------------------------------------------------------
+
+-- TODO: do we want this?
+instance ComplementedLattice Pred where
+  neg (PRel r@(Rel _ _ _)) = 
+    let p' = PRel $ inverse r
+    in case evalP p' of
+      Nothing -> p'
+      Just p'' -> p''
+  neg (PNot p) = p
+  neg p = PNot p
+
 
 evalP :: Pred -> Maybe Pred
 -- evalP (TReg e re) = case evalE e of
@@ -263,3 +252,16 @@ evalE = \case
   ENot (EAbs (ABool a)) -> evalE $ EAbs (ABool $ neg a)
   e -> e
 
+-------------------------------------------------------------------------------
+
+isPOr :: Pred -> Bool
+isPOr (POr _) = True
+isPOr _       = False
+
+isPAnd :: Pred -> Bool
+isPAnd (PAnd _) = True
+isPAnd _        = False
+
+isPRel :: Pred -> Bool
+isPRel (PRel (Rel _ _ _)) = True
+isPRel _                  = False
