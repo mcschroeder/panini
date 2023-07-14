@@ -34,7 +34,7 @@ infer s = PRel . concretizeVar s . EAbs . AString
         . joins
         . map (meets . map (abstractStringVar s))  -- TODO
         -- . unwrapDNF
-        . rewrite
+        . unDNF . rewrite4
 
 -- TODO: either make this unnecessary or deal with errors gracefully
 abstractStringVar :: Name -> Rel -> AString
@@ -65,33 +65,122 @@ rewrite c0 = runST $ do
   case c0 of
     CHead p -> logReturn $ toDNF p
     CAnd c1 c2 -> do
-      traceM $ showPretty' $ "REWRITE:" <\> "⋀" <+> nest 2 (prettyList [c1,c2])
+      traceM $ showPretty' $ "REWRITE:" <\> "⋀" <+> nest 2 (pretty [c1,c2])
       logReturn $ toDNF $ PAnd [wrapDNF $ rewrite c1, wrapDNF $ rewrite c2]
     CAll x b p c -> do
       let ps = toDNF p
-      traceM $ showPretty' $ "ANTECEDENTS:" <\> "⋁" <+> nest 2 (prettyList ps)
+      traceM $ showPretty' $ "ANTECEDENTS:" <\> "⋁" <+> nest 2 (pretty ps)
       rs <- forM ps $ \p' -> case c of
         CAnd c1 c2 -> do
           let c1' = CAll x b (wrapDNF [p']) c1
           let c2' = CAll x b (wrapDNF [p']) c2
-          traceM $ showPretty' $ "REWRITE:" <\> "⋀" <+> nest 2 (prettyList [c1',c2'])
+          traceM $ showPretty' $ "REWRITE:" <\> "⋀" <+> nest 2 (pretty [c1',c2'])
           case rewrite c1' of
             [] -> case rewrite c2' of
-              [] -> logReturn $ PFalse -- PTrue?
-              c2'' -> logReturn $ wrapDNF c2''
+              [] -> logReturn []
+              c2'' -> logReturn c2''
             c1'' -> case rewrite c2' of
-              [] -> logReturn $ wrapDNF c1''
-              c2'' -> logReturn $ PAnd [wrapDNF c1'', wrapDNF c2'']
+              [] -> logReturn c1''
+              c2'' -> logReturn $ toDNF $ PAnd [wrapDNF c1'', wrapDNF c2'']
         CHead q -> do
-          logReturn $ wrapDNF $ mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], q]
+          logReturn $ mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], q]
         CAll x2 b2 p2 c2 -> do
           let c' = CAll x2 b2 (wrapDNF $ toDNF $ PAnd [wrapDNF [p'],p2]) c2
           traceM $ showPretty' $ "REWRITE:" <\>  pretty (CAll x b PTrue c')
-          logReturn $ wrapDNF $ mapMaybe (varElim x b) $ rewrite c'
-      logReturn $ toDNF $ POr rs 
+          logReturn $ mapMaybe (varElim x b) $ rewrite c'
+      logReturn $ concat rs 
 
 
-      
+rewrite3 :: Con -> [[Rel]]  -- DNF?
+rewrite3 = \case
+  CHead p -> toDNF p
+  CAnd c1 c2 -> toDNF $ PAnd [wrapDNF $ rewrite3 c1, wrapDNF $ rewrite3 c2]
+  CAll x b p c -> concat $ flip map (toDNF p) $ \p' -> case c of
+    CHead q -> mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], q]
+    CAnd c1 c2 ->
+      let c1' = mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], wrapDNF $ rewrite3 c1]
+          c2' = mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], wrapDNF $ rewrite3 c2]
+      in case (c1', c2') of
+        ([],[]) -> []
+        ([],c2'') -> c2''
+        (c1'',[]) -> c1''
+        (c1'',c2'') -> toDNF $ PAnd [wrapDNF c1'', wrapDNF c2'']
+    CAll x2 b2 p2 c2 ->
+      let p2' = PAnd [wrapDNF [p'], p2]
+      in mapMaybe (varElim x b) $ rewrite3 $ CAll x2 b2 p2' c2
+
+
+rewrite4 :: Con -> DNF Rel
+rewrite4 = \case
+  CHead p -> toDNF2 p
+  CAnd c1 c2 -> rewrite4 c1 ∧ rewrite4 c2
+  CAll x b p c -> foldr (∨) (DNF []) $ flip map (splitDNF $ toDNF2 p) $ \p' -> case c of
+    CHead q -> varElimDNF x b $ p' ∧ toDNF2 q
+    CAnd c1 c2 ->
+      let c1' = varElimDNF x b $ p' ∧ rewrite4 c1
+          c2' = varElimDNF x b $ p' ∧ rewrite4 c2
+      in case (c1', c2') of
+        (DNF [], DNF []) -> DNF []
+        (DNF [], c2''  ) -> c2''
+        (c1'',   DNF []) -> c1''
+        (c1'',   c2''  ) -> c1'' ∧ c2''
+    CAll x2 b2 p2 c2 ->
+      let p2' = wrapDNF $ unDNF $ p' ∧ toDNF2 p2      
+      in varElimDNF x b $ rewrite4 $ CAll x2 b2 p2' c2
+
+varElimDNF :: Name -> Base -> DNF Rel -> DNF Rel
+varElimDNF x b = DNF . mapMaybe (varElim x b) . unDNF
+
+unDNF :: DNF a -> [[a]]
+unDNF (DNF ps) = ps
+
+splitDNF :: DNF a -> [DNF a]
+splitDNF (DNF ps) = map (DNF . pure) ps
+
+newtype DNF a = DNF [[a]]
+
+instance Semigroup (DNF a) where
+  (<>) = (∨)
+
+instance Monoid (DNF a) where
+  mempty = DNF []
+
+instance MeetSemilattice (DNF a) where
+  DNF ps ∧ DNF qs = DNF [p ++ q | p <- ps, q <- qs]
+
+instance BoundedMeetSemilattice (DNF a) where
+  top = DNF [[]]
+
+instance JoinSemilattice (DNF a) where
+  DNF [[]] ∨ _        = DNF [[]]
+  _        ∨ DNF [[]] = DNF [[]]
+  DNF ps   ∨ DNF qs   = DNF (ps ++ qs)
+
+instance BoundedJoinSemilattice (DNF a) where
+  bot = DNF []
+
+
+-- rewrite3 :: Con -> [[Rel]]  -- DNF?
+-- rewrite3 c0 = do
+--   case c0 of
+--     CHead p -> toDNF p
+--     CAnd c1 c2 -> do
+--       toDNF $ PAnd [wrapDNF $ rewrite3 c1, wrapDNF $ rewrite3 c2]
+--     CAll x b p c ->
+--       concat $ flip map (toDNF p) $ \p' -> case c of
+--               CAnd c1 c2 ->
+--                 let c1' = CAll x b (wrapDNF [p']) c1
+--                     c2' = CAll x b (wrapDNF [p']) c2
+--                 in case (rewrite3 c1', rewrite3 c2') of
+--                     ([],[]) -> []
+--                     ([],c2'') -> c2''
+--                     (c1'',[]) -> c1''
+--                     (c1'',c2'') -> toDNF $ PAnd [wrapDNF c1'', wrapDNF c2'']
+--               CHead q ->
+--                 mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], q]
+--               CAll x2 b2 p2 c2 ->
+--                 let c' = CAll x2 b2 (wrapDNF $ toDNF $ PAnd [wrapDNF [p'],p2]) c2
+--                 in mapMaybe (varElim x b) $ rewrite3 c'
 
   -- CHead p -> toDNF p
   -- CAnd c1 c2 -> toDNF $ PAnd [wrapDNF $ rewrite c1, wrapDNF $ rewrite c2]
@@ -106,6 +195,9 @@ rewrite c0 = runST $ do
   --   mapMaybe (varElim x1 b1) $ rewrite $ CAll x2 b2 (wrapDNF $ toDNF $ PAnd [p1,p2]) c2
 
 -------------------------------------------------------------------------------
+
+toDNF2 :: Pred -> DNF Rel
+toDNF2 = DNF . unwrapDNF . toDNF'
 
 toDNF :: Pred -> [[Rel]]
 toDNF = unwrapDNF . toDNF'
