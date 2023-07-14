@@ -25,6 +25,7 @@ import Panini.Pretty.Printer
 import Panini.Primitives
 import Panini.Substitution
 import Prelude
+import Data.Text qualified as Text
 
 -------------------------------------------------------------------------------
 
@@ -32,7 +33,7 @@ infer :: Name -> Con -> Pred
 infer s = PRel . concretizeVar s . EAbs . AString
         . joins
         . map (meets . map (abstractStringVar s))  -- TODO
-        . unwrapDNF
+        -- . unwrapDNF
         . rewrite
 
 -- TODO: either make this unnecessary or deal with errors gracefully
@@ -53,24 +54,64 @@ tracer2 f x = runST $ do
   traceM $ replicate 40 '-'
   return $ x'
 
-rewrite :: Con -> Pred  -- DNF?
-rewrite = tracer2 $ \case  
-  CHead p -> toDNF p
-  CAnd c1 c2 -> toDNF $ PAnd [rewrite c1, rewrite c2]
-  CAll _ _ PFalse _ -> PTrue
-  CAll x b (POr ps) c -> 
-    toDNF $ POr $ map (\p' -> rewrite $ CAll x b p' c) ps
-  CAll x b p (CAnd c1 c2) ->
-    toDNF $ PAnd [rewrite $ CAll x b p c1, rewrite $ CAll x b p c2]
-  CAll x b p1 (CHead p2) -> 
-    varElimDNF x b $ toDNF $ PAnd [p1,p2]
-  CAll x1 b1 p1 (CAll x2 b2 p2 c2) ->
-    varElimDNF x1 b1 $ rewrite $ CAll x2 b2 (toDNF $ PAnd [p1,p2]) c2
+showPretty' = Text.unpack . renderDoc (RenderOptions (Just defaultStyling) True (Just 80)) . pretty
+
+-- TODO: cleanup rewrite rewrite to make more sense
+
+rewrite :: Con -> [[Rel]]  -- DNF?
+rewrite c0 = runST $ do
+  traceM $ replicate 40 '-' ++ "\nINPUT:\n" ++ showPretty c0
+  let logReturn x = traceM ("OUTPUT:\n" ++ showPretty x ++ "\n" ++ replicate 40 '-') >> return x
+  case c0 of
+    CHead p -> logReturn $ toDNF p
+    CAnd c1 c2 -> do
+      traceM $ showPretty' $ "REWRITE:" <\> "⋀" <+> nest 2 (prettyList [c1,c2])
+      logReturn $ toDNF $ PAnd [wrapDNF $ rewrite c1, wrapDNF $ rewrite c2]
+    CAll x b p c -> do
+      let ps = toDNF p
+      traceM $ showPretty' $ "ANTECEDENTS:" <\> "⋁" <+> nest 2 (prettyList ps)
+      rs <- forM ps $ \p' -> case c of
+        CAnd c1 c2 -> do
+          let c1' = CAll x b (wrapDNF [p']) c1
+          let c2' = CAll x b (wrapDNF [p']) c2
+          traceM $ showPretty' $ "REWRITE:" <\> "⋀" <+> nest 2 (prettyList [c1',c2'])
+          case rewrite c1' of
+            [] -> case rewrite c2' of
+              [] -> logReturn $ PFalse -- PTrue?
+              c2'' -> logReturn $ wrapDNF c2''
+            c1'' -> case rewrite c2' of
+              [] -> logReturn $ wrapDNF c1''
+              c2'' -> logReturn $ PAnd [wrapDNF c1'', wrapDNF c2'']
+        CHead q -> do
+          logReturn $ wrapDNF $ mapMaybe (varElim x b) $ toDNF $ PAnd [wrapDNF [p'], q]
+        CAll x2 b2 p2 c2 -> do
+          let c' = CAll x2 b2 (wrapDNF $ toDNF $ PAnd [wrapDNF [p'],p2]) c2
+          traceM $ showPretty' $ "REWRITE:" <\>  pretty (CAll x b PTrue c')
+          logReturn $ wrapDNF $ mapMaybe (varElim x b) $ rewrite c'
+      logReturn $ toDNF $ POr rs 
+
+
+      
+
+  -- CHead p -> toDNF p
+  -- CAnd c1 c2 -> toDNF $ PAnd [wrapDNF $ rewrite c1, wrapDNF $ rewrite c2]
+  -- CAll _ _ PFalse _ -> unwrapDNF PTrue
+  -- CAll x b (POr ps) c ->
+  --   toDNF $ POr $ map (\p' -> wrapDNF $ rewrite $ CAll x b p' c) ps
+  -- CAll x b p (CAnd c1 c2) ->
+  --   toDNF $ PAnd [wrapDNF $ rewrite $ CAll x b p c1, wrapDNF $ rewrite $ CAll x b p c2]
+  -- CAll x b p1 (CHead p2) ->
+  --   mapMaybe (varElim x b) $ toDNF $ PAnd [p1,p2]
+  -- CAll x1 b1 p1 (CAll x2 b2 p2 c2) ->
+  --   mapMaybe (varElim x1 b1) $ rewrite $ CAll x2 b2 (wrapDNF $ toDNF $ PAnd [p1,p2]) c2
 
 -------------------------------------------------------------------------------
 
-toDNF :: Pred -> Pred
-toDNF = Uniplate.rewrite $ \case
+toDNF :: Pred -> [[Rel]]
+toDNF = unwrapDNF . toDNF'
+
+toDNF' :: Pred -> Pred
+toDNF' = Uniplate.rewrite $ \case
   PAnd xs
     | any (== PFalse) xs -> Just PFalse
     | any (== PTrue) xs -> Just $ PAnd $ List.filter (/= PTrue) xs
@@ -80,19 +121,19 @@ toDNF = Uniplate.rewrite $ \case
     | any isPOr xs -> case partition isPOr xs of
         (POr ys : yys, zs) -> Just $ POr $ [PAnd $ y : (yys ++ zs) | y <- ys]
         _ -> error "impossible"
-    | or [neg x `elem` xs | x <- xs] -> Just PFalse -- TODO: this needs a normal form / eval
+    -- | or [neg x `elem` xs | x <- xs] -> Just PFalse -- TODO: this needs a normal form / eval
     | HashSet.size (HashSet.fromList xs) < length xs -> Just $ PAnd $ List.nub xs  -- TODO
     | [x] <- xs -> Just x
-    
+
   POr xs
     | any (== PTrue) xs -> Just PTrue
     | any (== PFalse) xs -> Just $ POr $ List.filter (/= PFalse) xs
-    | any isPOr xs -> 
+    | any isPOr xs ->
       let (ys, zs) = partition isPOr xs
       in Just $ POr $ mconcat [y | POr y <- ys] ++ zs
     | [x] <- xs -> Just x
 
-  PNot (POr xs) -> Just $ PAnd $ map neg xs  
+  PNot (POr xs) -> Just $ PAnd $ map neg xs
   PNot (PAnd xs) -> Just $ POr $ map neg xs
 
   PImpl a b -> Just $ POr [neg a, b]
@@ -111,54 +152,70 @@ unwrapDNF = \case
   PAnd ys -> [unAnd ys]
   PTrue   -> [[]]
   PFalse  -> []
-  p -> error $ "expected POr/PAnd/PTrue/PFalse instead of " ++ showPretty p
+  PRel r  -> [[r]]
+  p -> error $ "expected POr/PAnd/PTrue/PFalse/PRel instead of " ++ showPretty p
   where
-    unAnd ys 
+    unAnd ys
       | all isPRel ys = [y | PRel y <- ys]
       | otherwise = error $ "expected all PRel instead of " ++ showPretty ys
-    unOr xs 
+    unOr xs
       | all isPAnd xs = [unAnd ys | PAnd ys <- xs]
       | otherwise = error $ "expected all PAnd instead of " ++ showPretty xs
 
 wrapDNF :: [[Rel]] -> Pred
-wrapDNF = POr . map (PAnd . map PRel)
+wrapDNF xs = case POr $ map (PAnd . map PRel) xs of
+  POr []        -> PFalse
+  POr [PAnd []] -> PTrue
+  p             -> p
 
 -------------------------------------------------------------------------------
 
-varElimDNF :: Name -> Base -> Pred -> Pred
-varElimDNF x b = wrapDNF . map (varElim x b) . unwrapDNF
+-- varElimDNF :: Name -> Base -> Pred -> Pred
+-- varElimDNF x b = wrapDNF . map (varElim x b) . unwrapDNF
+
+-- TODO: cleanup rewrite in varElim due to bottom meets not being handled
 
 -- | Algorithm 3 in OOPSLA'23 submission.
-varElim :: Name -> Base -> [Rel] -> [Rel]
+varElim :: Name -> Base -> [Rel] -> Maybe [Rel]
+varElim _ TUnit ps = Just ps
 varElim x b ps = runST $ do
 
-  -- traceM $ "varElim " ++ showPretty x ++ " " ++ showPretty b ++ " " ++ showPretty ps
+  let logTrace str = traceM $ showPretty $ "varElim" <+> pretty x <+> pretty b <+> str
+
+  logTrace $ "INPUT:" <+> pretty ps
 
   let bTop = topExpr b
-  x̂sRef <- newSTRef $ Map.empty
-  
+  x̂sRef <- newSTRef $ Map.singleton [x] bTop
+
   forM_ [(p,v̄) | p <- ps, let v̄ = freeVars p, x `elem` v̄] $ \(p,v̄) -> do
-    x̂₀ <- fromMaybe bTop <$> Map.lookup v̄ <$> readSTRef x̂sRef
-    let x̂₁ = abstractVar x b p    
+    x̂₀ <- fromMaybe bTop . Map.lookup v̄ <$> readSTRef x̂sRef
+    let x̂₁ = abstractVar x b p
     case x̂₀ ∧? x̂₁ of
       Just x̂ -> modifySTRef' x̂sRef $ Map.insert v̄ x̂
       Nothing -> error $ "cannot meet " ++ showPretty x̂₀ ++ " with " ++ showPretty x̂₁
 
-  x̂s' <- filter (([x] /=) . fst) <$> Map.assocs <$> readSTRef x̂sRef  
-  (v̄ₘ,x̂ₘ) <- if null x̂s' 
-    then do
-      x̂Self <- fromJust <$> Map.lookup [x] <$> readSTRef x̂sRef
-      pure ([x], x̂Self) 
-    else 
-      pure $ head x̂s'  -- TODO: pick "smallest" meet
+  x̂Self <- fromJust . Map.lookup [x] <$> readSTRef x̂sRef
+  logTrace $ "self meet:" <+> pretty x̂Self
+  case x̂Self of
+    EAbs (ABool   a) | isBot a -> return Nothing
+    EAbs (AInt    a) | isBot a -> return Nothing
+    EAbs (AString a) | isBot a -> return Nothing
+    _ -> do
+      x̂s' <- filter (([x] /=) . fst) . Map.assocs <$> readSTRef x̂sRef
+      (v̄ₘ,x̂ₘ) <- if null x̂s'
+        then do
+          -- x̂Self <- fromJust . Map.lookup [x] <$> readSTRef x̂sRef
+          pure ([x], x̂Self)
+        else
+          pure $ head x̂s'  -- TODO: pick "smallest" meet
 
-  -- traceM $ showPretty $ "varElim" <+> pretty x <+> pretty b <+> pretty ps <+> pretty (v̄ₘ,x̂ₘ)
+      logTrace $ "reciprocal meet:" <+> pretty (v̄ₘ,x̂ₘ)
 
-  let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
+      let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
 
-  -- traceM $ "  " ++ showPretty qs
+      logTrace $ "OUTPUT:" <+> pretty qs
 
-  return qs
+      return $ Just qs
 
 -- TODO: integrate into existing substitution architecture
 substExpr :: Expr -> Name -> Rel -> Rel
@@ -183,7 +240,7 @@ substExpr x̂ x p = case p of
 
 -- TODO: do we want this?
 instance ComplementedLattice Pred where
-  neg (PRel r@(Rel _ _ _)) = 
+  neg (PRel r@(Rel _ _ _)) =
     let p' = PRel $ inverse r
     in case evalP p' of
       Nothing -> p'
@@ -214,7 +271,7 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
     Eq | b1 == b2 -> Just PTrue
     Ne | b1 /= b2 -> Just PTrue
     _             -> Just PFalse  -- TODO: might be hiding type error case
-  
+
     -- TODO: comparison with abstract values is an abstract operation?
     -- {T,F} = T  ??? true or false?
 
@@ -225,7 +282,7 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
       Eq | b1' == b2 -> Just PTrue
       Ne | b1' /= b2 -> Just PTrue
       _              -> Just PFalse  -- TODO: might be hiding type error case
-    
+
   (ECon (I i1 _), ECon (I i2 _)) -> case r of
     Eq | i1 == i2 -> Just PTrue
     Ne | i1 /= i2 -> Just PTrue
@@ -234,13 +291,13 @@ evalP (PRel (Rel r e1 e2)) = case (evalE e1, evalE e2) of
     Lt | i1 <  i2 -> Just PTrue
     Le | i1 <= i2 -> Just PTrue
     _             -> Just PFalse  -- TODO: might be hiding type error case
-  
+
   (ECon (S s1 _), ECon (S s2 _)) -> case r of
     Eq | s1 == s2 -> Just PTrue
     Ne | s1 /= s2 -> Just PTrue
     _             -> Just PFalse  -- TODO: might be hiding type error case
-  
-  (e1', e2') 
+
+  (e1', e2')
     | e1' /= e1 || e2' /= e2 -> Just $ PRel $ Rel r e1' e2'
     | otherwise              -> Nothing
 
