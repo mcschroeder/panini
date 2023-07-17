@@ -6,12 +6,14 @@ import Data.Text (Text)
 import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
+import Panini.Abstract.AString
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.KVar
 import Panini.Logic.Predicates
 import Panini.Logic.Relations
 import Panini.Names
+import Panini.Pretty.Printer
 import Panini.Primitives
 import Panini.Provenance
 import Prelude
@@ -54,28 +56,39 @@ instance SMTLIB Pred where
     PImpl p1 p2   -> sexpr ["=>", encode p1, encode p2]
     PIff p1 p2    -> sexpr ["iff", encode p1, encode p2]
     PNot p        -> sexpr ["not", encode p]
-    PRel p       -> encode p
+    PRel p        -> encode p
     PAppK k xs    -> sexpr (encode k : map encode xs)
     PExists x b p -> sexpr ["exists", sorts [(x,b)], encode p]
     
 
 instance SMTLIB Rel where
   encode = \case
+    Rel In e1 (EStrA r) -> sexpr ["str.in.re", encode e1, encode (toRegex r)]
     Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
+
+instance SMTLIB RE where
+  encode = \case
+    Empty        -> sexpr ["str.to.re", ""]
+    Concat a b   -> sexpr ["re.++", encode a, encode b]
+    Union a b    -> sexpr ["re.union", encode a, encode b]
+    KleeneStar a -> sexpr ["re.*", encode a]
+    Lit s        -> sexpr ["str.to.re", LB.fromString (show s)]
+    Diff a b     -> sexpr ["re.diff", encode a, encode b]
+    AllChars     -> "re.allchar"
 
 
 instance SMTLIB Expr where
   encode = \case
     EVal v           -> encode v
+    ENot e           -> sexpr ["not", encode e]
     EAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
     ESub e1 e2       -> sexpr ["-", encode e1, encode e2]
     EMul e1 e2       -> sexpr ["*", encode e1, encode e2]
     EFun x ps        -> sexpr (encode x : map encode ps)
     EStrLen p        -> sexpr ["str.len", encode p]
     EStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
-    EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
-    EAbs _ -> undefined -- TODO
-    ENot _ -> undefined -- TODO
+    EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3    
+    EAbs a -> error $ "SMTLIB: unencondable abstract value: " ++ showPretty a
 
 -- NB: we represent the substring operation using [start..end] ranges,
 -- but SMTLIB/Z3Str expects start plus length, so we have to convert
