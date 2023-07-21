@@ -56,7 +56,7 @@ library
     Panini.Substitution
 
   build-depends:
-      base ^>=4.16
+      base ^>=4.18
     , ansi-terminal
     , bytestring
     , clock

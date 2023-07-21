@@ -1,3 +1,5 @@
+multi-repl: True
+with-compiler: ghc-9.6.2
 packages: .
 
 source-repository-package
