@@ -5,4 +5,4 @@ packages: .
 source-repository-package
    type: git
    location: https://github.com/mcschroeder/regexp
-   tag: adf96c32931a98d4433f8d9ab29a7c91901680ef
+   tag: bf80b99995fe0fe417ec93885ddcb9f302ea962e
