@@ -7,8 +7,7 @@ module Panini.Abstract.AString
   , aStringRep
   , aStringSigma
   , aStringStar
-  , RE(..)
-  , toRegex
+  , toRegLan
   ) where
 
 import Data.Hashable
@@ -16,6 +15,7 @@ import GHC.Generics (Generic)
 import Panini.Abstract.AChar
 import Panini.Algebra.Lattice
 import Panini.Pretty.Printer hiding (Literal)
+import Panini.SMT.RegLan qualified as SMT
 import Prelude
 import RegExp.Operations
 import RegExp.RegExp
@@ -78,22 +78,23 @@ instance Pretty (RegExpView Char (RegExp Char)) where
 
 ------------------------------------------------------------------------------
 
--- TODO: improve regex representation
-
-data RE = Empty | Concat RE RE | Union RE RE | KleeneStar RE | Lit String | Diff RE RE | AllChars
-
-toRegex :: AString -> RE
-toRegex (AString s) = go $ view s
+toRegLan :: AString -> SMT.RegLan
+toRegLan (AString s) = go $ view s
   where
     go = \case
-      One -> Empty
-      Plus a b -> Union (go $ view a) (go $ view b)
-      Times a b -> Concat (go $ view a) (go $ view b)  -- TODO: detect strings
-      Star a -> KleeneStar (go $ view a)
-      Literal c -> case c of
-        These a -> if null a then Empty else charsetToRE a
-        ComplementOf a -> if null a then AllChars else Diff AllChars (charsetToRE a)
+      One -> SMT.None
+      Plus a b -> SMT.Union (go $ view a) (go $ view b)
+      Times a b -> SMT.Conc (go $ view a) (go $ view b)
+      Star (view -> Literal (ComplementOf a)) | null a -> SMT.All
+      Star a -> SMT.Star (go $ view a)
+      Literal (These a)
+        | null a -> SMT.None
+        | otherwise -> charsetToRegLan a
+      Literal (ComplementOf a) 
+        | null a -> SMT.AllChar
+        | otherwise -> SMT.Diff SMT.AllChar (charsetToRegLan a)
     
-    -- TODO: detect ranges
-    charsetToRE = foldr1 Union . map (Lit . pure) . S.toList
-
+    charsetToRegLan cs = case (S.size cs, S.findMin cs, S.findMax cs) of
+      (1,l,_) -> SMT.ToRe [l]
+      (n,l,u) | fromEnum u - fromEnum l + 1 == n -> SMT.Range l u
+      _ -> foldr1 SMT.Union $ map (SMT.ToRe . pure) $ S.toList cs

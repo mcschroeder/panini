@@ -6,7 +6,7 @@ import Data.Text (Text)
 import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
-import Panini.Abstract.AString
+import Panini.Abstract.AString (toRegLan)
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.KVar
@@ -16,6 +16,7 @@ import Panini.Names
 import Panini.Pretty.Printer
 import Panini.Primitives
 import Panini.Provenance
+import Panini.SMT.RegLan
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -30,6 +31,9 @@ toSMTLIB = LT.toStrict . LB.toLazyText . encode
 
 sexpr :: [Builder] -> Builder
 sexpr xs = "(" <> foldr1 (\a b -> a <> " " <> b) xs <> ")"
+
+fromShow :: Show a => a -> Builder
+fromShow = LB.fromString . show
 
 sorts :: [(Name, Base)] -> Builder
 sorts = sexpr . map (\(x,b) -> sexpr [encode x, encode b])
@@ -63,19 +67,24 @@ instance SMTLIB Pred where
 
 instance SMTLIB Rel where
   encode = \case
-    Rel In e1 (EStrA r) -> sexpr ["str.in.re", encode e1, encode (toRegex r)]
+    Rel In e1 (EStrA r) -> sexpr ["str.in.re", encode e1, encode (toRegLan r)]
     Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
 
-instance SMTLIB RE where
+instance SMTLIB RegLan where
   encode = \case
-    Empty        -> sexpr ["str.to.re", ""]
-    Concat a b   -> sexpr ["re.++", encode a, encode b]
-    Union a b    -> sexpr ["re.union", encode a, encode b]
-    KleeneStar a -> sexpr ["re.*", encode a]
-    Lit s        -> sexpr ["str.to.re", LB.fromString (show s)]
-    Diff a b     -> sexpr ["re.diff", encode a, encode b]
-    AllChars     -> "re.allchar"
-
+    ToRe s    -> sexpr ["str.to.re", fromShow s]
+    None      -> "re.none"
+    All       -> "re.all"
+    AllChar   -> "re.allchar"    
+    Conc a b  -> sexpr ["re.++", encode a, encode b]
+    Union a b -> sexpr ["re.union", encode a, encode b]
+    Inter a b -> sexpr ["re.inter", encode a, encode b]
+    Star a    -> sexpr ["re.*", encode a]
+    Comp a    -> sexpr ["re.comp", encode a]
+    Diff a b  -> sexpr ["re.diff", encode a, encode b]
+    Plus a    -> sexpr ["re.+", encode a]    
+    Opt a     -> sexpr ["re.opt", encode a]
+    Range a b -> sexpr ["re.range", fromShow [a], fromShow [b]]
 
 instance SMTLIB Expr where
   encode = \case
@@ -116,8 +125,8 @@ instance SMTLIB Constant where
     U       _ -> "0"  -- TODO
     B True  _ -> "true"
     B False _ -> "false"
-    I x     _ -> LB.fromString (show x)
-    S x     _ -> LB.fromString (show x)
+    I x     _ -> fromShow x
+    S x     _ -> fromShow x
 
 instance SMTLIB Rop where
   encode = \case
