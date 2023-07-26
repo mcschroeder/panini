@@ -1,28 +1,85 @@
 module Main where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Maybe
+import Options.Applicative
 import Panini.Monad
 import Panini.REPL
+import Prelude
+import Prettyprinter
+import Prettyprinter.Render.Terminal
+import System.Console.ANSI
 import System.Console.Haskeline
 import System.Directory
 import System.Exit
 import System.FilePath
-import Prelude
+import System.IO
+
+data PanOptions = PanOptions
+  { inputFile :: Maybe FilePath
+  , outputFile :: Maybe FilePath
+  , debug :: Bool
+  , color :: Bool
+  , unicode :: Bool
+  }
+
+opts :: ParserInfo PanOptions
+opts = info (panOptions <**> helper <**> simpleVersioner "v0.1") 
+            (fullDesc <> progDesc "Grammar Inference for Ad Hoc Parsers")
+  where
+    panOptions = PanOptions
+      <$> (optional $ strArgument $ 
+            metavar "INPUT" <> 
+            help "Input file (default: stdin)"
+          )
+      <*> (optional $ strOption $ 
+            long "output" <> 
+            short 'o' <> 
+            metavar "FILE" <> 
+            help "Write output to FILE (default: stdout)"
+          )
+      <*> (switch $ 
+            long "debug" <> 
+            help "Show debugging output"
+          )
+      <*> (flag True False $ 
+            long "no-unicode" <> 
+            help "Disable Unicode output to terminal and files"
+          )
+      <*> (flag True False $ 
+            long "no-color" <> 
+            help "Disable color output to terminal"
+          )
 
 main :: IO ()
 main = do
-  res <- runExceptT $ execStateT replMain initState
+  panOpts <- execParser opts
+  case panOpts.inputFile of
+    Nothing -> do
+      isTerm <- hIsTerminalDevice stdin
+      if isTerm
+        then replMain panOpts
+        else undefined  -- TODO
+    Just inFile -> do
+      undefined -- TODO
+
+-- TODO: consider debug, color, and unicode options
+
+replMain :: PanOptions -> IO ()
+replMain panOpts = do
+  configDir <- getXdgDirectory XdgConfig "panini"
+  createDirectoryIfMissing True configDir
+  let historyFile = configDir </> "repl_history"
+  let replConf = replSettings (Just historyFile)
+  let panConf = initState
+  when (isJust panOpts.outputFile) $
+    putStrLn $ "Warning: --output is ignored during a REPL session"
+  res <- runExceptT $ execStateT (runInputT replConf repl) panConf
   case res of
     Left err -> do
       putStrLn $ "panic! at the repl: " ++ show err -- TODO: pretty?
       exitFailure
     Right _ -> return ()
-
-replMain :: Pan ()
-replMain = do
-  configDir <- liftIO $ getXdgDirectory XdgConfig "panini"
-  liftIO $ createDirectoryIfMissing True configDir
-  let historyFile = configDir </> "repl_history"
-  runInputT (replSettings (Just historyFile)) repl
