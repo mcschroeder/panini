@@ -30,24 +30,24 @@ import Prelude
 -- | Eliminate acyclic κ-variables from a constraint using refinment FUSION.
 solve :: Con -> Pan Con
 solve c = do
-  -- logMessage Debug "Fusion" "Simplify constraint"
+  -- logMessage "Fusion" "Simplify constraint"
   let c1 = c --simplifyCon c
-  -- logData Debug c1
+  -- logData c1
 
-  logMessage Info "Fusion" "Find set of cut variables Κ̂"
+  logMessage "Fusion" "Find set of cut variables Κ̂"
   let ks_cut = cutVars c1 -- `Set.union` Set.singleton (KVar 0 [TString])
-  logData Trace ks_cut
+  logData "Cut Variables Κ̂" ks_cut
 
-  logMessage Info "Fusion" "Compute exact solutions for non-cut variables"
+  logMessage "Fusion" "Compute exact solutions for non-cut variables"
   let ks = kvars c1
   let ks' = Set.toList $ ks Set.\\ ks_cut
-  logData Trace ks'
+  logData "Non-Cut Variables" ks'
   let c2 = elim ks' c1
-  logData Trace c2
+  logData "Constraint w/o Non-Cut Variables" c2
 
-  -- logMessage Debug "Fusion" "Simplify constraint"
+  -- logMessage "Fusion" "Simplify constraint"
   let c3 = c2 --simplifyCon c2
-  -- logData Trace c3
+  -- logData c3
   
   return c3
 

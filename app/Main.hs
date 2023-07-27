@@ -46,12 +46,12 @@ opts = info (panOptions <**> helper <**> simpleVersioner "v0.1")
             help "Show debugging output"
           )
       <*> (flag True False $ 
-            long "no-unicode" <> 
-            help "Disable Unicode output to terminal and files"
-          )
-      <*> (flag True False $ 
             long "no-color" <> 
             help "Disable color output to terminal"
+          )
+      <*> (flag True False $ 
+            long "no-unicode" <> 
+            help "Disable Unicode output to terminal and files"
           )
 
 main :: IO ()
@@ -74,12 +74,22 @@ replMain panOpts = do
   createDirectoryIfMissing True configDir
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
-  let panConf = initState
+  let panState = defaultState
+        { debugMode = panOpts.debug
+        , colorOutput = panOpts.color
+        , unicodeOutput = panOpts.unicode 
+        }
   when (isJust panOpts.outputFile) $
     putStrLn $ "Warning: --output is ignored during a REPL session"
-  res <- runExceptT $ execStateT (runInputT replConf repl) panConf
+  res <- runPan panState $ runInputT replConf repl
   case res of
     Left err -> do
       putStrLn $ "panic! at the repl: " ++ show err -- TODO: pretty?
       exitFailure
     Right _ -> return ()
+
+-- batchMain :: PanOptions -> IO ()
+-- batchMain panOpts = do
+--   src <- liftIO $ Text.readFile f
+--   parseProgram f src
+

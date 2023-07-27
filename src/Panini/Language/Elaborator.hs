@@ -48,24 +48,24 @@ elaborateProgram = mapM_ elaborateStatement
 elaborateStatement :: Statement -> Pan ()
 elaborateStatement = \case
   Assume x t -> do
-    logMessage Debug "Elab" $ "Assume " ++ showPretty x
-    logData Trace t
+    logMessageDoc "Elab" $ "Assume" <+> pretty x
+    logData "Assumed Type" t
     def0 <- envLookup x
     case def0 of
       Just _  -> throwError $ AlreadyDefined x
       Nothing -> envExtend x (Assumed x t)    
   
   stmt@(Define x t0 e) -> do
-    logMessage Info "Elab" $ "Define " ++ showPretty x
-    logData Trace stmt
+    logMessageDoc "Elab" $ "Define" <+> pretty x
+    logData "Definition" stmt
     def0 <- envLookup x
     case def0 of
       Just _  -> throwError $ AlreadyDefined x
       Nothing -> do
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
-        logMessage Info "Infer" "Infer type"
-        logData Trace g'
+        logMessage "Infer" "Infer type"
+        logData "Typing Context Γ" g'
         r1 <- tryError $ infer g' e
         case r1 of
           Left err -> do
@@ -73,11 +73,13 @@ elaborateStatement = \case
             throwError err -- ?
           Right (_e',t,vc) -> do
             envExtend x (Inferred x t0 e t vc)
-            logData Trace t
-            logData Trace vc
+            logData "Inferred Type" t
+            logData "Verification Condition" vc
             r <- solve vc
             case r of
-              Just s -> envExtend x (Verified x t0 e t vc s)
+              Just s -> do
+                envExtend x (Verified x t0 e t vc s)
+                logOutput s  -- TODO
               Nothing -> envExtend x (Invalid x t0 e t vc Nothing)
   
   Import m -> do

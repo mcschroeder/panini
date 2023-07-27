@@ -15,6 +15,7 @@ module Panini.Pretty.Printer
   , parens, brackets, braces
   , lbracket, rbracket
   , symComma, symMid, symDot, symDotDot, symColon, symArrow, symMapsTo
+  , symDivH, symDivV, symDivDiag
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
   , symNe, symEq, symLe, symLt, symGe, symGt
   , symLambda, symKappa
@@ -45,6 +46,9 @@ import System.Console.ANSI
 
 -------------------------------------------------------------------------------
 
+-- TODO: investigate using standard Pretty class?
+-- TODO: make sure ALL Unicode symbols used anywhere have ASCII replacements
+
 class Pretty a where
   pretty :: a -> Doc
 
@@ -71,6 +75,7 @@ instance Pretty a => Pretty (Maybe a) where
   pretty Nothing = "Nothing"
   pretty (Just a) = pretty a
 
+-- TODO: this either shouldn't output color or be otherwise ONLY used for debugging
 -- | A pretty version of 'show', mainly intended for debugging.
 -- Use 'renderDoc' for any serious pretty printing.
 showPretty :: Pretty a => a -> String
@@ -229,7 +234,7 @@ rbrace = PP.annotate (Bracket CloseBra) "}"
 
 -------------------------------------------------------------------------------
 
-symComma, symMid, symDot, symDotDot, symColon, symArrow, symMapsTo :: Doc
+symComma, symMid, symDot, symDotDot, symColon, symArrow, symMapsTo :: Doc 
 symComma  = PP.annotate Separator ","
 symMid  = PP.annotate Separator "|"
 symDot    = "."
@@ -237,6 +242,11 @@ symDotDot = ".."
 symColon  = ":"
 symArrow  = "→" `orASCII` "->"
 symMapsTo = "↦" `orASCII` "|->"
+
+symDivH, symDivV, symDivDiag :: Doc
+symDivH    = "─" `orASCII` "-"
+symDivV    = "│" `orASCII` "|"
+symDivDiag = "╱" `orASCII` "/"
 
 symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists :: Doc
 symAnd     = "∧" `orASCII` "/\\"

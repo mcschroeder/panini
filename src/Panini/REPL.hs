@@ -129,20 +129,18 @@ evaluateInput input = do
 
 loadFiles :: [FilePath] -> InputT Pan ()
 loadFiles fs = forM_ fs $ \f -> do
-  lift $ logBegin f
-  lift $ logMessage Trace "REPL" $ "Read source file: " ++ f
+  lift $ logMessage "REPL" $ "Read " ++ f
   src <- liftIO $ Text.readFile f
   case parseProgram f src of
     Left err1 -> outputPretty err1
     Right prog -> do
       res <- lift $ tryError $ elaborateProgram prog
-      lift logEnd
       case res of
         Left err2 -> do
           err2' <- liftIO $ updatePV addSourceLines err2
           outputPretty err2'
-        Right () -> do
-          showState
+        Right () -> do          
+          --showState
           return ()
 
 showState :: InputT Pan ()

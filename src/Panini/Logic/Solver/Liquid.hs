@@ -28,9 +28,9 @@ import Prelude
 -- | Solve a Horn constraint given a set of candidates.
 solve :: Con -> [Pred] -> Pan (Maybe Assignment)
 solve c qs = do
-  logMessage Debug "Liquid" "Flatten constraint"
+  logMessage "Liquid" "Flatten constraint"
   let cs = flat c
-  logData Trace cs
+  logData "Flat Constraint" cs
   
   let (csk,csp) = partition horny cs
   
@@ -40,18 +40,18 @@ solve c qs = do
   let qs' = if null qs then PTrue else PAnd qs
   let s0 = Map.fromList $ map (\k -> (k, qs')) $ Set.toList ks
 
-  logMessage Info "Liquid" "Iteratively weaken σ"
+  logMessage "Liquid" "Iteratively weaken σ"
   s <- fixpoint csk s0
-  logData Trace s
+  logData "Weakened σ" s
 
   r <- smtValid (map (apply s) csp)
   if r 
     then do
-      logMessage Info "Liquid" "Found satisfying assignment"
-      logData Trace s
+      logMessage "Liquid" "Found satisfying assignment"
+      logData "Satisfying Assignment σ" s
       return (Just s) 
     else do
-      logMessage Info "Liquid" "Unsatisfiable"
+      logMessage "Liquid" "Unsatisfiable"
       return Nothing
 
 -- | Whether or not a flat constraint has a κ application in its head.

@@ -23,57 +23,57 @@ import Prelude
 
 solve :: Con -> Pan (Maybe Assignment)
 solve c0 = do
-  -- logMessage Info "Solver" "Simplify constraint"
+  -- logMessage "Solver" "Simplify constraint"
   let !c1 = c0 --simplifyCon c0
-  -- logData Trace c1
+  -- logData c1
 
-  logMessage Info "Fusion" "Find cut variables"
+  logMessage "Fusion" "Find cut variables"
   let !ks_cut = Fusion.cutVars c1
-  logData Trace ks_cut
+  logData "Cut Variables" ks_cut
 
-  logMessage Info "Grammar" "Find grammar variables"
+  logMessage "Grammar" "Find grammar variables"
   let !ks_gram = grammarVars c1
-  logData Trace ks_gram
+  logData "Grammar Variables" ks_gram
 
-  logMessage Info "Fusion" "Compute exact solutions for other variables"
+  logMessage "Fusion" "Compute exact solutions for other variables"
   let !ks = kvars c1
   let !ks' = ks Set.\\ ks_cut Set.\\ (Set.fromList ks_gram)
-  logData Trace ks'
+  logData "Other Variables" ks'
   let !c2 = Fusion.elim (Set.toList ks') c1
-  logData Trace c2
+  logData "Constraint w/o Other Variables" c2
 
-  logMessage Info "Solver" "Simplify constraint"
+  logMessage "Solver" "Simplify constraint"
   let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
-  logData Trace c3
+  logData "Simplified Constraint" c3
   --let !c3 = c2
 
-  logMessage Info "Grammar" "Find grammar consequents"
+  logMessage "Grammar" "Find grammar consequents"
   let !cs = Map.fromList
          $ map (\(k,c) -> (k, fromJust c)) 
          $ filter (isJust . snd) 
          $ zip ks_gram 
          $ map (grammarConsequent c3) ks_gram
-  logData Trace cs
+  logData "Grammar Consequents" cs
 
-  logMessage Info "Grammar" "Solve grammar variables"
+  logMessage "Grammar" "Solve grammar variables"
   --let !gs = Map.map Grammar.solve cs
   let !gs = Map.map (Grammar.infer "z0") cs  -- TODO: generalize for variable name
   -- !gs <- fmap Map.fromList $ forM (Map.toList cs) $ \(k,c) -> do
   --   c' <- infer2 "s" c
   --   return (k,c')
-  logData Debug gs
+  logData "Grammar Solution" gs
 
-  logMessage Info "Grammar" "Apply grammar solution"
+  logMessage "Grammar" "Apply grammar solution"
   let !c4 = apply gs c3
-  logData Trace c4
+  logData "Constraint w/ Grammar Solution Applied" c4
 
-  -- logMessage Info "Solver" "Simplify constraint"
+  -- logMessage "Solver" "Simplify constraint"
   let !c5 = c4 --simplifyCon c4
-  -- logData Trace c5
+  -- logData c5
 
-  logMessage Info "Liquid" "Compute approximate solutions for residuals"
+  logMessage "Liquid" "Compute approximate solutions for residuals"
   !s <- Liquid.solve c5 []
-  logData Trace s
+  logData "Final Solution" s
 
   -- TODO: include fusion assignments in final solution
 
