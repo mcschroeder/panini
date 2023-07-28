@@ -1,6 +1,7 @@
 -- TODO: module documentation
 module Panini.Language.AST where
 
+import Data.Generics.Uniplate.Direct
 import Panini.Logic.Predicates
 import Panini.Names
 import Panini.Pretty.Printer
@@ -125,3 +126,23 @@ instance Eq Type where
   TBase x1 b1 r1 _ == TBase x2 b2 r2 _ = x1 == x2 && b1 == b2 && r1 == r2
   TFun x1 s1 t1 _  == TFun x2 s2 t2 _  = x1 == x2 && s1 == s2 && t1 == t2
   _                == _                = False
+
+instance Biplate Type Pred where
+  biplate = \case
+    TBase x b r pv -> plate TBase |- x |- b |+ r |- pv
+    TFun x t1 t2 pv -> plate TFun |- x |+ t1 |+ t2 |- pv 
+
+instance Biplate Type Reft where
+  biplate = \case
+    TBase x b r pv  -> plate TBase |- x |- b |* r |- pv
+    TFun x t1 t2 pv -> plate TFun |- x |+ t1 |+ t2 |- pv
+
+instance Uniplate Reft where
+  uniplate = \case
+    Unknown -> plate Unknown
+    Known p -> plate Known |- p
+
+instance Biplate Reft Pred where
+  biplate = \case
+    Unknown -> plate Unknown
+    Known p -> plate Known |* p

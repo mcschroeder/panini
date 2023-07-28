@@ -5,6 +5,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Panini.Language.AST
 import Panini.Logic.Constraints
 import Panini.Logic.KVar
 import Panini.Logic.Predicates
@@ -41,3 +42,7 @@ instance HasKVars FlatCon where
 instance (Functor t, Foldable t, HasKVars a) => HasKVars (t a) where
   kvars = foldMap kvars
   apply s = fmap (apply s)
+
+instance HasKVars Type where
+  kvars = foldMap kvars . universeBi @Type @Pred
+  apply s = transformBi @Type @Pred (apply s)
