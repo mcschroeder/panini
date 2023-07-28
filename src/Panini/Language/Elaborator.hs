@@ -76,20 +76,19 @@ elaborateStatement modulePath = \case
         r1 <- tryError $ infer g' e
         case r1 of
           Left err -> do
+            logError err
             envExtend x (Rejected x t0 e err)
-            throwError err -- TODO: just logError instead of re-throwing ?
-          Right (_e',t,vc) -> do
-            envExtend x (Inferred x t0 e t vc)
+          Right (_,t,vc) -> do
             logData "Inferred Type" t
             logData "Verification Condition" vc
-            r <- solve vc
-            case r of
-              Just s -> do
+            envExtend x (Inferred x t0 e t vc)
+            r2 <- tryError $ solve vc
+            case r2 of
+              Left err -> do
+                logError err
+                envExtend x (Invalid x t0 e t vc err)
+              Right s -> do
                 envExtend x (Verified x t0 e t vc s)
-                logOutput s  -- TODO
-              Nothing -> do
-                envExtend x (Invalid x t0 e t vc Nothing)
-                -- TODO: logError?
   
   Import m -> do
     absModulePath <- liftIO $ makeAbsolute modulePath  -- TODO: catch error

@@ -21,7 +21,7 @@ import Prelude
 
 -- TODO: be strict in each of these steps
 
-solve :: Con -> Pan (Maybe Assignment)
+solve :: Con -> Pan Assignment
 solve c0 = do
   -- logMessage "Solver" "Simplify constraint"
   let !c1 = c0 --simplifyCon c0
@@ -77,9 +77,7 @@ solve c0 = do
 
   -- TODO: include fusion assignments in final solution
 
-  case s of
-    Just s' -> return $ Just $ Map.unions [gs,s']
-    Nothing -> return Nothing
+  return $ Map.unions [gs,s]
 
 grammarVars :: Con -> [KVar]
 grammarVars = go

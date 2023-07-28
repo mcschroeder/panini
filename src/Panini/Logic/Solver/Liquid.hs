@@ -24,9 +24,10 @@ import Panini.Logic.Solver.Assignment
 import Panini.Monad
 import Panini.Substitution
 import Prelude
+import Panini.Error
 
 -- | Solve a Horn constraint given a set of candidates.
-solve :: Con -> [Pred] -> Pan (Maybe Assignment)
+solve :: Con -> [Pred] -> Pan Assignment
 solve c qs = do
   logMessage "Liquid" "Flatten constraint"
   let cs = flat c
@@ -49,10 +50,9 @@ solve c qs = do
     then do
       logMessage "Liquid" "Found satisfying assignment"
       logData "Satisfying Assignment σ" s
-      return (Just s) 
-    else do
-      logMessage "Liquid" "Unsatisfiable"
-      return Nothing
+      return s
+    else
+      throwError $ SolverError "Unsatisfiable"
 
 -- | Whether or not a flat constraint has a κ application in its head.
 horny :: FlatCon -> Bool

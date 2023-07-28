@@ -90,7 +90,7 @@ data Definition
       , _givenTerm :: Term Untyped
       , _inferredType :: Type
       , _vc :: Con
-      , _solverMsg :: Maybe String
+      , _solverError :: Error
       }
   
   -- | A verified definition comes with a satisfying assignment for all Horn
