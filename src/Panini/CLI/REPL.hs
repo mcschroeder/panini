@@ -1,4 +1,4 @@
-module Panini.REPL
+module Panini.CLI.REPL
   ( repl,
     replSettings,
   )

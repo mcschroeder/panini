@@ -1,28 +1,60 @@
-cabal-version:      2.4
+cabal-version:      3.4
 name:               panini
-version:            0.1.0.0
-
--- A short (one-line) description of the package.
--- synopsis:
-
--- A longer description of the package.
--- description:
-
--- A URL where users can report bugs.
--- bug-reports:
-
--- The license under which the package is released.
--- license:
+version:            0.1
+synopsis:           Grammar Inference for Ad Hoc Parsers
 author:             Michael Schröder
 maintainer:         michael.schroeder@tuwien.ac.at
 
--- A copyright notice.
--- copyright:
--- category:
--- extra-source-files: CHANGELOG.md
-
 library
   hs-source-dirs: src
+  default-language: GHC2021
+  default-extensions:
+    DataKinds
+    DerivingStrategies
+    ImportQualifiedPost
+    LambdaCase
+    OverloadedRecordDot
+    OverloadedStrings
+    PatternSynonyms
+    ViewPatterns
+  ghc-options:
+    -Weverything
+    -Wno-missing-exported-signatures
+    -Wno-missing-import-lists
+    -Wno-missing-export-lists
+    -Wno-missed-specialisations
+    -Wno-all-missed-specialisations
+    -Wno-unsafe
+    -Wno-safe
+    -Wno-missing-safe-haskell-mode
+    -Wno-missing-local-signatures
+    -Wno-monomorphism-restriction
+    -Wno-missing-kind-signatures
+  build-depends:
+      base ^>=4.18
+    , ansi-terminal
+    , ansi-terminal
+    , bytestring
+    , containers
+    , directory
+    , filepath
+    , formatting
+    , hashable
+    , haskeline
+    , haskeline
+    , megaparsec == 9.2.*
+    , optparse-applicative >= 0.18.1
+    , parser-combinators
+    , prettyprinter
+    , prettyprinter
+    , prettyprinter-ansi-terminal
+    , process
+    , regexp
+    , text
+    , transformers
+    , transformers
+    , uniplate
+    , unordered-containers
   exposed-modules:
     Panini.Abstract.ABool
     Panini.Abstract.AChar
@@ -31,6 +63,8 @@ library
     Panini.Abstract.AValue
     Panini.Abstract.Interpretation   
     Panini.Algebra.Lattice
+    Panini.CLI.Main
+    Panini.CLI.REPL
     Panini.Error
     Panini.Language.AST
     Panini.Language.Elaborator
@@ -55,85 +89,24 @@ library
     Panini.Pretty.Printer
     Panini.Primitives
     Panini.Provenance
-    Panini.REPL
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
     Panini.Substitution
 
-  build-depends:
-      base ^>=4.18
-    , ansi-terminal
-    , bytestring
-    , containers
-    , formatting
-    , hashable
-    , haskeline
-    , megaparsec == 9.2.*
-    , parser-combinators
-    , prettyprinter
-    , process
-    , regexp
-    , text
-    , transformers
-    , uniplate
-    , unordered-containers
-
-  default-language: GHC2021
-  default-extensions: 
-    DataKinds
-    DerivingStrategies
-    ImportQualifiedPost
-    LambdaCase
-    OverloadedRecordDot
-    OverloadedStrings
-    PatternSynonyms
-    ViewPatterns
-  
-  ghc-options:
-    -Weverything
-    -Wno-missing-exported-signatures
-    -Wno-missing-import-lists
-    -Wno-missing-export-lists
-    -Wno-missed-specialisations
-    -Wno-all-missed-specialisations
-    -Wno-unsafe
-    -Wno-safe
-    -Wno-missing-safe-haskell-mode
-    -Wno-missing-local-signatures
-    -Wno-monomorphism-restriction
-    -Wno-missing-kind-signatures
-
-
 executable panini
-  main-is: Main.hs
   hs-source-dirs: app
-  build-depends:
+  main-is: Main.hs
+  ghc-options: -threaded -rtsopts
+  build-depends: 
+      base
     , panini
-    , base
-    , directory
-    , filepath
-    , haskeline
-    , prettyprinter
-    , prettyprinter-ansi-terminal
-    , optparse-applicative >= 0.18.1
-    , transformers
-    , ansi-terminal
-
-  default-language: GHC2021
-  default-extensions: 
-    DataKinds
-    ImportQualifiedPost
-    LambdaCase
-    OverloadedRecordDot
-    OverloadedStrings
-    ViewPatterns
 
 test-suite test
-  default-language: GHC2021
-  type: exitcode-stdio-1.0
   hs-source-dirs: tests
   main-is: Main.hs
+  type: exitcode-stdio-1.0
+  default-language: GHC2021
   build-depends:
     , base
     , panini
