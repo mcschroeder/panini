@@ -69,7 +69,7 @@ logError :: Error -> Pan ()
 logError err = do
   let label = "ERROR" :: String
   s <- get
-  when s.debugMode $ liftIO $ do
+  liftIO $ do
     opts <- getTermRenderOptions s
     let w = fromMaybe 80 opts.fixedWidth    
     let divider = mconcat $ replicate (w - length label - 1) symDivH
