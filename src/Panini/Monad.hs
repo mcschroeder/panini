@@ -6,15 +6,18 @@ module Panini.Monad
   , throwError
   , catchError
   , tryError
-  , liftIO  
+  , liftIO
+  , tryIO
   ) where
 
+import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Panini.Language.Environment
 import Panini.Error
+import Panini.Language.Environment
+import Panini.Provenance
 import Prelude
 
 -------------------------------------------------------------------------------
@@ -57,3 +60,12 @@ catchError = liftCatch catchE
 -- | Try an action and return any thrown `Error`.
 tryError :: Pan a -> Pan (Either Error a)
 tryError m = catchError (Right <$> m) (return . Left)
+
+-- | Try an IO action, transforming any 'IOException' that occurs into a Panini
+-- 'IOError' with the given provenance.
+tryIO :: PV -> IO a -> Pan a
+tryIO pv m = do
+  r <- liftIO $ try @IOException m
+  case r of
+    Left err -> throwError $ IOError pv $ displayException err
+    Right a -> return a

@@ -22,6 +22,7 @@ data Error
   | CantSynth Term
   | ParserError PV Text
   | SolverError Text
+  | IOError PV String
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
@@ -34,6 +35,7 @@ instance HasProvenance Error where
   getPV (CantSynth _e) = NoPV --getPV e
   getPV (ParserError pv _) = pv
   getPV (SolverError _) = NoPV
+  getPV (IOError pv _) = pv
 
   setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
   setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
@@ -44,6 +46,7 @@ instance HasProvenance Error where
   setPV _ e@(CantSynth _e) = e -- TODO
   setPV pv (ParserError _ e) = ParserError pv e
   setPV _ e@(SolverError _) = e
+  setPV pv (IOError _ e) = IOError pv e
 
 -------------------------------------------------------------------------------
 
@@ -90,6 +93,8 @@ prettyErrorMessage = \case
 
   SolverError e -> bullets
     [ msg "The SMT solver returned some unexpected output:" <\> pretty e ]
+
+  IOError _ e -> msg $ Text.pack e
 
   where
     msg     = aMessage . pretty @Text

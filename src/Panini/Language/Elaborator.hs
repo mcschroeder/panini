@@ -90,10 +90,11 @@ elaborateStatement modulePath = \case
               Right s -> do
                 envExtend x (Verified x t0 e t vc s)
   
-  Import m -> do
-    absModulePath <- liftIO $ makeAbsolute modulePath  -- TODO: catch error
-    let importPath = takeDirectory absModulePath </> m
-    src <- liftIO $ Text.readFile importPath  -- TODO: handle error
+  Import m pv -> do
+    logMessageDoc "Elab" $ "Import" <+> pretty m
+    src <- tryIO pv $ do
+      absModulePath <- makeAbsolute modulePath
+      Text.readFile $ takeDirectory absModulePath </> m
     case parseProgram m src of
       Left  err  -> throwError err
       Right prog -> elaborateProgram m prog

@@ -176,9 +176,9 @@ assumeOrDefine = do
 import_ :: Parser Statement
 import_ = do
   keyword "import"
-  m <- some $ satisfy (\x -> isAlphaNum x || x == '_' || x == '/' || x == '.')
+  (m, pv) <- withPV $ some $ satisfy (\x -> isAlphaNum x || x == '_' || x == '/' || x == '.')
   whitespace
-  return $ Import m
+  return $ Import m pv
 
 -------------------------------------------------------------------------------
 

@@ -17,7 +17,7 @@ type Program = [Statement]
 data Statement
   = Assume Name Type       -- x : t
   | Define Name Type Term  -- x : t = e
-  | Import FilePath        -- import m
+  | Import FilePath PV     -- import m
   deriving stock (Show, Read)
 
 instance Pretty Program where
@@ -28,7 +28,7 @@ instance Pretty Statement where
     Assume x t   -> keyword "assume" <+> pretty x <+> symColon <+> pretty t
     Define x t e -> keyword "define" <+> pretty x <+> symColon <+> pretty t 
                     <\> symEq <+> pretty e
-    Import m     -> keyword "import" <+> pretty m
+    Import m _   -> keyword "import" <+> pretty m
 
 ------------------------------------------------------------------------------
 
