@@ -1,7 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Panini.Parser
-  ( parseProgram
+  ( parseSource
+  , parseProgram
   , parseStatement
   , parseTerm
   , parseConstraint
@@ -9,6 +10,8 @@ module Panini.Parser
 
 import Control.Monad
 import Control.Monad.Combinators.Expr
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
 import Data.Bifunctor
 import Data.Char
 import Data.List (foldl')
@@ -21,10 +24,12 @@ import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
 import Panini.Language.AST
+import Panini.Logger
 import Panini.Logic.Constraints
 import Panini.Logic.Expressions
 import Panini.Logic.Predicates
 import Panini.Logic.Relations
+import Panini.Monad
 import Panini.Names
 import Panini.Primitives
 import Panini.Provenance
@@ -33,6 +38,15 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
+
+-------------------------------------------------------------------------------
+
+parseSource :: FilePath -> Text -> Pan Program
+parseSource path src = do
+  logMessage "Parser" $ "Parse " ++ path
+  prog <- lift $ except $ parseProgram path src
+  logData (path ++ " (Parsed)") prog
+  return prog
 
 -------------------------------------------------------------------------------
 

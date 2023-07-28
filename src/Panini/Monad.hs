@@ -36,6 +36,7 @@ data PanState = PanState
   , unicodeOutput :: !Bool
   , environment :: !Environment  -- ^ elaborator environment
   , kvarCount :: !Int  -- ^ source for fresh κ-variable names
+  , loadedModules :: ![FilePath]
   }
 
 defaultState :: PanState
@@ -45,6 +46,7 @@ defaultState = PanState
   , unicodeOutput = True
   , environment = mempty
   , kvarCount = 0
+  , loadedModules = []
   }
 
 -------------------------------------------------------------------------------

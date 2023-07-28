@@ -3,7 +3,6 @@ module Panini.CLI.Main where
 import Control.Monad
 import Data.Maybe
 import Options.Applicative
-import Panini
 import Panini.CLI.REPL
 import Panini.Monad
 import Prelude
@@ -93,9 +92,11 @@ batchMain panOpts = do
         }
   res <- runPan panState $ do
     case panOpts.inputFile of
-      Nothing -> do
-        src <- tryIO NoPV $ Text.getContents
-        undefined
+      Nothing -> undefined
+        -- logMessage "Panini" $ "Read stdin"
+        -- src <- tryIO NoPV $ Text.getContents
+        -- logData ("<stdin> (Raw Source)") src
+
 
   undefined
 

@@ -29,9 +29,7 @@ import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
-import Panini
 import Panini.Logger
-import Panini.Modules
 
 -------------------------------------------------------------------------------
 
@@ -122,7 +120,7 @@ synthesizeType input = do
   
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
-  res <- lift $ tryError $ elaborateProgram replModule =<< lift (except $ parseInput input) 
+  res <- lift $ tryError $ elaborateProgram "<repl>" =<< lift (except $ parseInput input) 
   case res of
     Left err -> do
       err' <- liftIO $ updatePV (addSourceLinesREPL input) err
@@ -130,11 +128,15 @@ evaluateInput input = do
     Right () -> return ()
 
 loadFiles :: [FilePath] -> InputT Pan ()
-loadFiles fs = forM_ fs $ \f -> do
-  r <- lift $ tryError $ loadFile f
+loadFiles fs = forM_ fs $ \f -> lift $ do
+  r <- tryError $ do
+    src <- tryIO NoPV $ Text.readFile f
+    prog <- parseSource f src
+    elaborateProgram f prog
+    -- TODO: add to loaded modules
   case r of
-    Left err -> lift $ logError err
-    Right () -> return () -- TODO: show output?
+    Left err -> logError err
+    Right _ -> return ()
 
 showState :: InputT Pan ()
 showState = do
