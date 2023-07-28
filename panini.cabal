@@ -68,7 +68,7 @@ library
     Panini.Error
     Panini.Language.AST
     Panini.Language.Elaborator
-    Panini.Language.Elaborator.Environment
+    Panini.Language.Environment
     Panini.Language.Infer
     Panini.Logger
     Panini.Logic.Constraints

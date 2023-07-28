@@ -1,4 +1,4 @@
-module Panini.Language.Elaborator.Environment where
+module Panini.Language.Environment where
 
 import Data.Map (Map)
 import Panini.Error
@@ -18,14 +18,14 @@ import Prelude
 type Environment = Map Name Definition
 
 {- | A 'Definition' maps a 'Name' to a 'Type' and additional related
-information, such as verification conditions (VCs), an underlying 'Term', or
-the most recent error that occurred while elaborating.
+information, such as verification conditions (VCs), an underlying 'Term', or the
+most recent error that occurred while elaborating.
 
 During the elaboration process, the elaborator updates the definitions in its
 environment as it goes through the phases of refinement type inference and SMT
 solving. A definition typically starts out with an unrefined type given by the
 user and ideally ends up with a most specific refined type plus VC, together
-with a satisfying Horn variable assignment. In case of a type checking or SMT
+with a satisfying κ variable assignment. In case of a type checking or SMT
 solving error, the 'Definition' bundle contains the related error information.
 
 There are two types of 'Statement' that are elaborated into 'Definition's:
@@ -42,12 +42,12 @@ There are two types of 'Statement' that are elaborated into 'Definition's:
     'Rejected'; otherwise, the (usually unrefined) given type (@t@) is
     'Inferred' to a more specific (most refined) type with a VC. The VC needs to
     be discharged by an SMT solver. At this stage, the VC, as well as the
-    refined type, will most likely contain Horn variables. If we can not find a
-    satisfying assignment for these Horn variables, or the VC is unsatisfiable
-    for other reasons, then the definition is 'Invalid'. If there is a
-    satisfying assignment, then we have successfully 'Verified' the definition.
+    refined type, will most likely contain κ variables. If we can not find a
+    satisfying assignment for these κ variables, or the VC is unsatisfiable for
+    other reasons, then the definition is 'Invalid'. If there is a satisfying
+    assignment, then we have successfully 'Verified' the definition.
 
-    > ╔════════╗  type inference  ╭──────────╮  Horn solving  ╭──────────╮
+    > ╔════════╗  type inference  ╭──────────╮  SMT solving   ╭──────────╮
     > ║ define ╟─┬───────────────►│ Inferred ├─┬─────────────►│ Verified │
     > ╚════════╝ │  ╭──────────╮  ╰──────────╯ │  ╭─────────╮ ╰──────────╯
     >            ╰─►│ Rejected │               ╰─►│ Invalid │
@@ -71,7 +71,7 @@ data Definition
   
   -- | Every inferred type (which might be different than the given type) comes
   -- with a verification condition (VC). Both the inferred type and the VC may
-  -- contain Horn variables. At this point, we don't know yet if the VC is
+  -- contain κ variables. At this point, we don't know yet if the VC is
   -- satisfiable and the inferred type correct.
   | Inferred
       { _name :: Name
@@ -81,7 +81,7 @@ data Definition
       , _vc :: Con
       }
 
-  -- | If we can not find a satisfying Horn assignment for the VC, or encounter
+  -- | If we can not find a satisfying κ assignment for the VC, or encounter
   -- other problems in trying to solve the VC, the inferred type is incorrect
   -- and the definition as a whole is invalid.
   | Invalid
@@ -93,8 +93,8 @@ data Definition
       , _solverError :: Error
       }
   
-  -- | A verified definition comes with a satisfying assignment for all Horn
-  -- variables in the VC and the inferred type.
+  -- | A verified definition has a satisfying assignment for all κ variables in
+  --  the VC and the inferred type.
   | Verified
       { _name :: Name
       , _givenType :: Type 

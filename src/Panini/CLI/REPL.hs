@@ -19,7 +19,7 @@ import Data.Text.IO qualified as Text
 import Panini.Error
 import Panini.Language.AST
 import Panini.Language.Elaborator
-import Panini.Language.Elaborator.Environment
+import Panini.Language.Environment
 import Panini.Language.Infer
 import Panini.Monad
 import Panini.Parser

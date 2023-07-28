@@ -8,7 +8,7 @@ import Data.Map qualified as Map
 import Data.Text.IO qualified as Text
 import Panini.Error
 import Panini.Language.AST
-import Panini.Language.Elaborator.Environment
+import Panini.Language.Environment
 import Panini.Language.Infer
 import Panini.Logger
 import Panini.Logic.Solver
