@@ -47,9 +47,16 @@ envToContext = Map.mapMaybe go
 
 -------------------------------------------------------------------------------
 
+-- | Elaborate all statements in a program (see 'elaborateStatement').
 elaborateProgram :: FilePath -> Program -> Pan ()
-elaborateProgram = mapM_ . elaborateStatement
+elaborateProgram =  mapM_ . elaborateStatement
 
+-- | Elaborate a statement and add the corresponding definition(s) to the
+-- environment. Most errors that occur along the way (e.g., during type
+-- inference or SMT solving) will still result in the construction of a valid
+-- 'Definition' (e.g., 'Rejected') and so are not re-thrown but merely logged.
+-- In case an error prohibits the construction of a 'Definition' it is re-thrown
+-- and the elaboration aborts.
 elaborateStatement :: FilePath -> Statement -> Pan ()
 elaborateStatement modulePath = \case
   Assume x t -> do
@@ -57,7 +64,7 @@ elaborateStatement modulePath = \case
     def0 <- envLookup x
     case def0 of
       Just (Assumed _ t0) | t0 == t -> logData "Previously Assumed Type" t
-      Just _ -> throwError $ AlreadyDefined x  -- TODO: more info
+      Just _ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
       Nothing -> do
         envExtend x (Assumed x t)
         logData "Assumed Type" t
@@ -67,26 +74,26 @@ elaborateStatement modulePath = \case
     logData "Definition" stmt
     def0 <- envLookup x
     case def0 of
-      Just _  -> throwError $ AlreadyDefined x
+      Just _ -> throwError $ AlreadyDefined x
       Nothing -> do
+        logMessage "Infer" "Infer type"
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
-        logMessage "Infer" "Infer type"
         logData "Typing Context Γ" g'
         r1 <- tryError $ infer g' e
         case r1 of
           Left err -> do
-            logError err
             envExtend x (Rejected x t0 e err)
+            logError err
           Right (t,vc) -> do
+            envExtend x (Inferred x t0 e t vc)
             logData "Inferred Type" t
             logData "Verification Condition" vc
-            envExtend x (Inferred x t0 e t vc)
             r2 <- tryError $ solve vc
             case r2 of
               Left err -> do
-                logError err
                 envExtend x (Invalid x t0 e t vc err)
+                logError err
               Right s -> do
                 envExtend x (Verified x t0 e t vc s)
   
