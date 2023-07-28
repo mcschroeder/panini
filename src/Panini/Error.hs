@@ -18,8 +18,8 @@ data Error
   | MissingType Name
   | InvalidSubtypeBase (Type,Base) (Type,Base)  -- TODO: do we need this?
   | InvalidSubtype Type Type
-  | ExpectedFunType (Term Untyped) Type
-  | CantSynth (Term Untyped)
+  | ExpectedFunType Term Type
+  | CantSynth Term
   | ParserError PV Text
   | SolverError Text
   deriving stock (Show, Read)

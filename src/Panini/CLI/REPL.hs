@@ -114,8 +114,8 @@ synthesizeType input = do
         Left err -> do
           err' <- liftIO $ updatePV (addSourceLinesREPL input) err
           outputPretty err'        
-        Right (tm',t,vc) -> do
-          outputPretty $ "⊢ " <> pretty tm'
+        Right (t,vc) -> do
+          outputPretty $ "⊢ " <> pretty tm
           outputPretty $ "↗ " <> pretty t
           outputPretty $ "⫤ " <> pretty vc --(simplifyCon vc)
   
@@ -227,7 +227,7 @@ autocomplete = fallbackCompletion completeCommands completeFiles
 class Inputable a where
   parseInput :: String -> Either Error a
 
-instance Inputable (Term Untyped) where
+instance Inputable Term where
   parseInput = parseTerm "<repl>" . Text.pack
 
 instance Inputable Statement where

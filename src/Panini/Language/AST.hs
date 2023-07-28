@@ -1,7 +1,6 @@
 -- TODO: module documentation
 module Panini.Language.AST where
 
-import Panini.Logic.Constraints
 import Panini.Logic.Predicates
 import Panini.Names
 import Panini.Pretty.Printer
@@ -16,9 +15,9 @@ type Program = [Statement]
 
 -- | Statements are top-level declarations.
 data Statement
-  = Assume Name Type                 -- x : t
-  | Define Name Type (Term Untyped)  -- x : t = e
-  | Import FilePath                  -- import m
+  = Assume Name Type       -- x : t
+  | Define Name Type Term  -- x : t = e
+  | Import FilePath        -- import m
   deriving stock (Show, Read)
 
 instance Pretty Program where
@@ -34,38 +33,34 @@ instance Pretty Statement where
 ------------------------------------------------------------------------------
 
 -- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
-data Term a
-  = Val Value                          a -- v
-  | App (Term a) Value              PV a -- e v
-  | Lam Name Type (Term a)          PV a -- \x:t. e   -- TODO: unrefined type only?
-  | Let Name (Term a) (Term a)      PV a -- let x = e1 in e2
-  | Rec Name Type (Term a) (Term a) PV a -- rec x : t = e1 in e2
-  | If Value (Term a) (Term a)      PV a -- if v then e1 else e2
+data Term
+  = Val Value                  -- v
+  | App Term Value          PV -- e v
+  | Lam Name Type Term      PV -- \x:t. e   -- TODO: unrefined type only?
+  | Let Name Term Term      PV -- let x = e1 in e2
+  | Rec Name Type Term Term PV -- rec x : t = e1 in e2
+  | If Value Term Term      PV -- if v then e1 else e2
   deriving stock (Show, Read)
 
-type Untyped = ()
-type Typed = (Type, Con)
--- TODO: type Verified = (Type, Con, Assignment)
-
-instance Pretty (Term a) where
-  pretty (Val v _) = pretty v
+instance Pretty Term where
+  pretty (Val v) = pretty v
   
-  pretty (App e x _ _) = pretty e <+> pretty x  
+  pretty (App e x _) = pretty e <+> pretty x  
   
-  pretty (Lam x t e _ _) = 
+  pretty (Lam x t e _) = 
     nest 2 $ group $ symLambda <> pretty x <> symColon <> pretty t <> symDot 
                      <\> pretty e
   
-  pretty (Let x e1 e2 _ _) = 
+  pretty (Let x e1 e2 _) = 
     keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> keyword "in") 
     <\\> pretty e2
   
-  pretty (Rec x t e1 e2 _ _) =
+  pretty (Rec x t e1 e2 _) =
     keyword "rec" <+> pretty x <+> symColon <+> pretty t 
     <\> symEq <+> group (pretty e1 <\> keyword "in") 
     <\\> pretty e2
   
-  pretty (If x e1 e2 _ _) = group $
+  pretty (If x e1 e2 _) = group $
     keyword "if" <+> pretty x <+> nest 2 (keyword "then" <\> pretty e1) 
                               <\> nest 2 (keyword "else" <\> pretty e2)
 

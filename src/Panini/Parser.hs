@@ -42,7 +42,7 @@ parseProgram = parseA (many statement)
 parseStatement :: FilePath -> Text -> Either Error Statement
 parseStatement = parseA statement
 
-parseTerm :: FilePath -> Text -> Either Error (Term Untyped)
+parseTerm :: FilePath -> Text -> Either Error Term
 parseTerm = parseA term
 
 parseConstraint :: FilePath -> Text -> Either Error Con
@@ -188,13 +188,13 @@ value = choice
   , Var <$> name 
   ]
 
-term :: Parser (Term Untyped)
+term :: Parser Term
 term = do
   e1 <- term1
-  let mkApp e x = App e x NoPV ()  -- TODO: figure out the provenance here
+  let mkApp e x = App e x NoPV  -- TODO: figure out the provenance here
   (foldl' mkApp e1 <$> some (try value)) <|> pure e1
 
-term1 :: Parser (Term Untyped)
+term1 :: Parser Term
 term1 = choice
   [ try $ parens term
 
@@ -202,29 +202,24 @@ term1 = choice
              <* keyword "then" <*> term 
              <* keyword "else" <*> term
              <*> pure NoPV -- TODO: add term provenance
-             <*> pure ()
   
   , try $ Rec <$ keyword "rec" <*> name 
               <* symbol ":" <*> type_ 
               <* symbol "=" <*> term 
               <* keyword "in" <*> term
               <*> pure NoPV -- TODO: add term provenance
-              <*> pure ()
   
   , try $ Let <$ keyword "let" <*> name 
               <* symbol "=" <*> term 
               <* keyword "in" <*> term
               <*> pure NoPV -- TODO: add term provenance
-              <*> pure ()
 
   , try $ Lam <$ lambda <*> name 
               <* symbol ":" <*> type_  -- TODO: should be unrefined type only
               <* symbol "." <*> term
               <*> pure NoPV -- TODO: add term provenance
-              <*> pure ()
 
   , Val <$> value
-        <*> pure ()
   ]
 
 constant :: Parser Constant

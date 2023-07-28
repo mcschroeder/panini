@@ -23,24 +23,21 @@ import Prelude
 -- | Mappings of variables to types (Γ)
 type Context = Map Name Type
 
-withType :: ((Type, Con) -> Term Typed) -> (Type, Con) -> (Term Typed, Type, Con)
-withType f (t,vc) = (f (t,vc), t, vc)
-
-infer :: Context -> Term Untyped -> Pan (Term Typed, Type, Con)
+infer :: Context -> Term -> Pan (Type, Con)
 infer g = \case
   
   -- inf/var ----------------------------------------------
-  Val (Var x) _ -> do
+  Val (Var x) -> do
     case Map.lookup x g of
       Nothing -> throwError $ VarNotInScope x
-      Just t -> return $ Val (Var x) `withType` (self x t, CTrue)
+      Just t -> return (self x t, CTrue)
   
   -- inf/con ----------------------------------------------
-  Val (Con c) _ -> do
+  Val (Con c) -> do
     let v = dummyName
     let b = primType c
     let t = TBase v b (Known (EVar v `pEq` ECon c)) (getPV c)
-    return $ Val (Con c) `withType` (t, CTrue)
+    return (t, CTrue)
     where
       primType (U   _) = TUnit
       primType (B _ _) = TBool
@@ -48,58 +45,58 @@ infer g = \case
       primType (S _ _) = TString
   
   -- inf/app ----------------------------------------------
-  App e x pv _ -> do
-    (ė, tₑ, cₑ) <- infer g e
+  App e x _ -> do
+    (tₑ, cₑ) <- infer g e
     case tₑ of
       TBase _ _ _ _ -> throwError $ ExpectedFunType e tₑ
       TFun y t₁ t₂ _ -> do
-        (_, tₓ, _) <- infer g (Val x ())
+        (tₓ, _) <- infer g (Val x)
         cₓ <- sub tₓ t₁
         let t = subst x y t₂
         let c = cₑ ∧ cₓ
-        return $ App ė x pv `withType` (t, c)
+        return (t, c)
   
   -- inf/lam ----------------------------------------------
-  Lam x t̃₁ e pv _ -> do
+  Lam x t̃₁ e _ -> do
     t̂₁ <- fresh (shape t̃₁)
     -- ĉ₁ <- sub t̃₁ t̂₁
-    (ė, t₂, c₂) <- infer (Map.insert x t̂₁ g) e
+    (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ NoPV
     -- TODO: when is ĉ₁ appropriate/necessary?
     -- let c = ĉ₁ ∧ (cImpl x t̂₁ c₂)
     let c = (cImpl x t̂₁ c₂)
-    return $ Lam x t̃₁ ė pv `withType` (t, c)
+    return (t, c)
   
   -- inf/let ----------------------------------------------
-  Let x e₁ e₂ pv _ -> do
-    (ė₁, t₁, c₁) <- infer g e₁
-    (ė₂, t₂, c₂) <- infer (Map.insert x t₁ g) e₂
+  Let x e₁ e₂ _ -> do
+    (t₁, c₁) <- infer g e₁
+    (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = c₁ ∧ (cImpl x t₁ c₂) ∧ ĉ₂
-    return $ Let x ė₁ ė₂ pv `withType` (t̂₂, c)
+    return (t̂₂, c)
 
   -- inf/rec ----------------------------------------------
-  Rec x t̃₁ e₁ e₂ pv _ -> do
+  Rec x t̃₁ e₁ e₂ _ -> do
     t̂₁ <- fresh (shape t̃₁)
-    (ė₁, t₁, c₁) <- infer (Map.insert x t̂₁ g) e₁
-    (ė₂, t₂, c₂) <- infer (Map.insert x t₁ g) e₂
+    (t₁, c₁) <- infer (Map.insert x t̂₁ g) e₁
+    (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = (cImpl x t̂₁ c₁) ∧ (cImpl x t₁ c₂) ∧ ĉ₂
-    return $ Rec x t̃₁ ė₁ ė₂ pv `withType` (t₂, c)
+    return (t₂, c)
 
   -- inf/if -----------------------------------------------
-  If v e₁ e₂ pv _ -> do
+  If v e₁ e₂ _ -> do
     -- TODO: check that v is bool
-    (ė₁, t₁, c₁) <- infer g e₁
-    (ė₂, t₂, c₂) <- infer g e₂
+    (t₁, c₁) <- infer g e₁
+    (t₂, c₂) <- infer g e₂
     let y = freshName "y" (freeVars v ++ freeVars c₁ ++ freeVars c₂)
     let p₁ = EVal v `pEq` ECon (B True  NoPV)
     let p₂ = EVal v `pEq` ECon (B False NoPV)
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
     t <- mkJoin t₁ t₂
-    return $ If v ė₁ ė₂ pv `withType` (t, c)
+    return (t, c)
 
 -- | Selfification.
 self :: Name -> Type -> Type

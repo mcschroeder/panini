@@ -65,7 +65,7 @@ data Definition
   | Rejected
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term Untyped
+      , _givenTerm :: Term
       , _typeError :: Error
       }
   
@@ -76,7 +76,7 @@ data Definition
   | Inferred
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term Untyped
+      , _givenTerm :: Term
       , _inferredType :: Type
       , _vc :: Con
       }
@@ -87,7 +87,7 @@ data Definition
   | Invalid
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term Untyped
+      , _givenTerm :: Term
       , _inferredType :: Type
       , _vc :: Con
       , _solverError :: Error
@@ -98,7 +98,7 @@ data Definition
   | Verified
       { _name :: Name
       , _givenType :: Type 
-      , _givenTerm :: Term Untyped
+      , _givenTerm :: Term
       , _inferredType :: Type
       , _vc :: Con
       , _solution :: Assignment

@@ -78,7 +78,7 @@ elaborateStatement modulePath = \case
           Left err -> do
             logError err
             envExtend x (Rejected x t0 e err)
-          Right (_,t,vc) -> do
+          Right (t,vc) -> do
             logData "Inferred Type" t
             logData "Verification Condition" vc
             envExtend x (Inferred x t0 e t vc)
