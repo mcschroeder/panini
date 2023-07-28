@@ -1,4 +1,4 @@
-import base.pan
+import base
 
 f : 𝕊 → 𝟙 
 = λs:𝕊.

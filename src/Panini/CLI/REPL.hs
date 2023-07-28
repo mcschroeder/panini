@@ -31,6 +31,7 @@ import System.Console.Haskeline
 import System.IO
 import Panini
 import Panini.Logger
+import Panini.Modules
 
 -------------------------------------------------------------------------------
 
@@ -121,7 +122,7 @@ synthesizeType input = do
   
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
-  res <- lift $ tryError $ elaborateProgram "<repl>" =<< lift (except $ parseInput input) 
+  res <- lift $ tryError $ elaborateProgram replModule =<< lift (except $ parseInput input) 
   case res of
     Left err -> do
       err' <- liftIO $ updatePV (addSourceLinesREPL input) err

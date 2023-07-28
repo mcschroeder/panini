@@ -82,6 +82,7 @@ library
     Panini.Logic.Solver.Fusion
     Panini.Logic.Solver.Grammar
     Panini.Logic.Solver.Liquid
+    Panini.Modules
     Panini.Monad
     Panini.Names
     Panini.Parser

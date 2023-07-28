@@ -3,14 +3,17 @@ module Panini.CLI.Main where
 import Control.Monad
 import Data.Maybe
 import Options.Applicative
-import Panini.Monad
+import Panini
 import Panini.CLI.REPL
+import Panini.Monad
 import Prelude
 import System.Console.Haskeline
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
+import Data.Text.IO qualified as Text
+import Panini.Provenance
 
 -------------------------------------------------------------------------------
 
@@ -58,9 +61,8 @@ main = do
       isTerm <- hIsTerminalDevice stdin
       if isTerm
         then replMain panOpts
-        else undefined  -- TODO
-    Just _inFile -> do
-      undefined -- TODO
+        else batchMain panOpts
+    Just _ -> batchMain panOpts
 
 replMain :: PanOptions -> IO ()
 replMain panOpts = do
@@ -82,7 +84,18 @@ replMain panOpts = do
       exitFailure
     Right _ -> return ()
 
--- batchMain :: PanOptions -> IO ()
--- batchMain panOpts = do
---   src <- liftIO $ Text.readFile f
---   parseProgram f src
+batchMain :: PanOptions -> IO ()
+batchMain panOpts = do
+  let panState = defaultState
+        { debugMode = panOpts.debug
+        , colorOutput = panOpts.color
+        , unicodeOutput = panOpts.unicode
+        }
+  res <- runPan panState $ do
+    case panOpts.inputFile of
+      Nothing -> do
+        src <- tryIO NoPV $ Text.getContents
+        undefined
+
+  undefined
+
