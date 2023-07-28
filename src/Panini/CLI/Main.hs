@@ -12,6 +12,8 @@ import System.Exit
 import System.FilePath
 import System.IO
 
+-------------------------------------------------------------------------------
+
 data PanOptions = PanOptions
   { inputFile :: Maybe FilePath
   , outputFile :: Maybe FilePath
@@ -59,8 +61,6 @@ main = do
         else undefined  -- TODO
     Just _inFile -> do
       undefined -- TODO
-
--- TODO: consider debug, color, and unicode options
 
 replMain :: PanOptions -> IO ()
 replMain panOpts = do

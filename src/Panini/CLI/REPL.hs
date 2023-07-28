@@ -21,7 +21,6 @@ import Panini.Language.AST
 import Panini.Language.Elaborator
 import Panini.Language.Elaborator.Environment
 import Panini.Language.Infer
-import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
@@ -30,6 +29,8 @@ import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
 import System.IO
+import Panini
+import Panini.Logger
 
 -------------------------------------------------------------------------------
 
@@ -120,7 +121,7 @@ synthesizeType input = do
   
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = do
-  res <- lift $ tryError $ elaborateProgram =<< lift (except $ parseInput input) 
+  res <- lift $ tryError $ elaborateProgram "<repl>" =<< lift (except $ parseInput input) 
   case res of
     Left err -> do
       err' <- liftIO $ updatePV (addSourceLinesREPL input) err
@@ -129,19 +130,10 @@ evaluateInput input = do
 
 loadFiles :: [FilePath] -> InputT Pan ()
 loadFiles fs = forM_ fs $ \f -> do
-  lift $ logMessage "REPL" $ "Read " ++ f
-  src <- liftIO $ Text.readFile f
-  case parseProgram f src of
-    Left err1 -> outputPretty err1
-    Right prog -> do
-      res <- lift $ tryError $ elaborateProgram prog
-      case res of
-        Left err2 -> do
-          err2' <- liftIO $ updatePV addSourceLines err2
-          outputPretty err2'
-        Right () -> do          
-          --showState
-          return ()
+  r <- lift $ tryError $ loadFile f
+  case r of
+    Left err -> lift $ logError err
+    Right () -> return () -- TODO: show output?
 
 showState :: InputT Pan ()
 showState = do

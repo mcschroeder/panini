@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Panini.Language.Elaborator where
 
@@ -16,6 +17,8 @@ import Panini.Names
 import Panini.Parser
 import Panini.Pretty.Printer
 import Prelude
+import System.Directory
+import System.FilePath
 
 -------------------------------------------------------------------------------
 
@@ -25,7 +28,9 @@ envLookup x = Map.lookup x <$> gets environment
 
 -- | Extend the environment with a new definition.
 envExtend :: Name -> Definition -> Pan ()
-envExtend x d = modify' $ \s -> s { environment = Map.insert x d s.environment }
+envExtend x d = modify' $ \s -> s 
+  { environment = Map.insert x d s.environment
+  }
 
 -- | Remove a definition from the environment.
 envDelete :: Name -> Pan ()
@@ -42,11 +47,11 @@ envToContext = Map.mapMaybe go
 
 -------------------------------------------------------------------------------
 
-elaborateProgram :: Program -> Pan ()
-elaborateProgram = mapM_ elaborateStatement
+elaborateProgram :: FilePath -> Program -> Pan ()
+elaborateProgram = mapM_ . elaborateStatement
 
-elaborateStatement :: Statement -> Pan ()
-elaborateStatement = \case
+elaborateStatement :: FilePath -> Statement -> Pan ()
+elaborateStatement modulePath = \case
   Assume x t -> do
     logMessageDoc "Elab" $ "Assume" <+> pretty x
     def0 <- envLookup x
@@ -72,7 +77,7 @@ elaborateStatement = \case
         case r1 of
           Left err -> do
             envExtend x (Rejected x t0 e err)
-            throwError err -- ?
+            throwError err -- TODO: just logError instead of re-throwing ?
           Right (_e',t,vc) -> do
             envExtend x (Inferred x t0 e t vc)
             logData "Inferred Type" t
@@ -82,10 +87,14 @@ elaborateStatement = \case
               Just s -> do
                 envExtend x (Verified x t0 e t vc s)
                 logOutput s  -- TODO
-              Nothing -> envExtend x (Invalid x t0 e t vc Nothing)
+              Nothing -> do
+                envExtend x (Invalid x t0 e t vc Nothing)
+                -- TODO: logError?
   
   Import m -> do
-    src <- liftIO $ Text.readFile m  -- TODO: handle error
+    absModulePath <- liftIO $ makeAbsolute modulePath  -- TODO: catch error
+    let importPath = takeDirectory absModulePath </> m
+    src <- liftIO $ Text.readFile importPath  -- TODO: handle error
     case parseProgram m src of
       Left  err  -> throwError err
-      Right prog -> elaborateProgram prog
+      Right prog -> elaborateProgram m prog

@@ -3,6 +3,7 @@ module Panini.Logger
   , logMessage
   , logMessageDoc
   , logData
+  , logError
   ) where
 
 import Data.Text.IO qualified as Text
@@ -14,6 +15,7 @@ import Control.Monad
 import Panini.Monad
 import Control.Monad.Trans.State.Strict
 import Data.Maybe
+import Panini.Error
 
 -------------------------------------------------------------------------------
 
@@ -32,6 +34,7 @@ getTermRenderOptions s = do
     , fixedWidth = w
     }
 
+-- TODO: remove
 logOutput :: Pretty a => a -> Pan ()
 logOutput a = do
   s <- get
@@ -62,6 +65,18 @@ logData label a = do
       <\\> pretty a 
       <> "\n"
 
+logError :: Error -> Pan ()
+logError err = do
+  let label = "ERROR" :: String
+  s <- get
+  when s.debugMode $ liftIO $ do
+    opts <- getTermRenderOptions s
+    let w = fromMaybe 80 opts.fixedWidth    
+    let divider = mconcat $ replicate (w - length label - 1) symDivH
+    Text.putStrLn $ renderDoc opts $ 
+      anError (pretty divider <+> pretty label)
+      <\\> pretty err
+      <> "\n"
+
 -- TODO:
 -- logWarning :: Pretty a => a -> Pan ()
--- logError :: Error -> Pan ()
