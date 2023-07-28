@@ -25,8 +25,8 @@ instance Pretty Program where
 
 instance Pretty Statement where
   pretty = \case
-    Assume x t   -> keyword "assume" <+> pretty x <+> symColon <+> pretty t
-    Define x t e -> keyword "define" <+> pretty x <+> symColon <+> pretty t 
+    Assume x t   -> pretty x <+> symColon <+> pretty t
+    Define x t e -> pretty x <+> symColon <+> pretty t 
                     <\> symEq <+> pretty e
     Import m _   -> keyword "import" <+> pretty m
 
