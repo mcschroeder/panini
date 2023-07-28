@@ -141,18 +141,9 @@ loadFiles fs = forM_ fs $ \f -> lift $ do
 showState :: InputT Pan ()
 showState = do
   PanState{environment} <- lift get
-  forM_ (Map.toAscList environment) $ \(_,def) -> case def of
-    Assumed{_name,_givenType} ->
-      outputStrLn $ "✳️  " ++ showPretty _name ++ " : " ++ showPretty _givenType
-    Rejected{_name,_givenType,_typeError} ->
-      outputStrLn $ "❗ " ++ showPretty _name ++ " : " ++ showPretty _givenType ++ "  [type error]"
-    Inferred{_name,_inferredType,_vc} ->
-      outputStrLn $ "❓ " ++ showPretty _name ++ " : " ++ showPretty _inferredType
-    Invalid{_name,_inferredType,_vc} ->
-      outputStrLn $ "‼️  " ++ showPretty _name ++ " : " ++ showPretty _inferredType ++ "  [solver error]"
-    Verified{_name,_inferredType,_vc,_solution} ->
-      outputStrLn $ "✅ " ++ showPretty _name ++ " : " ++ showPretty _inferredType
-
+  forM_ (Map.toAscList environment) $ \case
+    (_,Assumed{_name,_givenType}) -> outputStrLn $ showPretty $ pretty _name <+> symColon <+> pretty _givenType
+    (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ pretty _name <+> symColon <+> pretty _solvedType
 
 
 

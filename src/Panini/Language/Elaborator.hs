@@ -20,6 +20,7 @@ import Panini.Parser
 import Panini.Pretty.Printer
 import Prelude
 import System.FilePath
+import Panini.Logic.Solver.Assignment
 
 -------------------------------------------------------------------------------
 
@@ -40,33 +41,26 @@ envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
 -- | Convert an elaborator environment to a typechecking context by throwing
 -- away all non-final definitions.
 envToContext :: Environment -> Context 
-envToContext = Map.mapMaybe go
+envToContext = Map.map go
   where
-    go (Assumed   {_givenType})    = Just _givenType
-    go (Verified  {_inferredType}) = Just _inferredType
-    go _                           = Nothing
+    go (Assumed {_givenType}) = _givenType
+    go (Verified {_solvedType}) = _solvedType
 
 -------------------------------------------------------------------------------
 
--- TODO: simplify
+-- TODO: if elaboration fails, defs should not be added to env
 
 -- | Elaborate all statements in a program (see 'elaborateStatement').
 elaborateProgram :: FilePath -> Program -> Pan ()
 elaborateProgram =  mapM_ . elaborateStatement
 
 -- | Elaborate a statement and add the corresponding definition(s) to the
--- environment. Most errors that occur along the way (e.g., during type
--- inference or SMT solving) will still result in the construction of a valid
--- 'Definition' (e.g., 'Rejected') and so are not re-thrown but merely logged.
--- In case an error prohibits the construction of a 'Definition' it is re-thrown
--- and the elaboration aborts.
+-- environment.
 elaborateStatement :: FilePath -> Statement -> Pan ()
 elaborateStatement thisModule = \case
   Assume x t -> do
     logMessageDoc "Elab" $ "Assume" <+> pretty x
-    def0 <- envLookup x
-    case def0 of
-      Just (Assumed _ t0) | t0 == t -> logData "Previously Assumed Type" t
+    envLookup x >>= \case
       Just _ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
       Nothing -> do
         envExtend x (Assumed x t)
@@ -75,30 +69,18 @@ elaborateStatement thisModule = \case
   stmt@(Define x t0 e) -> do
     logMessageDoc "Elab" $ "Define" <+> pretty x
     logData "Definition" stmt
-    def0 <- envLookup x
-    case def0 of
+    envLookup x >>= \case
       Just _ -> throwError $ AlreadyDefined x
       Nothing -> do
         logMessage "Infer" "Infer type"
         g <- envToContext <$> gets environment
         let g' = Map.insert x t0 g
         logData "Typing Context Γ" g'
-        r1 <- tryError $ infer g' e
-        case r1 of
-          Left err -> do
-            envExtend x (Rejected x t0 e err)
-            logError err
-          Right (t,vc) -> do
-            envExtend x (Inferred x t0 e t vc)
-            logData "Inferred Type" t
-            logData "Verification Condition" vc
-            r2 <- tryError $ solve vc
-            case r2 of
-              Left err -> do
-                envExtend x (Invalid x t0 e t vc err)
-                logError err
-              Right s -> do
-                envExtend x (Verified x t0 e t vc s)
+        (t,vc) <- infer g' e
+        logData "Inferred Type" t
+        logData "Verification Condition" vc
+        s <- solve vc
+        envExtend x (Verified x t0 e t vc s (apply s t))
   
   Import otherModule0 pv -> do
     let otherModule = takeDirectory thisModule </> otherModule0
