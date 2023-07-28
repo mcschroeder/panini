@@ -49,11 +49,13 @@ elaborateStatement :: Statement -> Pan ()
 elaborateStatement = \case
   Assume x t -> do
     logMessageDoc "Elab" $ "Assume" <+> pretty x
-    logData "Assumed Type" t
     def0 <- envLookup x
     case def0 of
-      Just _  -> throwError $ AlreadyDefined x
-      Nothing -> envExtend x (Assumed x t)    
+      Just (Assumed _ t0) | t0 == t -> logData "Previously Assumed Type" t
+      Just _ -> throwError $ AlreadyDefined x  -- TODO: more info
+      Nothing -> do
+        envExtend x (Assumed x t)
+        logData "Assumed Type" t
   
   stmt@(Define x t0 e) -> do
     logMessageDoc "Elab" $ "Define" <+> pretty x

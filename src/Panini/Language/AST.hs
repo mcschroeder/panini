@@ -124,3 +124,9 @@ instance HasProvenance Type where
   getPV (TFun _ _ _ pv) = pv
   setPV pv (TBase v b r _) = TBase v b r pv
   setPV pv (TFun x t1 t2 _) = TFun x t1 t2 pv
+
+-- | Syntactic equality, ignoring provenance.
+instance Eq Type where
+  TBase x1 b1 r1 _ == TBase x2 b2 r2 _ = x1 == x2 && b1 == b2 && r1 == r2
+  TFun x1 s1 t1 _  == TFun x2 s2 t2 _  = x1 == x2 && s1 == s2 && t1 == t2
+  _                == _                = False
