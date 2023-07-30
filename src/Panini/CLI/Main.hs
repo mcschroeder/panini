@@ -13,6 +13,10 @@ import System.FilePath
 import System.IO
 import Data.Text.IO qualified as Text
 import Panini.Provenance
+import Panini.Logger
+import Panini.Parser
+import Panini.Language.Elaborator
+import Panini.Pretty.Printer
 
 -------------------------------------------------------------------------------
 
@@ -56,12 +60,12 @@ main :: IO ()
 main = do
   panOpts <- execParser opts
   case panOpts.inputFile of
+    Just _ -> batchMain panOpts
     Nothing -> do
       isTerm <- hIsTerminalDevice stdin
       if isTerm
         then replMain panOpts
         else batchMain panOpts
-    Just _ -> batchMain panOpts
 
 replMain :: PanOptions -> IO ()
 replMain panOpts = do
@@ -83,6 +87,7 @@ replMain panOpts = do
       exitFailure
     Right _ -> return ()
 
+-- TODO: output errors and log traces to stderr
 batchMain :: PanOptions -> IO ()
 batchMain panOpts = do
   let panState = defaultState
@@ -91,12 +96,23 @@ batchMain panOpts = do
         , unicodeOutput = panOpts.unicode
         }
   res <- runPan panState $ do
-    case panOpts.inputFile of
-      Nothing -> undefined
-        -- logMessage "Panini" $ "Read stdin"
-        -- src <- tryIO NoPV $ Text.getContents
-        -- logData ("<stdin> (Raw Source)") src
-
-
-  undefined
+    (path,src) <- case panOpts.inputFile of
+      Just path -> do
+        logMessage "Panini" $ "Read " ++ path
+        src <- tryIO NoPV $ Text.readFile path
+        logData (path ++ " (Raw Source)") src
+        return (path,src)
+      Nothing -> do
+        logMessage "Panini" $ "Read stdin"
+        src <- tryIO NoPV $ Text.getContents
+        logData ("<stdin> (Raw Source)") src
+        return ("<stdin>", src)
+    prog <- parseSource path src
+    elaborateProgram path prog
+    return ()
+  case res of
+    Left err -> do
+      putStrLn $ showPretty err  -- TODO
+      exitFailure
+    Right _ -> return ()
 
