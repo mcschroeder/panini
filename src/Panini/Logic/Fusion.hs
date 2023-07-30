@@ -6,25 +6,20 @@
 --   * Benjamin Cosman and Ranjit Jhala. 2017. Local Refinement Typing.
 --     ICFP. https://doi.org/10.1145/3110270
 -------------------------------------------------------------------------------
-module Panini.Logic.Solver.Fusion (solve, elim, cutVars) where
+module Panini.Logic.Fusion (solve, elim, cutVars) where
 
+import Algebra.Lattice
 import Control.Monad
 import Data.Bifunctor
 import Data.Graph qualified as Graph
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Panini.Algebra.Lattice
 import Panini.Logger
+import Panini.Logic.Assignment
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.KVar
-import Panini.Logic.Predicates
-import Panini.Logic.Solver.Assignment
 import Panini.Monad
-import Panini.Names
-import Panini.Primitives
-import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 -- | Eliminate acyclic κ-variables from a constraint using refinment FUSION.

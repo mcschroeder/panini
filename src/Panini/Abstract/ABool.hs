@@ -4,9 +4,9 @@ module Panini.Abstract.ABool
   , aBoolEq
   ) where
 
+import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
-import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 import Prelude
 

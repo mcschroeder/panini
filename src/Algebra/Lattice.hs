@@ -1,4 +1,5 @@
-module Panini.Algebra.Lattice where
+-- | Common definitions for various algebraic structures related to lattices.
+module Algebra.Lattice where
 
 import Data.Foldable
 import Prelude

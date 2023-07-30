@@ -1,21 +1,15 @@
-module Panini.Language.Infer where
+module Panini.Infer where
 
+import Algebra.Lattice
 import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
-import Panini.Algebra.Lattice
 import Panini.Error
-import Panini.Language.AST
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.KVar
-import Panini.Logic.Predicates
 import Panini.Monad
-import Panini.Names
-import Panini.Primitives
 import Panini.Provenance
-import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 ------------------------------------------------------------------------------

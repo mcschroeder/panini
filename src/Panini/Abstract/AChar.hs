@@ -1,7 +1,7 @@
 module Panini.Abstract.AChar
   ( AChar
-  , concreteSize
-  , concreteValues
+  , concreteCharCount
+  , concreteCharValues
   , aCharEq
   , aCharNe
   -- , toPred
@@ -9,11 +9,11 @@ module Panini.Abstract.AChar
   , finiteSetToAChar
   ) where
 
+import Algebra.Lattice
 import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import GHC.Generics
-import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 -- import Panini.Syntax
 import Prelude
@@ -71,14 +71,14 @@ toCharList :: IntSet -> [Char]
 toCharList = map (toEnum @Char) . I.toAscList
 
 -- | The number of concrete values represented by the abstract character.
-concreteSize :: AChar -> Int
-concreteSize (AChar True  cs) = I.size cs
-concreteSize (AChar False cs) = fromEnum @Char maxBound - I.size cs
+concreteCharCount :: AChar -> Int
+concreteCharCount (AChar True  cs) = I.size cs
+concreteCharCount (AChar False cs) = fromEnum @Char maxBound - I.size cs
 
 -- | The concrete values represented by the abstract character.
-concreteValues :: AChar -> [Char]
-concreteValues (AChar True  cs) = toCharList cs
-concreteValues (AChar False cs) = 
+concreteCharValues :: AChar -> [Char]
+concreteCharValues (AChar True  cs) = toCharList cs
+concreteCharValues (AChar False cs) = 
   filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
 -- | An abstract character @= c@.

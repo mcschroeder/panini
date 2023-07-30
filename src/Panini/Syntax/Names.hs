@@ -1,5 +1,5 @@
 -- TODO: module documentation
-module Panini.Names where
+module Panini.Syntax.Names where
 
 import Data.Char (isDigit)
 import Data.Hashable

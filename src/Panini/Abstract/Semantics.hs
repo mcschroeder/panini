@@ -1,9 +1,10 @@
-module Panini.Abstract.Interpretation 
+module Panini.Abstract.Semantics 
   ( abstractVar
   , concretizeVar
   , topExpr
   ) where
 
+import Algebra.Lattice
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Text qualified as Text
 import Panini.Abstract.ABool
@@ -11,14 +12,9 @@ import Panini.Abstract.AChar
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
 import Panini.Abstract.AValue
-import Panini.Algebra.Lattice
-import Panini.Logic.Expressions
-import Panini.Logic.Relations
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
 import Panini.Provenance
-import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 -- local notation -------------------------------------------------------------

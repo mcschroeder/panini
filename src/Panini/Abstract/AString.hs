@@ -10,17 +10,17 @@ module Panini.Abstract.AString
   , toRegLan
   ) where
 
+import Algebra.Lattice
+import Data.GSet -- from regexp
 import Data.Hashable
+import Data.Set qualified as S
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar
-import Panini.Algebra.Lattice
 import Panini.Pretty.Printer hiding (Literal)
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
 import RegExp.Operations
 import RegExp.RegExp
-import Data.Set qualified as S
-import Data.GSet -- from regexp
 
 ------------------------------------------------------------------------------
 

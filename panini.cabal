@@ -57,43 +57,44 @@ library
     , uniplate
     , unordered-containers
   exposed-modules:
+    Algebra.Lattice
     Panini.Abstract.ABool
     Panini.Abstract.AChar
     Panini.Abstract.AInt
     Panini.Abstract.AString
     Panini.Abstract.AValue
-    Panini.Abstract.Interpretation   
-    Panini.Algebra.Lattice
+    Panini.Abstract.Semantics
     Panini.CLI.Main
     Panini.CLI.REPL
+    Panini.Elab
+    Panini.Environment
     Panini.Error
-    Panini.Language.AST
-    Panini.Language.Elaborator
-    Panini.Language.Environment
-    Panini.Language.Infer
+    Panini.Infer
     Panini.Logger
+    Panini.Logic
+    Panini.Logic.Assignment
     Panini.Logic.Constraints
-    Panini.Logic.Expressions
-    Panini.Logic.KVar
-    Panini.Logic.Predicates
-    Panini.Logic.Relations
+    Panini.Logic.Fusion
+    Panini.Logic.Grammar
+    Panini.Logic.Liquid
     Panini.Logic.Simplify
-    Panini.Logic.Solver
-    Panini.Logic.Solver.Assignment
-    Panini.Logic.Solver.Fusion
-    Panini.Logic.Solver.Grammar
-    Panini.Logic.Solver.Liquid
     Panini.Monad
-    Panini.Names
     Panini.Parser
     Panini.Pretty.Graphviz
     Panini.Pretty.Printer
-    Panini.Primitives
     Panini.Provenance
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
-    Panini.Substitution
+    Panini.Syntax
+    Panini.Syntax.AST
+    Panini.Syntax.Expressions
+    Panini.Syntax.KVar
+    Panini.Syntax.Names
+    Panini.Syntax.Predicates
+    Panini.Syntax.Primitives    
+    Panini.Syntax.Relations
+    Panini.Syntax.Substitution
 
 executable panini
   hs-source-dirs: app

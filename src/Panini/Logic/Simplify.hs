@@ -4,12 +4,7 @@ module Panini.Logic.Simplify (simplifyCon, simplifyPred) where
 
 import Data.Generics.Uniplate.Operations
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.Predicates
-import Panini.Logic.Relations
-import Panini.Names
-import Panini.Primitives
-import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 ------------------------------------------------------------------------------

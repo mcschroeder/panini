@@ -23,16 +23,11 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
-import Panini.Language.AST
 import Panini.Logger
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.Predicates
-import Panini.Logic.Relations
 import Panini.Monad
-import Panini.Names
-import Panini.Primitives
 import Panini.Provenance
+import Panini.Syntax
 import Prelude
 import Text.Megaparsec
 import Text.Megaparsec.Char

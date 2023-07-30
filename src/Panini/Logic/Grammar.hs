@@ -1,5 +1,6 @@
-module Panini.Logic.Solver.Grammar (infer) where
+module Panini.Logic.Grammar (infer) where
 
+import Algebra.Lattice
 import Control.Monad
 import Control.Monad.ST
 import Data.Foldable
@@ -10,18 +11,11 @@ import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.STRef
-import Panini.Abstract.AString
 import Panini.Abstract.AValue
-import Panini.Abstract.Interpretation
-import Panini.Algebra.Lattice
+import Panini.Abstract.Semantics
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.Predicates
-import Panini.Logic.Relations
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
-import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 -------------------------------------------------------------------------------

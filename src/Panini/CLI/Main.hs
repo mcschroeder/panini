@@ -2,21 +2,21 @@ module Panini.CLI.Main where
 
 import Control.Monad
 import Data.Maybe
+import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.CLI.REPL
+import Panini.Elab
+import Panini.Logger
 import Panini.Monad
+import Panini.Parser
+import Panini.Pretty.Printer
+import Panini.Provenance
 import Prelude
 import System.Console.Haskeline
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
-import Data.Text.IO qualified as Text
-import Panini.Provenance
-import Panini.Logger
-import Panini.Parser
-import Panini.Language.Elaborator
-import Panini.Pretty.Printer
 
 -------------------------------------------------------------------------------
 

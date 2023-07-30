@@ -1,10 +1,9 @@
-module Panini.Language.Environment where
+module Panini.Environment where
 
 import Data.Map (Map)
-import Panini.Language.AST
+import Panini.Logic.Assignment
 import Panini.Logic.Constraints
-import Panini.Logic.Solver.Assignment
-import Panini.Names
+import Panini.Syntax
 import Prelude
 
 -------------------------------------------------------------------------------

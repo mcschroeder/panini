@@ -8,15 +8,10 @@ import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Panini.Abstract.AString (toRegLan)
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.KVar
-import Panini.Logic.Predicates
-import Panini.Logic.Relations
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
 import Panini.Provenance
 import Panini.SMT.RegLan
+import Panini.Syntax
 import Prelude
 
 ------------------------------------------------------------------------------

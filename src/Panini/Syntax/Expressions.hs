@@ -1,18 +1,15 @@
-module Panini.Logic.Expressions where
+module Panini.Syntax.Expressions where
 
+import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Panini.Abstract.AValue
-import Panini.Abstract.ABool
-import Panini.Abstract.AInt
-import Panini.Abstract.AString
-import Panini.Algebra.Lattice
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
 import Panini.Provenance
+import Panini.Syntax.Names
+import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------

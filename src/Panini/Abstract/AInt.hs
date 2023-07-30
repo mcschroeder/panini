@@ -2,8 +2,8 @@
 
 module Panini.Abstract.AInt
   ( AInt
-  , concreteSize
-  , concreteValues
+  , concreteIntCount
+  , concreteIntValues
   , aMinimum
   , aMaximum
   -- , toPred
@@ -22,9 +22,9 @@ module Panini.Abstract.AInt
   , Inf(..)
   ) where
 
+import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
-import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
 -- import Panini.Syntax
 import Prelude
@@ -42,10 +42,10 @@ newtype AInt = AInt IntervalSequence
     , Hashable)
 
 -- | The number of concrete values represented by the abstract integer (i.e.,
--- the length of the list returned by 'concreteValues'), or 'Nothing' if the
+-- the length of the list returned by 'concreteIntValues'), or 'Nothing' if the
 -- number of concrete values is infinite.
-concreteSize :: AInt -> Maybe Integer
-concreteSize (AInt xs) = go 0 xs
+concreteIntCount :: AInt -> Maybe Integer
+concreteIntCount (AInt xs) = go 0 xs
   where
     go n (In (Fin a) (Fin b) : ys) = go (n + 1 + b - a) ys
     go n []                        = Just n
@@ -57,8 +57,8 @@ concreteSize (AInt xs) = go 0 xs
 -- finite, or if they approach only positive infinity (+∞), the values are
 -- returned in ascending order. If the values (also) tend toward negative
 -- infinity (-∞), no ordering guarantees are given.
-concreteValues :: AInt -> [Integer]
-concreteValues (AInt xs) = go xs
+concreteIntValues :: AInt -> [Integer]
+concreteIntValues (AInt xs) = go xs
   where
     go (In (Fin a) (Fin b) : ys) = [a..b] ++ go ys
     go (In (Fin a) PosInf  : _ ) = [a..]

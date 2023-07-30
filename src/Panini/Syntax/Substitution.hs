@@ -1,14 +1,16 @@
-module Panini.Substitution where
+module Panini.Syntax.Substitution where
 
 import Data.List ((\\))
-import Panini.Language.AST
 import Panini.Logic.Constraints
-import Panini.Logic.Expressions
-import Panini.Logic.Predicates
-import Panini.Logic.Relations
-import Panini.Names
-import Panini.Primitives
+import Panini.Syntax.AST
+import Panini.Syntax.Expressions
+import Panini.Syntax.Names
+import Panini.Syntax.Predicates
+import Panini.Syntax.Primitives
+import Panini.Syntax.Relations
 import Prelude
+
+-- TODO: move instances into correpsonding modules?
 
 ------------------------------------------------------------------------------
 

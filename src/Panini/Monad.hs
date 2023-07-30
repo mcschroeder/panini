@@ -15,8 +15,8 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Panini.Environment
 import Panini.Error
-import Panini.Language.Environment
 import Panini.Provenance
 import Prelude
 

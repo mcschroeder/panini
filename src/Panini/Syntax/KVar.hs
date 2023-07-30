@@ -1,11 +1,11 @@
-module Panini.Logic.KVar where
+module Panini.Syntax.KVar where
 
 import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
+import Panini.Syntax.Names
+import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------

@@ -1,10 +1,10 @@
-module Panini.Logic.Relations where
+module Panini.Syntax.Relations where
 
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import GHC.Generics (Generic)
-import Panini.Logic.Expressions
 import Panini.Pretty.Printer
+import Panini.Syntax.Expressions
 import Prelude
 
 ------------------------------------------------------------------------------

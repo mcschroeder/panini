@@ -1,13 +1,18 @@
-module Panini.Abstract.AValue where
+module Panini.Abstract.AValue
+  ( AValue(..)
+  , ABool
+  , AInt
+  , AString
+  ) where
 
+import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics (Generic)
-import Prelude
 import Panini.Abstract.ABool
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
-import Panini.Algebra.Lattice
 import Panini.Pretty.Printer
+import Prelude
 
 ------------------------------------------------------------------------------
 

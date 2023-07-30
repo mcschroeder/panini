@@ -1,15 +1,12 @@
-module Panini.Logic.Solver.Assignment where
+module Panini.Logic.Assignment where
 
 import Data.Generics.Uniplate.Operations
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Panini.Language.AST
 import Panini.Logic.Constraints
-import Panini.Logic.KVar
-import Panini.Logic.Predicates
-import Panini.Substitution
+import Panini.Syntax
 import Prelude
 
 -- | An assignment σ maps κ-variables to refinement predicates.

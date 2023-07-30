@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Panini.Language.Elaborator 
+module Panini.Elab
   ( elaborateProgram
   , elaborateStatement
   , envToContext -- TODO: weird place for this?
@@ -12,19 +12,17 @@ import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Text.IO qualified as Text
+import Panini.Environment
 import Panini.Error
-import Panini.Language.AST
-import Panini.Language.Environment
-import Panini.Language.Infer
+import Panini.Infer
 import Panini.Logger
-import Panini.Logic.Solver
+import Panini.Logic
 import Panini.Monad
-import Panini.Names
 import Panini.Parser
 import Panini.Pretty.Printer
+import Panini.Syntax
 import Prelude
 import System.FilePath
-import Panini.Logic.Solver.Assignment
 
 -------------------------------------------------------------------------------
 

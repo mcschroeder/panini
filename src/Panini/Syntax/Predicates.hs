@@ -1,15 +1,15 @@
-module Panini.Logic.Predicates where
+module Panini.Syntax.Predicates where
 
+import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import GHC.Generics (Generic)
-import Panini.Algebra.Lattice
-import Panini.Logic.Expressions
-import Panini.Logic.Relations
-import Panini.Logic.KVar
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
+import Panini.Syntax.Expressions
+import Panini.Syntax.KVar
+import Panini.Syntax.Names
+import Panini.Syntax.Primitives
+import Panini.Syntax.Relations
 import Prelude
 
 ------------------------------------------------------------------------------

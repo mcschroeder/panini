@@ -1,11 +1,11 @@
 module Panini.Logic.Constraints where
 
+import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
-import Panini.Algebra.Lattice
-import Panini.Logic.Predicates
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
+import Panini.Syntax.Names
+import Panini.Syntax.Predicates
+import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------

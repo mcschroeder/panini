@@ -1,12 +1,12 @@
 -- TODO: module documentation
-module Panini.Language.AST where
+module Panini.Syntax.AST where
 
 import Data.Generics.Uniplate.Direct
-import Panini.Logic.Predicates
-import Panini.Names
 import Panini.Pretty.Printer
-import Panini.Primitives
 import Panini.Provenance
+import Panini.Syntax.Names
+import Panini.Syntax.Predicates
+import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------
