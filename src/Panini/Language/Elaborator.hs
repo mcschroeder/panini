@@ -1,9 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Panini.Language.Elaborator where
+module Panini.Language.Elaborator 
+  ( elaborateProgram
+  , elaborateStatement
+  , envToContext -- TODO: weird place for this?
+  ) where
 
-import Control.Monad
+import Control.Monad.Extra
 import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Maybe
@@ -34,9 +38,10 @@ envExtend x d = modify' $ \s -> s
   { environment = Map.insert x d s.environment
   }
 
--- | Remove a definition from the environment.
-envDelete :: Name -> Pan ()
-envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
+-- TODO: do we need this?
+-- -- | Remove a definition from the environment.
+-- envDelete :: Name -> Pan ()
+-- envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
 
 -- | Convert an elaborator environment to a typechecking context by throwing
 -- away all non-final definitions.
@@ -48,39 +53,50 @@ envToContext = Map.map go
 
 -------------------------------------------------------------------------------
 
--- TODO: if elaboration fails, defs should not be added to env
+tryElab :: Pan a -> Pan a
+tryElab m = do
+    state0 <- get
+    tryError m >>= \case
+      Right a -> return a
+      Left  e -> put state0 >> throwError e
 
--- | Elaborate all statements in a program (see 'elaborateStatement').
+-- | Elaborate a program by elaborating all of its statments and updating the
+-- environment accordingly. If elaboration fails at any point, an error is
+-- thrown and any intermittent changes to the environment are rolled back.
 elaborateProgram :: FilePath -> Program -> Pan ()
-elaborateProgram =  mapM_ . elaborateStatement
+elaborateProgram thisModule prog = tryElab $ do
+  whenM (elem thisModule <$> gets loadedModules) $ do
+    error "elaborateProgram: module reloading not yet implemented" -- TODO
+  mapM_ (elaborateStatement thisModule) prog
+  modify' (\s -> s { loadedModules = thisModule : s.loadedModules } )
 
--- | Elaborate a statement and add the corresponding definition(s) to the
--- environment.
+-- | Elaborate a statement and add the resulting definition(s) to the
+-- environment. If elaboration fails, an error will be thrown and the
+-- environment will remain unchanged.
 elaborateStatement :: FilePath -> Statement -> Pan ()
-elaborateStatement thisModule = \case
+elaborateStatement thisModule stmt = tryElab $ case stmt of
   Assume x t -> do
     logMessageDoc "Elab" $ "Assume" <+> pretty x
-    envLookup x >>= \case
-      Just _ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
-      Nothing -> do
-        envExtend x (Assumed x t)
-        logData "Assumed Type" t
+    whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
+    envExtend x (Assumed x t)
+    logData "Assumed Type" t
   
-  stmt@(Define x t0 e) -> do
+  Define x t0 e -> do
     logMessageDoc "Elab" $ "Define" <+> pretty x
     logData "Definition" stmt
-    envLookup x >>= \case
-      Just _ -> throwError $ AlreadyDefined x
-      Nothing -> do
-        logMessage "Infer" "Infer type"
-        g <- envToContext <$> gets environment
-        let g' = Map.insert x t0 g
-        logData "Typing Context Γ" g'
-        (t,vc) <- infer g' e
-        logData "Inferred Type" t
-        logData "Verification Condition" vc
-        s <- solve vc
-        envExtend x (Verified x t0 e t vc s (apply s t))
+    whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
+    logMessage "Infer" "Infer type"
+    g <- envToContext <$> gets environment
+    let g' = Map.insert x t0 g
+    logData "Typing Context Γ" g'
+    (t1, vc) <- infer g' e
+    logData "Inferred Type" t1
+    logData "Verification Condition" vc
+    s <- solve vc
+    let t2 = apply s t1
+    envExtend x (Verified x t0 e t1 vc s t2)
+    logData "Solution" s
+    logData "Solved Typed" t2
   
   Import otherModule0 pv -> do
     let otherModule = takeDirectory thisModule </> otherModule0
@@ -90,4 +106,3 @@ elaborateStatement thisModule = \case
       otherSrc <- tryIO pv $ Text.readFile otherModule
       otherProg <- parseSource otherModule otherSrc
       elaborateProgram otherModule otherProg
-      modify' (\s -> s{loadedModules = otherModule:s.loadedModules})
