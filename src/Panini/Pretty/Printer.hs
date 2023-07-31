@@ -20,6 +20,7 @@ module Panini.Pretty.Printer
   , symNe, symEq, symLe, symLt, symGe, symGt
   , symLambda, symKappa
   , symUnit, symBool, symNat, symInt, symString
+  , divider
   , HasFixity(..), Fixity(..), Associativity(..)
   , needsParensLeftOf, needsParensRightOf, needsParensPrefixedBy
   , parensIf, prettyL, prettyR
@@ -275,6 +276,16 @@ symBool = "𝔹" `orASCII` "bool"
 symNat = "ℕ" `orASCII` "nat"
 symInt = "ℤ" `orASCII` "int"
 symString = "𝕊" `orASCII` "string"
+
+-------------------------------------------------------------------------------
+
+divider :: String -> Doc
+divider label = PP.pageWidth $ \pw -> div_ (getW pw) <+> pretty label
+ where  
+  div_ w = mconcat $ replicate (w - length label - 1) symDivH  
+  getW = \case
+    PP.AvailablePerLine w _ -> w
+    PP.Unbounded            -> 80
 
 -------------------------------------------------------------------------------
 

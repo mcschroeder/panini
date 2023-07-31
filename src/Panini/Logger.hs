@@ -13,7 +13,6 @@ import Panini.Monad
 import Control.Monad.Trans.State.Strict
 import Panini.Error
 import Control.Monad.Extra
-import Prettyprinter qualified as PP
 
 -------------------------------------------------------------------------------
 
@@ -30,14 +29,6 @@ putTerm doc = do
           , fixedWidth = w
           }
     termPrint $ renderDoc opts doc
-
-divider :: String -> Doc
-divider label = PP.pageWidth $ \pw -> div_ (getW pw) <+> pretty label
- where  
-  div_ w = mconcat $ replicate (w - length label - 1) symDivH  
-  getW = \case
-    PP.AvailablePerLine w _ -> w
-    PP.Unbounded            -> 80
 
 logMessage :: String -> String -> Pan ()
 logMessage src = logMessageDoc src . pretty
