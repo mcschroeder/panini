@@ -150,25 +150,10 @@ varElim x b ps = runST $ do
       let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
       return $ Just qs
 
--- TODO: integrate into existing substitution architecture
 substExpr :: Expr -> Name -> Rel -> Rel
-substExpr x̂ x p = case p of
-  Rel r e1 e2 -> Rel r (go e1) (go e2)
- where
-  go = \case
-    EVal (Var y) | y == x -> x̂
-    EVal (Var y) -> EVal (Var y)
-    EVal (Con c) -> EVal (Con c)
-    EAbs a -> EAbs a
-    EAdd e1 e2 -> EAdd (go e1) (go e2)
-    EMul e1 e2 -> EMul (go e1) (go e2)
-    ESub e1 e2 -> ESub (go e1) (go e2)
-    EStrLen e -> EStrLen (go e)
-    EStrAt e1 e2 -> EStrAt (go e1) (go e2)
-    EStrSub e1 e2 e3 -> EStrSub (go e1) (go e2) (go e3)
-    EFun f xs -> EFun f (map go xs)
-    ENot e -> ENot (go e)
-
+substExpr x̂ x =  Uniplate.transformBi $ \case
+  EVal (Var y) | y == x -> x̂
+  e                     -> e
 -------------------------------------------------------------------------------
 
 isPOr :: Pred -> Bool
