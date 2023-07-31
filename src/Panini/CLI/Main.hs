@@ -17,6 +17,7 @@ import Panini.Provenance
 import Prelude
 import System.Console.Haskeline
 import System.Directory
+import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
@@ -61,7 +62,12 @@ opts = info (panOptions <**> helper <**> simpleVersioner "v0.1")
 
 main :: IO ()
 main = do
-  panOpts <- execParser opts
+  panOpts0 <- execParser opts
+  
+  -- TODO: check if terminal/stderr supports colors
+  noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
+  let panOpts = panOpts0 { color = panOpts0.color && not noColor }
+  
   case panOpts.inputFile of
     Just _ -> batchMain panOpts
     Nothing -> do
