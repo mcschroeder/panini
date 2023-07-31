@@ -15,6 +15,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Text (Text)
 import Panini.Environment
 import Panini.Error
 import Panini.Provenance
@@ -30,23 +31,30 @@ runPan s0 m = runExceptT $ evalStateT m s0
 
 -------------------------------------------------------------------------------
 
-data PanState = PanState
-  { debugMode :: !Bool
-  , colorOutput :: !Bool
+data PanState = PanState { 
+    colorOutput :: !Bool  -- ^ Whether to colorize terminal output.
+  
+  -- | Whether to use Unicode symbols when pretty printing. Affects both
+  -- terminal output and log files.
   , unicodeOutput :: !Bool
+
   , environment :: !Environment  -- ^ elaborator environment
   , kvarCount :: !Int  -- ^ source for fresh κ-variable names
   , loadedModules :: ![FilePath]
+
+  -- | Function for printing diagnostics to the terminal. If 'Nothing', no
+  -- diagnostics are printed (not even errors).
+  , logTermPrint :: Maybe (Text -> IO ())
   }
 
 defaultState :: PanState
 defaultState = PanState
-  { debugMode = False
-  , colorOutput = True
+  { colorOutput = True
   , unicodeOutput = True
   , environment = mempty
   , kvarCount = 0
   , loadedModules = []
+  , logTermPrint = Nothing
   }
 
 -------------------------------------------------------------------------------

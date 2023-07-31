@@ -1,82 +1,58 @@
 module Panini.Logger
-  ( logOutput
-  , logMessage
+  ( logMessage
   , logMessageDoc
   , logData
   , logError
   ) where
 
-import Data.Text.IO qualified as Text
 import Panini.Pretty.Printer
 import Prelude
 import System.Console.ANSI
 import Control.Monad.IO.Class
-import Control.Monad
 import Panini.Monad
 import Control.Monad.Trans.State.Strict
-import Data.Maybe
 import Panini.Error
+import Control.Monad.Extra
+import Prettyprinter qualified as PP
 
 -------------------------------------------------------------------------------
 
 -- TODO: log to file
--- TODO: use getExternalPrint for REPL output
 
-getTermRenderOptions :: PanState -> IO RenderOptions
-getTermRenderOptions s = do
-  w <- fmap snd <$> getTerminalSize
-  return RenderOptions
-    { styling = 
-        if s.colorOutput 
-          then Just defaultStyling
-          else Nothing 
-    , unicode = s.unicodeOutput
-    , fixedWidth = w
-    }
+putTerm :: Doc -> Pan ()
+putTerm doc = do
+  env <- get
+  whenJust env.logTermPrint $ \termPrint -> liftIO $ do
+    w <- fmap snd <$> getTerminalSize
+    let opts = RenderOptions 
+          { styling = pureIf env.colorOutput defaultStyling
+          , unicode = env.unicodeOutput
+          , fixedWidth = w
+          }
+    termPrint $ renderDoc opts doc
 
--- TODO: remove
-logOutput :: Pretty a => a -> Pan ()
-logOutput a = do
-  s <- get
-  liftIO $ do
-    opts <- getTermRenderOptions s
-    Text.putStrLn $ renderDoc opts $ pretty a
+divider :: String -> Doc
+divider label = PP.pageWidth $ \pw -> div_ (getW pw) <+> pretty label
+ where  
+  div_ w = mconcat $ replicate (w - length label - 1) symDivH  
+  getW = \case
+    PP.AvailablePerLine w _ -> w
+    PP.Unbounded            -> 80
 
 logMessage :: String -> String -> Pan ()
 logMessage src = logMessageDoc src . pretty
 
 logMessageDoc :: String -> Doc -> Pan ()
-logMessageDoc src msg = do
-  s <- get
-  when s.debugMode $ liftIO $ do
-    opts <- getTermRenderOptions s
-    Text.putStrLn $ renderDoc opts $ 
-      marginalia (pretty src <+> symDivDiag) <+> aMessage msg
+logMessageDoc src msg =
+  putTerm $ marginalia (pretty src <+> symDivDiag) <+> aMessage msg
 
 logData :: Pretty a => String -> a -> Pan ()
-logData label a = do
-  s <- get
-  when s.debugMode $ liftIO $ do
-    opts <- getTermRenderOptions s
-    let w = fromMaybe 80 opts.fixedWidth
-    let divider = mconcat $ replicate (w - length label - 1) symDivH
-    Text.putStrLn $ renderDoc opts $ 
-      marginalia (pretty divider <+> pretty label)
-      <\\> pretty a 
-      <> "\n"
+logData label a = 
+  putTerm $ marginalia (divider label) <\\> pretty a <> "\n"
 
 logError :: Error -> Pan ()
-logError err = do
-  let label = "ERROR" :: String
-  s <- get
-  liftIO $ do
-    opts <- getTermRenderOptions s
-    let w = fromMaybe 80 opts.fixedWidth    
-    let divider = mconcat $ replicate (w - length label - 1) symDivH
-    Text.putStrLn $ renderDoc opts $ 
-      anError (pretty divider <+> pretty label)
-      <\\> pretty err
-      <> "\n"
+logError err =
+  putTerm $ anError (divider "ERROR") <\\> pretty err <> "\n"
 
 -- TODO:
 -- logWarning :: Pretty a => a -> Pan ()

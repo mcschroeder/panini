@@ -1,7 +1,10 @@
 module Panini.CLI.Main where
 
-import Control.Monad
+import Control.Monad.Extra
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Strict
 import Data.Maybe
+import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.CLI.REPL
@@ -74,28 +77,32 @@ replMain panOpts = do
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
   let panState = defaultState
-        { debugMode = panOpts.debug
-        , colorOutput = panOpts.color
-        , unicodeOutput = panOpts.unicode 
+        { colorOutput = panOpts.color
+        , unicodeOutput = panOpts.unicode
         }
-  when (isJust panOpts.outputFile) $
-    putStrLn $ "Warning: --output is ignored during a REPL session"
-  res <- runPan panState $ runInputT replConf repl
+  res <- runPan panState $ runInputT replConf $ do
+    whenJust panOpts.outputFile $ \_ ->
+      outputStrLn $ "Warning: --output ignored during REPL session"
+    when panOpts.debug $ do      
+      replPrint <- getExternalPrint
+      let termPrint s = replPrint $ Text.unpack s ++ "\n"
+      lift $ modify' (\s -> s { logTermPrint = Just termPrint })
+    repl
   case res of
     Left err -> do
       putStrLn $ "panic! at the repl: " ++ show err -- TODO: pretty?
       exitFailure
     Right _ -> return ()
 
--- TODO: output errors and log traces to stderr
 batchMain :: PanOptions -> IO ()
 batchMain panOpts = do
   let panState = defaultState
-        { debugMode = panOpts.debug
-        , colorOutput = panOpts.color
-        , unicodeOutput = panOpts.unicode
+        { colorOutput = panOpts.color
+        , unicodeOutput = panOpts.unicode        
         }
   res <- runPan panState $ do
+    when panOpts.debug $ 
+      modify' (\s -> s { logTermPrint = Just (Text.hPutStrLn stderr) })
     (path,src) <- case panOpts.inputFile of
       Just path -> do
         logMessage "Panini" $ "Read " ++ path
