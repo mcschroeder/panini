@@ -23,7 +23,6 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
-import Panini.Logger
 import Panini.Logic.Constraints
 import Panini.Monad
 import Panini.Provenance

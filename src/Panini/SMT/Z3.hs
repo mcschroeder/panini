@@ -6,7 +6,6 @@ import Control.Monad.IO.Class
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
 import Panini.Error
-import Panini.Logger
 import Panini.Monad
 import Panini.SMT.SMTLIB
 import Prelude

@@ -8,13 +8,14 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.CLI.REPL
+import Panini.Diagnostics
 import Panini.Elab
-import Panini.Logger
 import Panini.Monad
 import Panini.Parser
-import Panini.Pretty.Printer
+import Panini.Pretty.Printer as PP
 import Panini.Provenance
 import Prelude
+import System.Console.ANSI
 import System.Console.Haskeline
 import System.Directory
 import System.Environment
@@ -86,6 +87,16 @@ main = do
         then replMain panOpts
         else batchMain panOpts
 
+getTermRenderOptions :: PanOptions -> IO RenderOptions
+getTermRenderOptions panOpts = do
+  termWidth <- fmap snd <$> getTerminalSize
+  return RenderOptions
+    { styling = pureIf panOpts.color defaultStyling
+    , PP.unicode = panOpts.unicode
+    , fixedWidth = termWidth
+    }
+
+
 replMain :: PanOptions -> IO ()
 replMain panOpts = do
   configDir <- getXdgDirectory XdgConfig "panini"
@@ -93,16 +104,14 @@ replMain panOpts = do
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
   let panState = defaultState
-        { colorOutput = panOpts.color
-        , unicodeOutput = panOpts.unicode
-        }
+  renderOpts <- getTermRenderOptions panOpts
   res <- runPan panState $ runInputT replConf $ do
     whenJust panOpts.outputFile $ \_ ->
       outputStrLn $ "Warning: --output ignored during REPL session"
     when panOpts.trace $ do      
       replPrint <- getExternalPrint
-      let termPrint s = replPrint $ Text.unpack s ++ "\n"
-      lift $ modify' (\s -> s { logTermPrint = Just termPrint })
+      let logDiag d = replPrint $ Text.unpack (renderDoc renderOpts $ prettyDiagnostic d) ++ "\n"
+      lift $ modify' (\s -> s { logDiagnostic = logDiag })
     repl
   case res of
     Left err -> do
@@ -112,13 +121,12 @@ replMain panOpts = do
 
 batchMain :: PanOptions -> IO ()
 batchMain panOpts = do
-  let panState = defaultState
-        { colorOutput = panOpts.color
-        , unicodeOutput = panOpts.unicode        
+  renderOpts <- getTermRenderOptions panOpts
+  let logDiag = Text.hPutStrLn stderr . renderDoc renderOpts . prettyDiagnostic
+  let panState = defaultState 
+        { logDiagnostic = if panOpts.trace then logDiag else const (return ())
         }
   res <- runPan panState $ do
-    when panOpts.trace $ 
-      modify' (\s -> s { logTermPrint = Just (Text.hPutStrLn stderr) })
     (path,src) <- case panOpts.inputFile of
       Just path -> do
         logMessage "Panini" $ "Read " ++ path

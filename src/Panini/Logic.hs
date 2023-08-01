@@ -8,7 +8,6 @@ import Control.Monad
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import Panini.Logger
 import Panini.Logic.Assignment
 import Panini.Logic.Constraints
 import Panini.Logic.Fusion qualified as Fusion

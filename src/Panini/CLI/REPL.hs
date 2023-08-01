@@ -20,7 +20,6 @@ import Panini.Elab
 import Panini.Environment
 import Panini.Error
 import Panini.Infer
-import Panini.Logger
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer

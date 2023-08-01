@@ -15,7 +15,6 @@ import Data.Text.IO qualified as Text
 import Panini.Environment
 import Panini.Error
 import Panini.Infer
-import Panini.Logger
 import Panini.Logic
 import Panini.Monad
 import Panini.Parser

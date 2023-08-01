@@ -16,7 +16,6 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Error
-import Panini.Logger
 import Panini.Logic.Assignment
 import Panini.Logic.Constraints
 import Panini.Monad

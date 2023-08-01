@@ -66,11 +66,11 @@ library
     Panini.Abstract.Semantics
     Panini.CLI.Main
     Panini.CLI.REPL
+    Panini.Diagnostics
     Panini.Elab
     Panini.Environment
     Panini.Error
     Panini.Infer
-    Panini.Logger
     Panini.Logic
     Panini.Logic.Assignment
     Panini.Logic.Constraints

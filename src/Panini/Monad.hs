@@ -8,6 +8,10 @@ module Panini.Monad
   , tryError
   , liftIO
   , tryIO
+  , logError
+  , logMessage
+  , logMessageDoc
+  , logData
   ) where
 
 import Control.Exception
@@ -16,8 +20,10 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Text (Text)
+import Panini.Diagnostics
 import Panini.Environment
 import Panini.Error
+import Panini.Pretty.Printer
 import Panini.Provenance
 import Prelude
 
@@ -32,29 +38,26 @@ runPan s0 m = runExceptT $ evalStateT m s0
 -------------------------------------------------------------------------------
 
 data PanState = PanState { 
-    colorOutput :: !Bool  -- ^ Whether to colorize terminal output.
-  
-  -- | Whether to use Unicode symbols when pretty printing. Affects both
-  -- terminal output and log files.
-  , unicodeOutput :: !Bool
-
-  , environment :: !Environment  -- ^ elaborator environment
+    environment :: !Environment  -- ^ elaborator environment
   , kvarCount :: !Int  -- ^ source for fresh κ-variable names
   , loadedModules :: ![FilePath]
 
   -- | Function for printing diagnostics to the terminal. If 'Nothing', no
   -- diagnostics are printed (not even errors).
   , logTermPrint :: Maybe (Text -> IO ())
+
+  -- | Function for logging diagnostic and debugging information. Called
+  -- synchronously. Default is @const (return ())@.
+  , logDiagnostic :: Diagnostic -> IO ()
   }
 
 defaultState :: PanState
 defaultState = PanState
-  { colorOutput = True
-  , unicodeOutput = True
-  , environment = mempty
+  { environment = mempty
   , kvarCount = 0
   , loadedModules = []
   , logTermPrint = Nothing
+  , logDiagnostic = const (return ())
   }
 
 -------------------------------------------------------------------------------
@@ -79,3 +82,22 @@ tryIO pv m = do
   case r of
     Left err -> throwError $ IOError pv $ displayException err
     Right a -> return a
+
+-------------------------------------------------------------------------------
+
+logD :: Diagnostic -> Pan ()
+logD d = do
+  f <- gets logDiagnostic
+  liftIO $ f d
+
+logError :: Error -> Pan ()
+logError = logD . DiagError
+
+logMessage :: String -> String -> Pan ()
+logMessage src = logMessageDoc src . pretty
+
+logMessageDoc :: String -> Doc -> Pan ()
+logMessageDoc src msg = logD $ DiagMessage src msg
+
+logData :: Pretty a => String -> a -> Pan ()
+logData label a = logD $ Data label (pretty a)

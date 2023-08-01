@@ -15,7 +15,6 @@ import Data.Graph qualified as Graph
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Panini.Logger
 import Panini.Logic.Assignment
 import Panini.Logic.Constraints
 import Panini.Monad
