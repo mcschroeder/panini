@@ -22,6 +22,8 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
+import Control.Monad.IO.Class
+import Control.Exception
 
 -------------------------------------------------------------------------------
 
@@ -30,6 +32,7 @@ data PanOptions = PanOptions
   , noInput :: Bool
   , outputFile :: Maybe FilePath
   , trace :: Bool
+  , traceFile :: Maybe FilePath
   , color :: Bool
   , unicode :: Bool
   }
@@ -62,6 +65,11 @@ opts = info
             long "trace" <> 
             help "Show detailed diagnostics and debugging information"
           )
+      <*> (optional $ strOption $
+            long "trace-file" <>
+            metavar "FILE" <>
+            help "Write debugging information to FILE"
+          )
       <*> (flag True False $ 
             long "no-color" <> 
             help "Disable color output to terminal"
@@ -71,6 +79,8 @@ opts = info
             help "Disable Unicode output to terminal and files"
           )
 
+-------------------------------------------------------------------------------
+
 main :: IO ()
 main = do
   panOpts0 <- execParser opts
@@ -79,39 +89,35 @@ main = do
   noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
   let panOpts = panOpts0 { color = panOpts0.color && not noColor }
   
-  case panOpts.inputFile of
-    Just _ -> batchMain panOpts
-    Nothing -> do
-      isTerm <- hIsTerminalDevice stdin
-      if isTerm && not panOpts.noInput
-        then replMain panOpts
-        else batchMain panOpts
+  traceFileH <- case panOpts.traceFile of
+    Nothing -> return Nothing
+    Just fp -> do
+      h <- openFile fp WriteMode
+      hSetBuffering h NoBuffering
+      return $ Just h
 
-getTermRenderOptions :: PanOptions -> IO RenderOptions
-getTermRenderOptions panOpts = do
-  termWidth <- fmap snd <$> getTerminalSize
-  return RenderOptions
-    { styling = pureIf panOpts.color defaultStyling
-    , PP.unicode = panOpts.unicode
-    , fixedWidth = termWidth
-    }
+  isTerm <- hIsTerminalDevice stdin
+  let mainFunc 
+        | isJust panOpts.inputFile      = batchMain
+        | isTerm && not panOpts.noInput = replMain
+        | otherwise                     = batchMain  -- stdin
+  
+  mainFunc panOpts traceFileH `finally` whenJust traceFileH hClose
 
-
-replMain :: PanOptions -> IO ()
-replMain panOpts = do
+replMain :: PanOptions -> Maybe Handle -> IO ()
+replMain panOpts traceFileH = do
   configDir <- getXdgDirectory XdgConfig "panini"
   createDirectoryIfMissing True configDir
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
   let panState = defaultState
-  renderOpts <- getTermRenderOptions panOpts
   res <- runPan panState $ runInputT replConf $ do
     whenJust panOpts.outputFile $ \_ ->
       outputStrLn $ "Warning: --output ignored during REPL session"
-    when panOpts.trace $ do      
-      replPrint <- getExternalPrint
-      let logDiag d = replPrint $ Text.unpack (renderDoc renderOpts $ prettyDiagnostic d) ++ "\n"
-      lift $ modify' (\s -> s { logDiagnostic = logDiag })
+    log1 <- mkLogFuncREPL panOpts
+    log2 <- liftIO $ mkLogFuncFile panOpts traceFileH
+    let logDiag = liftM2 (>>) log1 log2
+    lift $ modify' (\s -> s { logDiagnostic = logDiag })
     repl
   case res of
     Left err -> do
@@ -119,13 +125,12 @@ replMain panOpts = do
       exitFailure
     Right _ -> return ()
 
-batchMain :: PanOptions -> IO ()
-batchMain panOpts = do
-  renderOpts <- getTermRenderOptions panOpts
-  let logDiag = Text.hPutStrLn stderr . renderDoc renderOpts . prettyDiagnostic
-  let panState = defaultState 
-        { logDiagnostic = if panOpts.trace then logDiag else const (return ())
-        }
+batchMain :: PanOptions -> Maybe Handle -> IO ()
+batchMain panOpts traceFileH = do
+  log1 <- mkLogFuncTerm panOpts
+  log2 <- mkLogFuncFile panOpts traceFileH
+  let logDiag = liftM2 (>>) log1 log2
+  let panState = defaultState { logDiagnostic = logDiag }
   res <- runPan panState $ do
     (path,src) <- case panOpts.inputFile of
       Just path -> do
@@ -147,3 +152,44 @@ batchMain panOpts = do
       exitFailure
     Right _ -> return ()
 
+-------------------------------------------------------------------------------
+
+-- TODO: investigate logging asynchronously via TChan/TQueue
+
+mkLogFuncFile :: PanOptions -> Maybe Handle -> IO (Diagnostic -> IO ())
+mkLogFuncFile panOpts traceFileH = case traceFileH of
+  Nothing -> return $ const $ return ()
+  Just h -> do
+    let renderOpts = fileRenderOptions panOpts
+    return $ Text.hPutStrLn h . renderDoc renderOpts . prettyDiagnostic
+
+mkLogFuncREPL :: MonadIO m => PanOptions -> InputT m (Diagnostic -> IO ())
+mkLogFuncREPL panOpts = case panOpts.trace of
+  False -> return $ const $ return ()
+  True -> do
+    renderOpts <- liftIO $ getTermRenderOptions panOpts
+    extPrint <- getExternalPrint
+    return $ extPrint . (++ "\n") . Text.unpack . renderDoc renderOpts . prettyDiagnostic
+
+mkLogFuncTerm :: PanOptions -> IO (Diagnostic -> IO ())
+mkLogFuncTerm panOpts = case panOpts.trace of
+  False -> return $ const $ return ()
+  True -> do
+    renderOpts <- getTermRenderOptions panOpts
+    return $ Text.hPutStrLn stderr . renderDoc renderOpts . prettyDiagnostic
+
+getTermRenderOptions :: PanOptions -> IO RenderOptions
+getTermRenderOptions panOpts = do
+  termWidth <- fmap snd <$> getTerminalSize
+  return RenderOptions
+    { styling = pureIf panOpts.color defaultStyling
+    , PP.unicode = panOpts.unicode
+    , fixedWidth = termWidth
+    }
+
+fileRenderOptions :: PanOptions -> RenderOptions
+fileRenderOptions panOpts = RenderOptions 
+  { styling = Nothing
+  , PP.unicode = panOpts.unicode
+  , fixedWidth = Nothing
+  }

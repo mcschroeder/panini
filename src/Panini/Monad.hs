@@ -32,6 +32,7 @@ import Prelude
 -- | /Panini/ monad.
 type Pan = StateT PanState (ExceptT Error IO)
 
+-- TODO: return state as well
 runPan :: PanState -> Pan a -> IO (Either Error a)
 runPan s0 m = runExceptT $ evalStateT m s0
 
@@ -62,6 +63,7 @@ defaultState = PanState
 
 -------------------------------------------------------------------------------
 
+-- TODO: automatically log error
 -- | Throw an `Error` in the /Panini/ monad.
 throwError :: Error -> Pan a
 throwError = lift . throwE
