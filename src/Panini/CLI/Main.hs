@@ -27,7 +27,7 @@ import System.IO
 data PanOptions = PanOptions
   { inputFile :: Maybe FilePath
   , outputFile :: Maybe FilePath
-  , debug :: Bool
+  , trace :: Bool
   , color :: Bool
   , unicode :: Bool
   }
@@ -48,8 +48,8 @@ opts = info (panOptions <**> helper <**> simpleVersioner "v0.1")
             help "Write output to FILE (default: stdout)"
           )
       <*> (switch $ 
-            long "debug" <> 
-            help "Show debugging output"
+            long "trace" <> 
+            help "Show detailed diagnostics and debugging information"
           )
       <*> (flag True False $ 
             long "no-color" <> 
@@ -89,7 +89,7 @@ replMain panOpts = do
   res <- runPan panState $ runInputT replConf $ do
     whenJust panOpts.outputFile $ \_ ->
       outputStrLn $ "Warning: --output ignored during REPL session"
-    when panOpts.debug $ do      
+    when panOpts.trace $ do      
       replPrint <- getExternalPrint
       let termPrint s = replPrint $ Text.unpack s ++ "\n"
       lift $ modify' (\s -> s { logTermPrint = Just termPrint })
@@ -107,7 +107,7 @@ batchMain panOpts = do
         , unicodeOutput = panOpts.unicode        
         }
   res <- runPan panState $ do
-    when panOpts.debug $ 
+    when panOpts.trace $ 
       modify' (\s -> s { logTermPrint = Just (Text.hPutStrLn stderr) })
     (path,src) <- case panOpts.inputFile of
       Just path -> do
