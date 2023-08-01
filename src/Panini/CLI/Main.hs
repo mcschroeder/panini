@@ -26,6 +26,7 @@ import System.IO
 
 data PanOptions = PanOptions
   { inputFile :: Maybe FilePath
+  , noInput :: Bool
   , outputFile :: Maybe FilePath
   , trace :: Bool
   , color :: Bool
@@ -33,13 +34,22 @@ data PanOptions = PanOptions
   }
 
 opts :: ParserInfo PanOptions
-opts = info (panOptions <**> helper <**> simpleVersioner "v0.1") 
-            (fullDesc <> progDesc "Grammar Inference for Ad Hoc Parsers")
+opts = info 
+  (panOptions <**> helper <**> simpleVersioner "v0.1") 
+  (fullDesc <> progDesc "Grammar Inference for Ad Hoc Parsers" <> footer 
+    "If no INPUT file is given and stdin is not an interactive terminal,\
+    \ or the --no-input flag is passed, then the input will be read from\
+    \ stdin."
+  )
   where
     panOptions = PanOptions
       <$> (optional $ strArgument $ 
             metavar "INPUT" <> 
             help "Input file (default: stdin)"
+          )
+      <*> (switch $
+            long "no-input" <>
+            help "Don't prompt or do anything interactive (disables REPL)"
           )
       <*> (optional $ strOption $ 
             long "output" <> 
@@ -72,7 +82,7 @@ main = do
     Just _ -> batchMain panOpts
     Nothing -> do
       isTerm <- hIsTerminalDevice stdin
-      if isTerm
+      if isTerm && not panOpts.noInput
         then replMain panOpts
         else batchMain panOpts
 
