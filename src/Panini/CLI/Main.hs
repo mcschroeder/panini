@@ -155,8 +155,6 @@ addSourceLinesToError m = m `catchError` \err ->
 
 -------------------------------------------------------------------------------
 
--- TODO: always log errors unless --quiet
-
 -- TODO: investigate logging asynchronously via TChan/TQueue
 
 mkLogFuncFile :: PanOptions -> Maybe Handle -> IO (Event -> IO ())
@@ -167,19 +165,25 @@ mkLogFuncFile panOpts traceFileH = case traceFileH of
     return $ Text.hPutStrLn h . renderDoc renderOpts . prettyEvent
 
 mkLogFuncREPL :: MonadIO m => PanOptions -> InputT m (Event -> IO ())
-mkLogFuncREPL panOpts = case panOpts.trace of
-  False -> return $ const $ return ()
-  True -> do
-    renderOpts <- liftIO $ getTermRenderOptions panOpts
-    extPrint <- getExternalPrint
-    return $ extPrint . (++ "\n") . Text.unpack . renderDoc renderOpts . prettyEvent
+mkLogFuncREPL panOpts = do
+  renderOpts <- liftIO $ getTermRenderOptions panOpts
+  let renderEvent = renderDoc renderOpts . prettyEvent
+  extPrint <- getExternalPrint  
+  let putEvent = extPrint . (++ "\n") . Text.unpack . renderEvent
+  return $ \case
+    ev@(ErrorEvent _)  -> putEvent ev
+    ev | panOpts.trace -> putEvent ev
+    _                  -> return ()
 
 mkLogFuncTerm :: PanOptions -> IO (Event -> IO ())
-mkLogFuncTerm panOpts = case panOpts.trace of
-  False -> return $ const $ return ()
-  True -> do
-    renderOpts <- getTermRenderOptions panOpts
-    return $ Text.hPutStrLn stderr . renderDoc renderOpts . prettyEvent
+mkLogFuncTerm panOpts = do
+  renderOpts <- getTermRenderOptions panOpts
+  let renderEvent = renderDoc renderOpts . prettyEvent
+  let putEvent = Text.hPutStrLn stderr . renderEvent
+  return $ \case
+    ev@(ErrorEvent _)  -> putEvent ev
+    ev | panOpts.trace -> putEvent ev
+    _                  -> return ()
 
 getTermRenderOptions :: PanOptions -> IO RenderOptions
 getTermRenderOptions panOpts = do
