@@ -21,9 +21,9 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Text (Text)
-import Panini.Diagnostics
 import Panini.Environment
 import Panini.Error
+import Panini.Events
 import Panini.Pretty.Printer
 import Panini.Provenance
 import Prelude
@@ -50,9 +50,9 @@ data PanState = PanState {
   -- diagnostics are printed (not even errors).
   , logTermPrint :: Maybe (Text -> IO ())
 
-  -- | Function for logging diagnostic and debugging information. Called
-  -- synchronously. Default is @const (return ())@.
-  , logDiagnostic :: Diagnostic -> IO ()
+  -- | Function for handling diagnostic events. Called synchronously whenever an
+  -- event occurs. Default is @const (return ())@.
+  , eventHandler :: Event -> IO ()
   }
 
 defaultState :: PanState
@@ -61,7 +61,7 @@ defaultState = PanState
   , kvarCount = 0
   , loadedModules = []
   , logTermPrint = Nothing
-  , logDiagnostic = const (return ())
+  , eventHandler = const (return ())
   }
 
 -------------------------------------------------------------------------------
@@ -93,19 +93,19 @@ tryIO pv m = do
 
 -------------------------------------------------------------------------------
 
-logD :: Diagnostic -> Pan ()
-logD d = do
-  f <- gets logDiagnostic
+logEvent :: Event -> Pan ()
+logEvent d = do
+  f <- gets eventHandler
   liftIO $ f d
 
 logError :: Error -> Pan ()
-logError = logD . DiagError
+logError = logEvent . ErrorEvent
 
 logMessage :: String -> String -> Pan ()
 logMessage src = logMessageDoc src . pretty
 
 logMessageDoc :: String -> Doc -> Pan ()
-logMessageDoc src msg = logD $ DiagMessage src msg
+logMessageDoc src msg = logEvent $ LogMessage src msg
 
 logData :: Pretty a => String -> a -> Pan ()
-logData label a = logD $ Data label (pretty a)
+logData label a = logEvent $ LogData label (pretty a)

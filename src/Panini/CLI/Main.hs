@@ -8,8 +8,8 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.CLI.REPL
-import Panini.Diagnostics
 import Panini.Elab
+import Panini.Events
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer as PP
@@ -117,7 +117,7 @@ replMain panOpts traceFileH = do
     log1 <- mkLogFuncREPL panOpts
     log2 <- liftIO $ mkLogFuncFile panOpts traceFileH
     let logDiag = liftM2 (>>) log1 log2
-    lift $ modify' (\s -> s { logDiagnostic = logDiag })
+    lift $ modify' (\s -> s { eventHandler = logDiag })
     repl
   case res of
     Left _ -> exitFailure
@@ -128,7 +128,7 @@ batchMain panOpts traceFileH = do
   log1 <- mkLogFuncTerm panOpts
   log2 <- mkLogFuncFile panOpts traceFileH
   let logDiag = liftM2 (>>) log1 log2
-  let panState = defaultState { logDiagnostic = logDiag }
+  let panState = defaultState { eventHandler = logDiag }
   res <- runPan panState $ addSourceLinesToError $ do
     (path,src) <- case panOpts.inputFile of
       Just path -> do
@@ -159,27 +159,27 @@ addSourceLinesToError m = m `catchError` \err ->
 
 -- TODO: investigate logging asynchronously via TChan/TQueue
 
-mkLogFuncFile :: PanOptions -> Maybe Handle -> IO (Diagnostic -> IO ())
+mkLogFuncFile :: PanOptions -> Maybe Handle -> IO (Event -> IO ())
 mkLogFuncFile panOpts traceFileH = case traceFileH of
   Nothing -> return $ const $ return ()
   Just h -> do
     let renderOpts = fileRenderOptions panOpts
-    return $ Text.hPutStrLn h . renderDoc renderOpts . prettyDiagnostic
+    return $ Text.hPutStrLn h . renderDoc renderOpts . prettyEvent
 
-mkLogFuncREPL :: MonadIO m => PanOptions -> InputT m (Diagnostic -> IO ())
+mkLogFuncREPL :: MonadIO m => PanOptions -> InputT m (Event -> IO ())
 mkLogFuncREPL panOpts = case panOpts.trace of
   False -> return $ const $ return ()
   True -> do
     renderOpts <- liftIO $ getTermRenderOptions panOpts
     extPrint <- getExternalPrint
-    return $ extPrint . (++ "\n") . Text.unpack . renderDoc renderOpts . prettyDiagnostic
+    return $ extPrint . (++ "\n") . Text.unpack . renderDoc renderOpts . prettyEvent
 
-mkLogFuncTerm :: PanOptions -> IO (Diagnostic -> IO ())
+mkLogFuncTerm :: PanOptions -> IO (Event -> IO ())
 mkLogFuncTerm panOpts = case panOpts.trace of
   False -> return $ const $ return ()
   True -> do
     renderOpts <- getTermRenderOptions panOpts
-    return $ Text.hPutStrLn stderr . renderDoc renderOpts . prettyDiagnostic
+    return $ Text.hPutStrLn stderr . renderDoc renderOpts . prettyEvent
 
 getTermRenderOptions :: PanOptions -> IO RenderOptions
 getTermRenderOptions panOpts = do
