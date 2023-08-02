@@ -88,6 +88,8 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :=: EChar c _ -> EStrA $ aStringLit (aCharEq c)
   EVar _ :≠: EChar c _ -> EStrA $ aStringLit (aCharNe c)
 
+  EVar _ :∈: EStrA s -> EStrA s
+
   EStrAt (EVar _) (EInt i _) :=: EChar c _ ->
     EStrA $ mconcat [ aStringRep aStringSigma i
                                , aStringLit (aCharEq c)

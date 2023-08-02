@@ -15,6 +15,7 @@ import Panini.Logic.Grammar qualified as Grammar
 import Panini.Logic.Liquid qualified as Liquid
 import Panini.Logic.Simplify
 import Panini.Monad
+import Panini.Pretty.Printer
 import Panini.Syntax
 import Prelude
 
@@ -31,12 +32,12 @@ solve c0 = do
   logData "Cut Variables" ks_cut
 
   logMessage "Grammar" "Find grammar variables"
-  let !ks_gram = grammarVars c1
+  let !ks_gram = Set.fromList $ grammarVars c1
   logData "Grammar Variables" ks_gram
 
   logMessage "Fusion" "Compute exact solutions for other variables"
   let !ks = kvars c1
-  let !ks' = ks Set.\\ ks_cut Set.\\ (Set.fromList ks_gram)
+  let !ks' = ks Set.\\ ks_cut Set.\\ ks_gram
   logData "Other Variables" ks'
   let !c2 = Fusion.elim (Set.toList ks') c1
   logData "Constraint w/o Other Variables" c2
@@ -50,17 +51,20 @@ solve c0 = do
   let !cs = Map.fromList
          $ map (\(k,c) -> (k, fromJust c)) 
          $ filter (isJust . snd) 
-         $ zip ks_gram 
-         $ map (grammarConsequent c3) ks_gram
+         $ zip (Set.toAscList ks_gram)
+         $ map (grammarConsequent c3) 
+         $ Set.toAscList ks_gram
   logData "Grammar Consequents" cs
 
-  logMessage "Grammar" "Solve grammar variables"
-  --let !gs = Map.map Grammar.solve cs
-  let !gs = Map.map (Grammar.infer "z0") cs  -- TODO: generalize for variable name
-  -- !gs <- fmap Map.fromList $ forM (Map.toList cs) $ \(k,c) -> do
-  --   c' <- infer2 "s" c
-  --   return (k,c')
-  logData "Grammar Solution" gs
+  let solveOne gs (k,c) = do
+        logMessageDoc "Grammar" $ "Solve grammar variable" <+> pretty k
+        let c' = apply gs c
+        logData "Current Consequent" c'
+        let !g = Grammar.infer "z0" c'  -- TODO: generalize for variable name
+        logData "Grammar Solution" g
+        return $ Map.insert k g gs
+
+  !gs <- foldM solveOne mempty (Map.toAscList cs)
 
   logMessage "Grammar" "Apply grammar solution"
   let !c4 = apply gs c3
