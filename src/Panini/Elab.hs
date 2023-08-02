@@ -22,6 +22,7 @@ import Panini.Pretty.Printer
 import Panini.Syntax
 import Prelude
 import System.FilePath
+import Algebra.Lattice
 
 -------------------------------------------------------------------------------
 
@@ -51,11 +52,6 @@ envToContext = Map.map go
 -------------------------------------------------------------------------------
 
 -- TODO: fix error when adding new defs in <repl> pseudo-module
-
--- TODO: fix type checkking bugs. the following should not type check:
---          y : int = "hello"
---          f : string -> int = false
---          x : {v:int|v < 5} = 6
 
 tryElab :: Pan a -> Pan a
 tryElab m = do
@@ -93,8 +89,10 @@ elaborateStatement thisModule stmt = tryElab $ case stmt of
     g <- envToContext <$> gets environment
     let g' = Map.insert x t0 g
     logData "Typing Context Γ" g'
-    (t1, vc) <- infer g' e
+    (t1, c1) <- infer g' e
     logData "Inferred Type" t1
+    c0 <- sub t1 t0
+    let vc = c1 ∧ c0
     logData "Verification Condition" vc
     s <- solve vc
     let t2 = apply s t1

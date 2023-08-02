@@ -17,6 +17,9 @@ import Prelude
 -- | Mappings of variables to types (Γ)
 type Context = Map Name Type
 
+-- | Infer the most precise type of a term in the given context, plus a
+-- verification condition that needs to be proven valid. Proving the VC might
+-- should provide an assignment for any extant κ variables present in the type.
 infer :: Context -> Term -> Pan (Type, Con)
 infer g = \case
   
