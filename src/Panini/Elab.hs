@@ -97,7 +97,8 @@ define x t0 e = do
   logData "Typing Context Γ" g'
   (t1, c1) <- infer g' e
   logData "Inferred Type" t1
-  c0 <- sub t1 t0
+  t̂₀ <- fresh t0
+  c0 <- sub t1 t̂₀
   let vc = c1 ∧ c0
   logData "Verification Condition" vc
   s <- solve vc
