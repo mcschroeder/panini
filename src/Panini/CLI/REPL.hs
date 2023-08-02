@@ -17,6 +17,7 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Elab
 import Panini.Environment
+import Panini.Modules
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
@@ -71,7 +72,7 @@ commands :: [(String, String -> InputT Pan ())]
 commands = 
   [ ("help", const help)
   , ("load", loadFiles . words)
-  , ("show", const showEnv)
+  , ("show", showEnv)
   ]
 
 help :: InputT Pan ()
@@ -91,14 +92,18 @@ loadFiles = mapM_ loadFile
 
 loadFile :: FilePath -> InputT Pan ()
 loadFile f = lift $ continueOnError $ addSourceLinesToError $ do
-  src <- tryIO NoPV $ Text.readFile f
-  prog <- parseSource f src
-  elaborate f prog
+  module_ <- tryIO NoPV $ getModule f
+  src <- tryIO NoPV $ Text.readFile $ moduleLocation module_
+  prog <- parseSource (moduleLocation module_) src
+  elaborate module_ prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
 -- TODO: proper pretty printing
-showEnv :: InputT Pan ()
-showEnv = do
+showEnv :: String -> InputT Pan ()
+showEnv "modules" = do
+  env <- lift get
+  outputStrLn $ showPretty $ prettyList env.loadedModules
+showEnv _ = do
   env <- lift get
   forM_ (Map.toAscList env.environment) $ \case
     (_,Assumed{_name,_givenType}) -> outputStrLn $ showPretty $ 
@@ -110,7 +115,7 @@ evaluateInput :: String -> InputT Pan ()
 evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do
   let src = Text.pack input
   prog <- parseSource "<repl>" src
-  elaborate "<repl>" prog
+  elaborate replModule prog
 
 -------------------------------------------------------------------------------
 

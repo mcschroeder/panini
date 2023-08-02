@@ -23,6 +23,7 @@ import Control.Monad.Trans.State.Strict
 import Panini.Environment
 import Panini.Error
 import Panini.Events
+import Panini.Modules
 import Panini.Pretty.Printer
 import Panini.Provenance
 import Prelude
@@ -43,7 +44,7 @@ runPan s0 m = runExceptT $ evalStateT m' s0
 data PanState = PanState { 
     environment :: !Environment  -- ^ elaborator environment
   , kvarCount :: !Int  -- ^ source for fresh κ-variable names
-  , loadedModules :: ![FilePath]
+  , loadedModules :: ![Module]
 
   -- | Function for handling diagnostic events. Called synchronously whenever an
   -- event occurs. Default is @const (return ())@.

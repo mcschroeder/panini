@@ -1,6 +1,8 @@
 module Panini.CLI.Main where
 
+import Control.Exception
 import Control.Monad.Extra
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 import Data.Maybe
@@ -10,6 +12,7 @@ import Options.Applicative
 import Panini.CLI.REPL
 import Panini.Elab
 import Panini.Events
+import Panini.Modules
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer as PP
@@ -22,8 +25,6 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
-import Control.Monad.IO.Class
-import Control.Exception
 
 -------------------------------------------------------------------------------
 
@@ -130,19 +131,14 @@ batchMain panOpts traceFileH = do
   let logDiag = liftM2 (>>) log1 log2
   let panState = defaultState { eventHandler = logDiag }
   res <- runPan panState $ addSourceLinesToError $ do
-    (path,src) <- case panOpts.inputFile of
-      Just path -> do
-        logMessage "Panini" $ "Read " ++ path
-        src <- tryIO NoPV $ Text.readFile path
-        logData (path ++ " (Raw Source)") src
-        return (path,src)
-      Nothing -> do
-        logMessage "Panini" $ "Read stdin"
-        src <- tryIO NoPV $ Text.getContents
-        logData ("<stdin> (Raw Source)") src
-        return ("<stdin>", src)
-    prog <- parseSource path src
-    elaborate path prog
+    module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
+    logMessageDoc "Panini" $ "Read" <+> pretty module_
+    src <- if module_ == stdinModule
+      then tryIO NoPV $ Text.getContents
+      else tryIO NoPV $ Text.readFile $ moduleLocation module_
+    logData (moduleLocation module_ ++ " (Raw Source)") src    
+    prog <- parseSource (moduleLocation module_) src
+    elaborate module_ prog
     return ()
   case res of
     Left _ -> exitFailure
