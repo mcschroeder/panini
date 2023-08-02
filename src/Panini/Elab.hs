@@ -2,8 +2,10 @@
 {-# LANGUAGE OverloadedLists #-}
 
 module Panini.Elab
-  ( elaborateProgram
-  , elaborateStatement
+  ( elaborate
+  , assume
+  , define
+  , import_
   , envToContext -- TODO: weird place for this?
   ) where
 
@@ -23,6 +25,7 @@ import Panini.Syntax
 import Prelude
 import System.FilePath
 import Algebra.Lattice
+import Panini.Provenance
 
 -------------------------------------------------------------------------------
 
@@ -51,60 +54,65 @@ envToContext = Map.map go
 
 -------------------------------------------------------------------------------
 
--- TODO: fix error when adding new defs in <repl> pseudo-module
-
-tryElab :: Pan a -> Pan a
-tryElab m = do
-    state0 <- get
-    tryError m >>= \case
-      Right a -> return a
-      Left  e -> put state0 >> throwError e
+-- TODO: fix module/import mess
 
 -- | Elaborate a program by elaborating all of its statments and updating the
 -- environment accordingly. If elaboration fails at any point, an error is
 -- thrown and any intermittent changes to the environment are rolled back.
-elaborateProgram :: FilePath -> Program -> Pan ()
-elaborateProgram thisModule prog = tryElab $ do
-  whenM (elem thisModule <$> gets loadedModules) $ do
-    error "elaborateProgram: module reloading not yet implemented" -- TODO
-  mapM_ (elaborateStatement thisModule) prog
-  modify' (\s -> s { loadedModules = thisModule : s.loadedModules } )
+elaborate :: FilePath -> Program -> Pan ()
+elaborate thisModule prog = do
+  state0 <- get
+  tryError (mapM_ elab prog) >>= \case
+    Right () -> do
+      -- TODO: avoid hardcoded special <repl> module
+      unless (thisModule == "<repl>") $
+        modify' $ \s -> s { loadedModules = thisModule : s.loadedModules }
+    Left err -> do
+      put state0
+      throwError err
+ where
+  elab = \case
+    Assume x t -> assume x t
+    Define x t0 e -> define x t0 e
+    Import fp _ -> do
+      let otherModule = takeDirectory thisModule </> fp
+      import_ otherModule  -- TODO: add provenance to error
 
--- | Elaborate a statement and add the resulting definition(s) to the
--- environment. If elaboration fails, an error will be thrown and the
--- environment will remain unchanged.
-elaborateStatement :: FilePath -> Statement -> Pan ()
-elaborateStatement thisModule stmt = tryElab $ case stmt of
-  Assume x t -> do
-    logMessageDoc "Elab" $ "Assume" <+> pretty x
-    whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
-    envExtend x (Assumed x t)
-    logData "Assumed Type" t
-  
-  Define x t0 e -> do
-    logMessageDoc "Elab" $ "Define" <+> pretty x
-    logData "Definition" stmt
-    whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
-    logMessage "Infer" "Infer type"
-    g <- envToContext <$> gets environment
-    let g' = Map.insert x t0 g
-    logData "Typing Context Γ" g'
-    (t1, c1) <- infer g' e
-    logData "Inferred Type" t1
-    c0 <- sub t1 t0
-    let vc = c1 ∧ c0
-    logData "Verification Condition" vc
-    s <- solve vc
-    let t2 = apply s t1
-    envExtend x (Verified x t0 e t1 vc s t2)
-    logData "Solution" s
-    logData "Solved Typed" t2
-  
-  Import otherModule0 pv -> do
-    let otherModule = takeDirectory thisModule </> otherModule0
-    logMessageDoc "Elab" $ "Import" <+> pretty otherModule
-    redundant <- elem otherModule <$> gets loadedModules
-    unless redundant $ do
-      otherSrc <- tryIO pv $ Text.readFile otherModule
-      otherProg <- parseSource otherModule otherSrc
-      elaborateProgram otherModule otherProg
+-- | Add an assumed type to the environment.
+assume :: Name -> Type -> Pan ()
+assume x t = do
+  logMessageDoc "Elab" $ "Assume" <+> pretty x
+  whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
+  envExtend x (Assumed x t)
+  logData "Assumed Type" t  
+
+-- | Add a definition to the environment.
+define :: Name -> Type -> Term -> Pan ()
+define x t0 e = do
+  logMessageDoc "Elab" $ "Define" <+> pretty x
+  --logData "Definition" stmt
+  whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
+  logMessage "Infer" "Infer type"
+  g <- envToContext <$> gets environment
+  let g' = Map.insert x t0 g
+  logData "Typing Context Γ" g'
+  (t1, c1) <- infer g' e
+  logData "Inferred Type" t1
+  c0 <- sub t1 t0
+  let vc = c1 ∧ c0
+  logData "Verification Condition" vc
+  s <- solve vc
+  logData "Solution" s
+  let t2 = apply s t1
+  logData "Solved Typed" t2
+  envExtend x $ Verified x t0 e t1 vc s t2
+
+-- | Import a module into the environment.
+import_ :: FilePath -> Pan ()
+import_ otherModule = do
+  logMessageDoc "Elab" $ "Import" <+> pretty otherModule
+  redundant <- elem otherModule <$> gets loadedModules
+  unless redundant $ do
+    otherSrc <- tryIO NoPV $ Text.readFile otherModule
+    otherProg <- parseSource otherModule otherSrc
+    elaborate otherModule otherProg

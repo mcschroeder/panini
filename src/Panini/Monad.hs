@@ -76,6 +76,7 @@ tryError m = catchError (Right <$> m) (return . Left)
 continueOnError :: Pan () -> Pan ()
 continueOnError m = catchError m logError
 
+-- TODO: remove PV argument (enrich PV with other functions)
 -- | Try an IO action, transforming any 'IOException' that occurs into a Panini
 -- 'IOError' with the given provenance.
 tryIO :: PV -> IO a -> Pan a

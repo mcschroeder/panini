@@ -142,7 +142,7 @@ batchMain panOpts traceFileH = do
         logData ("<stdin> (Raw Source)") src
         return ("<stdin>", src)
     prog <- parseSource path src
-    elaborateProgram path prog
+    elaborate path prog
     return ()
   case res of
     Left _ -> exitFailure

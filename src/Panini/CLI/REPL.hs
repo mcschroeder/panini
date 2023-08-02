@@ -93,7 +93,7 @@ loadFile :: FilePath -> InputT Pan ()
 loadFile f = lift $ continueOnError $ addSourceLinesToError $ do
   src <- tryIO NoPV $ Text.readFile f
   prog <- parseSource f src
-  elaborateProgram f prog
+  elaborate f prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
 -- TODO: proper pretty printing
@@ -110,7 +110,7 @@ evaluateInput :: String -> InputT Pan ()
 evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do
   let src = Text.pack input
   prog <- parseSource "<repl>" src
-  elaborateProgram "<repl>" prog
+  elaborate "<repl>" prog
 
 -------------------------------------------------------------------------------
 
