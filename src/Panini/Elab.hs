@@ -50,6 +50,13 @@ envToContext = Map.map go
 
 -------------------------------------------------------------------------------
 
+-- TODO: fix error when adding new defs in <repl> pseudo-module
+
+-- TODO: fix type checkking bugs. the following should not type check:
+--          y : int = "hello"
+--          f : string -> int = false
+--          x : {v:int|v < 5} = 6
+
 tryElab :: Pan a -> Pan a
 tryElab m = do
     state0 <- get

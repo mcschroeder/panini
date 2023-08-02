@@ -125,6 +125,7 @@ replMain panOpts traceFileH = do
       exitFailure
     Right _ -> return ()
 
+-- TODO: add source lines to error PV
 batchMain :: PanOptions -> Maybe Handle -> IO ()
 batchMain panOpts traceFileH = do
   log1 <- mkLogFuncTerm panOpts
@@ -153,6 +154,8 @@ batchMain panOpts traceFileH = do
     Right _ -> return ()
 
 -------------------------------------------------------------------------------
+
+-- TODO: always log errors unless --quiet
 
 -- TODO: investigate logging asynchronously via TChan/TQueue
 

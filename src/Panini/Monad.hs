@@ -6,6 +6,7 @@ module Panini.Monad
   , throwError
   , catchError
   , tryError
+  , continueOnError
   , liftIO
   , tryIO
   , logError
@@ -33,6 +34,7 @@ import Prelude
 type Pan = StateT PanState (ExceptT Error IO)
 
 -- TODO: return state as well
+-- TODO: log final error
 runPan :: PanState -> Pan a -> IO (Either Error a)
 runPan s0 m = runExceptT $ evalStateT m s0
 
@@ -66,7 +68,7 @@ defaultState = PanState
 -- TODO: automatically log error
 -- | Throw an `Error` in the /Panini/ monad.
 throwError :: Error -> Pan a
-throwError = lift . throwE
+throwError err = lift $ throwE err
 
 -- | Catch an `Error` in the /Panini/ monad.
 catchError :: Pan a -> (Error -> Pan a) -> Pan a
@@ -75,6 +77,10 @@ catchError = liftCatch catchE
 -- | Try an action and return any thrown `Error`.
 tryError :: Pan a -> Pan (Either Error a)
 tryError m = catchError (Right <$> m) (return . Left)
+
+-- | Try an action; if an error occurs, log it but don't propagate it further.
+continueOnError :: Pan () -> Pan ()
+continueOnError m = catchError m logError
 
 -- | Try an IO action, transforming any 'IOException' that occurs into a Panini
 -- 'IOError' with the given provenance.

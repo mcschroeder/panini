@@ -7,7 +7,6 @@ where
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Bifunctor
 import Data.Char (isSpace, toLower)
@@ -18,13 +17,10 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.Elab
 import Panini.Environment
-import Panini.Error
-import Panini.Infer
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
 import Panini.Provenance
-import Panini.Syntax
 import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
@@ -41,6 +37,8 @@ repl = loop
     multiMsg    = "╭── Entering multi-line mode. Press ⌃D to finish."
     multiPrompt = "│ "
     multiMsgEnd = "╰──"
+    -- TODO: ASCII mode for multi-line chrome
+    -- TODO: colorize multi-line chrome?
 
     loop = do
       minput <- fmap (dropWhile isSpace) <$> getInputLine prompt
@@ -69,122 +67,54 @@ repl = loop
     commandPrefixes = map head $ groupBy ((==) `on` fst) $ sortOn fst $ concat
                     $ map (uncurry zip . bimap (tail . inits) repeat) commands
     
+-------------------------------------------------------------------------------
 
 commands :: [(String, String -> InputT Pan ())]
 commands = 
-  [ ("format", formatInput)
-  , ("type", synthesizeType)
+  [ ("help", const help)
   , ("load", loadFiles . words)
-  , ("show", const showState)
-  , ("forget", forgetVars . words)
-  , ("grammar", solveGrammarFile . head . words)
+  , ("show", const showEnv)
   ]
 
-solveGrammarFile :: FilePath -> InputT Pan ()
-solveGrammarFile f = do
-  src <- liftIO $ Text.readFile f
-  case parseConstraint f src of
-    Left err -> outputPretty err
-    Right _c -> do
-      undefined
-      -- outputPretty c
-      -- let c' = Panini.Solver.Grammar.solve c
-      -- outputPretty c'
+help :: InputT Pan ()
+help = outputStrLn "\
+  \Commands available in the REPL:\n\
+  \\n\
+  \  <statement>          Evaluate the given statement(s)\n\
+  \  :help                Display this list of commands\n\
+  \  :load <file> ...     Load file(s) into the environment\n\
+  \  :paste               Enter multi-line mode\n\
+  \  :quit                Exit the REPL\n\
+  \  :show                Show all bindings in the environment\n\
+  \"
 
-formatInput :: String -> InputT Pan ()
-formatInput input = do
-  case parseTerm "<repl>" $ Text.pack input of
-    Left err -> do
-      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
-      outputPretty err'
-    Right e -> outputPretty e
+loadFiles :: [String] -> InputT Pan ()
+loadFiles = mapM_ loadFile
 
-synthesizeType :: String -> InputT Pan ()
-synthesizeType input = do
-  case parseTerm "<repl>" $ Text.pack input of
-    Left err -> do
-      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
-      outputPretty err'
-    Right tm -> do
-      g <- lift $ envToContext <$> gets environment
-      err2 <- lift $ tryError $ infer g tm
-      case err2 of
-        Left err -> do
-          err' <- liftIO $ updatePV (addSourceLinesREPL input) err
-          outputPretty err'        
-        Right (t,vc) -> do
-          outputPretty $ "⊢ " <> pretty tm
-          outputPretty $ "↗ " <> pretty t
-          outputPretty $ "⫤ " <> pretty vc --(simplifyCon vc)
-  
+-- TODO: add source lines to error PV
+loadFile :: FilePath -> InputT Pan ()
+loadFile f = lift $ continueOnError $ do
+  src <- tryIO NoPV $ Text.readFile f
+  prog <- parseSource f src
+  elaborateProgram f prog
+  -- TODO: output summary like "Ok, 23 modules loaded."
+
+-- TODO
+showEnv :: InputT Pan ()
+showEnv = do
+  env <- lift get
+  forM_ (Map.toAscList env.environment) $ \case
+    (_,Assumed{_name,_givenType}) -> outputStrLn $ showPretty $ 
+      pretty _name <+> symColon <+> pretty _givenType    
+    (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ 
+      pretty _name <+> symColon <+> pretty _solvedType
+
+-- TODO: add source lines to error PV
 evaluateInput :: String -> InputT Pan ()
-evaluateInput input = do
-  res <- lift $ tryError $ elaborateProgram "<repl>" =<< lift (except $ parseInput input) 
-  case res of
-    Left err -> do
-      err' <- liftIO $ updatePV (addSourceLinesREPL input) err
-      outputPretty err'
-    Right () -> return ()
-
-loadFiles :: [FilePath] -> InputT Pan ()
-loadFiles fs = forM_ fs $ \f -> lift $ do
-  r <- tryError $ do
-    src <- tryIO NoPV $ Text.readFile f
-    prog <- parseSource f src
-    elaborateProgram f prog
-    -- TODO: add to loaded modules
-  case r of
-    Left err -> logError err
-    Right _ -> return ()
-
-showState :: InputT Pan ()
-showState = do
-  PanState{environment} <- lift get
-  forM_ (Map.toAscList environment) $ \case
-    (_,Assumed{_name,_givenType}) -> outputStrLn $ showPretty $ pretty _name <+> symColon <+> pretty _givenType
-    (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ pretty _name <+> symColon <+> pretty _solvedType
-
-
-
--- prettyEnv :: Environment -> Doc Ann
--- prettyEnv env = forM_ (Map.toList env) $ \(x,def) -> case def of
---   Assumed {_givenType} -> "" <+> x <+> sym ":" <+> pretty _givenType
---   Rejected {_givenType,_typeError} -> "" <+> x <+> sym ":" <+> pretty _givenType
-
-
-  -- ElabState{pan_types, pan_terms, pan_vcs} <- lift get
-  -- outputStrLn "\ntyping context"
-  -- mapM_ outputPretty $ Map.toList pan_types
-  -- outputStrLn "\nterm context"
-  -- mapM_ outputPretty $ Map.toList pan_terms
-  -- outputStrLn "\nverification conditions"
-  -- -- mapM_ outputPretty $ Map.toList pan_vcs
-  -- forM_ (Map.toList pan_vcs) $ \(x,vc) -> do
-  --   outputPretty x
-  --   outputPretty vc
-  --   outputStrLn "---"
-  --   r <- liftIO $ sat vc []
-  --   case r of
-  --     True -> outputStrLn "SAT"
-  --     False -> outputStrLn "UNSAT"
-  --   -- r <- liftIO $ Panini.SMT.solve vc []
-  --   -- case r of
-  --   --   Nothing -> outputStrLn "UNSAT"
-  --   --   Just s -> do
-  --   --     outputStrLn "SAT"
-  --   --     forM_ (Map.toList s) $ \(k,(xs,p)) -> do
-  --   --       outputPretty $ (PRel Eq (PHorn k (map V xs)) p)
-
-forgetVars :: [String] -> InputT Pan ()
-forgetVars _xs = undefined --do
-  -- forM_ xs $ \x -> do
-  --   let n = Name (Text.pack x) NoPV
-  --   lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
-  --   lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
-  --   lift $ modify' $ \s -> s { pan_types = Map.delete n s.pan_types }
-
-
--- TODO: error source /= var name source (previous vs current definition)
+evaluateInput input = lift $ continueOnError $ do
+  let src = Text.pack input
+  prog <- parseSource "<repl>" src
+  elaborateProgram "<repl>" prog
 
 -------------------------------------------------------------------------------
 
@@ -214,20 +144,6 @@ autocomplete = fallbackCompletion completeCommands completeFiles
       _ -> pure (r,[])
     
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
-
--------------------------------------------------------------------------------
-
-class Inputable a where
-  parseInput :: String -> Either Error a
-
-instance Inputable Term where
-  parseInput = parseTerm "<repl>" . Text.pack
-
-instance Inputable Statement where
-  parseInput = parseStatement "<repl>" . Text.pack
-
-instance Inputable Program where
-  parseInput = parseProgram "<repl>" . Text.pack
 
 -------------------------------------------------------------------------------
 
