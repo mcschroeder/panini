@@ -20,7 +20,6 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Data.Text (Text)
 import Panini.Environment
 import Panini.Error
 import Panini.Events
@@ -46,10 +45,6 @@ data PanState = PanState {
   , kvarCount :: !Int  -- ^ source for fresh κ-variable names
   , loadedModules :: ![FilePath]
 
-  -- | Function for printing diagnostics to the terminal. If 'Nothing', no
-  -- diagnostics are printed (not even errors).
-  , logTermPrint :: Maybe (Text -> IO ())
-
   -- | Function for handling diagnostic events. Called synchronously whenever an
   -- event occurs. Default is @const (return ())@.
   , eventHandler :: Event -> IO ()
@@ -60,7 +55,6 @@ defaultState = PanState
   { environment = mempty
   , kvarCount = 0
   , loadedModules = []
-  , logTermPrint = Nothing
   , eventHandler = const (return ())
   }
 
