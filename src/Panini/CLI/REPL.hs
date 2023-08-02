@@ -22,9 +22,7 @@ import Panini.Parser
 import Panini.Pretty.Printer
 import Panini.Provenance
 import Prelude
-import System.Console.ANSI
 import System.Console.Haskeline
-import System.IO
 
 -------------------------------------------------------------------------------
 
@@ -91,15 +89,14 @@ help = outputStrLn "\
 loadFiles :: [String] -> InputT Pan ()
 loadFiles = mapM_ loadFile
 
--- TODO: add source lines to error PV
 loadFile :: FilePath -> InputT Pan ()
-loadFile f = lift $ continueOnError $ do
+loadFile f = lift $ continueOnError $ addSourceLinesToError $ do
   src <- tryIO NoPV $ Text.readFile f
   prog <- parseSource f src
   elaborateProgram f prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
--- TODO
+-- TODO: proper pretty printing
 showEnv :: InputT Pan ()
 showEnv = do
   env <- lift get
@@ -109,9 +106,8 @@ showEnv = do
     (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ 
       pretty _name <+> symColon <+> pretty _solvedType
 
--- TODO: add source lines to error PV
 evaluateInput :: String -> InputT Pan ()
-evaluateInput input = lift $ continueOnError $ do
+evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do
   let src = Text.pack input
   prog <- parseSource "<repl>" src
   elaborateProgram "<repl>" prog
@@ -147,6 +143,14 @@ autocomplete = fallbackCompletion completeCommands completeFiles
 
 -------------------------------------------------------------------------------
 
+addSourceLinesToError :: Pan a -> Pan a
+addSourceLinesToError m = m `catchError` \err ->
+  throwError =<< updatePV (liftIO . addSourceLines) err
+
+addREPLInputToError :: String -> Pan a -> Pan a
+addREPLInputToError input m = m `catchError` \err -> 
+  throwError =<< updatePV (liftIO . addSourceLinesREPL input) err
+
 addSourceLinesREPL :: String -> PV -> IO PV
 addSourceLinesREPL input (FromSource loc Nothing) | loc.file == "<repl>" = do
   let src = head $ lines $ extractLines loc.begin loc.end input
@@ -159,11 +163,3 @@ addSourceLinesREPL _ pv = addSourceLines pv
 extractLines :: (Int,Int) -> (Int,Int) -> String -> String
 extractLines (l1,_) (l2,_) = 
   unlines . take (l2 + 1 - l1) . drop (l1 - 1) . lines
-
-outputPretty :: Pretty a => a -> InputT Pan ()
-outputPretty x = do
-  ansiColors <- liftIO $ hSupportsANSIColor stdout
-  let styling = if ansiColors then Just defaultStyling else Nothing
-  fixedWidth <- liftIO $ fmap snd <$> getTerminalSize  
-  let opts = RenderOptions {unicode = True, styling, fixedWidth}
-  outputStrLn $ Text.unpack $ renderDoc opts $ pretty x

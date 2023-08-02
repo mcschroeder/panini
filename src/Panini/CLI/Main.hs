@@ -125,14 +125,13 @@ replMain panOpts traceFileH = do
       exitFailure
     Right _ -> return ()
 
--- TODO: add source lines to error PV
 batchMain :: PanOptions -> Maybe Handle -> IO ()
 batchMain panOpts traceFileH = do
   log1 <- mkLogFuncTerm panOpts
   log2 <- mkLogFuncFile panOpts traceFileH
   let logDiag = liftM2 (>>) log1 log2
   let panState = defaultState { logDiagnostic = logDiag }
-  res <- runPan panState $ do
+  res <- runPan panState $ addSourceLinesToError $ do
     (path,src) <- case panOpts.inputFile of
       Just path -> do
         logMessage "Panini" $ "Read " ++ path
@@ -152,6 +151,12 @@ batchMain panOpts traceFileH = do
       putStrLn $ showPretty err  -- TODO
       exitFailure
     Right _ -> return ()
+
+
+-- TODO: duplicate of function in Panini.CLI.REPL
+addSourceLinesToError :: Pan a -> Pan a
+addSourceLinesToError m = m `catchError` \err ->
+  throwError =<< updatePV (liftIO . addSourceLines) err
 
 -------------------------------------------------------------------------------
 
