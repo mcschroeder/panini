@@ -27,20 +27,11 @@ solve c0 = do
   let !c1 = c0 --simplifyCon c0
   -- logData c1
 
-  logMessage "Fusion" "Find cut variables"
-  let !ks_cut = Fusion.cutVars c1
-  logData "Cut Variables" ks_cut
-
   logMessage "Grammar" "Find grammar variables"
   let !ks_gram = Set.fromList $ grammarVars c1
   logData "Grammar Variables" ks_gram
 
-  logMessage "Fusion" "Compute exact solutions for other variables"
-  let !ks = kvars c1
-  let !ks' = ks Set.\\ ks_cut Set.\\ ks_gram
-  logData "Other Variables" ks'
-  let !c2 = Fusion.elim (Set.toList ks') c1
-  logData "Constraint w/o Other Variables" c2
+  c2 <- Fusion.solve ks_gram c1
 
   logMessage "Solver" "Simplify constraint"
   let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
@@ -64,10 +55,10 @@ solve c0 = do
         logData "Grammar Solution" g
         return $ Map.insert k g gs
 
-  !gs <- foldM solveOne mempty (Map.toAscList cs)
+  !s_grammar <- foldM solveOne mempty (Map.toAscList cs)
 
   logMessage "Grammar" "Apply grammar solution"
-  let !c4 = apply gs c3
+  let !c4 = apply s_grammar c3
   logData "Constraint w/ Grammar Solution Applied" c4
 
   -- logMessage "Solver" "Simplify constraint"
@@ -75,12 +66,13 @@ solve c0 = do
   -- logData c5
 
   logMessage "Liquid" "Compute approximate solutions for residuals"
-  !s <- Liquid.solve c5 []
-  logData "Final Solution" s
+  !s_liquid <- Liquid.solve c5 []
+  logData "solution" s_liquid
 
-  -- TODO: include fusion assignments in final solution
-
-  return $ Map.unions [gs,s]
+  let s_final = Map.unions [s_grammar, s_liquid]
+  logData "Final Solution" s_final
+  
+  return s_final
 
 grammarVars :: Con -> [KVar]
 grammarVars = go

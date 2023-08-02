@@ -6,7 +6,7 @@
 --   * Benjamin Cosman and Ranjit Jhala. 2017. Local Refinement Typing.
 --     ICFP. https://doi.org/10.1145/3110270
 -------------------------------------------------------------------------------
-module Panini.Logic.Fusion (solve, elim, cutVars) where
+module Panini.Logic.Fusion (solve) where
 
 import Algebra.Lattice
 import Control.Monad
@@ -15,36 +15,30 @@ import Data.Graph qualified as Graph
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.Set ((\\))
 import Panini.Logic.Assignment
 import Panini.Logic.Constraints
 import Panini.Monad
 import Panini.Syntax
 import Prelude
 
--- | Eliminate acyclic κ-variables from a constraint using refinment FUSION.
-solve :: Con -> Pan Con
-solve c = do
-  -- logMessage "Fusion" "Simplify constraint"
-  let c1 = c --simplifyCon c
-  -- logData c1
-
+-- | Use refinement FUSION to eliminate all acyclic κ variables that are not in
+-- the given exclusion set, returning the (partially) solved constraint.
+solve :: Set KVar -> Con -> Pan Con
+solve ks_ex c0 = do
   logMessage "Fusion" "Find set of cut variables Κ̂"
-  let ks_cut = cutVars c1 -- `Set.union` Set.singleton (KVar 0 [TString])
-  logData "Cut Variables Κ̂" ks_cut
+  let ks_cut = cutVars c0
+  logData "cut variables Κ̂" ks_cut
 
   logMessage "Fusion" "Compute exact solutions for non-cut variables"
-  let ks = kvars c1
-  let ks' = Set.toList $ ks Set.\\ ks_cut
-  logData "Non-Cut Variables" ks'
-  let c2 = elim ks' c1
-  logData "Constraint w/o Non-Cut Variables" c2
-
-  -- logMessage "Fusion" "Simplify constraint"
-  let c3 = c2 --simplifyCon c2
-  -- logData c3
+  logData "excluded variables" ks_ex  
+  let ks = kvars c0 \\ ks_cut \\ ks_ex
+  logData "remaining non-cut variables" ks
+  let c1 = elim (Set.toAscList ks) c0  
+  logData "constraint w/o non-cut variables" c1
   
-  return c3
-
+  return c1
+  
 -- | Eliminates a set of acyclic κ-variables iteratively via 'elim1'.
 elim :: [KVar] -> Con -> Con
 elim []     c = c
@@ -53,7 +47,7 @@ elim (k:ks) c = elim ks (elim1 k c)
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
 -- scoped solution for κ in c.
 elim1 :: KVar -> Con -> Con
-elim1 k c = {- simplifyCon $ -} elim' sk c
+elim1 k c = elim' sk c
   where
     sk = Map.singleton k (sol1 k c')
     c' = skipHypos $ scope k c
