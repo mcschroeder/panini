@@ -120,9 +120,7 @@ replMain panOpts traceFileH = do
     lift $ modify' (\s -> s { logDiagnostic = logDiag })
     repl
   case res of
-    Left err -> do
-      putStrLn $ "panic! at the repl: " ++ show err -- TODO: pretty?
-      exitFailure
+    Left _ -> exitFailure
     Right _ -> return ()
 
 batchMain :: PanOptions -> Maybe Handle -> IO ()
@@ -147,11 +145,8 @@ batchMain panOpts traceFileH = do
     elaborateProgram path prog
     return ()
   case res of
-    Left err -> do
-      putStrLn $ showPretty err  -- TODO
-      exitFailure
+    Left _ -> exitFailure
     Right _ -> return ()
-
 
 -- TODO: duplicate of function in Panini.CLI.REPL
 addSourceLinesToError :: Pan a -> Pan a
