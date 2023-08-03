@@ -13,6 +13,7 @@ module Panini.Monad
   , logMessage
   , logMessageDoc
   , logData
+  , logEvent
   ) where
 
 import Control.Exception

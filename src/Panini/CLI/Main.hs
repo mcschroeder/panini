@@ -2,6 +2,7 @@ module Panini.CLI.Main where
 
 import Control.Monad.Extra
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
 import Data.Maybe
 import Data.Text.IO qualified as Text
 import Options.Applicative
@@ -13,6 +14,7 @@ import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer as PP
 import Panini.Provenance
+import Panini.SMT.Z3
 import Prelude
 import System.Console.ANSI
 import System.Console.Haskeline
@@ -112,6 +114,7 @@ main = do
       let historyFile = configDir </> "repl_history"
       let replConf = replSettings (Just historyFile)
       runPan panState0 $ runInputT replConf $ do
+        lift smtInit
         whenJust panOpts.outputFile $ \_ ->
           outputStrLn $ "Warning: --output ignored during REPL session"
         repl
@@ -119,6 +122,7 @@ main = do
     -- batch mode --------------------------------------------------------------
     else do
       runPan panState0 $ addSourceLinesToError $ do
+        smtInit
         module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
         logMessageDoc "Panini" $ "Read" <+> pretty module_
         src <- if module_ == stdinModule

@@ -1,11 +1,16 @@
 -- TODO: module documentation
-module Panini.SMT.Z3 (smtValid) where
+module Panini.SMT.Z3 
+  ( smtInit
+  , smtValid
+  ) where
 
-import Data.Char (isSpace)
+import Control.Exception
 import Control.Monad.IO.Class
+import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
 import Panini.Error
+import Panini.Events
 import Panini.Monad
 import Panini.SMT.SMTLIB
 import Prelude
@@ -13,6 +18,17 @@ import System.Exit
 import System.Process
 
 -------------------------------------------------------------------------------
+
+smtInit :: Pan ()
+smtInit = do
+  r <- liftIO $ try @IOException $ readProcessWithExitCode "z3" ["-version"] ""
+  let solverError e = SolverError $ "Unable to initialize Z3:\n" <> Text.pack e
+  case r of
+    Left err -> throwError $ solverError $ show err
+    Right (code, output, _) -> case code of
+      ExitFailure _ -> throwError $ solverError output
+      ExitSuccess -> 
+        logEvent $ SMTSolverInitialized $ dropWhileEnd isSpace output
 
 smtValid :: SMTLIB a => [a] -> Pan Bool
 smtValid cs = do
@@ -33,3 +49,4 @@ smtValid cs = do
       "unsat" -> return False
       x       -> throwError $ SolverError $ Text.pack x
     ExitFailure _ -> throwError $ SolverError $ Text.pack output
+
