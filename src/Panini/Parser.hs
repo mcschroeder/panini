@@ -222,10 +222,14 @@ term1 = choice
               <* keyword "in" <*> term
               <*> pure NoPV -- TODO: add term provenance
 
-  , try $ Lam <$ lambda <*> name 
-              <* symbol ":" <*> type_  -- TODO: should be unrefined type only
-              <* symbol "." <*> term
-              <*> pure NoPV -- TODO: add term provenance
+  , try $ do
+      o <- getOffset
+      lambda
+      (x,t) <- type1
+      when (isDummy x) $ failWithOffset o "missing binder"
+      symbol "."
+      e <- term
+      return $ Lam x t e NoPV  -- TODO: add provenance
 
   , Val <$> value
   ]
