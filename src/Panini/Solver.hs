@@ -68,8 +68,17 @@ solve c0 = do
   logMessage "Liquid" "Compute approximate solutions for residuals"
   !s_liquid <- Liquid.solve c5 []
   logData "solution" s_liquid
-
-  let s_final = Map.unions [s_grammar, s_liquid]
+  
+  -- NOTE: We assume σ(κ) = true for all κ variables that were eliminated during
+  -- Fusion so that we can (trivially) fill all type holes without existentials
+  -- leaking into the types.   
+  --
+  -- CAVEAT: This might not be correct (and at the very least leads to a loss of
+  -- precision), but it seems to work for now for our purposes.
+  --
+  -- TODO: Revisit this issue.
+  let s_trues = Map.fromList $ zip (Set.toList $ kvars c0) (repeat PTrue)  
+  let s_final = Map.unions [s_grammar, s_liquid] `Map.union` s_trues
   logData "Final Solution" s_final
   
   return s_final
