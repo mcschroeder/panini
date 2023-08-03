@@ -78,6 +78,7 @@ library
     Panini.Logic.Grammar
     Panini.Logic.Liquid
     Panini.Logic.Simplify
+    Panini.Modules
     Panini.Monad
     Panini.Parser
     Panini.Pretty.Graphviz
