@@ -51,7 +51,7 @@ repl = loop
           outputStrLn multiMsgEnd
           handleInput $ Just $ unlines $ reverse xs
 
-    handleInput = \case
+    handleInput = cancellable . \case
       Nothing -> outputStrLn byeMsg
       Just "" -> loop
       Just (':':(splitCmd -> (cmd,args)))
@@ -60,6 +60,9 @@ repl = loop
         | Just f <- lookup cmd commandPrefixes -> f args >> loop
         | otherwise -> outputStrLn ("unknown command :" ++ cmd) >> loop
       Just input -> evaluateInput input >> loop
+
+    cancellable = 
+      handleInterrupt (outputStrLn "Cancelled." >> loop) . withInterrupt
 
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
     
