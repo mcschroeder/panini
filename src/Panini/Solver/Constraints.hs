@@ -1,4 +1,4 @@
-module Panini.Logic.Constraints where
+module Panini.Solver.Constraints where
 
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct

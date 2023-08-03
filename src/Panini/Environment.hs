@@ -1,8 +1,8 @@
 module Panini.Environment where
 
 import Data.Map (Map)
-import Panini.Logic.Assignment
-import Panini.Logic.Constraints
+import Panini.Solver.Assignment
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 

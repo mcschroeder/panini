@@ -7,10 +7,10 @@ import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Panini.Abstract.AString (toRegLan)
-import Panini.Logic.Constraints
 import Panini.Pretty.Printer
 import Panini.Provenance
 import Panini.SMT.RegLan
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 

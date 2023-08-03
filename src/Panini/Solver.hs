@@ -1,6 +1,6 @@
-module Panini.Logic
+module Panini.Solver
   ( solve
-  , module Panini.Logic.Assignment
+  , module Panini.Solver.Assignment
   ) where
 
 import Control.Applicative
@@ -8,12 +8,12 @@ import Control.Monad
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import Panini.Logic.Assignment
-import Panini.Logic.Constraints
-import Panini.Logic.Fusion qualified as Fusion
-import Panini.Logic.Grammar qualified as Grammar
-import Panini.Logic.Liquid qualified as Liquid
-import Panini.Logic.Simplify
+import Panini.Solver.Assignment
+import Panini.Solver.Constraints
+import Panini.Solver.Fusion qualified as Fusion
+import Panini.Solver.Grammar qualified as Grammar
+import Panini.Solver.Liquid qualified as Liquid
+import Panini.Solver.Simplify
 import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.Syntax

@@ -18,12 +18,12 @@ import Data.Text.IO qualified as Text
 import Panini.Environment
 import Panini.Error
 import Panini.Infer
-import Panini.Logic
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
 import Panini.Provenance
+import Panini.Solver
 import Panini.Syntax
 import Prelude
 

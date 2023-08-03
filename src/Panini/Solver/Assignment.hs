@@ -1,11 +1,11 @@
-module Panini.Logic.Assignment where
+module Panini.Solver.Assignment where
 
 import Data.Generics.Uniplate.Operations
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Panini.Logic.Constraints
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 

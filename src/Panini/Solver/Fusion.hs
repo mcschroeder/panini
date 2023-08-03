@@ -6,7 +6,7 @@
 --   * Benjamin Cosman and Ranjit Jhala. 2017. Local Refinement Typing.
 --     ICFP. https://doi.org/10.1145/3110270
 -------------------------------------------------------------------------------
-module Panini.Logic.Fusion (solve) where
+module Panini.Solver.Fusion (solve) where
 
 import Algebra.Lattice
 import Control.Monad
@@ -16,8 +16,8 @@ import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Set ((\\))
-import Panini.Logic.Assignment
-import Panini.Logic.Constraints
+import Panini.Solver.Assignment
+import Panini.Solver.Constraints
 import Panini.Monad
 import Panini.Syntax
 import Prelude

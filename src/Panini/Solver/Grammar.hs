@@ -1,4 +1,4 @@
-module Panini.Logic.Grammar (infer) where
+module Panini.Solver.Grammar (infer) where
 
 import Algebra.Lattice
 import Control.Monad
@@ -13,7 +13,7 @@ import Data.Maybe
 import Data.STRef
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
-import Panini.Logic.Constraints
+import Panini.Solver.Constraints
 import Panini.Pretty.Printer
 import Panini.Syntax
 import Prelude

@@ -23,9 +23,9 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
-import Panini.Logic.Constraints
 import Panini.Monad
 import Panini.Provenance
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 import Text.Megaparsec

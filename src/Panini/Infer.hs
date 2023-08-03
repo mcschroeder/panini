@@ -6,9 +6,9 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
 import Panini.Error
-import Panini.Logic.Constraints
 import Panini.Monad
 import Panini.Provenance
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 

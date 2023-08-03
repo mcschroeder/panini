@@ -1,7 +1,7 @@
 module Panini.Syntax.Substitution where
 
 import Data.List ((\\))
-import Panini.Logic.Constraints
+import Panini.Solver.Constraints
 import Panini.Syntax.AST
 import Panini.Syntax.Expressions
 import Panini.Syntax.Names

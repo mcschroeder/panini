@@ -1,9 +1,9 @@
 -- | This module contains functions to simplify predicates and constraints by
 -- applying basic logical equivalences and dropping unnecessary quantifiers.
-module Panini.Logic.Simplify (simplifyCon, simplifyPred) where
+module Panini.Solver.Simplify (simplifyCon, simplifyPred) where
 
 import Data.Generics.Uniplate.Operations
-import Panini.Logic.Constraints
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 

@@ -65,13 +65,6 @@ library
     Panini.Error
     Panini.Events
     Panini.Infer
-    Panini.Logic
-    Panini.Logic.Assignment
-    Panini.Logic.Constraints
-    Panini.Logic.Fusion
-    Panini.Logic.Grammar
-    Panini.Logic.Liquid
-    Panini.Logic.Simplify
     Panini.Modules
     Panini.Monad
     Panini.Parser
@@ -81,6 +74,13 @@ library
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
+    Panini.Solver
+    Panini.Solver.Assignment
+    Panini.Solver.Constraints
+    Panini.Solver.Fusion
+    Panini.Solver.Grammar
+    Panini.Solver.Liquid
+    Panini.Solver.Simplify
     Panini.Syntax
     Panini.Syntax.AST
     Panini.Syntax.Expressions
