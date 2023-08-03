@@ -17,3 +17,7 @@ prettyEvent = \case
   ErrorEvent err -> anError (divider "ERROR") <\\> pretty err <> "\n"
   LogMessage src msg -> marginalia (pretty src <+> symDivDiag) <+> aMessage msg
   LogData label dat -> marginalia (divider label) <\\> dat <> "\n"
+
+isErrorEvent :: Event -> Bool
+isErrorEvent (ErrorEvent _) = True
+isErrorEvent _              = False
