@@ -15,7 +15,7 @@ module Panini.Pretty.Printer
   , parens, brackets, braces
   , lbracket, rbracket
   , symComma, symMid, symDot, symDotDot, symColon, symArrow, symMapsTo
-  , symDivH, symDivV, symDivDiag
+  , symDivH, symDivH2, symDivV, symDivDiag
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
   , symNe, symEq, symLe, symLt, symGe, symGt
   , symLambda, symKappa
@@ -249,8 +249,9 @@ symColon  = ":"
 symArrow  = "→" `orASCII` "->"
 symMapsTo = "↦" `orASCII` "|->"
 
-symDivH, symDivV, symDivDiag :: Doc
+symDivH, symDivH2, symDivV, symDivDiag :: Doc
 symDivH    = "─" `orASCII` "-"
+symDivH2   = "╌" `orASCII` "-"
 symDivV    = "│" `orASCII` "|"
 symDivDiag = "╱" `orASCII` "/"
 
@@ -284,10 +285,13 @@ symString = "𝕊" `orASCII` "string"
 
 -------------------------------------------------------------------------------
 
-divider :: String -> Doc
-divider label = PP.pageWidth $ \pw -> div_ (getW pw) <+> pretty label
- where  
-  div_ w = mconcat $ replicate (w - length label - 1) symDivH  
+divider :: Doc -> Maybe (Either String String) -> Doc
+divider d label = PP.pageWidth $ \pw -> case label of
+  Just (Left  l) -> pretty l <+> div_ (getW pw - length l - 1)
+  Just (Right l) ->              div_ (getW pw - length l - 1) <+> pretty l
+  Nothing        ->              div_ (getW pw)  
+ where
+  div_ w = mconcat $ replicate w d
   getW = \case
     PP.AvailablePerLine w _ -> w
     PP.Unbounded            -> 80

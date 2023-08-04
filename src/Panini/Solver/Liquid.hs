@@ -16,19 +16,20 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Error
+import Panini.Monad
+import Panini.Pretty.Printer
+import Panini.SMT.Z3
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
-import Panini.Monad
-import Panini.SMT.Z3
 import Panini.Syntax
 import Prelude
 
 -- | Solve a Horn constraint given a set of candidates.
 solve :: Con -> [Pred] -> Pan Assignment
 solve c qs = do
-  logMessage "Liquid" "Flatten constraint"
+  logMessage "Flatten constraint"
   let cs = flat c
-  logData "Flat Constraint" cs
+  logData cs
   
   let (csk,csp) = partition horny cs
   
@@ -38,15 +39,17 @@ solve c qs = do
   let qs' = if null qs then PTrue else PAnd qs
   let s0 = Map.fromList $ map (\k -> (k, qs')) $ Set.toList ks
 
-  logMessage "Liquid" "Iteratively weaken σ"
-  s <- fixpoint csk s0
-  logData "Weakened σ" s
+  logMessage $ "Initial assignment σ =" <+> pretty s0
 
+  logMessage "Iteratively weaken σ"
+  s <- fixpoint csk s0
+  logData s
+
+  -- TODO: move this up into Solver module
   r <- smtValid (map (apply s) csp)
   if r 
     then do
-      logMessage "Liquid" "Found satisfying assignment"
-      logData "Satisfying Assignment σ" s
+      logMessage $ "Satisfying assignment σ =" <+> pretty s
       return s
     else
       throwError $ SolverError "Unsatisfiable"

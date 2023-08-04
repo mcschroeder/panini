@@ -15,9 +15,13 @@ data Event
 -- TODO: move this kind of formatting out of here
 prettyEvent :: Event -> Doc
 prettyEvent = \case
-  ErrorEvent err -> anError (divider "ERROR") <\\> pretty err <> "\n"
-  LogMessage src msg -> marginalia (pretty src <+> symDivDiag) <+> aMessage msg
-  LogData label dat -> marginalia (divider label) <\\> dat <> "\n"
+  ErrorEvent err -> 
+    anError (divider symDivH (Just $ Right "ERROR")) <\\> pretty err <> "\n"
+  LogMessage src msg -> marginalia ("(" <> pretty src <> ")") <+> align msg
+  LogData src dat -> 
+    marginalia (divider symDivH2 (Just $ Left $ "(" <> src <> ")")) <\\> 
+    dat <\\>
+    marginalia (divider symDivH2 Nothing) <> "\n"
   SMTSolverInitialized{_version} -> marginalia $ "(SMT)" <+> pretty _version
 
 isErrorEvent :: Event -> Bool

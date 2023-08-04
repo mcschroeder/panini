@@ -124,11 +124,11 @@ main = do
       runPan panState0 $ addSourceLinesToError $ do
         smtInit
         module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
-        logMessageDoc "Panini" $ "Read" <+> pretty module_
+        logMessage $ "Read" <+> pretty module_ <+> "⋯"        
         src <- if module_ == stdinModule
           then tryIO NoPV $ Text.getContents
           else tryIO NoPV $ Text.readFile $ moduleLocation module_
-        logData (moduleLocation module_ ++ " (Raw Source)") src    
+        logData src
         prog <- parseSource (moduleLocation module_) src
         elaborate module_ prog
         return ()

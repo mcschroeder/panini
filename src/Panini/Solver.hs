@@ -31,47 +31,48 @@ solve c0 = do
 
   let c1 = c0 -- TODO: investigate simplification here
 
-  logMessage "Grammar" "Find grammar constraints"
+  logMessage "Find grammar constraints"
   let gcs1 = Grammar.grammarConstraints c1
-  logData "grammar constraints" gcs1
+  logData gcs1
 
   let ks_gram = Set.fromList 
               $ map gconKVar 
               $ HashSet.toList gcs1
-  logData "grammar variables" ks_gram
+  logMessage $ "Grammar variables =" <+> pretty ks_gram
 
   c2 <- Fusion.solve ks_gram c1
 
-  logMessage "Solver" "Simplify constraint"
+  logMessage "Simplify"
   let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
-  logData "Simplified Constraint" c3
+  logData c3
 
-  logMessage "Grammar" "Find grammar constraints"
+  logMessage "Find grammar constraints"
   let gcs3 = Grammar.grammarConstraints c3
-  logData "grammar constraints" gcs3
+  logData gcs3
 
   let solveOne s (GCon x k c) = do
-        logMessageDoc "Grammar" $ "Solve grammar variable" <+> pretty k
+        logMessage $ "Solve grammar variable" <+> pretty k
         -- update grammar consequent with previous grammar solutions
         let gc' = GCon x k $ apply s c
         let g = Grammar.solve gc'
-        logData "Grammar solution" g
+        logData g
         return $ g `Map.union` s
 
   s_grammar <- foldM solveOne mempty 
              $ List.sortBy (compare `on` gconKVar)
              $ HashSet.toList gcs3
 
-  logMessage "Grammar" "Apply grammar solution"
+
+  logMessage "Apply grammar solution"
   let !c4 = apply s_grammar c3
-  logData "constraint w/ grammar solution applied" c4
+  logData c4
 
   let !c5 = c4 -- TODO: investigate simplification here
 
-  logMessage "Liquid" "Compute approximate solutions for residuals"
+  logMessage "Compute approximate solutions for residuals"
   !s_liquid <- Liquid.solve c5 []
-  logData "Liquid solution" s_liquid
   
+  logMessage "Construct final solution"
   -- NOTE: We assume σ(κ) = true for all κ variables that were eliminated during
   -- Fusion so that we can (trivially) fill all type holes without existentials
   -- leaking into the types.   
@@ -82,6 +83,6 @@ solve c0 = do
   -- TODO: Revisit this issue.
   let s_trues = Map.fromList $ zip (Set.toList $ kvars c0) (repeat PTrue)  
   let s_final = Map.unions [s_grammar, s_liquid] `Map.union` s_trues
-  logData "Final Solution" s_final
+  logData s_final
   
   return s_final

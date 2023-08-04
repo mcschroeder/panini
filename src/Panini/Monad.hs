@@ -11,7 +11,6 @@ module Panini.Monad
   , tryIO
   , logError
   , logMessage
-  , logMessageDoc
   , logData
   , logEvent
   ) where
@@ -21,6 +20,9 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.List qualified as List
+import Data.Maybe
+import GHC.Stack
 import Panini.Environment
 import Panini.Error
 import Panini.Events
@@ -98,11 +100,15 @@ logEvent d = do
 logError :: Error -> Pan ()
 logError = logEvent . ErrorEvent
 
-logMessage :: String -> String -> Pan ()
-logMessage src = logMessageDoc src . pretty
+logMessage :: HasCallStack => Doc -> Pan ()
+logMessage msg = logEvent $ LogMessage src msg
+  where src = getPaniniModuleName callStack
 
-logMessageDoc :: String -> Doc -> Pan ()
-logMessageDoc src msg = logEvent $ LogMessage src msg
+logData :: (HasCallStack, Pretty a) => a -> Pan ()
+logData = logEvent . LogData src . pretty
+  where src = getPaniniModuleName callStack
 
-logData :: Pretty a => String -> a -> Pan ()
-logData label a = logEvent $ LogData label (pretty a)
+getPaniniModuleName :: CallStack -> String
+getPaniniModuleName cs =
+  let loc = srcLocModule $ snd $ head $ getCallStack cs
+  in fromMaybe loc $ List.stripPrefix "Panini." loc

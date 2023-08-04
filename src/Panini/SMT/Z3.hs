@@ -32,16 +32,16 @@ smtInit = do
 
 smtValid :: SMTLIB a => [a] -> Pan Bool
 smtValid cs = do
-  logMessage "Z3" "Encode SMT-LIB query"
+  logMessage "Encode SMT-LIB query"
   let foralls = map (Text.unpack . toSMTLIB) cs
   let declares = []
   let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
   let query = unlines $ declares ++ asserts ++ ["(check-sat)"]
-  logData "SMT-LIB Query" query
+  logData query
 
-  logMessage "Z3" "Check satisfiability"
+  logMessage "Check satisfiability"
   (code, output, _) <- liftIO $ readProcessWithExitCode "z3" ["-smt2", "-in"] query
-  logData "Z3 Output" output
+  logData output
 
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of

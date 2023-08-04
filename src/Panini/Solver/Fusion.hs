@@ -21,21 +21,24 @@ import Panini.Solver.Constraints
 import Panini.Monad
 import Panini.Syntax
 import Prelude
+import Panini.Pretty.Printer
 
 -- | Use refinement FUSION to eliminate all acyclic κ variables that are not in
 -- the given exclusion set, returning the (partially) solved constraint.
 solve :: Set KVar -> Con -> Pan Con
 solve ks_ex c0 = do
-  logMessage "Fusion" "Find set of cut variables Κ̂"
+  logMessage "Find set of cut variables Κ̂"
   let ks_cut = cutVars c0
-  logData "cut variables Κ̂" ks_cut
-
-  logMessage "Fusion" "Compute exact solutions for non-cut variables"
-  logData "excluded variables" ks_ex  
+  logData ks_cut
+  
+  logMessage $ "Excluded variables =" <+> pretty ks_ex  
+  
   let ks = kvars c0 \\ ks_cut \\ ks_ex
-  logData "remaining non-cut variables" ks
-  let c1 = elim (Set.toAscList ks) c0  
-  logData "constraint w/o non-cut variables" c1
+  logMessage $ "Non-excluded non-cut variables = " <\> pretty ks
+
+  logMessage "Compute exact solutions for non-excluded non-cut variables"
+  let c1 = elim (Set.toAscList ks) c0
+  logData c1
   
   return c1
   

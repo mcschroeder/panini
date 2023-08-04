@@ -80,37 +80,37 @@ elaborate thisModule prog = do
 -- | Add an assumed type to the environment.
 assume :: Name -> Type -> Pan ()
 assume x t = do
-  logMessageDoc "Elab" $ "Assume" <+> pretty x
+  logMessage $ "Assume" <+> pretty x <+> symColon <+> pretty t
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
   envExtend x (Assumed x t)
-  logData "Assumed Type" t  
 
 -- | Add a definition to the environment.
 define :: Name -> Type -> Term -> Pan ()
 define x t0 e = do
-  logMessageDoc "Elab" $ "Define" <+> pretty x
+  logMessage $ "Define" <+> pretty x
   --logData "Definition" stmt
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
-  logMessage "Infer" "Infer type"
+  logMessage "Prepare typing context Γ"
   g <- envToContext <$> gets environment
   let g' = Map.insert x t0 g
-  logData "Typing Context Γ" g'
+  logData g'
+  logMessage $ "Infer type of" <+> pretty x <+> "in Γ"
   (t1, c1) <- infer g' e
-  logData "Inferred Type" t1
   t̂₀ <- fresh t0
   c0 <- sub t1 t̂₀
   let vc = c1 ∧ c0
-  logData "Verification Condition" vc
+  logData $ pretty t1 <\\> "⫤" <\\> pretty c1
+  logMessage "Solve verification condition"
   s <- solve vc
-  logData "Solution" s
+  logMessage "Apply solution to type"
   let t2 = apply s t1
-  logData "Solved Typed" t2
+  logData t2
   envExtend x $ Verified x t0 e t1 vc s t2
 
 -- | Import a module into the environment.
 import_ :: Module -> Pan ()
 import_ otherModule = do
-  logMessageDoc "Elab" $ "Import" <+> pretty otherModule
+  logMessage $ "Import" <+> pretty otherModule
   redundant <- elem otherModule <$> gets loadedModules
   unless redundant $ do
     otherSrc <- tryIO NoPV $ Text.readFile $ moduleLocation otherModule

@@ -24,6 +24,7 @@ import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
 import Panini.Monad
+import Panini.Pretty.Printer ((<+>), pretty)
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -37,9 +38,9 @@ import Text.Printf
 
 parseSource :: FilePath -> Text -> Pan Program
 parseSource path src = do
-  logMessage "Parser" $ "Parse " ++ path
+  logMessage $ "Parse" <+> pretty path
   prog <- lift $ except $ parseProgram path src
-  logData (path ++ " (Parsed)") prog
+  logData prog
   return prog
 
 -------------------------------------------------------------------------------
