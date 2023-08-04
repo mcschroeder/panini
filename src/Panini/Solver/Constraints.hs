@@ -2,6 +2,8 @@ module Panini.Solver.Constraints where
 
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
+import Data.Hashable
+import GHC.Generics
 import Panini.Pretty.Printer
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -17,8 +19,10 @@ import Prelude
 data Con
   = CHead Pred               -- p
   | CAnd Con Con             -- c1 /\ c2
-  | CAll Name Base Pred Con  -- forall x:b. p ==> c
-  deriving stock (Eq, Show, Read)
+  | CAll Name Base Pred Con  -- forall x:b. p ==> c  
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable Con
 
 pattern CTrue :: Con
 pattern CTrue = CHead PTrue
