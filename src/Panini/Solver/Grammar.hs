@@ -1,31 +1,72 @@
-module Panini.Solver.Grammar (infer) where
+module Panini.Solver.Grammar 
+  ( GCon(..)
+  , grammarConstraints
+  , gconKVar
+  , solve
+  ) where
 
 import Algebra.Lattice
 import Control.Monad
 import Control.Monad.ST
 import Data.Foldable
 import Data.Generics.Uniplate.Operations qualified as Uniplate
+import Data.Hashable
+import Data.HashSet (HashSet)
 import Data.HashSet qualified as HashSet
 import Data.List (partition)
 import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.STRef
+import GHC.Generics
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
-import Panini.Solver.Constraints
 import Panini.Pretty.Printer
+import Panini.Solver.Assignment
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
 -------------------------------------------------------------------------------
 
-infer :: Name -> Con -> Pred
-infer s = PRel . concretizeVar s . EAbs . AString
-        . joins
-        . map (meets . map (abstractStringVar s))  -- TODO
-        . unDNF
-        . rewrite
+-- | A /grammar constraint/ is any constraint of the form @∀s:𝕊. κ(s) ⇒ c@.
+-- Here, @κ@ is known as a /grammar variable/ and @c@ as a /grammar consequent/.
+-- The string variable @s@, applied parameter to @κ@, is a free variable in @c@.
+data GCon = GCon Name KVar Con
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable GCon
+
+instance Pretty GCon where
+  pretty (GCon x k c) = pretty $ CAll x TString (PAppK k [Var x]) c
+
+-- | Returns all grammar constraints within the given constraint.
+grammarConstraints :: Con -> HashSet GCon
+grammarConstraints c0 = HashSet.fromList
+  [GCon x k c | CAll x TString (PAppK k [Var y]) c <- Uniplate.universe c0
+              , y == x
+  ]
+
+gconKVar :: GCon -> KVar
+gconKVar (GCon _ k _) = k
+
+-------------------------------------------------------------------------------
+
+-- | Solve a grammar constraint @∀s:𝕊. κ(s) ⇒ c@, returning a solution for @κ@.
+solve :: GCon -> Assignment
+solve (GCon s k c) = Map.singleton k g'
+  where    
+    g = PRel . concretizeVar s . EAbs . AString
+      $ joins
+      $ map (meets . map (abstractStringVar s))  -- TODO
+      $ unDNF
+      $ rewrite c
+    
+    -- IMPORTANT: we need to substitute the free string variable s in the
+    -- grammar solution with the generic κ parameter, so that later on we can
+    -- apply without problems
+    g' = subst (Var $ head $ kparams k) s g
+
 
 -- TODO: either make this unnecessary or deal with errors gracefully
 abstractStringVar :: Name -> Rel -> AString

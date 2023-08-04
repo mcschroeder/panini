@@ -28,7 +28,6 @@ data KVar = KVar Int [Base]
 
 instance Hashable KVar
 
--- TODO: ensure uniqueness
 -- | The parameters of a κ-variable.
 kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]

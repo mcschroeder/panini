@@ -28,6 +28,8 @@ module Panini.Pretty.Printer
   ) where
 
 import Data.Char
+import Data.HashSet (HashSet)
+import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -68,6 +70,9 @@ instance {-# OVERLAPPABLE #-} Pretty a => Pretty [a] where
 
 instance Pretty a => Pretty (Set a) where
   pretty = prettySet . Set.toAscList
+
+instance Pretty a => Pretty (HashSet a) where
+  pretty = prettySet . HashSet.toList
 
 instance (Pretty a, Pretty b) => Pretty (Map a b) where
   pretty = prettyMap . Map.toAscList

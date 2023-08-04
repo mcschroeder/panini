@@ -3,74 +3,74 @@ module Panini.Solver
   , module Panini.Solver.Assignment
   ) where
 
-import Control.Applicative
 import Control.Monad
+import Data.Function
+import Data.HashSet qualified as HashSet
+import Data.List qualified as List
 import Data.Map qualified as Map
-import Data.Maybe
 import Data.Set qualified as Set
+import Panini.Monad
+import Panini.Pretty.Printer
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Solver.Fusion qualified as Fusion
+import Panini.Solver.Grammar (GCon(..), gconKVar)
 import Panini.Solver.Grammar qualified as Grammar
 import Panini.Solver.Liquid qualified as Liquid
 import Panini.Solver.Simplify
-import Panini.Monad
-import Panini.Pretty.Printer
 import Panini.Syntax
 import Prelude
 
+-------------------------------------------------------------------------------
+
 -- TODO: be strict in each of these steps
+-- TODO: explore simplification, whether it is or isn't necessary/profitable
 
 solve :: Con -> Pan Assignment
 solve c0 = do
-  -- logMessage "Solver" "Simplify constraint"
-  let !c1 = c0 --simplifyCon c0
-  -- logData c1
 
-  -- TODO: clearly define what a grammar variable is, esp. structurally (i.e.
-  -- has exactly one string param)
+  let c1 = c0 -- TODO: investigate simplification here
 
-  logMessage "Grammar" "Find grammar variables"
-  let !ks_gram = Set.fromList $ grammarVars c1
-  logData "Grammar Variables" ks_gram
+  logMessage "Grammar" "Find grammar constraints"
+  let gcs1 = Grammar.grammarConstraints c1
+  logData "grammar constraints" gcs1
+
+  let ks_gram = Set.fromList 
+              $ map gconKVar 
+              $ HashSet.toList gcs1
+  logData "grammar variables" ks_gram
 
   c2 <- Fusion.solve ks_gram c1
 
   logMessage "Solver" "Simplify constraint"
   let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
   logData "Simplified Constraint" c3
-  --let !c3 = c2
 
-  logMessage "Grammar" "Find grammar consequents"
-  let !cs = Map.fromList
-         $ map (\(k,c) -> (k, fromJust c)) 
-         $ filter (isJust . snd) 
-         $ zip (Set.toAscList ks_gram)
-         $ map (grammarConsequent c3) 
-         $ Set.toAscList ks_gram
-  logData "Grammar Consequents" cs
+  logMessage "Grammar" "Find grammar constraints"
+  let gcs3 = Grammar.grammarConstraints c3
+  logData "grammar constraints" gcs3
 
-  let solveOne gs (k,c) = do
+  let solveOne s (GCon x k c) = do
         logMessageDoc "Grammar" $ "Solve grammar variable" <+> pretty k
-        let c' = apply gs c
-        logData "Current Consequent" c'
-        let !g = Grammar.infer (head $ kparams k) c'
-        logData "Grammar Solution" g
-        return $ Map.insert k g gs
+        -- update grammar consequent with previous grammar solutions
+        let gc' = GCon x k $ apply s c
+        let g = Grammar.solve gc'
+        logData "Grammar solution" g
+        return $ g `Map.union` s
 
-  !s_grammar <- foldM solveOne mempty (Map.toAscList cs)
+  s_grammar <- foldM solveOne mempty 
+             $ List.sortBy (compare `on` gconKVar)
+             $ HashSet.toList gcs3
 
   logMessage "Grammar" "Apply grammar solution"
   let !c4 = apply s_grammar c3
-  logData "Constraint w/ Grammar Solution Applied" c4
+  logData "constraint w/ grammar solution applied" c4
 
-  -- logMessage "Solver" "Simplify constraint"
-  let !c5 = c4 --simplifyCon c4
-  -- logData c5
+  let !c5 = c4 -- TODO: investigate simplification here
 
   logMessage "Liquid" "Compute approximate solutions for residuals"
   !s_liquid <- Liquid.solve c5 []
-  logData "solution" s_liquid
+  logData "Liquid solution" s_liquid
   
   -- NOTE: We assume σ(κ) = true for all κ variables that were eliminated during
   -- Fusion so that we can (trivially) fill all type holes without existentials
@@ -85,25 +85,3 @@ solve c0 = do
   logData "Final Solution" s_final
   
   return s_final
-
-grammarVars :: Con -> [KVar]
-grammarVars = go
-  where
-    go (CHead _) = []
-    go (CAnd c1 c2) = go c1 ++ go c2
-    go (CAll x TString (PAppK k@(KVar _ [TString]) [Var y]) _) | y == x = [k]
-    go (CAll _ _ _ c) = go c
-
-grammarConsequent :: Con -> KVar -> Maybe Con
-grammarConsequent c0 k0 = go c0
-  where
-    go (CHead _) = Nothing
-    go (CAnd c1 c2) = go c1 <|> go c2
-    go (CAll x TString (PAppK k [Var y]) c) | k0 == k, x == y = Just c'
-      where
-        -- TODO
-        -- IMPORTANT: we need to substitute the bound variables with generic kvar params
-        -- so that later on we can apply without problems
-        c' = substN (map Var $ kparams k) [y] c
-    go (CAll _ _ _ c) = go c
-
