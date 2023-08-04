@@ -84,7 +84,7 @@ instance Biplate Pred Expr where
 
 instance Pretty Pred where
   pretty p0 = case p0 of
-    PAppK k xs -> highlight $ pretty k <> prettyTuple xs
+    PAppK k xs -> highlight $ prettyKVarName k <> prettyTuple xs
     PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
     PIff   p1 p2 -> prettyL p0 p1 <+> symIff     <+> prettyR p0 p2
     PImpl  p1 p2 -> prettyL p0 p1 <+> symImplies <+> prettyR p0 p2

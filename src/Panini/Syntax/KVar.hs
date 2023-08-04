@@ -33,4 +33,9 @@ kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts-1]]
 
 instance Pretty KVar where
-  pretty (KVar i _) = identifier VarIdent $ symKappa <> subscript i
+  pretty k@(KVar _ ts) = prettyKVarName k <> prettyTuple zs
+    where
+      zs = [pretty z <> symColon <> pretty t | (z,t) <- zip (kparams k) ts]
+
+prettyKVarName :: KVar -> Doc
+prettyKVarName (KVar i _) = identifier VarIdent $ symKappa <> subscript i
