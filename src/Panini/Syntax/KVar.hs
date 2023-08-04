@@ -30,7 +30,7 @@ instance Hashable KVar
 
 -- | The parameters of a κ-variable.
 kparams :: KVar -> [Name]
-kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts]]
+kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts-1]]
 
 instance Pretty KVar where
   pretty (KVar i _) = identifier VarIdent $ symKappa <> subscript i
