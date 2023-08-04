@@ -27,6 +27,9 @@ solve c0 = do
   let !c1 = c0 --simplifyCon c0
   -- logData c1
 
+  -- TODO: clearly define what a grammar variable is, esp. structurally (i.e.
+  -- has exactly one string param)
+
   logMessage "Grammar" "Find grammar variables"
   let !ks_gram = Set.fromList $ grammarVars c1
   logData "Grammar Variables" ks_gram
@@ -51,7 +54,7 @@ solve c0 = do
         logMessageDoc "Grammar" $ "Solve grammar variable" <+> pretty k
         let c' = apply gs c
         logData "Current Consequent" c'
-        let !g = Grammar.infer "z0" c'  -- TODO: generalize for variable name
+        let !g = Grammar.infer (head $ kparams k) c'
         logData "Grammar Solution" g
         return $ Map.insert k g gs
 
