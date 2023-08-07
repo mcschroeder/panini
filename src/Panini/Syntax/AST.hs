@@ -96,8 +96,8 @@ instance Pretty Type where
       | otherwise -> x `col` pretty t1 `arr` pretty t2
 
     TBase v t r _
-      | isT r, isDummy v ->                  pretty t
-      | otherwise        -> braces $ v `col` pretty t <+> "|" <+> pretty r
+      | isT r      ->                  pretty t
+      | otherwise  -> braces $ v `col` pretty t <+> "|" <+> pretty r
    
    where    
     isT (Known PTrue) = True
