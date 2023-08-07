@@ -88,7 +88,7 @@ infer g = \case
 
   -- inf/if -----------------------------------------------
   If v e₁ e₂ pv -> do
-    -- TODO: check that v is bool
+    checkBool g v
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer g e₂
     let y = freshName "y" (freeVars v ++ freeVars c₁ ++ freeVars c₂)
@@ -97,6 +97,12 @@ infer g = \case
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
     t <- mkJoin t₁ t₂
     return $ (t, c) `withPV` pv
+
+checkBool :: Context -> Value -> Pan ()
+checkBool g v = do
+  (tb,_) <- infer g (Val v)
+  _ <- sub tb (TBase dummyName TBool (Known PTrue) NoPV)
+  return ()
 
 -- | Selfification.
 self :: Name -> Type -> Type
