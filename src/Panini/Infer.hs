@@ -14,6 +14,9 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
+withPV :: (Type,Con) -> PV -> (Type,Con)
+withPV (t,c) pv = (setPV pv t, c)  -- TODO: Con provenance
+
 -- | Mappings of variables to types (Γ)
 type Context = Map Name Type
 
@@ -27,7 +30,7 @@ infer g = \case
   Val (Var x) -> do
     case Map.lookup x g of
       Nothing -> throwError $ VarNotInScope x
-      Just t -> return (self x t, CTrue)
+      Just t -> return $ (self x t, CTrue) `withPV` getPV x
   
   -- inf/con ----------------------------------------------
   Val (Con c) -> do
@@ -42,7 +45,7 @@ infer g = \case
       primType (S _ _) = TString
   
   -- inf/app ----------------------------------------------
-  App e x _ -> do
+  App e x pv -> do
     (tₑ, cₑ) <- infer g e
     case tₑ of
       TBase _ _ _ _ -> throwError $ ExpectedFunType e tₑ
@@ -51,40 +54,40 @@ infer g = \case
         cₓ <- sub tₓ t₁
         let t = subst x y t₂
         let c = cₑ ∧ cₓ
-        return (t, c)
+        return $ (t, c) `withPV` pv
   
   -- inf/lam ----------------------------------------------
-  Lam x t̃₁ e _ -> do
+  Lam x t̃₁ e pv -> do
     t̂₁ <- fresh (shape t̃₁)
     -- ĉ₁ <- sub t̃₁ t̂₁
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
-    let t = TFun x t̂₁ t₂ NoPV
+    let t = TFun x t̂₁ t₂ pv
     -- TODO: when is ĉ₁ appropriate/necessary?
     -- let c = ĉ₁ ∧ (cImpl x t̂₁ c₂)
     let c = (cImpl x t̂₁ c₂)
     return (t, c)
   
   -- inf/let ----------------------------------------------
-  Let x e₁ e₂ _ -> do
+  Let x e₁ e₂ pv -> do
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = c₁ ∧ (cImpl x t₁ c₂) ∧ ĉ₂
-    return (t̂₂, c)
+    return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
-  Rec x t̃₁ e₁ e₂ _ -> do
+  Rec x t̃₁ e₁ e₂ pv -> do
     t̂₁ <- fresh (shape t̃₁)
     (t₁, c₁) <- infer (Map.insert x t̂₁ g) e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = (cImpl x t̂₁ c₁) ∧ (cImpl x t₁ c₂) ∧ ĉ₂
-    return (t₂, c)
+    return $ (t₂, c) `withPV` pv
 
   -- inf/if -----------------------------------------------
-  If v e₁ e₂ _ -> do
+  If v e₁ e₂ pv -> do
     -- TODO: check that v is bool
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer g e₂
@@ -93,7 +96,7 @@ infer g = \case
     let p₂ = EVal v `pEq` ECon (B False NoPV)
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
     t <- mkJoin t₁ t₂
-    return (t, c)
+    return $ (t, c) `withPV` pv
 
 -- | Selfification.
 self :: Name -> Type -> Type
