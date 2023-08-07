@@ -150,11 +150,6 @@ withPV p = do
   end <- getSourcePos
   return (x, mkPV begin end)
 
-addPV :: Parser (PV -> a) -> Parser a
-addPV p = do
-  (a0, pv) <- withPV p
-  return $ a0 pv
-
 -------------------------------------------------------------------------------
 
 name :: Parser Name
@@ -207,42 +202,58 @@ term1 :: Parser Term
 term1 = choice
   [ try $ parens term
 
-  , try $ If <$ keyword "if" <*> value 
-             <* keyword "then" <*> term 
-             <* keyword "else" <*> term
-             <*> pure NoPV -- TODO: add term provenance
+  , try $ do
+      begin <- getSourcePos    
+      e <- If <$ keyword "if" <*> value 
+              <* keyword "then" <*> term 
+              <* keyword "else" <*> term    
+      end <- getSourcePos
+      return $ e $ mkPV begin end
   
-  , try $ Rec <$ keyword "rec" <*> name 
-              <* symbol ":" <*> type_ 
-              <* symbol "=" <*> term 
-              <* keyword "in" <*> term
-              <*> pure NoPV -- TODO: add term provenance
+  , try $ do
+      begin <- getSourcePos
+      e <- Rec <$ keyword "rec" <*> name 
+               <* symbol ":" <*> type_ 
+               <* symbol "=" <*> term 
+               <* keyword "in" <*> term
+      end <- getSourcePos
+      return $ e $ mkPV begin end
   
-  , try $ Let <$ keyword "let" <*> name 
-              <* symbol "=" <*> term 
-              <* keyword "in" <*> term
-              <*> pure NoPV -- TODO: add term provenance
+  , try $ do
+      begin <- getSourcePos
+      e <- Let <$ keyword "let" <*> name 
+               <* symbol "=" <*> term 
+               <* keyword "in" <*> term
+      end <- getSourcePos
+      return $ e $ mkPV begin end
 
   , try $ do
+      begin <- getSourcePos
       o <- getOffset
       lambda
       (x,t) <- type1
       when (isDummy x) $ failWithOffset o "missing binder"
       symbol "."
       e <- term
-      return $ Lam x t e NoPV  -- TODO: add provenance
+      end <- getSourcePos
+      return $ Lam x t e $ mkPV begin end
 
   , Val <$> value
   ]
 
 constant :: Parser Constant
 constant = label "constant" $ choice
-  [ (addPV $ U <$ string "unit") <* whitespace
+  [ unitLit
   , boolLit
   , intLit
   , stringLit
   ]
   where
+    unitLit = do
+      (_, pv) <- withPV $ U <$ string "unit"
+      whitespace
+      return $ U pv
+
     boolLit = do
       (x, pv) <- withPV $ True <$ string "true" <|> False <$ string "false"
       whitespace
