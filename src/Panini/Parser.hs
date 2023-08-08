@@ -167,8 +167,8 @@ name = label "name" $ do
 statement :: Parser Statement
 statement = choice 
   [ import_
-  , try $ Assume <$> name <* symbol ":" <*> type_
-  , Define <$> name <* symbol "=" <*> term
+  , try $ Assume <$> name <* symbol ":" <*> type_ <* whitespace
+  , Define <$> name <* symbol "=" <*> term <* whitespace
   ]
 
 import_ :: Parser Statement
@@ -190,7 +190,8 @@ term :: Parser Term
 term = do
   e1 <- term1
   let mkApp e x = App e x NoPV  -- TODO: figure out the provenance here
-  (foldl' mkApp e1 <$> some (try value)) <|> pure e1
+  let appVal = value <* notFollowedBy (symbol ":" <|> symbol "=")
+  (foldl' mkApp e1 <$> some (try appVal)) <|> pure e1
 
 term1 :: Parser Term
 term1 = choice
