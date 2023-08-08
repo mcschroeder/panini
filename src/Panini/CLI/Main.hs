@@ -96,8 +96,6 @@ opts = info
 
 -------------------------------------------------------------------------------
 
--- TODO: write output to file
-
 main :: IO ()
 main = do
   panOpts0 <- execParser opts
@@ -148,10 +146,13 @@ main = do
         logData src
         prog <- parseSource (moduleLocation module_) src
         elaborate module_ prog
-        if panOpts.outputGrammars then
-          outputInferredGrammars panOpts
-        else
-          outputInferredTypes panOpts
+
+        outputter <- liftIO $ mkOutputter panOpts
+        outdoc <- if panOpts.outputGrammars 
+                    then getPrettyInferredGrammars
+                    else getPrettyInferredTypes
+        liftIO $ outputter outdoc
+
         return ()
   
   whenJust traceFileHandle hClose
@@ -167,31 +168,37 @@ addSourceLinesToError m = m `catchError` \err ->
 
 -------------------------------------------------------------------------------
 
+mkOutputter :: PanOptions -> IO (Doc -> IO ())
+mkOutputter panOpts = case panOpts.outputFile of
+  Just fp -> do
+    let renderOpts = fileRenderOptions panOpts
+    return $ \doc -> withFile fp WriteMode $ \h ->
+      Text.hPutStr h $ renderDoc renderOpts doc
+  Nothing -> do
+    renderOpts <- getTermRenderOptions panOpts
+    return $ \doc -> 
+      Text.putStrLn $ renderDoc renderOpts doc
+
 -- TODO: output these in the REPL as well
 
-outputInferredTypes :: PanOptions -> Pan ()
-outputInferredTypes panOpts = do
+getPrettyInferredTypes :: Pan Doc
+getPrettyInferredTypes = do
   env <- gets environment
   let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
                                        , _assumedType /= Just _solvedType ]
   let ts = List.sortBy (compareSrcLoc `on` getPV . fst) inferredDefs
-  let doc = vsep $ map (\(x,t) -> pretty x <+> symColon <+> pretty t) ts
-  liftIO $ do
-    renderOpts <- getTermRenderOptions panOpts
-    Text.putStrLn $ renderDoc renderOpts doc
+  return $ vsep $ map (\(x,t) -> pretty x <+> symColon <+> pretty t) ts
 
-outputInferredGrammars :: PanOptions -> Pan ()
-outputInferredGrammars panOpts = do
+getPrettyInferredGrammars :: Pan Doc
+getPrettyInferredGrammars = do
   env <- gets environment
   let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
                                        , _assumedType /= Just _solvedType ]
   let ts = List.sortBy (compareSrcLoc `on` getPV . fst) inferredDefs
   let gs = concatMap extractGrammars $ map snd ts
-  let doc = vsep $ map pretty gs
-  liftIO $ do
-    renderOpts <- getTermRenderOptions panOpts
-    Text.putStrLn $ renderDoc renderOpts doc
+  return $ vsep $ map pretty gs
 
+-- TODO: this is pretty hacky and limited
 extractGrammars :: Type -> [AString]
 extractGrammars (TFun _ t1 t2 _) = extractGrammars t1 ++ extractGrammars t2
 extractGrammars t@(TBase x TString (Known p) _) = case p of
