@@ -29,6 +29,10 @@ import Panini.Environment
 import Data.Map qualified as Map
 import Data.Function
 import Data.List qualified as List
+import Panini.Syntax.AST
+import Panini.Abstract.AString (AString)
+import Panini.Syntax
+import Data.Generics.Uniplate.Operations
 
 -------------------------------------------------------------------------------
 
@@ -36,6 +40,7 @@ data PanOptions = PanOptions
   { inputFile :: Maybe FilePath
   , noInput :: Bool
   , outputFile :: Maybe FilePath
+  , outputGrammars :: Bool
   , trace :: Bool
   , traceFile :: Maybe FilePath
   , color :: Bool
@@ -65,6 +70,11 @@ opts = info
             short 'o' <> 
             metavar "FILE" <> 
             help "Write output to FILE (default: stdout)"
+          )
+      <*> (switch $
+            long "grammars" <>
+            short 'g' <>
+            help "Output only inferred grammars"
           )
       <*> (switch $ 
             long "trace" <> 
@@ -138,7 +148,10 @@ main = do
         logData src
         prog <- parseSource (moduleLocation module_) src
         elaborate module_ prog
-        outputInferredTypes panOpts
+        if panOpts.outputGrammars then
+          outputInferredGrammars panOpts
+        else
+          outputInferredTypes panOpts
         return ()
   
   whenJust traceFileHandle hClose
@@ -154,6 +167,8 @@ addSourceLinesToError m = m `catchError` \err ->
 
 -------------------------------------------------------------------------------
 
+-- TODO: output these in the REPL as well
+
 outputInferredTypes :: PanOptions -> Pan ()
 outputInferredTypes panOpts = do
   env <- gets environment
@@ -164,6 +179,27 @@ outputInferredTypes panOpts = do
   liftIO $ do
     renderOpts <- getTermRenderOptions panOpts
     Text.putStrLn $ renderDoc renderOpts doc
+
+outputInferredGrammars :: PanOptions -> Pan ()
+outputInferredGrammars panOpts = do
+  env <- gets environment
+  let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
+                                       , _assumedType /= Just _solvedType ]
+  let ts = List.sortBy (compareSrcLoc `on` getPV . fst) inferredDefs
+  let gs = concatMap extractGrammars $ map snd ts
+  let doc = vsep $ map pretty gs
+  liftIO $ do
+    renderOpts <- getTermRenderOptions panOpts
+    Text.putStrLn $ renderDoc renderOpts doc
+
+extractGrammars :: Type -> [AString]
+extractGrammars (TFun _ t1 t2 _) = extractGrammars t1 ++ extractGrammars t2
+extractGrammars t@(TBase x TString (Known p) _) = case p of
+  PRel (EVar y :∈: EStrA s) | x == y -> [s]
+  _ | not $ null [True | PRel (_ :∈: _) <- universe p ] -> 
+      error $ "extractGrammars: irregular grammar: " ++ showPretty t
+  _ -> []
+extractGrammars _ = []
 
 compareSrcLoc :: PV -> PV -> Ordering
 compareSrcLoc (Derived pv1 _) pv2 = compareSrcLoc pv1 pv2
