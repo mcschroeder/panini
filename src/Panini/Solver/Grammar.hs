@@ -7,8 +7,7 @@ module Panini.Solver.Grammar
   ) where
 
 import Algebra.Lattice
-import Control.Monad
-import Control.Monad.ST
+import Control.Monad.Extra
 import Data.Foldable
 import Data.Function
 import Data.Generics.Uniplate.Operations qualified as Uniplate
@@ -19,8 +18,8 @@ import Data.List (partition)
 import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
-import Data.STRef
 import GHC.Generics
+import GHC.Stack
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
@@ -68,45 +67,42 @@ solveAll = foldM solve1 mempty
   where
     solve1 s (GCon x k c) = do
       logMessage $ "Solve grammar variable" <+> pretty k
-      let g = solve $ GCon x k $ apply s c
+      g <- solve $ GCon x k $ apply s c
       logData g
       return $ Map.union g s
 
 -- | Solve a grammar constraint @∀s:𝕊. κ(s) ⇒ c@, returning a solution for @κ@.
-solve :: GCon -> Assignment
-solve (GCon s k c) = Map.singleton k g'
-  where    
-    g = PRel . concretizeVar s . EAbs . AString
-      $ joins
-      $ map (meets . map (abstractStringVar s))  -- TODO
-      $ unDNF
-      $ rewrite c
-    
-    -- IMPORTANT: we need to substitute the free string variable s in the
-    -- grammar solution with the generic κ parameter, so that later on we can
-    -- apply without problems
-    g' = subst (Var $ head $ kparams k) s g
+solve :: GCon -> Pan Assignment
+solve (GCon s k c) = do
+  c' <- rewrite c
+  g <- joins <$> mapM ((meets <$>) . mapM (abstractVarString s)) (unDNF c')  
+  let p = PRel $ concretizeVar s $ EAbs $ AString g
 
+  -- IMPORTANT: we need to substitute the free string variable s in the
+  -- grammar solution with the generic κ parameter, so that later on we can
+  -- apply without problems
+  let p' = subst (Var $ head $ kparams k) s p
 
--- TODO: either make this unnecessary or deal with errors gracefully
-abstractStringVar :: Name -> Rel -> AString
-abstractStringVar x p = case abstractVar x TString p of
-  EAbs (AString s) -> s
-  _                -> error "expected abstract string"
+  return $ Map.singleton k p'
+
+abstractVarString :: Name -> Rel -> Pan AString
+abstractVarString x r = abstractVar x TString r >>= \case
+  EAbs (AString s) -> return s
+  a -> panic $ "expected abstract string instead of" <+> pretty a
 
 -------------------------------------------------------------------------------
 
-rewrite :: Con -> DNF Rel
+rewrite :: Con -> Pan (DNF Rel)
 rewrite = \case
-  CHead p      -> toDNF p
-  CAnd c1 c2   -> rewrite c1 ∧ rewrite c2
+  CHead p      -> return $ toDNF p
+  CAnd c1 c2   -> liftA2 (∧) (rewrite c1) (rewrite c2)
   CAll x b p c -> case c of
-    CAll x2 b2 p2 c2 -> varElimDNF x b $ rewrite $ CAll x2 b2 (p ∧ p2) c2
+    CAll x2 b2 p2 c2 -> varElimDNF x b =<< rewrite (CAll x2 b2 (p ∧ p2) c2)
     CHead q          -> varElimDNF x b $ toDNF $ p ∧ q
-    CAnd c1 c2       -> joins $ flip map (unDNF $ toDNF p) $ \p' ->
-                          let c1' = varElimDNF x b $ DNF [p'] ∧ rewrite c1
-                              c2' = varElimDNF x b $ DNF [p'] ∧ rewrite c2
-                          in c1' ⟑ c2'
+    CAnd c1 c2 -> (joins <$>) . forM (unDNF $ toDNF p) $ \p' -> do
+        c1' <- varElimDNF x b =<< meet (DNF [p']) <$> rewrite c1
+        c2' <- varElimDNF x b =<< meet (DNF [p']) <$> rewrite c2
+        return $ c1' ⟑ c2'
 
 (⟑) :: DNF a -> DNF a -> DNF a
 DNF [] ⟑ DNF [] = DNF []
@@ -169,45 +165,45 @@ unwrapDNF = \case
   PTrue   -> [[]]
   PFalse  -> []
   PRel r  -> [[r]]
-  p -> error $ "expected POr/PAnd/PTrue/PFalse/PRel instead of " ++ showPretty p
+  p -> panic $ "expected POr/PAnd/PTrue/PFalse/PRel instead of" <+> pretty p
   where
     unAnd ys
       | all isPRel ys = [y | PRel y <- ys]
-      | otherwise = error $ "expected all PRel instead of " ++ showPretty ys
+      | otherwise = panic $ "expected all PRel instead of" <+> pretty ys
     unOr xs
       | all isPAnd xs = [unAnd ys | PAnd ys <- xs]
-      | otherwise = error $ "expected all PAnd instead of " ++ showPretty xs
+      | otherwise = panic $ "expected all PAnd instead of" <+> pretty xs
 
 -------------------------------------------------------------------------------
 
-varElimDNF :: Name -> Base -> DNF Rel -> DNF Rel
-varElimDNF x b = DNF . mapMaybe (varElim x b) . unDNF
+varElimDNF :: Name -> Base -> DNF Rel -> Pan (DNF Rel)
+varElimDNF x b ps = DNF <$> mapMaybeM (varElim x b) (unDNF ps)
 
+-- TODO: update submission
 -- | Algorithm 3 in OOPSLA'23 submission.
-varElim :: Name -> Base -> [Rel] -> Maybe [Rel]
-varElim _ TUnit ps = Just ps  -- TODO
-varElim x b ps = runST $ do
+varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
+varElim _ TUnit ps = return $ Just ps  -- TODO
+varElim x b ps = do
   let bTop = topExpr b
-  x̂sRef <- newSTRef $ Map.singleton [x] bTop
 
-  forM_ [(p,v̄) | p <- ps, let v̄ = freeVars p, x `elem` v̄] $ \(p,v̄) -> do
-    x̂₀ <- fromMaybe bTop . Map.lookup v̄ <$> readSTRef x̂sRef
-    let x̂₁ = abstractVar x b p
-    case x̂₀ ∧? x̂₁ of
-      Just x̂ -> modifySTRef' x̂sRef $ Map.insert v̄ x̂
-      Nothing -> error $ "cannot meet " ++ showPretty x̂₀ ++ " with " ++ showPretty x̂₁
+  let x̂s₀ = Map.singleton [x] bTop
+  let pvs = [(p,v̄) | p <- ps, let v̄ = freeVars p, x `elem` v̄]
+  let refine x̂s (p,v̄) = do
+        let x̂₀ = fromMaybe bTop $ Map.lookup v̄ x̂s
+        x̂₁ <- abstractVar x b p
+        case x̂₀ ∧? x̂₁ of
+          Just x̂ -> return $ Map.insert v̄ x̂ x̂s
+          Nothing -> panic $ "cannot meet" <+> pretty (x̂₀,x̂₁)
+  x̂s <- foldM refine x̂s₀ pvs
 
-  x̂Self <- fromJust . Map.lookup [x] <$> readSTRef x̂sRef
-  case x̂Self of
+  case fromJust $ Map.lookup [x] x̂s of
     EAbs (ABool   a) | isBot a -> return Nothing
     EAbs (AInt    a) | isBot a -> return Nothing
     EAbs (AString a) | isBot a -> return Nothing
-    _ -> do
-      x̂s' <- filter (([x] /=) . fst) . Map.assocs <$> readSTRef x̂sRef
-      let (v̄ₘ,x̂ₘ) = if null x̂s' 
-                      then ([x], x̂Self) 
-                      else head x̂s'  -- TODO: pick "smallest" meet
-
+    x̂Self -> do
+      let x̂s' = filter (([x] /=) . fst) $ Map.assocs x̂s
+      -- TODO: pick "smallest" meet
+      let (v̄ₘ,x̂ₘ) = if null x̂s' then ([x], x̂Self) else head x̂s'
       let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
       return $ Just qs
 
@@ -215,6 +211,7 @@ substExpr :: Expr -> Name -> Rel -> Rel
 substExpr x̂ x =  Uniplate.transformBi $ \case
   EVal (Var y) | y == x -> x̂
   e                     -> e
+
 -------------------------------------------------------------------------------
 
 isPOr :: Pred -> Bool
@@ -228,3 +225,9 @@ isPAnd _        = False
 isPRel :: Pred -> Bool
 isPRel (PRel _) = True
 isPRel _        = False
+
+-------------------------------------------------------------------------------
+
+panic :: HasCallStack => Doc -> a
+panic msg = errorWithoutStackTrace $ 
+  "panic! " ++ showPretty msg ++ "\n\n" ++ prettyCallStack callStack

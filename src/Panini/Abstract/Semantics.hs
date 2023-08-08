@@ -12,6 +12,7 @@ import Panini.Abstract.AChar
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
 import Panini.Abstract.AValue
+import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.Provenance
 import Panini.Syntax
@@ -71,8 +72,8 @@ isolate x = \case
 -- | Abstract semantics of constrained variables (the ⟦⋅⟧↑⋅ function from the
 -- paper). Essentially returns the (abstract) value of the given variable as
 -- defined by the relation.
-abstractVar :: Name -> Base -> Rel -> Expr
-abstractVar x b r0 = case isolate x (normRel r0) of
+abstractVar :: Name -> Base -> Rel -> Pan Expr
+abstractVar x b r0 = return $ case isolate x (normRel r0) of
   r | x ∉ r -> topExpr b
 
   EVar _ :=: EBool c _ -> EBoolA $ aBoolEq c
@@ -154,6 +155,7 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :=: e@(EStrAt (EVar _) (ECon _)) -> e       -- x = s[i]
   EVar _ :≠: e@(EStrAt (EVar _) (ECon _)) -> ENot e  -- x ≠ s[i]
 
+  -- TODO: turn into proper error
   r -> error $ "abstraction impossible: ⟦" ++ showPretty r ++ "⟧↑" ++ showPretty x
 
 topExpr :: Base -> Expr
@@ -165,6 +167,8 @@ topExpr b       = error $ "no ⊤ for " ++ showPretty b
 concretizeVar :: Name -> Expr -> Rel
 concretizeVar x e = case e of
   EStrA s -> EVar x :∈: EStrA s
+
+  -- TODO: turn into proper error
   _ -> error $ "concretization impossible: ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
 
 
