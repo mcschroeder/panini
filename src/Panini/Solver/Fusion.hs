@@ -23,11 +23,13 @@ import Panini.Syntax
 import Prelude
 import Panini.Pretty.Printer
 
+-- TODO: return assignment also
+
 -- | Use refinement FUSION to eliminate all acyclic κ variables that are not in
 -- the given exclusion set, returning the (partially) solved constraint.
 solve :: Set KVar -> Con -> Pan Con
 solve ks_ex c0 = do
-  logMessage "Find set of cut variables Κ̂"
+  logMessage $ "Find set of cut variables" <+> "Κ̂" `orASCII` "\\Kappa^hat"
   let ks_cut = cutVars c0
   logData ks_cut
   

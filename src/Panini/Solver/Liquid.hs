@@ -23,36 +23,41 @@ import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Control.Monad.Extra (unlessM)
 
--- | Solve a Horn constraint given a set of candidates.
-solve :: Con -> [Pred] -> Pan Assignment
-solve c qs = do
-  logMessage "Flatten constraint"
-  let cs = flat c
-  logData cs
-  
+-- | Solve non-nested constrained Horn clauses (CHCs) given a set of candidates.
+solve :: [FlatCon] -> [Pred] -> Pan Assignment
+solve cs qs = do
+  logMessage $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
-  
+  logData csk
+
+  logMessage $ "Construct initial solution" <+> "σ₀" `orASCII` "\\sigma_0"
   -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
   -- this is clearly not good
   let ks = kvars csk
   let qs' = if null qs then PTrue else PAnd qs
   let s0 = Map.fromList $ map (\k -> (k, qs')) $ Set.toList ks
+  logData s0
 
-  logMessage $ "Initial assignment σ =" <+> pretty s0
-
-  logMessage "Iteratively weaken σ"
+  logMessage $ "Iteratively weaken" <+> symSigma <+> 
+               "until all" <+> sym_csk <+> "are satisfied"
   s <- fixpoint csk s0
   logData s
 
-  -- TODO: move this up into Solver module
-  r <- smtValid (map (apply s) csp)
-  if r 
-    then do
-      logMessage $ "Satisfying assignment σ =" <+> pretty s
-      return s
-    else
-      throwError $ SolverError "Unsatisfiable"
+  logMessage $ "Apply" <+> symSigma <+> "to concrete constraints" <+> sym_csp
+  let csp2 = map (apply s) csp
+  logData csp2
+
+  logMessage $ "Validate" <+> symSigma <> parens sym_csp
+  unlessM (smtValid csp2) $
+    throwError $ SolverError "Unsatisfiable"  -- TODO: proper error
+
+  return s
+ 
+ where
+  sym_csk = "csₖ" `orASCII` "cs_k"
+  sym_csp = "csₚ" `orASCII` "cs_p"
 
 -- | Whether or not a flat constraint has a κ application in its head.
 horny :: FlatCon -> Bool

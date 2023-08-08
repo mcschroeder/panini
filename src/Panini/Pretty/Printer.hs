@@ -18,7 +18,7 @@ module Panini.Pretty.Printer
   , symDivH, symDivH2, symDivV, symDivDiag
   , symAnd, symOr, symNeg, symImplies, symIff, symAll, symExists
   , symNe, symEq, symLe, symLt, symGe, symGt
-  , symLambda, symKappa
+  , symLambda, symKappa, symSigma
   , symUnit, symBool, symNat, symInt, symString
   , divider
   , HasFixity(..), Fixity(..), Associativity(..)
@@ -272,9 +272,10 @@ symLt = "<"
 symGe = "≥" `orASCII` ">="
 symGt = ">"
 
-symLambda, symKappa :: Doc
+symLambda, symKappa, symSigma :: Doc
 symLambda = "λ" `orASCII` "\\"
 symKappa  = "κ" `orASCII` "k"
+symSigma  = "σ" `orASCII` "\\sigma"
 
 symUnit, symBool, symNat, symInt, symString :: Doc
 symUnit = "𝟙" `orASCII` "unit"

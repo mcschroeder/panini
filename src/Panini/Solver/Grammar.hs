@@ -3,12 +3,14 @@ module Panini.Solver.Grammar
   , grammarConstraints
   , gconKVar
   , solve
+  , solveAll  
   ) where
 
 import Algebra.Lattice
 import Control.Monad
 import Control.Monad.ST
 import Data.Foldable
+import Data.Function
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Hashable
 import Data.HashSet (HashSet)
@@ -21,6 +23,7 @@ import Data.STRef
 import GHC.Generics
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
+import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
@@ -28,6 +31,8 @@ import Panini.Syntax
 import Prelude
 
 -------------------------------------------------------------------------------
+
+-- TODO: could this go into Constraints.hs ?
 
 -- | A /grammar constraint/ is any constraint of the form @∀s:𝕊. κ(s) ⇒ c@.
 -- Here, @κ@ is known as a /grammar variable/ and @c@ as a /grammar consequent/.
@@ -51,6 +56,21 @@ gconKVar :: GCon -> KVar
 gconKVar (GCon _ k _) = k
 
 -------------------------------------------------------------------------------
+
+-- | Solve a set of grammar constraints, returning the combined solution.
+-- 
+-- The current approach orders constraints by κ variable name and tries to solve
+-- them sequentially, applying intermediate solutions on the way.
+solveAll :: HashSet GCon -> Pan Assignment
+solveAll = foldM solve1 mempty
+         . List.sortBy (compare `on` gconKVar)
+         . HashSet.toList
+  where
+    solve1 s (GCon x k c) = do
+      logMessage $ "Solve grammar variable" <+> pretty k
+      let g = solve $ GCon x k $ apply s c
+      logData g
+      return $ Map.union g s
 
 -- | Solve a grammar constraint @∀s:𝕊. κ(s) ⇒ c@, returning a solution for @κ@.
 solve :: GCon -> Assignment
