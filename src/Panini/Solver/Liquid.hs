@@ -15,7 +15,6 @@ import Control.Monad
 import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
-import Panini.Error
 import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.SMT.Z3
@@ -23,10 +22,10 @@ import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
-import Control.Monad.Extra (unlessM)
 
 -- | Solve non-nested constrained Horn clauses (CHCs) given a set of candidates.
-solve :: [FlatCon] -> [Pred] -> Pan Assignment
+-- Returns 'Nothing' if no solution could be found.
+solve :: [FlatCon] -> [Pred] -> Pan (Maybe Assignment)
 solve cs qs = do
   logMessage $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
@@ -50,10 +49,9 @@ solve cs qs = do
   logData csp2
 
   logMessage $ "Validate" <+> symSigma <> parens sym_csp
-  unlessM (smtValid csp2) $
-    throwError $ SolverError "Unsatisfiable"  -- TODO: proper error
-
-  return s
+  smtValid csp2 >>= \case
+    True -> return $ Just s
+    False -> return Nothing
  
  where
   sym_csk = "csₖ" `orASCII` "cs_k"

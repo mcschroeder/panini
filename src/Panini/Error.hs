@@ -5,6 +5,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Pretty.Printer
 import Panini.Provenance
+import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
@@ -19,7 +20,8 @@ data Error
   | ExpectedFunType Term Type
   | CantSynth Term
   | ParserError PV Text
-  | SolverError Text  
+  | SolverError Text
+  | InvalidVC Name Con
   | IOError PV String
   deriving stock (Show, Read)
 
@@ -33,6 +35,7 @@ instance HasProvenance Error where
   getPV (CantSynth _e) = NoPV --getPV e
   getPV (ParserError pv _) = pv
   getPV (SolverError _) = NoPV
+  getPV (InvalidVC x _) = getPV x
   getPV (IOError pv _) = pv
 
   setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
@@ -44,6 +47,7 @@ instance HasProvenance Error where
   setPV _ e@(CantSynth _e) = e -- TODO
   setPV pv (ParserError _ e) = ParserError pv e
   setPV _ e@(SolverError _) = e
+  setPV pv (InvalidVC x vc) = InvalidVC (setPV pv x) vc
   setPV pv (IOError _ e) = IOError pv e
 
 -------------------------------------------------------------------------------
@@ -91,6 +95,9 @@ prettyErrorMessage = \case
 
   SolverError e -> bullets
     [ msg "The SMT solver returned some unexpected output:" <\> pretty e ]
+  
+  InvalidVC x _ -> bullets
+    [ msg "Unable to validate verification condition for" <+> pretty x ]
 
   IOError _ e -> msg $ Text.pack e
 

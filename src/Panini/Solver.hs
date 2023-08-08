@@ -25,7 +25,7 @@ import Prelude
 -- TODO: be strict in each of these steps
 -- TODO: explore simplification, whether it is or isn't necessary/profitable
 
-solve :: Con -> Pan Assignment
+solve :: Con -> Pan (Maybe Assignment)
 solve c0 = do
 
   let c1 = c0 -- TODO: investigate simplification here
@@ -78,10 +78,10 @@ solve c0 = do
 
   logMessage $ 
     "Find approximate solutions for residual" <+> symKappa <+> "variables"
-  !s_liquid <- Liquid.solve cs5 []
-
-  logMessage "Found a valid solution!"
-  let s_final = Map.unions [s_grammar, s_liquid, s_fusion]
-  logData s_final
-
-  return s_final
+  Liquid.solve cs5 [] >>= \case
+    Nothing -> return Nothing
+    Just s_liquid -> do
+      logMessage "Found a valid solution!"
+      let s_final = Map.unions [s_grammar, s_liquid, s_fusion]
+      logData s_final
+      return $ Just s_final

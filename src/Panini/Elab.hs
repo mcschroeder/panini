@@ -113,13 +113,15 @@ define x e = do
   
   logMessage "Solve VC"
   logData vc
-  s <- solve vc
-
-  logMessage "Apply solution to type"
-  let t2 = apply s t1
-  logData t2
-
-  envExtend x $ Verified x t0m e t1 vc s t2
+  solve vc >>= \case
+    Just s -> do
+      logMessage "Apply solution to type"
+      let t2 = apply s t1
+      logData t2
+      envExtend x $ Verified x t0m e t1 vc s t2
+    
+    Nothing -> do
+      throwError $ InvalidVC x vc
 
 -- | Import a module into the environment.
 import_ :: Module -> Pan ()
