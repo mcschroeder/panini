@@ -49,7 +49,7 @@ envExtend x d = modify' $ \s -> s
 envToContext :: Environment -> Context 
 envToContext = Map.map go
   where
-    go (Assumed {_givenType}) = _givenType
+    go (Assumed {_type}) = _type
     go (Verified {_solvedType}) = _solvedType
 
 -------------------------------------------------------------------------------
@@ -72,9 +72,9 @@ elaborate thisModule prog = do
       throwError err
  where
   elab = \case
-    Assume x t    -> assume x t
-    Define x t0 e -> define x t0 e
-    Import fp _   -> import_ $ moduleRelativeTo thisModule fp
+    Assume x t  -> assume x t
+    Define x e  -> define x e
+    Import fp _ -> import_ $ moduleRelativeTo thisModule fp
                       -- TODO: add provenance to error
 
 -- | Add an assumed type to the environment.
@@ -84,28 +84,42 @@ assume x t = do
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
   envExtend x (Assumed x t)
 
--- | Add a definition to the environment.
-define :: Name -> Type -> Term -> Pan ()
-define x t0 e = do
-  logMessage $ "Define" <+> pretty x
-  --logData "Definition" stmt
-  whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
+-- | Add a definition to the environment. Infers and verifies the definition's
+-- type and potentially reconciles it with a previously assumed type for the
+-- same name.
+define :: Name -> Term -> Pan ()
+define x e = do
+  logMessage $ "Define" <+> pretty x <+> "= ..."
+  t0m <- envLookup x >>= \case
+    Nothing                -> return Nothing
+    Just (Assumed {_type}) -> return $ Just _type
+    Just (Verified {})     -> throwError $ AlreadyDefined x
+
   logMessage "Prepare typing context Γ"
   g <- envToContext <$> gets environment
-  let g' = Map.insert x t0 g
-  logData g'
-  logMessage $ "Infer type of" <+> pretty x <+> "in Γ"
-  (t1, c1) <- infer g' e
-  t̂₀ <- fresh t0
-  c0 <- sub t1 t̂₀
-  let vc = c1 ∧ c0
-  logData $ pretty t1 <\\> "⫤" <\\> pretty c1
-  logMessage "Solve verification condition"
+  logData g
+
+  logMessage $ "Infer type of" <+> pretty x
+  (t1,c1) <- infer g e
+  logData t1
+
+  vc <- case t0m of
+    Nothing -> pure c1
+    Just t0 -> do
+      logMessage $ "Require inferred type to be subtype of assumed type"
+      t0' <- fresh t0
+      c0 <- sub t1 t0'
+      return $ c1 ∧ c0
+  
+  logMessage "Solve VC"
+  logData vc
   s <- solve vc
+
   logMessage "Apply solution to type"
   let t2 = apply s t1
   logData t2
-  envExtend x $ Verified x t0 e t1 vc s t2
+
+  envExtend x $ Verified x t0m e t1 vc s t2
 
 -- | Import a module into the environment.
 import_ :: Module -> Pan ()

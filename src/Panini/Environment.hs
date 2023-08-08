@@ -12,12 +12,12 @@ type Environment = Map Name Definition
 
 data Definition
     = Assumed
-        { _name      :: Name
-        , _givenType :: Type
+        { _name :: Name
+        , _type :: Type
         }
     | Verified
         { _name         :: Name
-        , _givenType    :: Type
+        , _assumedType  :: Maybe Type
         , _givenTerm    :: Term
         , _inferredType :: Type
         , _vc           :: Con

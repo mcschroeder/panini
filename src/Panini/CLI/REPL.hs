@@ -109,8 +109,8 @@ showEnv "modules" = do
 showEnv _ = do
   env <- lift get
   forM_ (Map.toAscList env.environment) $ \case
-    (_,Assumed{_name,_givenType}) -> outputStrLn $ showPretty $ 
-      pretty _name <+> symColon <+> pretty _givenType    
+    (_,Assumed{_name,_type}) -> outputStrLn $ showPretty $ 
+      pretty _name <+> symColon <+> pretty _type
     (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ 
       pretty _name <+> symColon <+> pretty _solvedType
 

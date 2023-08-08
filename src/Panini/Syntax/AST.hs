@@ -16,9 +16,9 @@ type Program = [Statement]
 
 -- | Statements are top-level declarations.
 data Statement
-  = Assume Name Type       -- x : t
-  | Define Name Type Term  -- x : t = e
-  | Import FilePath PV     -- import m
+  = Assume Name Type    -- x : t
+  | Define Name Term    -- x = e
+  | Import FilePath PV  -- import m
   deriving stock (Show, Read)
 
 instance Pretty Program where
@@ -26,10 +26,9 @@ instance Pretty Program where
 
 instance Pretty Statement where
   pretty = \case
-    Assume x t   -> pretty x <+> symColon <+> pretty t
-    Define x t e -> pretty x <+> symColon <+> pretty t 
-                    <\> symEq <+> pretty e
-    Import m _   -> keyword "import" <+> pretty m
+    Assume x t -> pretty x <+> symColon <+> pretty t
+    Define x e -> pretty x <+> symEq <+> pretty e
+    Import m _ -> keyword "import" <+> pretty m
 
 ------------------------------------------------------------------------------
 

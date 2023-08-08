@@ -21,7 +21,7 @@ prettyEvent = \case
   LogData src dat -> 
     marginalia (divider symDivH2 (Just $ Left $ "(" <> src <> ")")) <\\> 
     dat <\\>
-    marginalia (divider symDivH2 Nothing) <> "\n"
+    marginalia (divider symDivH2 Nothing)
   SMTSolverInitialized{_version} -> marginalia $ "(SMT)" <+> pretty _version
 
 isErrorEvent :: Event -> Bool

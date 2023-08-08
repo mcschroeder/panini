@@ -19,7 +19,7 @@ data Error
   | ExpectedFunType Term Type
   | CantSynth Term
   | ParserError PV Text
-  | SolverError Text
+  | SolverError Text  
   | IOError PV String
   deriving stock (Show, Read)
 

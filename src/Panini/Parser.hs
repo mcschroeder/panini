@@ -165,17 +165,11 @@ name = label "name" $ do
 -------------------------------------------------------------------------------
 
 statement :: Parser Statement
-statement = choice [import_, assumeOrDefine]
-
-assumeOrDefine :: Parser Statement
-assumeOrDefine = do
-  x <- name
-  symbol ":"
-  t <- type_
-  e0 <- optional $ symbol "=" >> term
-  case e0 of
-    Just e -> return $ Define x t e
-    Nothing -> return $ Assume x t
+statement = choice 
+  [ import_
+  , try $ Assume <$> name <* symbol ":" <*> type_
+  , Define <$> name <* symbol "=" <*> term
+  ]
 
 import_ :: Parser Statement
 import_ = do

@@ -1,7 +1,6 @@
 import base
 
-f : { s:𝕊 | ? } → 𝟙
-= λs:𝕊.
+f = λs:𝕊.
     let x = charAt s 0 in
     let p1 = match x "a" in
     if p1 then
