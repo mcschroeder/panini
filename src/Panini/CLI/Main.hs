@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Panini.CLI.Main where
 
 import Control.Monad.Extra
@@ -23,6 +24,11 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
+import Control.Monad.Trans.State.Strict
+import Panini.Environment
+import Data.Map qualified as Map
+import Data.Function
+import Data.List qualified as List
 
 -------------------------------------------------------------------------------
 
@@ -121,16 +127,18 @@ main = do
     
     -- batch mode --------------------------------------------------------------
     else do
+      -- TODO: add source lines for <stdin>
       runPan panState0 $ addSourceLinesToError $ do
         smtInit
         module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
-        logMessage $ "Read" <+> pretty module_ <+> "⋯"        
+        logMessage $ "Read" <+> pretty module_
         src <- if module_ == stdinModule
           then tryIO NoPV $ Text.getContents
           else tryIO NoPV $ Text.readFile $ moduleLocation module_
         logData src
         prog <- parseSource (moduleLocation module_) src
         elaborate module_ prog
+        outputInferredTypes panOpts
         return ()
   
   whenJust traceFileHandle hClose
@@ -139,11 +147,31 @@ main = do
     Left  _ -> exitFailure
     Right _ -> exitSuccess
 
-
 -- TODO: duplicate of function in Panini.CLI.REPL
 addSourceLinesToError :: Pan a -> Pan a
 addSourceLinesToError m = m `catchError` \err ->
   throwError =<< updatePV (liftIO . addSourceLines) err
+
+-------------------------------------------------------------------------------
+
+outputInferredTypes :: PanOptions -> Pan ()
+outputInferredTypes panOpts = do
+  env <- gets environment
+  let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
+                                       , _assumedType /= Just _solvedType ]
+  let ts = List.sortBy (compareSrcLoc `on` getPV . fst) inferredDefs
+  let doc = vsep $ map (\(x,t) -> pretty x <+> symColon <+> pretty t) ts
+  liftIO $ do
+    renderOpts <- getTermRenderOptions panOpts
+    Text.putStrLn $ renderDoc renderOpts doc
+
+compareSrcLoc :: PV -> PV -> Ordering
+compareSrcLoc (Derived pv1 _) pv2 = compareSrcLoc pv1 pv2
+compareSrcLoc pv1 (Derived pv2 _) = compareSrcLoc pv1 pv2
+compareSrcLoc (FromSource loc1 _) (FromSource loc2 _) = compare loc1 loc2
+compareSrcLoc (FromSource _ _) NoPV = GT
+compareSrcLoc NoPV (FromSource _ _) = LT
+compareSrcLoc NoPV NoPV = EQ
 
 -------------------------------------------------------------------------------
 
