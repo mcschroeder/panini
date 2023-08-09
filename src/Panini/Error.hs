@@ -23,6 +23,7 @@ data Error
   | SolverError Text
   | InvalidVC Name Con
   | IOError PV String
+  | AbstractionImpossible Rel Name
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
@@ -37,6 +38,7 @@ instance HasProvenance Error where
   getPV (SolverError _) = NoPV
   getPV (InvalidVC x _) = getPV x
   getPV (IOError pv _) = pv
+  getPV (AbstractionImpossible _ x) = getPV x -- TODO: ?
 
   setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
   setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
@@ -49,6 +51,7 @@ instance HasProvenance Error where
   setPV _ e@(SolverError _) = e
   setPV pv (InvalidVC x vc) = InvalidVC (setPV pv x) vc
   setPV pv (IOError _ e) = IOError pv e
+  setPV pv (AbstractionImpossible r x) = AbstractionImpossible r (setPV pv x)
 
 -------------------------------------------------------------------------------
 
@@ -101,6 +104,11 @@ prettyErrorMessage = \case
 
   IOError _ e -> msg $ Text.pack e
 
+  AbstractionImpossible r x -> bullets
+    [ group $ nest 4 $ msg "Abstraction impossible:" <\> 
+        "⟦" <> pretty r <> "⟧↑" <> pretty x
+    ]
+  
   where
     msg     = aMessage . pretty @Text
     bullets = mconcat . List.intersperse "\n" . map ("•" <+>)

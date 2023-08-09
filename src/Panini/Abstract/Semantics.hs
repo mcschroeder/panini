@@ -12,6 +12,7 @@ import Panini.Abstract.AChar
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
 import Panini.Abstract.AValue
+import Panini.Error
 import Panini.Monad
 import Panini.Pretty.Printer
 import Panini.Provenance
@@ -73,31 +74,31 @@ isolate x = \case
 -- paper). Essentially returns the (abstract) value of the given variable as
 -- defined by the relation.
 abstractVar :: Name -> Base -> Rel -> Pan Expr
-abstractVar x b r0 = return $ case isolate x (normRel r0) of
-  r | x ∉ r -> topExpr b
+abstractVar x b r0 = case isolate x (normRel r0) of
+  r | x ∉ r -> return $ topExpr b
 
-  EVar _ :=: EBool c _ -> EBoolA $ aBoolEq c
-  EVar _ :≠: EBool c _ -> EBoolA $ aBoolEq (not c)
+  EVar _ :=: EBool c _ -> return $ EBoolA $ aBoolEq c
+  EVar _ :≠: EBool c _ -> return $ EBoolA $ aBoolEq (not c)
     
-  EVar _ :=: EInt c _ -> EIntA $ aIntegerEq c
-  EVar _ :≠: EInt c _ -> EIntA $ aIntegerNe c
-  EVar _ :>: EInt c _ -> EIntA $ aIntegerGt c
-  EVar _ :≥: EInt c _ -> EIntA $ aIntegerGe c
-  EVar _ :<: EInt c _ -> EIntA $ aIntegerLt c
-  EVar _ :≤: EInt c _ -> EIntA $ aIntegerLe c
+  EVar _ :=: EInt c _ -> return $ EIntA $ aIntegerEq c
+  EVar _ :≠: EInt c _ -> return $ EIntA $ aIntegerNe c
+  EVar _ :>: EInt c _ -> return $ EIntA $ aIntegerGt c
+  EVar _ :≥: EInt c _ -> return $ EIntA $ aIntegerGe c
+  EVar _ :<: EInt c _ -> return $ EIntA $ aIntegerLt c
+  EVar _ :≤: EInt c _ -> return $ EIntA $ aIntegerLe c
 
-  EVar _ :=: EChar c _ -> EStrA $ aStringLit (aCharEq c)
-  EVar _ :≠: EChar c _ -> EStrA $ aStringLit (aCharNe c)
+  EVar _ :=: EChar c _ -> return $ EStrA $ aStringLit (aCharEq c)
+  EVar _ :≠: EChar c _ -> return $ EStrA $ aStringLit (aCharNe c)
 
-  EVar _ :∈: EStrA s -> EStrA s
+  EVar _ :∈: EStrA s -> return $ EStrA s
 
   EStrAt (EVar _) (EInt i _) :=: EChar c _ ->
-    EStrA $ mconcat [ aStringRep aStringSigma i
+    return $ EStrA $ mconcat [ aStringRep aStringSigma i
                                , aStringLit (aCharEq c)
                                , aStringStar aStringSigma]  -- Σ^(i-1)cΣ*
 
   EStrAt (EVar _) (EInt i _) :≠: EChar c _ -> 
-    EStrA $ mconcat $ [ aStringRep aStringSigma i
+    return $ EStrA $ mconcat $ [ aStringRep aStringSigma i
                                  , aStringLit (aCharNe c)
                                  , aStringStar aStringSigma]
 
@@ -107,56 +108,55 @@ abstractVar x b r0 = return $ case isolate x (normRel r0) of
       | Just (Fin a) <- aMinimum i
       , Just PosInf <- aMaximum i
       , aContinuous i
-      -> EStrA $ mconcat [ aStringRep aStringSigma a
+      -> return $ EStrA $ mconcat [ aStringRep aStringSigma a
                          , aStringStar aStringSigma ]
 
 
-  EStrLen (EVar _) :=: EInt i _ -> EStrA $ aStringRep aStringSigma i
+  EStrLen (EVar _) :=: EInt i _ -> return $ EStrA $ aStringRep aStringSigma i
 
   EStrLen (EVar _) :≠: EInt i _ ->
-      EStrA $ joins1  -- Σ^(i-1) | Σ^(i+1)Σ*
+      return $ EStrA $ joins1  -- Σ^(i-1) | Σ^(i+1)Σ*
         [ aStringRep aStringSigma (i-1)
         , mconcat [ aStringRep aStringSigma i
                   , aStringStar aStringSigma]  
         ]
 
   EStrLen (EVar _) :≥: EInt i _ ->
-      EStrA $ mconcat [ aStringRep aStringSigma i
+      return $ EStrA $ mconcat [ aStringRep aStringSigma i
                       , aStringStar aStringSigma]  -- Σ^iΣ*
 
   EStrLen (EVar _) :≥: EIntA a ->
       case aMinimum (a ∧ aIntegerGe 0) of
-        Just (Fin i) -> EStrA $ mconcat [ aStringRep aStringSigma i
+        Just (Fin i) -> return $ EStrA $ mconcat [ aStringRep aStringSigma i
                                         , aStringStar aStringSigma]  -- Σ^iΣ*
-        _ -> EStrA bot
+        _ -> return $ EStrA bot
 
   EStrLen (EVar _) :>: EInt i _ ->
-      EAbs $ AString $ mconcat [ aStringRep aStringSigma (i + 1)
+      return $ EAbs $ AString $ mconcat [ aStringRep aStringSigma (i + 1)
                                , aStringStar aStringSigma]  -- Σ^iΣ*                           
 
     -- TODO: hardcoded hack?
-  EStrLen (EVar _) :<: EInt 0 _ -> EStrA bot
+  EStrLen (EVar _) :<: EInt 0 _ -> return $ EStrA bot
   EStrLen (EVar _) :<: EIntA a
-      | aMinimum a < Just (Fin 0) -> EStrA bot
+      | aMinimum a < Just (Fin 0) -> return $ EStrA bot
     
     -- TODO: ???? I don't know about these...
-  EVar _ :=: EVar y -> EVar y
-  EVar _ :≠: EVar y -> ENot (EVar y)
+  EVar _ :=: EVar y -> return $ EVar y
+  EVar _ :≠: EVar y -> return $ ENot (EVar y)
 
-  EVar _ :=: e@(EStrLen (EVar _)) -> e
+  EVar _ :=: e@(EStrLen (EVar _)) -> return e
     
-  EVar _ :≠: e@(EStrLen (EVar _)) -> e :+: (EIntA $ aIntegerNe 0)
-  EVar _ :<: e@(EStrLen (EVar _)) -> e :-: (EIntA $ aIntegerGe 1)
-  EVar _ :>: e@(EStrLen (EVar _)) -> e :+: (EIntA $ aIntegerGe 1)
-  EVar _ :≥: e@(EStrLen (EVar _)) -> e :+: (EIntA $ aIntegerGe 0)
+  EVar _ :≠: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ aIntegerNe 0)
+  EVar _ :<: e@(EStrLen (EVar _)) -> return $ e :-: (EIntA $ aIntegerGe 1)
+  EVar _ :>: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ aIntegerGe 1)
+  EVar _ :≥: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ aIntegerGe 0)
 
 
     -- TODO: ???? I don't know about these...
-  EVar _ :=: e@(EStrAt (EVar _) (ECon _)) -> e       -- x = s[i]
-  EVar _ :≠: e@(EStrAt (EVar _) (ECon _)) -> ENot e  -- x ≠ s[i]
+  EVar _ :=: e@(EStrAt (EVar _) (ECon _)) -> return $ e       -- x = s[i]
+  EVar _ :≠: e@(EStrAt (EVar _) (ECon _)) -> return $ ENot e  -- x ≠ s[i]
 
-  -- TODO: turn into proper error
-  r -> error $ "abstraction impossible: ⟦" ++ showPretty r ++ "⟧↑" ++ showPretty x
+  r -> throwError $ AbstractionImpossible r x
 
 topExpr :: Base -> Expr
 topExpr TBool   = EAbs $ ABool top

@@ -6,7 +6,7 @@ match  : (s:string) -> (t:string) -> { b:bool | b = true <=> s = t }
 sub : (a:int) -> (b:int) -> { c:int | c = a - b}
 
 f : string -> unit 
-= \s:string.
+f = \s:string.
     let x = charAt s 0 in
     let p1 = match x "a" in
     if p1 then
