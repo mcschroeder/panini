@@ -5,7 +5,6 @@ charAt : (s:string) -> { i:int | i >= 0 /\ i < |s| } -> { t:string | t = s[i] }
 match  : (s:string) -> (t:string) -> { b:bool | b = true <=> s = t }
 sub : (a:int) -> (b:int) -> { c:int | c = a - b}
 
-f : string -> unit 
 f = \s:string.
     let x = charAt s 0 in
     let p1 = match x "a" in

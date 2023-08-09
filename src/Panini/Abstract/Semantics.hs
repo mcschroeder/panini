@@ -156,6 +156,9 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :=: e@(EStrAt (EVar _) (ECon _)) -> return $ e       -- x = s[i]
   EVar _ :≠: e@(EStrAt (EVar _) (ECon _)) -> return $ ENot e  -- x ≠ s[i]
 
+  -- TODO: generalize this sort of thing
+  EVar _ :=: e@(EVar _ :-: EInt _ _) -> return e
+
   r -> throwError $ AbstractionImpossible r x
 
 topExpr :: Base -> Expr
