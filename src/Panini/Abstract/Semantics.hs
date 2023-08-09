@@ -164,12 +164,10 @@ topExpr TInt    = EAbs $ AInt top
 topExpr TString = EAbs $ AString top
 topExpr b       = error $ "no ⊤ for " ++ showPretty b
 
-concretizeVar :: Name -> Expr -> Rel
+concretizeVar :: Name -> Expr -> Pan Rel
 concretizeVar x e = case e of
-  EStrA s -> EVar x :∈: EStrA s
-
-  -- TODO: turn into proper error
-  _ -> error $ "concretization impossible: ⟦" ++ showPretty e ++ "⟧↓" ++ showPretty x
+  EStrA s -> return $ EVar x :∈: EStrA s  
+  _ -> throwError $ ConcretizationImpossible e x
 
 
 -- TODO: make this unnecessary

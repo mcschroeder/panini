@@ -76,7 +76,7 @@ solve :: GCon -> Pan Assignment
 solve (GCon s k c) = do
   c' <- rewrite c
   g <- joins <$> mapM ((meets <$>) . mapM (abstractVarString s)) (unDNF c')  
-  let p = PRel $ concretizeVar s $ EAbs $ AString g
+  p <- PRel <$> concretizeVar s (EAbs $ AString g)
 
   -- IMPORTANT: we need to substitute the free string variable s in the
   -- grammar solution with the generic κ parameter, so that later on we can

@@ -24,6 +24,7 @@ data Error
   | InvalidVC Name Con
   | IOError PV String
   | AbstractionImpossible Rel Name
+  | ConcretizationImpossible Expr Name
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
@@ -39,6 +40,7 @@ instance HasProvenance Error where
   getPV (InvalidVC x _) = getPV x
   getPV (IOError pv _) = pv
   getPV (AbstractionImpossible _ x) = getPV x -- TODO: ?
+  getPV (ConcretizationImpossible _ x) = getPV x -- TODO: ?
 
   setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
   setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
@@ -52,6 +54,7 @@ instance HasProvenance Error where
   setPV pv (InvalidVC x vc) = InvalidVC (setPV pv x) vc
   setPV pv (IOError _ e) = IOError pv e
   setPV pv (AbstractionImpossible r x) = AbstractionImpossible r (setPV pv x)
+  setPV pv (ConcretizationImpossible e x) = ConcretizationImpossible e (setPV pv x)
 
 -------------------------------------------------------------------------------
 
@@ -109,6 +112,11 @@ prettyErrorMessage = \case
         "⟦" <> pretty r <> "⟧↑" <> pretty x
     ]
   
+  ConcretizationImpossible e x -> bullets
+    [ group $ nest 4 $ msg "Concretization impossible:" <\> 
+        "⟦" <> pretty e <> "⟧↓" <> pretty x 
+    ]
+
   where
     msg     = aMessage . pretty @Text
     bullets = mconcat . List.intersperse "\n" . map ("•" <+>)
