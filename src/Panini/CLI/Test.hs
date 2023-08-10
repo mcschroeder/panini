@@ -1,0 +1,106 @@
+{-# LANGUAGE RecordWildCards #-}
+module Panini.CLI.Test (testMain) where
+
+import Control.Exception
+import Control.Monad.Extra
+import Control.Monad.Trans.State.Strict
+import Data.Function
+import Data.List qualified as List
+import Data.Map qualified as Map
+import Data.Maybe
+import Data.Text.IO qualified as Text
+import Panini.CLI.Options
+import Panini.Elab
+import Panini.Environment
+import Panini.Modules
+import Panini.Monad
+import Panini.Parser
+import Panini.Pretty.Printer
+import Panini.Provenance
+import Panini.SMT.Z3
+import Prelude
+import System.Directory
+import System.Exit
+import System.FilePath
+import System.IO
+
+-------------------------------------------------------------------------------
+
+testMain :: PanOptions -> IO ()
+testMain panOpts = assert panOpts.testMode $ do
+  testFiles <- findTestPairs $ fromMaybe "tests" panOpts.inputFile
+  results <- mapM (runTest panOpts) testFiles
+  if and results
+    then exitSuccess
+    else exitFailure
+
+-- TODO: write trace to INPUT.log
+-- TODO: write diff to console
+-- TODO: pass options in infile header comments
+runTest :: PanOptions -> (FilePath, FilePath) -> IO Bool
+runTest globalOpts (inFile, outFile) = do
+  putStr $ inFile ++ " ... "
+  src <- Text.readFile inFile
+  a <- runPan defaultState $ do
+    smtInit
+    module_ <- liftIO $ getModule inFile
+    prog <- parseSource (moduleLocation module_) src
+    elaborate module_ prog
+    getPrettyInferredTypes
+  let doc = either pretty id a  
+  let renderOpts = fileRenderOptions globalOpts
+  let actual = renderDoc renderOpts doc
+  doesFileExist outFile >>= \case
+    False -> do
+      withFile outFile WriteMode $ \h -> Text.hPutStr h actual
+      putStrLn "output file did not exist; created"
+      return True
+    True -> do
+      expected <- Text.readFile outFile
+      if actual /= expected
+        then do
+          putStrLn "FAIL"
+          return False
+        else do
+          putStrLn "OK"
+          return False
+
+-- TODO: duplicate
+getPrettyInferredTypes :: Pan Doc
+getPrettyInferredTypes = do
+  env <- gets environment
+  let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
+                                       , _assumedType /= Just _solvedType ]
+  let ts = List.sortBy (compareSrcLoc `on` getPV . fst) inferredDefs
+  return $ vsep $ map (\(x,t) -> pretty x <+> symColon <+> pretty t) ts
+
+-- TODO: duplicate
+compareSrcLoc :: PV -> PV -> Ordering
+compareSrcLoc (Derived pv1 _) pv2 = compareSrcLoc pv1 pv2
+compareSrcLoc pv1 (Derived pv2 _) = compareSrcLoc pv1 pv2
+compareSrcLoc (FromSource loc1 _) (FromSource loc2 _) = compare loc1 loc2
+compareSrcLoc (FromSource _ _) NoPV = GT
+compareSrcLoc NoPV (FromSource _ _) = LT
+compareSrcLoc NoPV NoPV = EQ
+
+-------------------------------------------------------------------------------
+
+findTestPairs :: FilePath -> IO [(FilePath,FilePath)]
+findTestPairs inPath = doesDirectoryExist inPath >>= \case
+    True -> map mkPair <$> findByExtension ".in" inPath
+    False -> doesFileExist inPath >>= \case
+      True -> return [mkPair inPath]
+      False -> return []
+ where
+  mkPair inFile = (inFile, inFile -<.> ".out")
+
+findByExtension :: String -> FilePath -> IO [FilePath]
+findByExtension ext dir = do
+  entries <- listDirectory dir    
+  concatForM entries $ \e -> do
+    let path = dir </> e
+    doesDirectoryExist path >>= \case
+      True -> findByExtension ext path
+      False 
+        | ext `isExtensionOf` path -> return [path]
+        | otherwise                -> return []

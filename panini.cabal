@@ -59,7 +59,9 @@ library
     Panini.Abstract.AValue
     Panini.Abstract.Semantics
     Panini.CLI.Main
+    Panini.CLI.Options
     Panini.CLI.REPL
+    Panini.CLI.Test
     Panini.Elab
     Panini.Environment
     Panini.Error

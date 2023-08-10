@@ -4,11 +4,20 @@ module Panini.CLI.Main where
 import Control.Monad.Extra
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Strict
+import Data.Function
+import Data.Generics.Uniplate.Operations
+import Data.List qualified as List
+import Data.Map qualified as Map
 import Data.Maybe
 import Data.Text.IO qualified as Text
 import Options.Applicative
+import Panini.Abstract.AString (AString)
+import Panini.CLI.Options
 import Panini.CLI.REPL
+import Panini.CLI.Test
 import Panini.Elab
+import Panini.Environment
 import Panini.Events
 import Panini.Modules
 import Panini.Monad
@@ -16,83 +25,14 @@ import Panini.Parser
 import Panini.Pretty.Printer as PP
 import Panini.Provenance
 import Panini.SMT.Z3
+import Panini.Syntax
 import Prelude
-import System.Console.ANSI
 import System.Console.Haskeline
 import System.Directory
 import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
-import Control.Monad.Trans.State.Strict
-import Panini.Environment
-import Data.Map qualified as Map
-import Data.Function
-import Data.List qualified as List
-import Panini.Syntax.AST
-import Panini.Abstract.AString (AString)
-import Panini.Syntax
-import Data.Generics.Uniplate.Operations
-
--------------------------------------------------------------------------------
-
-data PanOptions = PanOptions
-  { inputFile :: Maybe FilePath
-  , noInput :: Bool
-  , outputFile :: Maybe FilePath
-  , outputGrammars :: Bool
-  , trace :: Bool
-  , traceFile :: Maybe FilePath
-  , color :: Bool
-  , unicode :: Bool
-  }
-
-opts :: ParserInfo PanOptions
-opts = info 
-  (panOptions <**> helper <**> simpleVersioner "v0.1") 
-  (fullDesc <> progDesc "Grammar Inference for Ad Hoc Parsers" <> footer 
-    "If no INPUT file is given and stdin is not an interactive terminal,\
-    \ or the --no-input flag is passed, then the input will be read from\
-    \ stdin."
-  )
-  where
-    panOptions = PanOptions
-      <$> (optional $ strArgument $ 
-            metavar "INPUT" <> 
-            help "Input file (default: stdin)"
-          )
-      <*> (switch $
-            long "no-input" <>
-            help "Don't prompt or do anything interactive (disables REPL)"
-          )
-      <*> (optional $ strOption $ 
-            long "output" <> 
-            short 'o' <> 
-            metavar "FILE" <> 
-            help "Write output to FILE (default: stdout)"
-          )
-      <*> (switch $
-            long "grammars" <>
-            short 'g' <>
-            help "Output only inferred grammars"
-          )
-      <*> (switch $ 
-            long "trace" <> 
-            help "Show detailed diagnostics and debugging information"
-          )
-      <*> (optional $ strOption $
-            long "trace-file" <>
-            metavar "FILE" <>
-            help "Write debugging information to FILE"
-          )
-      <*> (flag True False $ 
-            long "no-color" <> 
-            help "Disable color output to terminal"
-          )
-      <*> (flag True False $ 
-            long "no-unicode" <> 
-            help "Disable Unicode output to terminal and files"
-          )
 
 -------------------------------------------------------------------------------
 
@@ -104,6 +44,12 @@ main = do
   noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
   let panOpts = panOpts0 { color = panOpts0.color && not noColor }
   
+  if panOpts.testMode 
+    then testMain panOpts
+    else cliMain panOpts
+
+cliMain :: PanOptions -> IO ()
+cliMain panOpts = do
   traceFileHandle <- forM panOpts.traceFile $ \fp -> do
       h <- openFile fp WriteMode
       hSetBuffering h NoBuffering
@@ -119,7 +65,7 @@ main = do
 
   let panState0 = defaultState { eventHandler }
 
-  isTerm <- hIsTerminalDevice stdin  
+  isTerm <- hIsTerminalDevice stdin
   result <- if isNothing panOpts.inputFile && isTerm && not panOpts.noInput
     -- REPL mode --------------------------------------------------------------
     then do
@@ -215,21 +161,3 @@ compareSrcLoc (FromSource loc1 _) (FromSource loc2 _) = compare loc1 loc2
 compareSrcLoc (FromSource _ _) NoPV = GT
 compareSrcLoc NoPV (FromSource _ _) = LT
 compareSrcLoc NoPV NoPV = EQ
-
--------------------------------------------------------------------------------
-
-getTermRenderOptions :: PanOptions -> IO RenderOptions
-getTermRenderOptions panOpts = do
-  termWidth <- fmap snd <$> getTerminalSize
-  return RenderOptions
-    { styling = pureIf panOpts.color defaultStyling
-    , PP.unicode = panOpts.unicode
-    , fixedWidth = termWidth
-    }
-
-fileRenderOptions :: PanOptions -> RenderOptions
-fileRenderOptions panOpts = RenderOptions 
-  { styling = Nothing
-  , PP.unicode = panOpts.unicode
-  , fixedWidth = Nothing
-  }
