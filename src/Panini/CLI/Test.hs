@@ -28,6 +28,9 @@ import System.IO
 
 testMain :: PanOptions -> IO ()
 testMain panOpts = assert panOpts.testMode $ do
+  whenJust panOpts.outputFile $ \_ ->
+      putStrLn $ "Warning: --output ignored in test mode"
+
   testFiles <- findTestPairs $ fromMaybe "tests" panOpts.inputFile
   results <- mapM (runTest panOpts) testFiles
   if and results

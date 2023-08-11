@@ -3,7 +3,6 @@ module Panini.CLI.Main where
 
 import Control.Monad.Extra
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 import Data.Function
 import Data.Generics.Uniplate.Operations
@@ -27,11 +26,8 @@ import Panini.Provenance
 import Panini.SMT.Z3
 import Panini.Syntax
 import Prelude
-import System.Console.Haskeline
-import System.Directory
 import System.Environment
 import System.Exit
-import System.FilePath
 import System.IO
 
 -------------------------------------------------------------------------------
@@ -39,17 +35,21 @@ import System.IO
 main :: IO ()
 main = do
   panOpts0 <- execParser opts
-  
+
   -- TODO: check if terminal/stderr supports colors
   noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
-  let panOpts = panOpts0 { color = panOpts0.color && not noColor }
+  let panOpts = panOpts0 { color = panOpts0.color && not noColor }  
   
   if panOpts.testMode 
     then testMain panOpts
-    else cliMain panOpts
+    else do
+      isTerm <- hIsTerminalDevice stdin
+      if isNothing panOpts.inputFile && isTerm && not panOpts.noInput
+        then replMain panOpts
+        else batchMain panOpts
 
-cliMain :: PanOptions -> IO ()
-cliMain panOpts = do
+batchMain :: PanOptions -> IO ()
+batchMain panOpts = do
   traceFileHandle <- forM panOpts.traceFile $ \fp -> do
       h <- openFile fp WriteMode
       hSetBuffering h NoBuffering
@@ -65,41 +65,23 @@ cliMain panOpts = do
 
   let panState0 = defaultState { eventHandler }
 
-  isTerm <- hIsTerminalDevice stdin
-  result <- if isNothing panOpts.inputFile && isTerm && not panOpts.noInput
-    -- REPL mode --------------------------------------------------------------
-    then do
-      configDir <- getXdgDirectory XdgConfig "panini"
-      createDirectoryIfMissing True configDir
-      let historyFile = configDir </> "repl_history"
-      let replConf = replSettings (Just historyFile)
-      runPan panState0 $ runInputT replConf $ do
-        lift smtInit
-        whenJust panOpts.outputFile $ \_ ->
-          outputStrLn $ "Warning: --output ignored during REPL session"
-        repl
-    
-    -- batch mode --------------------------------------------------------------
-    else do
-      -- TODO: add source lines for <stdin>
-      runPan panState0 $ addSourceLinesToError $ do
-        smtInit
-        module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
-        logMessage $ "Read" <+> pretty module_
-        src <- if module_ == stdinModule
-          then tryIO NoPV $ Text.getContents
-          else tryIO NoPV $ Text.readFile $ moduleLocation module_
-        logData src
-        prog <- parseSource (moduleLocation module_) src
-        elaborate module_ prog
+  -- TODO: add source lines for <stdin>
+  result <- runPan panState0 $ addSourceLinesToError $ do
+    smtInit
+    module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
+    logMessage $ "Read" <+> pretty module_
+    src <- if module_ == stdinModule
+      then tryIO NoPV $ Text.getContents
+      else tryIO NoPV $ Text.readFile $ moduleLocation module_
+    logData src
+    prog <- parseSource (moduleLocation module_) src
+    elaborate module_ prog
 
-        outputter <- liftIO $ mkOutputter panOpts
-        outdoc <- if panOpts.outputGrammars 
-                    then getPrettyInferredGrammars
-                    else getPrettyInferredTypes
-        liftIO $ outputter outdoc
-
-        return ()
+    outputter <- liftIO $ mkOutputter panOpts
+    outdoc <- if panOpts.outputGrammars 
+                then getPrettyInferredGrammars
+                else getPrettyInferredTypes
+    liftIO $ outputter outdoc
   
   whenJust traceFileHandle hClose
 

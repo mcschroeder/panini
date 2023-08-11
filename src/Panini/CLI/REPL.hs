@@ -1,10 +1,11 @@
 module Panini.CLI.REPL
-  ( repl,
-    replSettings,
+  ( replMain
+  , repl
+  , replSettings
   )
 where
 
-import Control.Monad
+import Control.Monad.Extra hiding (loop)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
@@ -15,17 +16,58 @@ import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
+import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
+import Panini.Events
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
 import Panini.Provenance
+import Panini.SMT.Z3
 import Prelude
 import System.Console.Haskeline
+import System.Directory
+import System.Exit
+import System.FilePath
+import System.IO
 
 -------------------------------------------------------------------------------
+
+replMain :: PanOptions -> IO ()
+replMain panOpts = do
+  whenJust panOpts.outputFile $ \_ ->
+      putStrLn $ "Warning: --output ignored during REPL session"
+
+  configDir <- getXdgDirectory XdgConfig "panini"
+  createDirectoryIfMissing True configDir
+  let historyFile = configDir </> "repl_history"
+  let replConf = replSettings (Just historyFile)
+
+  traceFileHandle <- forM panOpts.traceFile $ \fp -> do
+      h <- openFile fp WriteMode
+      hSetBuffering h NoBuffering
+      return h
+
+  let eventHandler ev = do
+        whenJust traceFileHandle $ \h -> do
+          let fileRenderOpts = fileRenderOptions panOpts
+          Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
+        when (panOpts.trace || isErrorEvent ev) $ do
+          termRenderOpts <- liftIO $ getTermRenderOptions panOpts
+          Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
+          -- TODO: consider using REPL getExternalPrint
+
+  let panState0 = defaultState { eventHandler }
+
+  void $ runPan panState0 $ runInputT replConf $ do
+    lift smtInit
+    repl
+
+  whenJust traceFileHandle hClose
+  
+  exitSuccess
 
 -- | Panini REPL.
 repl :: InputT Pan ()
