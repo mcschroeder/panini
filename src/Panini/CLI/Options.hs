@@ -38,7 +38,7 @@ opts = info
         \ .out files; if no INPUT is given, it is per default assumed to be\
         \ a directory named \"tests\". If any test input file has no matching\
         \ .out file yet, one will be automatically created from the current\
-        \ output."
+        \ output. Both --trace and --trace-file are available in test mode."
       ])
   )
   where

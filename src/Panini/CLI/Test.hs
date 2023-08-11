@@ -12,6 +12,7 @@ import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
+import Panini.Events
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
@@ -37,19 +38,38 @@ testMain panOpts = assert panOpts.testMode $ do
     then exitSuccess
     else exitFailure
 
--- TODO: write trace to INPUT.log
 -- TODO: write diff to console
 -- TODO: pass options in infile header comments
 runTest :: PanOptions -> (FilePath, FilePath) -> IO Bool
 runTest globalOpts (inFile, outFile) = do
   putStr $ inFile ++ " ... "
   src <- Text.readFile inFile
-  a <- runPan defaultState $ do
+
+  traceFile <- whenMaybe globalOpts.traceToFile $ do
+    let f = inFile -<.> "log"
+    h <- openFile f WriteMode
+    hSetBuffering h NoBuffering
+    return h
+  
+  let eventHandler ev = do
+        whenJust traceFile $ \h -> do
+          let fileRenderOpts = fileRenderOptions globalOpts
+          Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
+        when globalOpts.trace $ do
+          termRenderOpts <- liftIO $ getTermRenderOptions globalOpts
+          Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
+
+  let panState0 = defaultState { eventHandler }
+
+  a <- runPan panState0 $ do
     smtInit
     module_ <- liftIO $ getModule inFile
     prog <- parseSource (moduleLocation module_) src
     elaborate module_ prog
     getPrettyInferredTypes
+
+  whenJust traceFile hClose
+
   let doc = either pretty id a  
   let renderOpts = fileRenderOptions globalOpts
   let actual = renderDoc renderOpts doc
