@@ -16,11 +16,12 @@ data PanOptions = PanOptions
   , outputFile :: Maybe FilePath
   , outputGrammars :: Bool
   , trace :: Bool
-  , traceFile :: Maybe FilePath
+  , traceToFile :: Bool
   , color :: Bool
   , unicode :: Bool
   , testMode :: Bool
   }
+  deriving stock (Show, Read)
 
 opts :: ParserInfo PanOptions
 opts = info 
@@ -64,12 +65,11 @@ opts = info
           )
       <*> (switch $ 
             long "trace" <> 
-            help "Show detailed diagnostics and debugging information"
+            help "Show a detailed inference trace on stderr"
           )
-      <*> (optional $ strOption $
+      <*> (switch $
             long "trace-file" <>
-            metavar "FILE" <>
-            help "Write debugging information to FILE"
+            help "Write a detailed inference trace to a file"
           )
       <*> (flag True False $ 
             long "no-color" <> 

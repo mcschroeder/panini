@@ -45,13 +45,13 @@ replMain panOpts = do
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
 
-  traceFileHandle <- forM panOpts.traceFile $ \fp -> do
-      h <- openFile fp WriteMode
-      hSetBuffering h NoBuffering
-      return h
+  traceFile <- whenMaybe panOpts.traceToFile $ do
+    h <- openFile "repl.log" WriteMode
+    hSetBuffering h NoBuffering
+    return h
 
   let eventHandler ev = do
-        whenJust traceFileHandle $ \h -> do
+        whenJust traceFile $ \h -> do
           let fileRenderOpts = fileRenderOptions panOpts
           Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
         when (panOpts.trace || isErrorEvent ev) $ do
@@ -65,7 +65,7 @@ replMain panOpts = do
     lift smtInit
     repl
 
-  whenJust traceFileHandle hClose
+  whenJust traceFile hClose
   
   exitSuccess
 
