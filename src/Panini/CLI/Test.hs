@@ -3,82 +3,107 @@ module Panini.CLI.Test (testMain) where
 
 import Control.Exception
 import Control.Monad.Extra
-import Control.Monad.Trans.State.Strict
 import Data.Function
-import Data.List qualified as List
-import Data.Map qualified as Map
 import Data.Maybe
 import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Elab
-import Panini.Environment
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
 import Panini.Pretty.Printer
-import Panini.Provenance
 import Panini.SMT.Z3
 import Prelude
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
+import Data.Text (Text)
 
 -------------------------------------------------------------------------------
 
 testMain :: PanOptions -> IO ()
-testMain panOpts = assert panOpts.testMode $ do
-  whenJust panOpts.outputFile $ \_ ->
+testMain globalOpts = assert globalOpts.testMode $ do
+  whenJust globalOpts.outputFile $ \_ ->
       putStrLn $ "Warning: --output ignored in test mode"
 
-  testFiles <- findTestPairs $ fromMaybe "tests" panOpts.inputFile
-  results <- mapM (runTest panOpts) testFiles
-  if and results
-    then exitSuccess
-    else exitFailure
-
--- TODO: write diff to console
--- TODO: pass options in infile header comments
-runTest :: PanOptions -> (FilePath, FilePath) -> IO Bool
-runTest globalOpts (inFile, outFile) = do
-  putStr $ inFile ++ " ... "
-  src <- Text.readFile inFile
-
-  traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)  
-
-  let eventHandler ev = do
-        whenJust traceFile (putEventFile globalOpts ev)
-        when globalOpts.trace (putEventStderr globalOpts ev)
-        -- note how we don't log errors to stderr by default here
-
-  let panState0 = defaultState { eventHandler }
-
-  result <- runPan panState0 $ do
-    smtInit
-    module_ <- liftIO $ getModule inFile
-    prog <- parseSource (moduleLocation module_) src
-    elaborate module_ prog
-    getInferredTypes
-
-  whenJust traceFile hClose
+  testFiles <- findTestPairs $ fromMaybe "tests" globalOpts.inputFile
+  results <- mapM runTest testFiles
+  let total = length results
+  let fails = total - sum (map fromEnum results)
+  if fails == 0
+    then do
+      putDocLn $ aSuccess $ "All" <+> viaShow total <+> "tests passed"
+      exitSuccess
+    else do
+      putDocLn $ anError $ 
+        viaShow fails <+> "out of" <+> viaShow total <+> "tests failed"
+      exitFailure
   
-  let output = either pretty (vsep . map pretty) result
-  let renderOpts = fileRenderOptions globalOpts
-  let actual = renderDoc renderOpts output
-  doesFileExist outFile >>= \case
-    False -> do
-      withFile outFile WriteMode $ \h -> Text.hPutStr h actual
-      putStrLn "output file did not exist; created"
-      return True
-    True -> do
-      expected <- Text.readFile outFile
-      if actual /= expected
-        then do
-          putStrLn "FAIL"
-          return False
-        else do
-          putStrLn "OK"
-          return False
+ where
+  -- TODO: pass options in infile header comments
+  runTest :: (FilePath, FilePath) -> IO Bool
+  runTest (inFile, outFile) = do
+    if globalOpts.trace
+      then putDocLn $ pretty inFile <+> "..."
+      else putDoc   $ pretty inFile <+> "... "
+
+    src <- Text.readFile inFile
+
+    traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)  
+
+    let eventHandler ev = do
+          whenJust traceFile (putEventFile globalOpts ev)
+          when globalOpts.trace (putEventStderr globalOpts ev)
+          -- note how we don't log errors to stderr by default here
+
+    let panState0 = defaultState { eventHandler }
+
+    result <- runPan panState0 $ do
+      smtInit
+      module_ <- liftIO $ getModule inFile
+      prog <- parseSource (moduleLocation module_) src
+      elaborate module_ prog
+      getInferredTypes
+
+    whenJust traceFile hClose
+
+    when globalOpts.trace $
+      putDoc $ pretty inFile <+> "... "
+
+    let output = either pretty (vsep . map pretty) result
+    let renderOpts = fileRenderOptions globalOpts
+    let actual = renderDoc renderOpts output
+    doesFileExist outFile >>= \case
+      False -> do
+        withFile outFile WriteMode $ \h -> Text.hPutStr h actual      
+        putDocLn $ marginalia "output file did not exist; created"
+        return True
+      True -> do
+        expected <- Text.readFile outFile
+        if actual /= expected
+          then do
+            putDocLn $ anError "FAIL" <\> diff expected actual              
+            return False
+          else do
+            putDocLn $ aSuccess "OK"
+            return True
+
+  diff :: Text -> Text -> Doc
+  diff expected actual = 
+    marginalia (divider symDivH (Just $ Right "Expected")) <\>
+    pretty expected <\>
+    marginalia (divider symDivH (Just $ Right "Actual")) <\>
+    pretty actual <\>
+    pretty (marginalia $ divider symDivH Nothing)
+
+  putDoc :: Doc -> IO ()
+  putDoc d = do
+    renderOpts <- getTermRenderOptions globalOpts
+    Text.putStr $ renderDoc renderOpts d 
+  
+  putDocLn :: Doc -> IO ()
+  putDocLn d = putDoc $ d <> "\n"
 
 -------------------------------------------------------------------------------
 

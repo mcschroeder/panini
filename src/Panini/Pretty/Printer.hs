@@ -7,7 +7,7 @@ module Panini.Pretty.Printer
   , (<+>), (<\>), (<\\>), PP.vcat, PP.vsep, PP.sep
   , PP.align, PP.hang, PP.group, PP.nest
   , PP.viaShow
-  , keyword, literal, identifier, aMessage, anError, marginalia, highlight
+  , keyword, literal, identifier, aMessage, anError, aSuccess, marginalia, highlight
   , orASCII
   , subscript, superscript
   , concatWithOp
@@ -100,6 +100,7 @@ data Ann
   | Highlight             -- ^ Highlighted piece of syntax, something notable.
   | Message               -- ^ Any kind of message from the compiler.
   | Error                 -- ^ Something erroneous.
+  | Success               -- ^ Something successful.
   | Margin                -- ^ Marginalia, like line numbers and such.
   | ASCII Text            -- ^ Alternative ASCII version of a Unicode symbol.
   deriving stock (Eq, Show, Read)
@@ -141,6 +142,7 @@ defaultStyling = \case
   Highlight -> s { bgColor = Just (Vivid, Yellow)}
   Message -> s { bold = Just True }
   Error   -> s { bold = Just True, fgColor = Just (Vivid, Red) }
+  Success -> s { bold = Just True, fgColor = Just (Vivid, Green) }
   Margin  -> s { fgColor = Just (Dull, Blue) }
   _       -> s
   where
@@ -170,6 +172,9 @@ aMessage = PP.annotate Message
 
 anError :: Doc -> Doc
 anError = PP.annotate Error
+
+aSuccess :: Doc -> Doc
+aSuccess = PP.annotate Success
 
 marginalia :: Doc -> Doc
 marginalia = PP.annotate Margin
