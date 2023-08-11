@@ -53,18 +53,18 @@ runTest globalOpts (inFile, outFile) = do
 
   let panState0 = defaultState { eventHandler }
 
-  a <- runPan panState0 $ do
+  result <- runPan panState0 $ do
     smtInit
     module_ <- liftIO $ getModule inFile
     prog <- parseSource (moduleLocation module_) src
     elaborate module_ prog
-    getPrettyInferredTypes
+    getInferredTypes
 
   whenJust traceFile hClose
-
-  let doc = either pretty id a  
+  
+  let output = either pretty (vsep . map pretty) result
   let renderOpts = fileRenderOptions globalOpts
-  let actual = renderDoc renderOpts doc
+  let actual = renderDoc renderOpts output
   doesFileExist outFile >>= \case
     False -> do
       withFile outFile WriteMode $ \h -> Text.hPutStr h actual
@@ -79,15 +79,6 @@ runTest globalOpts (inFile, outFile) = do
         else do
           putStrLn "OK"
           return False
-
--- TODO: duplicate
-getPrettyInferredTypes :: Pan Doc
-getPrettyInferredTypes = do
-  env <- gets environment
-  let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
-                                       , _assumedType /= Just _solvedType ]
-  let ts = List.sortBy (compare `on` getPV . fst) inferredDefs
-  return $ vsep $ map (\(x,t) -> pretty x <+> symColon <+> pretty t) ts
 
 -------------------------------------------------------------------------------
 

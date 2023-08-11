@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Panini.Monad
   ( Pan
   , runPan
@@ -13,6 +14,8 @@ module Panini.Monad
   , logMessage
   , logData
   , logEvent
+  , getInferredTypes
+  , getInferredGrammars
   ) where
 
 import Control.Exception
@@ -20,6 +23,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Generics.Uniplate.Operations
 import Data.List qualified as List
 import Data.Maybe
 import GHC.Stack
@@ -29,7 +33,11 @@ import Panini.Events
 import Panini.Modules
 import Panini.Pretty.Printer
 import Panini.Provenance
+import Panini.Syntax
 import Prelude
+import Panini.Abstract.AString
+import Data.Map.Strict qualified as Map
+import Data.Function
 
 -------------------------------------------------------------------------------
 
@@ -112,3 +120,33 @@ getPaniniModuleName :: CallStack -> String
 getPaniniModuleName cs =
   let loc = srcLocModule $ snd $ head $ getCallStack cs
   in fromMaybe loc $ List.stripPrefix "Panini." loc
+
+-------------------------------------------------------------------------------
+
+-- TODO: these don't really belong here
+
+-- | Return type signatures for all definitions in the environment whose final
+-- solved type was differen than the originally assumed (given) one, sorted by
+-- order of appearance in source files.
+getInferredTypes :: Pan [TypeSig]
+getInferredTypes = map (toTypeSig . snd)
+                 . List.sortBy (compare `on` getPV . fst) 
+                 . Map.toList 
+                 . Map.filter hasInferredType 
+                 <$> gets environment
+
+-- | Return all inferred grammars in the environment.
+getInferredGrammars :: Pan [AString]
+getInferredGrammars = concatMap extractGrammars 
+                    . map (\(TypeSig _ t) -> t) 
+                    <$> getInferredTypes
+  where    
+    -- TODO: this is pretty hacky and limited
+    extractGrammars :: Type -> [AString]
+    extractGrammars (TFun _ t1 t2 _) = extractGrammars t1 ++ extractGrammars t2
+    extractGrammars t@(TBase x TString (Known p) _) = case p of
+      PRel (EVar y :∈: EStrA s) | x == y -> [s]
+      _ | not $ null [True | PRel (_ :∈: _) <- universe p ] -> 
+          error $ "extractGrammars: irregular grammar: " ++ showPretty t
+      _ -> []
+    extractGrammars _ = []
