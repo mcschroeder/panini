@@ -45,19 +45,12 @@ replMain panOpts = do
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
 
-  traceFile <- whenMaybe panOpts.traceToFile $ do
-    h <- openFile "repl.log" WriteMode
-    hSetBuffering h NoBuffering
-    return h
+  traceFile <- whenMaybe panOpts.traceToFile (openLogFileFor "repl")
 
   let eventHandler ev = do
-        whenJust traceFile $ \h -> do
-          let fileRenderOpts = fileRenderOptions panOpts
-          Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
-        when (panOpts.trace || isErrorEvent ev) $ do
-          termRenderOpts <- liftIO $ getTermRenderOptions panOpts
-          Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
-          -- TODO: consider using REPL getExternalPrint
+        whenJust traceFile (putEventFile panOpts ev)
+        when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
+        -- TODO: consider logging with getExternalPrint instead of to stderr
 
   let panState0 = defaultState { eventHandler }
 

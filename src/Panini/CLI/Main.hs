@@ -28,7 +28,6 @@ import Panini.Syntax
 import Prelude
 import System.Environment
 import System.Exit
-import System.FilePath
 import System.IO
 
 -------------------------------------------------------------------------------
@@ -50,20 +49,13 @@ main = do
         else batchMain panOpts
 
 batchMain :: PanOptions -> IO ()
-batchMain panOpts = do  
-  traceFile <- whenMaybe panOpts.traceToFile $ do
-    let f = maybe "stdin.log" (-<.> "log") panOpts.inputFile
-    h <- openFile f WriteMode
-    hSetBuffering h NoBuffering
-    return h
+batchMain panOpts = do
+  traceFile <- whenMaybe panOpts.traceToFile 
+                (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)
       
   let eventHandler ev = do
-        whenJust traceFile $ \h -> do
-          let fileRenderOpts = fileRenderOptions panOpts
-          Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
-        when (panOpts.trace || isErrorEvent ev) $ do
-          termRenderOpts <- liftIO $ getTermRenderOptions panOpts
-          Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
+        whenJust traceFile (putEventFile panOpts ev)
+        when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
 
   let panState0 = defaultState { eventHandler }
 

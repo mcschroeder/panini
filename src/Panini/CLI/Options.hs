@@ -2,11 +2,15 @@ module Panini.CLI.Options where
 
 import Control.Monad.Extra
 import Data.List qualified as List
+import Data.Text.IO qualified as Text
 import Options.Applicative
+import Panini.Events
 import Panini.Pretty.Printer as PP
 import Prelude
 import Prettyprinter.Util (reflow)
 import System.Console.ANSI
+import System.FilePath
+import System.IO
 
 -------------------------------------------------------------------------------
 
@@ -83,6 +87,24 @@ opts = info
             long "test" <>
             help "Run tests"
           )
+
+-------------------------------------------------------------------------------
+
+openLogFileFor :: FilePath -> IO Handle
+openLogFileFor f = do
+  h <- openFile (f -<.> "log") WriteMode
+  hSetBuffering h NoBuffering
+  return h
+
+putEventFile :: PanOptions -> Event -> Handle -> IO ()
+putEventFile panOpts ev h = do
+  let fileRenderOpts = fileRenderOptions panOpts
+  Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
+
+putEventStderr :: PanOptions -> Event -> IO ()
+putEventStderr panOpts ev = do
+  termRenderOpts <- getTermRenderOptions panOpts
+  Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
 
 -------------------------------------------------------------------------------
 

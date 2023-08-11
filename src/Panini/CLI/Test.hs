@@ -12,7 +12,6 @@ import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
-import Panini.Events
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
@@ -45,19 +44,12 @@ runTest globalOpts (inFile, outFile) = do
   putStr $ inFile ++ " ... "
   src <- Text.readFile inFile
 
-  traceFile <- whenMaybe globalOpts.traceToFile $ do
-    let f = inFile -<.> "log"
-    h <- openFile f WriteMode
-    hSetBuffering h NoBuffering
-    return h
-  
+  traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)  
+
   let eventHandler ev = do
-        whenJust traceFile $ \h -> do
-          let fileRenderOpts = fileRenderOptions globalOpts
-          Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
-        when globalOpts.trace $ do
-          termRenderOpts <- liftIO $ getTermRenderOptions globalOpts
-          Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
+        whenJust traceFile (putEventFile globalOpts ev)
+        when globalOpts.trace (putEventStderr globalOpts ev)
+        -- note how we don't log errors to stderr by default here
 
   let panState0 = defaultState { eventHandler }
 
