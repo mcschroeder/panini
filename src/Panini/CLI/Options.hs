@@ -8,7 +8,6 @@ import Panini.Events
 import Panini.Pretty.Printer as PP
 import Prelude
 import Prettyprinter.Util (reflow)
-import System.Console.ANSI
 import System.FilePath
 import System.IO
 
@@ -24,6 +23,7 @@ data PanOptions = PanOptions
   , color :: Bool
   , unicode :: Bool
   , testMode :: Bool
+  , termWidth :: Maybe Int
   }
   deriving stock (Show, Read)
 
@@ -87,6 +87,10 @@ opts = info
             long "test" <>
             help "Run tests"
           )
+      <*> (optional $ option auto $
+            long "term-width" <>
+            hidden
+          )
 
 -------------------------------------------------------------------------------
 
@@ -103,18 +107,18 @@ putEventFile panOpts ev h = do
 
 putEventStderr :: PanOptions -> Event -> IO ()
 putEventStderr panOpts ev = do
-  termRenderOpts <- getTermRenderOptions panOpts
+  let termRenderOpts = termRenderOptions panOpts
   Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
 
 -------------------------------------------------------------------------------
 
-getTermRenderOptions :: PanOptions -> IO RenderOptions
-getTermRenderOptions panOpts = do
-  termWidth <- fmap snd <$> getTerminalSize
-  return RenderOptions
+-- TODO: putDocStdout / putDocStderr / putDocFile functions
+
+termRenderOptions :: PanOptions -> RenderOptions
+termRenderOptions panOpts = RenderOptions
     { styling = pureIf panOpts.color defaultStyling
     , PP.unicode = panOpts.unicode
-    , fixedWidth = termWidth
+    , fixedWidth = panOpts.termWidth
     }
 
 fileRenderOptions :: PanOptions -> RenderOptions

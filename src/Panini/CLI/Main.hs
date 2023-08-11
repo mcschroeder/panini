@@ -22,16 +22,20 @@ import Prelude
 import System.Environment
 import System.Exit
 import System.IO
+import System.Console.ANSI
 
 -------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
   panOpts0 <- execParser opts
-
   -- TODO: check if terminal/stderr supports colors
-  noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
-  let panOpts = panOpts0 { color = panOpts0.color && not noColor }  
+  noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"  
+  termWidth <- fmap snd <$> getTerminalSize
+  let panOpts = panOpts0 
+        { color = panOpts0.color && not noColor
+        , termWidth = panOpts0.termWidth <|> termWidth
+        }
   
   if panOpts.testMode 
     then testMain panOpts
@@ -79,7 +83,7 @@ batchMain panOpts = do
           exitSuccess
 
       | otherwise -> do
-          renderOpts <- getTermRenderOptions panOpts
+          let renderOpts = termRenderOptions panOpts
           Text.putStrLn $ renderDoc renderOpts doc
           exitSuccess
 

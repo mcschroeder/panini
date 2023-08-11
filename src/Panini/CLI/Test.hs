@@ -99,7 +99,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
 
   putDoc :: Doc -> IO ()
   putDoc d = do
-    renderOpts <- getTermRenderOptions globalOpts
+    let renderOpts = termRenderOptions globalOpts
     Text.putStr $ renderDoc renderOpts d 
   
   putDocLn :: Doc -> IO ()
