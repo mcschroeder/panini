@@ -71,17 +71,8 @@ getPrettyInferredTypes = do
   env <- gets environment
   let inferredDefs = [ (x,_solvedType) | (x,Verified{..}) <- Map.toList env
                                        , _assumedType /= Just _solvedType ]
-  let ts = List.sortBy (compareSrcLoc `on` getPV . fst) inferredDefs
+  let ts = List.sortBy (compare `on` getPV . fst) inferredDefs
   return $ vsep $ map (\(x,t) -> pretty x <+> symColon <+> pretty t) ts
-
--- TODO: duplicate
-compareSrcLoc :: PV -> PV -> Ordering
-compareSrcLoc (Derived pv1 _) pv2 = compareSrcLoc pv1 pv2
-compareSrcLoc pv1 (Derived pv2 _) = compareSrcLoc pv1 pv2
-compareSrcLoc (FromSource loc1 _) (FromSource loc2 _) = compare loc1 loc2
-compareSrcLoc (FromSource _ _) NoPV = GT
-compareSrcLoc NoPV (FromSource _ _) = LT
-compareSrcLoc NoPV NoPV = EQ
 
 -------------------------------------------------------------------------------
 

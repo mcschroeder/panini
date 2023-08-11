@@ -41,7 +41,16 @@ data PV
     -- ^ Derivation from original (e.g., type synthesis or variable renaming).
   | NoPV 
     -- ^ Most likely machine-generated data.
-  deriving stock (Show, Read)
+  deriving stock (Eq, Show, Read)
+
+-- | Ordering by (original) source location.
+instance Ord PV where
+  compare (Derived pv1 _) pv2 = compare pv1 pv2
+  compare pv1 (Derived pv2 _) = compare pv1 pv2
+  compare (FromSource loc1 _) (FromSource loc2 _) = compare loc1 loc2
+  compare (FromSource _ _) NoPV = GT
+  compare NoPV (FromSource _ _) = LT
+  compare NoPV NoPV = EQ
 
 -- | Types with provenance information.
 class HasProvenance a where
