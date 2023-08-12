@@ -101,29 +101,37 @@ openLogFileFor f = do
   return h
 
 putEventFile :: PanOptions -> Event -> Handle -> IO ()
-putEventFile panOpts ev h = do
-  let fileRenderOpts = fileRenderOptions panOpts
-  Text.hPutStrLn h $ renderDoc fileRenderOpts $ prettyEvent ev
+putEventFile o e = putDocFile o $ prettyEvent e <> "\n"
 
 putEventStderr :: PanOptions -> Event -> IO ()
-putEventStderr panOpts ev = do
-  let termRenderOpts = termRenderOptions panOpts
-  Text.hPutStrLn stderr $ renderDoc termRenderOpts $ prettyEvent ev
+putEventStderr o e = putDocStderr o $ prettyEvent e <> "\n"
 
 -------------------------------------------------------------------------------
 
--- TODO: putDocStdout / putDocStderr / putDocFile functions
+putDocFile :: PanOptions -> Doc -> Handle -> IO ()
+putDocFile o d h = hPutDoc (fileRenderOptions o) d h
 
-termRenderOptions :: PanOptions -> RenderOptions
-termRenderOptions panOpts = RenderOptions
-    { styling = pureIf panOpts.color defaultStyling
-    , PP.unicode = panOpts.unicode
-    , fixedWidth = panOpts.termWidth
-    }
+putDocStderr :: PanOptions -> Doc -> IO ()
+putDocStderr o d = hPutDoc (termRenderOptions o) d stderr
+
+putDocStdout :: PanOptions -> Doc -> IO ()
+putDocStdout o d = hPutDoc (termRenderOptions o) d stdout
+
+hPutDoc :: RenderOptions -> Doc -> Handle -> IO ()
+hPutDoc o d h = Text.hPutStr h $ renderDoc o d
+
+-------------------------------------------------------------------------------
 
 fileRenderOptions :: PanOptions -> RenderOptions
-fileRenderOptions panOpts = RenderOptions 
+fileRenderOptions o = RenderOptions 
   { styling = Nothing
-  , PP.unicode = panOpts.unicode
-  , fixedWidth = Nothing
+  , PP.unicode = o.unicode
+  , fixedWidth = Nothing 
+  }
+
+termRenderOptions :: PanOptions -> RenderOptions
+termRenderOptions o = RenderOptions
+  { styling = pureIf o.color defaultStyling
+  , PP.unicode = o.unicode
+  , fixedWidth = o.termWidth
   }

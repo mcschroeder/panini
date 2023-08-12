@@ -77,14 +77,11 @@ batchMain panOpts = do
     Left  _ -> exitFailure
     Right doc
       | Just outFile <- panOpts.outputFile -> do
-          let renderOpts = fileRenderOptions panOpts
-          withFile outFile WriteMode $ \h ->
-            Text.hPutStr h $ renderDoc renderOpts doc
+          withFile outFile WriteMode $ putDocFile panOpts doc
           exitSuccess
 
       | otherwise -> do
-          let renderOpts = termRenderOptions panOpts
-          Text.putStrLn $ renderDoc renderOpts doc
+          putDocStdout panOpts $ doc <> "\n"
           exitSuccess
 
 -- TODO: duplicate of function in Panini.CLI.REPL

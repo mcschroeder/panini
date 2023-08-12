@@ -72,8 +72,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       putDoc $ pretty inFile <+> "... "
 
     let output = either pretty (vsep . map pretty) result
-    let renderOpts = fileRenderOptions globalOpts
-    let actual = renderDoc renderOpts output
+    let actual = renderDoc (fileRenderOptions globalOpts) output
     doesFileExist outFile >>= \case
       False -> do
         withFile outFile WriteMode $ \h -> Text.hPutStr h actual      
@@ -98,9 +97,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
     pretty (marginalia $ divider symDivH Nothing)
 
   putDoc :: Doc -> IO ()
-  putDoc d = do
-    let renderOpts = termRenderOptions globalOpts
-    Text.putStr $ renderDoc renderOpts d 
+  putDoc = putDocStdout globalOpts
   
   putDocLn :: Doc -> IO ()
   putDocLn d = putDoc $ d <> "\n"
