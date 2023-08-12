@@ -7,7 +7,7 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Prelude
 
@@ -38,7 +38,7 @@ instance IsString Name where
   fromString s = Name (Text.pack s) NoPV
 
 instance Pretty Name where
-  pretty (Name x _) = identifier VarIdent $ pretty x
+  pretty (Name x _) = ann (Identifier VarIdent) $ pretty x
 
 dummyName :: Name
 dummyName = "_"

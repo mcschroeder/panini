@@ -7,7 +7,7 @@ module Panini.Abstract.ABool
 import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Prelude
 
 -------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ aBoolEq True  = True_
 aBoolEq False = False_
 
 instance Pretty ABool where
-  pretty Top = "{𝗧,𝗙}"
-  pretty True_ = "𝗧" 
-  pretty False_ = "𝗙"
-  pretty Bottom = "↯"
+  pretty Top    = prettySet [symTrue,symFalse]
+  pretty True_  = symTrue
+  pretty False_ = symFalse
+  pretty Bottom = emptySet

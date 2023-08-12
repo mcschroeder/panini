@@ -3,7 +3,7 @@ module Panini.Syntax.Relations where
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import GHC.Generics (Generic)
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Syntax.Expressions
 import Prelude
 
@@ -72,7 +72,7 @@ instance Biplate Rel Expr where
 
 instance Pretty Rel where
   pretty p0 = case p0 of
-    Rel r p1 p2 -> prettyL p0 p1 <+> pretty r   <+> prettyR p0 p2
+    Rel r p1 p2 -> prettyL p0 p1 <+> pretty r <+> prettyR p0 p2
 
 instance HasFixity Rel where
   fixity _ = Infix NoAss 4
@@ -99,5 +99,5 @@ instance Pretty Rop where
     Lt -> symLt
     Ge -> symGe
     Gt -> symGt
-    In -> "∈" -- TODO
-    Ni -> "∉" -- TODO
+    In -> symIn
+    Ni -> symNi

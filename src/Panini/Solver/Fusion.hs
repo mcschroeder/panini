@@ -21,7 +21,7 @@ import Panini.Solver.Constraints
 import Panini.Monad
 import Panini.Syntax
 import Prelude
-import Panini.Pretty.Printer
+import Panini.Pretty
 
 -- TODO: return assignment also
 

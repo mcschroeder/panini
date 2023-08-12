@@ -6,7 +6,7 @@ import Data.Hashable
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Panini.Abstract.AValue
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
@@ -96,7 +96,7 @@ instance Pretty Expr where
     EStrLen p -> "|" <> pretty p <> "|"
     EStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
     EStrSub p1 p2 p3 -> 
-      pretty p1 <> "[" <> pretty p2 <> symDotDot <> pretty p3 <> "]"
+      pretty p1 <> "[" <> pretty p2 <> ".." <> pretty p3 <> "]"
     ENot e -> symNeg <> parens (pretty e)
     EAbs a -> pretty a
 

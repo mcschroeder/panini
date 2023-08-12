@@ -3,7 +3,7 @@ module Panini.Error where
 import Data.List qualified as List
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -64,7 +64,7 @@ instance Pretty Error where
     (loc, Nothing ) -> message loc
     where
       message o  = nest 2 (header o <\\> reason)
-      header o   = aMessage (o <> ":" <+> anError "error:")
+      header o   = ann Message (o <> ":" <+> ann Error "error:")
       reason     = prettyErrorMessage e
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
@@ -118,19 +118,19 @@ prettyErrorMessage = \case
     ]
 
   where
-    msg     = aMessage . pretty @Text
+    msg     = ann Message . pretty @Text
     bullets = mconcat . List.intersperse "\n" . map ("•" <+>)
 
 wavyDiagnostic :: SrcLoc -> Text -> Doc
 wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
-  marginalia (mPadding   <+> "│") <\\>
-  marginalia (lineNumber <+> "│") <+> offendingLine <\\>
-  marginalia (mPadding   <+> "│") <+> errorPointer
+  ann Margin (mPadding   <+> "│") <\\>
+  ann Margin (lineNumber <+> "│") <+> offendingLine <\\>
+  ann Margin (mPadding   <+> "│") <+> errorPointer
   where
     mPadding       = pretty $ replicate (length (show l1)) ' '
     lineNumber     = pretty $ show l1
-    offendingLine  = pretty lineL <> anError (pretty lineE) <> pretty lineR
-    errorPointer   = pretty pPadding <> anError (pretty pointer)
+    offendingLine  = pretty lineL <> ann Error (pretty lineE) <> pretty lineR
+    errorPointer   = pretty pPadding <> ann Error (pretty pointer)
     (lineL, s')    = Text.splitAt (c1 - 1) s
     (lineE, lineR) = Text.splitAt eLen s'
     pointer        = replicate pLen '^'

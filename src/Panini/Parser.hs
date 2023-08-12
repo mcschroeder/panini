@@ -24,7 +24,7 @@ import Data.Text qualified as Text
 import Data.Void
 import Panini.Error
 import Panini.Monad
-import Panini.Pretty.Printer ((<+>), pretty)
+import Panini.Pretty ((<+>), pretty)
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax

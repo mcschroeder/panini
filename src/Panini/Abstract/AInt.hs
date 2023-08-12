@@ -25,7 +25,7 @@ module Panini.Abstract.AInt
 import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
-import Panini.Pretty.Printer
+import Panini.Pretty
 -- import Panini.Syntax
 import Prelude
 import Prettyprinter qualified as PP
@@ -157,10 +157,10 @@ aIntegerLeA (AInt xs) = case xs of
 --   holeRels  = map (mkRel Ne) (holes xs)
 
 instance Pretty AInt where
-  pretty (AInt [])  = "∅"
+  pretty (AInt [])  = emptySet
   pretty (AInt [x]) = pretty x
-  pretty (AInt xs)  = PP.encloseSep lbracket rbracket symMid 
-                    $ map (\(In a b) -> pretty a <> symComma <> pretty b) xs
+  pretty (AInt xs)  = PP.encloseSep lbracket rbracket mid 
+                    $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
 
 
 
@@ -264,7 +264,7 @@ instance BoundedMeetSemilattice Interval where
 instance Pretty Interval where
   pretty (In a b)
     | a == b    = pretty a
-    | otherwise = brackets $ pretty a <> symComma <> pretty b
+    | otherwise = brackets $ pretty a <> comma <> pretty b
 
 -------------------------------------------------------------------------------
 
@@ -284,6 +284,6 @@ instance Ord a => Ord (Inf a) where
   compare PosInf _        = GT
 
 instance Pretty a => Pretty (Inf a) where
-  pretty NegInf = "-∞"
-  pretty PosInf = "+∞"
+  pretty NegInf = "-" <> symInf
+  pretty PosInf = "+" <> symInf
   pretty (Fin a) = pretty a

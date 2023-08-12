@@ -20,7 +20,7 @@ import Panini.Elaborator
 import Panini.Elaborator.Environment
 import Panini.Syntax
 import Panini.Parser
-import Panini.Pretty.Printer
+import Panini.Pretty
 
 main :: IO ()
 main = defaultMain =<< grammarTests

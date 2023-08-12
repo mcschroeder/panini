@@ -3,7 +3,7 @@ module Panini.Syntax.Primitives where
 import Data.Hashable
 import Data.Text (Text)
 import GHC.Generics
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax.Names
 import Prelude
@@ -21,10 +21,10 @@ data Base
 instance Hashable Base
 
 instance Pretty Base where
-  pretty TUnit   = identifier TypeIdent symUnit
-  pretty TBool   = identifier TypeIdent symBool
-  pretty TInt    = identifier TypeIdent symInt
-  pretty TString = identifier TypeIdent symString
+  pretty TUnit   = symTUnit
+  pretty TBool   = symTBool
+  pretty TInt    = symTInt
+  pretty TString = symTString
 
 ------------------------------------------------------------------------------
 
@@ -62,11 +62,11 @@ instance HasProvenance Constant where
   setPV pv (S x _) = S x pv
 
 instance Pretty Constant where
-  pretty (U       _) = literal OtherLit "unit"
-  pretty (B True  _) = literal OtherLit "true"
-  pretty (B False _) = literal OtherLit "false"
-  pretty (I c     _) = literal NumberLit $ pretty c
-  pretty (S t     _) = literal StringLit $ viaShow t
+  pretty (U       _) = symUnit
+  pretty (B True  _) = symTrue
+  pretty (B False _) = symFalse
+  pretty (I c     _) = ann (Literal NumberLit) $ pretty c
+  pretty (S t     _) = ann (Literal StringLit) $ viaShow t
 
 ------------------------------------------------------------------------------
 

@@ -2,7 +2,7 @@
 module Panini.Syntax.AST where
 
 import Data.Generics.Uniplate.Direct
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -26,9 +26,9 @@ instance Pretty Program where
 
 instance Pretty Statement where
   pretty = \case
-    Assume x t -> pretty x <+> symColon <+> pretty t
-    Define x e -> pretty x <+> symEq <+> pretty e
-    Import m _ -> keyword "import" <+> pretty m
+    Assume x t -> pretty x <+> ":" <+> pretty t
+    Define x e -> pretty x <+> "=" <+> pretty e
+    Import m _ -> ann Keyword "import" <+> pretty m
 
 ------------------------------------------------------------------------------
 
@@ -43,26 +43,31 @@ data Term
   deriving stock (Show, Read)
 
 instance Pretty Term where
-  pretty (Val v) = pretty v
+  pretty = \case
+    Val v -> pretty v
+    
+    App e x _ -> pretty e <+> pretty x  
+    
+    Lam x t e _ -> 
+      nest 2 $ group $ lambda <> pretty x <+> ":" <+> pretty t <> dot <\> 
+      pretty e  
+
+    Let x e1 e2 _ -> 
+      ann Keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> 
+      ann Keyword "in") <\\> 
+      pretty e2
   
-  pretty (App e x _) = pretty e <+> pretty x  
+    Rec x t e1 e2 _ ->
+      ann Keyword "rec" <+> pretty x <+> ":" <+> pretty t <\> 
+      symEq <+> group (pretty e1 <\> 
+      ann Keyword "in") <\\> 
+      pretty e2
   
-  pretty (Lam x t e _) = 
-    nest 2 $ group $ symLambda <> pretty x <> symColon <> pretty t <> symDot 
-                     <\> pretty e
-  
-  pretty (Let x e1 e2 _) = 
-    keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> keyword "in") 
-    <\\> pretty e2
-  
-  pretty (Rec x t e1 e2 _) =
-    keyword "rec" <+> pretty x <+> symColon <+> pretty t 
-    <\> symEq <+> group (pretty e1 <\> keyword "in") 
-    <\\> pretty e2
-  
-  pretty (If x e1 e2 _) = group $
-    keyword "if" <+> pretty x <+> nest 2 (keyword "then" <\> pretty e1) 
-                              <\> nest 2 (keyword "else" <\> pretty e2)
+    If x e1 e2 _ -> group $
+      ann Keyword "if" <+> pretty x <+> nest 2 (ann Keyword "then" <\> 
+        pretty e1) <\> 
+      nest 2 (ann Keyword "else" <\> 
+        pretty e2)
 
 ------------------------------------------------------------------------------
 
@@ -96,14 +101,14 @@ instance Pretty Type where
 
     TBase v t r _
       | isT r      ->                  pretty t
-      | otherwise  -> braces $ v `col` pretty t <+> "|" <+> pretty r
+      | otherwise  -> braces $ v `col` pretty t <+> mid <+> pretty r
    
    where    
     isT (Known PTrue) = True
     isT _             = False
     
-    arr a b = a <+> symArrow <+> b
-    col x a = pretty x <> symColon <> a
+    arr a b = a <+> arrow <+> b
+    col x a = pretty x <> colon <> a
 
 data Reft
   = Unknown     -- ?

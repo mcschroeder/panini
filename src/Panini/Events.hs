@@ -1,7 +1,7 @@
 module Panini.Events where
 
 import Panini.Error
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Prelude
 
 -------------------------------------------------------------------------------
@@ -16,13 +16,13 @@ data Event
 prettyEvent :: Event -> Doc
 prettyEvent = \case
   ErrorEvent err -> 
-    anError (divider symDivH (Just $ Right "ERROR")) <\\> pretty err <> "\n"
-  LogMessage src msg -> marginalia ("(" <> pretty src <> ")") <+> align msg
+    ann Error (divider symDivH (Just $ Right "ERROR")) <\\> pretty err <> "\n"
+  LogMessage src msg -> ann Margin ("(" <> pretty src <> ")") <+> align msg
   LogData src dat -> 
-    marginalia (divider symDivH2 (Just $ Left $ "(" <> src <> ")")) <\\> 
+    ann Margin (divider symDivH2 (Just $ Left $ "(" <> src <> ")")) <\\> 
     dat <\\>
-    marginalia (divider symDivH2 Nothing)
-  SMTSolverInitialized{_version} -> marginalia $ "(SMT)" <+> pretty _version
+    ann Margin (divider symDivH2 Nothing)
+  SMTSolverInitialized{_version} -> ann Margin $ "(SMT)" <+> pretty _version
 
 isErrorEvent :: Event -> Bool
 isErrorEvent (ErrorEvent _) = True

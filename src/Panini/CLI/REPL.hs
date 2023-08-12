@@ -23,7 +23,7 @@ import Panini.Events
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.SMT.Z3
 import Prelude
@@ -145,9 +145,9 @@ showEnv _ = do
   env <- lift get
   forM_ (Map.toAscList env.environment) $ \case
     (_,Assumed{_name,_type}) -> outputStrLn $ showPretty $ 
-      pretty _name <+> symColon <+> pretty _type
+      pretty _name <+> ":" <+> pretty _type
     (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ 
-      pretty _name <+> symColon <+> pretty _solvedType
+      pretty _name <+> ":" <+> pretty _solvedType
 
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do

@@ -10,7 +10,7 @@ module Panini.Modules
 import Prelude
 import System.FilePath
 import System.Directory
-import Panini.Pretty.Printer
+import Panini.Pretty
 
 -------------------------------------------------------------------------------
 

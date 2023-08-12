@@ -9,7 +9,7 @@ import Data.HashSet qualified as HashSet
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Monad
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Solver.Fusion qualified as Fusion
@@ -38,7 +38,7 @@ solve c0 = do
   let ks_gram = Set.fromList $ map gconKVar $ HashSet.toList gcs1
   logData ks_gram
 
-  logMessage $ "Eliminate acyclic" <+> symKappa <+> "variables"
+  logMessage $ "Eliminate acyclic" <+> kappa <+> "variables"
   c2 <- Fusion.solve ks_gram c1
   
   -- NOTE: We assume σ(κ) = true for all κ variables that were eliminated during
@@ -77,7 +77,7 @@ solve c0 = do
   logData qs
 
   logMessage $ 
-    "Find approximate solutions for residual" <+> symKappa <+> "variables"
+    "Find approximate solutions for residual" <+> kappa <+> "variables"
   Liquid.solve cs5 [] >>= \case
     Nothing -> return Nothing
     Just s_liquid -> do

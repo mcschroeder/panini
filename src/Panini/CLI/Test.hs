@@ -11,7 +11,7 @@ import Panini.Elab
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.SMT.Z3
 import Prelude
 import System.Directory
@@ -33,10 +33,10 @@ testMain globalOpts = assert globalOpts.testMode $ do
   let fails = total - sum (map fromEnum results)
   if fails == 0
     then do
-      putDocLn $ aSuccess $ "All" <+> viaShow total <+> "tests passed"
+      putDocLn $ ann Success $ "All" <+> viaShow total <+> "tests passed"
       exitSuccess
     else do
-      putDocLn $ anError $ 
+      putDocLn $ ann Error $ 
         viaShow fails <+> "out of" <+> viaShow total <+> "tests failed"
       exitFailure
   
@@ -76,25 +76,25 @@ testMain globalOpts = assert globalOpts.testMode $ do
     doesFileExist outFile >>= \case
       False -> do
         withFile outFile WriteMode $ \h -> Text.hPutStr h actual      
-        putDocLn $ marginalia "output file did not exist; created"
+        putDocLn $ "output file did not exist; created"
         return True
       True -> do
         expected <- Text.readFile outFile
         if actual /= expected
           then do
-            putDocLn $ anError "FAIL" <\> diff expected actual              
+            putDocLn $ ann Error "FAIL" <\> diff expected actual              
             return False
           else do
-            putDocLn $ aSuccess "OK"
+            putDocLn $ ann Success "OK"
             return True
 
   diff :: Text -> Text -> Doc
   diff expected actual = 
-    marginalia (divider symDivH (Just $ Right "Expected")) <\>
+    ann Margin (divider symDivH (Just $ Right "Expected")) <\>
     pretty expected <\>
-    marginalia (divider symDivH (Just $ Right "Actual")) <\>
+    ann Margin (divider symDivH (Just $ Right "Actual")) <\>
     pretty actual <\>
-    pretty (marginalia $ divider symDivH Nothing)
+    pretty (ann Margin $ divider symDivH Nothing)
 
   putDoc :: Doc -> IO ()
   putDoc = putDocStdout globalOpts

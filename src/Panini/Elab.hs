@@ -21,7 +21,7 @@ import Panini.Infer
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver
 import Panini.Syntax
@@ -80,7 +80,7 @@ elaborate thisModule prog = do
 -- | Add an assumed type to the environment.
 assume :: Name -> Type -> Pan ()
 assume x t = do
-  logMessage $ "Assume" <+> pretty x <+> symColon <+> pretty t
+  logMessage $ "Assume" <+> pretty x <+> ":" <+> pretty t
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
   envExtend x (Assumed x t)
 

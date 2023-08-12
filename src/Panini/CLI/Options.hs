@@ -5,7 +5,7 @@ import Data.List qualified as List
 import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.Events
-import Panini.Pretty.Printer as PP
+import Panini.Pretty as PP
 import Prelude
 import Prettyprinter.Util (reflow)
 import System.FilePath

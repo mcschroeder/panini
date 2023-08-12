@@ -3,7 +3,7 @@ module Panini.Syntax.KVar where
 import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
@@ -35,7 +35,7 @@ kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts-1]]
 instance Pretty KVar where
   pretty k@(KVar _ ts) = prettyKVarName k <> prettyTuple zs
     where
-      zs = [pretty z <> symColon <> pretty t | (z,t) <- zip (kparams k) ts]
+      zs = [pretty z <> colon <> pretty t | (z,t) <- zip (kparams k) ts]
 
 prettyKVarName :: KVar -> Doc
-prettyKVarName (KVar i _) = identifier VarIdent $ symKappa <> subscript i
+prettyKVarName (KVar i _) = ann (Identifier VarIdent) $ kappa <> subscript i

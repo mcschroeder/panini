@@ -70,8 +70,10 @@ library
     Panini.Modules
     Panini.Monad
     Panini.Parser
+    Panini.Pretty
+    Panini.Pretty.Doc
     Panini.Pretty.Graphviz
-    Panini.Pretty.Printer
+    Panini.Pretty.Symbols
     Panini.Provenance
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB

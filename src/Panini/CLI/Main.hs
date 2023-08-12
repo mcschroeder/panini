@@ -15,7 +15,7 @@ import Panini.Events
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
-import Panini.Pretty.Printer as PP
+import Panini.Pretty as PP
 import Panini.Provenance
 import Panini.SMT.Z3
 import Prelude

@@ -31,7 +31,7 @@ import Panini.Environment
 import Panini.Error
 import Panini.Events
 import Panini.Modules
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax
 import Prelude

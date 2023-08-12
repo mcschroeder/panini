@@ -4,7 +4,7 @@ import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import GHC.Generics (Generic)
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Syntax.Expressions
 import Panini.Syntax.KVar
 import Panini.Syntax.Names
@@ -84,26 +84,27 @@ instance Biplate Pred Expr where
 
 instance Pretty Pred where
   pretty p0 = case p0 of
-    PAppK k xs -> highlight $ prettyKVarName k <> prettyTuple xs
+    PAppK k xs -> ann Highlight $ prettyKVarName k <> prettyTuple xs
     PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
     PIff   p1 p2 -> prettyL p0 p1 <+> symIff     <+> prettyR p0 p2
     PImpl  p1 p2 -> prettyL p0 p1 <+> symImplies <+> prettyR p0 p2
-    PAnd ps -> concatWithOp symAnd $ map (prettyL p0) ps
-    POr  ps -> concatWithOp symOr  $ map (prettyL p0) ps
+    PAnd ps -> concatWithOp wedge $ map (prettyL p0) ps
+    POr  ps -> concatWithOp vee  $ map (prettyL p0) ps
     PExists x b p -> parens $ 
-      symExists <> pretty x <> symColon <> pretty b <> symDot <+> pretty p    
-    PTrue  -> "true"
-    PFalse -> "false"
+      symExists <> pretty x <> colon <> pretty b <> dot <+> pretty p    
+    PTrue  -> symTrue
+    PFalse -> symFalse
     PRel p -> pretty p
 
 instance HasFixity Pred where
-  fixity (PNot _)       = Prefix
-  fixity (PRel _)      = Infix NoAss 4
-  fixity (PAnd _)       = Infix NoAss 3
-  fixity (POr _)        = Infix NoAss 3
-  fixity (PImpl _ _)    = Infix NoAss 1
-  fixity (PIff _ _)     = Infix NoAss 1
-  fixity _              = Infix LeftAss 9
+  fixity = \case
+    PNot _    -> Prefix
+    PRel _    -> Infix NoAss 4
+    PAnd _    -> Infix NoAss 3
+    POr _     -> Infix NoAss 3
+    PImpl _ _ -> Infix NoAss 1
+    PIff _ _  -> Infix NoAss 1
+    _         -> Infix LeftAss 9
 
 mkBoolPred :: Bool -> Pred
 mkBoolPred True = PTrue

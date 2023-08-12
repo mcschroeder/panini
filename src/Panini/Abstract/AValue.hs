@@ -11,7 +11,7 @@ import GHC.Generics (Generic)
 import Panini.Abstract.ABool
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Prelude
 
 ------------------------------------------------------------------------------

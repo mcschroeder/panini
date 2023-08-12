@@ -14,7 +14,7 @@ import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import GHC.Generics
-import Panini.Pretty.Printer
+import Panini.Pretty
 -- import Panini.Syntax
 import Prelude
 -- import Data.Text qualified as Text
@@ -98,11 +98,11 @@ aCharNe = AChar False . I.singleton . fromEnum
 
 instance Pretty AChar where
   pretty (AChar True cs) = case toCharList cs of
-    []  -> "∅"
+    []  -> emptySet
     [x] -> pretty x
     xs  -> prettySetTight xs
   
   pretty (AChar False cs) = case toCharList cs of
-    []  -> "Σ"
-    [x] -> parens $ "Σ∖" <> pretty x
-    xs  -> parens $ "Σ∖" <> prettySetTight xs
+    []  -> bigSigma
+    [x] -> parens $ bigSigma <> setMinus <> pretty x
+    xs  -> parens $ bigSigma <> setMinus <> prettySetTight xs

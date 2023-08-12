@@ -11,7 +11,7 @@ import Control.Monad
 import Data.ByteString qualified as BS
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Prelude
 import System.IO
 

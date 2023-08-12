@@ -14,7 +14,7 @@ import Panini.Abstract.AString
 import Panini.Abstract.AValue
 import Panini.Error
 import Panini.Monad
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax
 import Prelude

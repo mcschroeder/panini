@@ -16,7 +16,7 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Monad
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.SMT.Z3
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
@@ -31,7 +31,7 @@ solve cs qs = do
   let (csk,csp) = partition horny cs
   logData csk
 
-  logMessage $ "Construct initial solution" <+> "σ₀" `orASCII` "\\sigma_0"
+  logMessage $ "Construct initial solution" <+> sigma <> subscript 0
   -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
   -- this is clearly not good
   let ks = kvars csk
@@ -39,16 +39,16 @@ solve cs qs = do
   let s0 = Map.fromList $ map (\k -> (k, qs')) $ Set.toList ks
   logData s0
 
-  logMessage $ "Iteratively weaken" <+> symSigma <+> 
+  logMessage $ "Iteratively weaken" <+> sigma <+> 
                "until all" <+> sym_csk <+> "are satisfied"
   s <- fixpoint csk s0
   logData s
 
-  logMessage $ "Apply" <+> symSigma <+> "to concrete constraints" <+> sym_csp
+  logMessage $ "Apply" <+> sigma <+> "to concrete constraints" <+> sym_csp
   let csp2 = map (apply s) csp
   logData csp2
 
-  logMessage $ "Validate" <+> symSigma <> parens sym_csp
+  logMessage $ "Validate" <+> sigma <> parens sym_csp
   smtValid csp2 >>= \case
     True -> return $ Just s
     False -> return Nothing

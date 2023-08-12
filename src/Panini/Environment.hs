@@ -2,7 +2,7 @@
 module Panini.Environment where
 
 import Data.Map (Map)
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -42,7 +42,7 @@ data TypeSig = TypeSig Name Type
   deriving stock (Eq, Show, Read)
 
 instance Pretty TypeSig where
-  pretty (TypeSig x t) = pretty x <+> symColon <+> pretty t
+  pretty (TypeSig x t) = pretty x <+> ":" <+> pretty t
 
 toTypeSig :: Definition -> TypeSig
 toTypeSig = \case

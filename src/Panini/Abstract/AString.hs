@@ -16,7 +16,7 @@ import Data.Hashable
 import Data.Set qualified as S
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar
-import Panini.Pretty.Printer hiding (Literal)
+import Panini.Pretty hiding (Literal)
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
 import RegExp.Operations
@@ -63,11 +63,12 @@ aStringStar (AString r) = AString $ rStar r
 instance Pretty AString where
   pretty (AString r) = pretty $ view r
 
+-- TODO: actual regex syntax (.) vs formalized view (Σ)
 instance Pretty (RegExpView Char (RegExp Char)) where
   pretty = pretty' True
    where
     pretty' open = \case
-      One -> "ε"
+      One -> epsilon
       Plus (view -> a) (view -> b) -> 
         parensIf open $ pretty' False a <+> "|" <+> pretty' False b
       Times (view -> a) (view -> b) -> pretty a <> pretty b

@@ -23,7 +23,7 @@ import GHC.Stack
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
-import Panini.Pretty.Printer
+import Panini.Pretty
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
