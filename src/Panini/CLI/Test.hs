@@ -4,7 +4,9 @@ module Panini.CLI.Test (testMain) where
 import Control.Exception
 import Control.Monad.Extra
 import Data.Function
+import Data.List qualified as List
 import Data.Maybe
+import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Elab
@@ -18,7 +20,6 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
-import Data.Text (Text)
 
 -------------------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       putStrLn $ "Warning: --output ignored in test mode"
 
   testFiles <- findTestPairs $ fromMaybe "tests" globalOpts.inputFile
-  results <- mapM runTest testFiles
+  results <- mapM runTest $ List.sort testFiles
   let total = length results
   let fails = total - sum (map fromEnum results)
   if fails == 0
