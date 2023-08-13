@@ -68,14 +68,13 @@ instance Pretty a => Pretty (Maybe a) where
   pretty Nothing = "Nothing"
   pretty (Just a) = pretty a
 
--- TODO: this either shouldn't output color or be otherwise ONLY used for debugging
--- | A pretty version of 'show', mainly intended for debugging.
--- Use 'renderDoc' for any serious pretty printing.
+-- | A pretty version of 'show', mainly intended for debugging. Outputs Unicode
+-- but does not output color. Use 'renderDoc' for any serious pretty printing.
 showPretty :: Pretty a => a -> String
 showPretty = Text.unpack . renderDoc o . pretty
   where 
     o = RenderOptions
-          { styling    = Just defaultStyling
+          { styling    = Nothing
           , unicode    = True
           , fixedWidth = Nothing
           }
