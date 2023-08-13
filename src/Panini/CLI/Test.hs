@@ -60,7 +60,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
 
     let panState0 = defaultState { eventHandler }
 
-    result <- runPan panState0 $ do
+    result <- try @SomeException $ runPan panState0 $ do
       smtInit
       module_ <- liftIO $ getModule inFile
       prog <- parseSource (moduleLocation module_) src
@@ -72,7 +72,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
     when globalOpts.trace $
       putDoc $ pretty inFile <+> "... "
 
-    let output = either pretty (vsep . map pretty) result
+    let output = either viaShow (either pretty (vsep . map pretty)) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
     doesFileExist outFile >>= \case
       False -> do
