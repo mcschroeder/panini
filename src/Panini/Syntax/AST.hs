@@ -49,8 +49,9 @@ instance Pretty Term where
     App e x _ -> pretty e <+> pretty x  
     
     Lam x t e _ -> 
-      nest 2 $ group $ lambda <> pretty x <+> ":" <+> pretty t <> dot <\> 
-      pretty e  
+      nest 2 $ group $ 
+      lambda <> pretty x <> ":" <> parensIf (isFun t) (pretty t) <> dot <\>
+        pretty e
 
     Let x e1 e2 _ -> 
       ann Keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> 
@@ -150,3 +151,7 @@ instance Biplate Reft Pred where
   biplate = \case
     Unknown -> plate Unknown
     Known p -> plate Known |* p
+
+isFun :: Type -> Bool
+isFun (TFun _ _ _ _) = True
+isFun _              = False
