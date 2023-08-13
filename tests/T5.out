@@ -1,6 +1,1 @@
-tests/T5.in:4:1-2: error:
-  unexpected '='
-  expecting "import", end of input, or name
-  │
-4 │ = assert false
-  │ ^
+f : {s:𝕊 | s ∈ ∅} → 𝟙

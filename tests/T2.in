@@ -4,8 +4,7 @@ length : (s:string) -> { n:int | n >= 0 /\ n = |s| }
 charAt : (s:string) -> { i:int | i >= 0 /\ i < |s| } -> { t:string | t = s[i] }
 match  : (s:string) -> (t:string) -> { b:bool | b = true <=> s = t }
 
-f : string -> unit 
-= \s:string.
+f = \s:string.
     let n = length s in
     let p1 = equals n 1 in
     if p1 then
