@@ -1,4 +1,4 @@
 assert : { b:bool | b = true } -> unit
 
 f : string -> unit
-= assert false
+f = \_:string. assert false

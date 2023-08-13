@@ -226,12 +226,14 @@ term1 = choice
       begin <- getSourcePos
       o <- getOffset
       lambda
-      (x,t) <- type1
-      when (isDummy x) $ failWithOffset o "missing binder"
-      symbol "."
-      e <- term
-      end <- getSourcePos
-      return $ Lam x t e $ mkPV begin end
+      (x0,t) <- type1
+      case x0 of
+        Nothing -> failWithOffset o "missing binder"
+        Just x -> do
+          symbol "."
+          e <- term
+          end <- getSourcePos
+          return $ Lam x t e $ mkPV begin end
 
   , Val <$> value
   ]
@@ -277,10 +279,10 @@ type_ = do
     , do
         t2 <- arrow *> type_
         end <- getSourcePos
-        return $ TFun x t1 t2 (mkPV begin end)
+        return $ TFun (fromMaybe dummyName x) t1 t2 (mkPV begin end)
     ]
 
-type1 :: Parser (Name, Type)
+type1 :: Parser (Maybe Name, Type)
 type1 = choice
   [ try nested       -- (t)
   , try namedNested  -- x:(t)
@@ -293,11 +295,11 @@ type1 = choice
   nested = parens $ do
     t <- type_
     case t of
-      TBase x _ _ _-> pure (x, t)
-      TFun _ _ _ _ -> pure (dummyName, t)
+      TBase x _ _ _-> pure (Just x, t)
+      TFun _ _ _ _ -> pure (Nothing, t)
 
-  namedNested = (,) <$> name <* symbol ":" <*> parens type_
-  namedReft   = (,) <$> name <* symbol ":" <*> (snd <$> reft)
+  namedNested = (,) <$> (Just <$> name) <* symbol ":" <*> parens type_
+  namedReft   = (,) <$> (Just <$> name) <* symbol ":" <*> (snd <$> reft)  
   reft = do
     begin <- getSourcePos
     symbol "{"
@@ -309,18 +311,19 @@ type1 = choice
     void "}"
     end <- getSourcePos
     whitespace
-    pure (v, TBase v b r (mkPV begin end))
+    pure (Just v, TBase v b r (mkPV begin end))
+  
   namedBase = do
     begin <- getSourcePos
     x <- name
     symbol ":"
     b <- baseType
     end <- getSourcePos
-    let pv = mkPV begin end
-    pure (x, TBase x b (Known PTrue) pv)
+    pure (Just x, TBase x b (Known PTrue) (mkPV begin end))
+  
   base = do
     (b, pv) <- withPV baseType
-    pure (dummyName, TBase dummyName b (Known PTrue) pv)
+    pure (Nothing, TBase dummyName b (Known PTrue) pv)
 
 baseType :: Parser Base
 baseType = choice
