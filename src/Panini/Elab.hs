@@ -62,7 +62,7 @@ elaborate thisModule prog = do
   env0 <- get
   unless (thisModule == replModule) $
     when (thisModule `elem` env0.loadedModules) $ do
-      error "reloading modules is not yet implemented" -- TODO
+      panic "reloading modules is not yet implemented" -- TODO
   tryError (mapM_ elab prog) >>= \case
     Right () -> do
       unless (thisModule == replModule) $

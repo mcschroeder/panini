@@ -75,7 +75,7 @@ fixpoint cs s = do
 weaken :: Assignment -> FlatCon -> Pan Assignment
 weaken s (FAll xs p (PAppK k ys)) =
   case Map.lookup k s of
-    Nothing -> error $ "missing Horn assignment for " ++ show k
+    Nothing -> panic $ "missing Horn assignment for" <+> pretty k
     Just q0 -> do
       let p' = apply s p
       let keep q = smtValid [FAll xs p' (substN ys (kparams k) q)]

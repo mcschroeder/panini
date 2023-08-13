@@ -176,4 +176,4 @@ mkJoin t₁ t₂ = case (t₁, t₂) of
         let p = p₁ ∨ subst (Var v₁) v₂ p₂
         in return $ TBase v₁ b₁ (Known p) NoPV -- TODO: join provenance
   
-  _ -> error "invalid join"  -- TODO: correct error
+  _ -> panic "invalid join"  -- TODO: correct error

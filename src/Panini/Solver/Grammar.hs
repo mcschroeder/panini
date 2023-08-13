@@ -19,7 +19,6 @@ import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import GHC.Generics
-import GHC.Stack
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
@@ -225,9 +224,3 @@ isPAnd _        = False
 isPRel :: Pred -> Bool
 isPRel (PRel _) = True
 isPRel _        = False
-
--------------------------------------------------------------------------------
-
-panic :: HasCallStack => Doc -> a
-panic msg = errorWithoutStackTrace $ 
-  "panic! " ++ showPretty msg ++ "\n\n" ++ prettyCallStack callStack

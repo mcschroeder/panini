@@ -16,6 +16,7 @@ module Panini.Monad
   , logEvent
   , getInferredTypes
   , getInferredGrammars
+  , panic
   ) where
 
 import Control.Exception
@@ -147,6 +148,12 @@ getInferredGrammars = concatMap extractGrammars
     extractGrammars t@(TBase x TString (Known p) _) = case p of
       PRel (EVar y :∈: EStrA s) | x == y -> [s]
       _ | not $ null [True | PRel (_ :∈: _) <- universe p ] -> 
-          error $ "extractGrammars: irregular grammar: " ++ showPretty t
+          panic $ "extractGrammars: irregular grammar:" <+> pretty t
       _ -> []
     extractGrammars _ = []
+
+-------------------------------------------------------------------------------
+
+panic :: HasCallStack => Doc -> a
+panic msg = errorWithoutStackTrace $ 
+  "panic! " ++ showPretty msg ++ "\n\n" ++ prettyCallStack callStack

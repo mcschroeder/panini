@@ -165,7 +165,7 @@ topExpr :: Base -> Expr
 topExpr TBool   = EAbs $ ABool top
 topExpr TInt    = EAbs $ AInt top
 topExpr TString = EAbs $ AString top
-topExpr b       = error $ "no ⊤ for " ++ showPretty b
+topExpr b       = panic $ "no" <+> symTop <+> "for " <+> pretty b
 
 concretizeVar :: Name -> Expr -> Pan Rel
 concretizeVar x e = case e of
