@@ -1,7 +1,6 @@
 module Panini.Syntax.Substitution where
 
 import Data.List ((\\))
-import Panini.Solver.Constraints
 import Panini.Syntax.AST
 import Panini.Syntax.Expressions
 import Panini.Syntax.Names
@@ -11,6 +10,7 @@ import Panini.Syntax.Relations
 import Prelude
 
 -- TODO: move instances into correpsonding modules?
+-- TODO: shouldnt freeVars be a set?
 
 ------------------------------------------------------------------------------
 
@@ -163,28 +163,6 @@ instance Subable Expr where
     ENot p -> freeVars p
     EAbs _ -> []
 
-instance Subable Con where
-  subst x y = \case
-    CAll n b p c
-      | y == n     -> CAll n b p c  -- (1)
-      | x == Var n -> CAll ṅ b ṗ̲ ċ̲  -- (2)
-      | otherwise  -> CAll n b p̲ c̲  -- (3)
-      where        
-        p̲ = subst x y p
-        c̲ = subst x y c
-        ṗ̲ = subst x y ṗ
-        ċ̲ = subst x y ċ
-        ṗ = subst (Var ṅ) n p
-        ċ = subst (Var ṅ) n c
-        ṅ = freshName n (y : freeVars p ++ freeVars c)
-
-    CHead p    -> CHead (subst x y p)
-    CAnd c₁ c₂ -> CAnd  (subst x y c₁) (subst x y c₂)
-
-  freeVars = \case
-    CHead p      -> freeVars p
-    CAnd c₁ c₂   -> freeVars c₁ ++ freeVars c₂
-    CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
 
 instance Subable Value where
   subst x y = \case

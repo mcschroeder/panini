@@ -3,11 +3,13 @@ module Panini.Solver.Constraints where
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.List ((\\))
 import GHC.Generics
 import Panini.Pretty
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
 import Panini.Syntax.Primitives
+import Panini.Syntax.Substitution
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -60,6 +62,29 @@ instance Pretty Con where
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
+instance Subable Con where
+  subst x y = \case
+    CAll n b p c
+      | y == n     -> CAll n b p c  -- (1)
+      | x == Var n -> CAll ṅ b ṗ̲ ċ̲  -- (2)
+      | otherwise  -> CAll n b p̲ c̲  -- (3)
+      where        
+        p̲ = subst x y p
+        c̲ = subst x y c
+        ṗ̲ = subst x y ṗ
+        ċ̲ = subst x y ċ
+        ṗ = subst (Var ṅ) n p
+        ċ = subst (Var ṅ) n c
+        ṅ = freshName n (y : freeVars p ++ freeVars c)
+
+    CHead p    -> CHead (subst x y p)
+    CAnd c₁ c₂ -> CAnd  (subst x y c₁) (subst x y c₂)
+
+  freeVars = \case
+    CHead p      -> freeVars p
+    CAnd c₁ c₂   -> freeVars c₁ ++ freeVars c₂
+    CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
+
 ------------------------------------------------------------------------------
 
 -- | A flat constraint of the form ∀(x₁:b₁,x₂:b₂,…). p ⇒ q where q is either a
@@ -75,7 +100,13 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
     split (CHead p)      = [CHead p]
     split (CAnd c₁ c₂)   = split c₁ ++ split c₂
 
-    simpl xs ps (CAll x b p c) = simpl ((x,b):xs) (p:ps) c
+    simpl xs ps (CAll x b p c) = simpl ((x',b):xs) (p':ps) c'
+      where
+        x' = if x `elem` vs then freshName x vs else x
+        vs = map fst xs ++ concatMap freeVars ps
+        p' = if x' /= x then subst (Var x') x p else p
+        c' = if x' /= x then subst (Var x') x c else c
+
     simpl xs ps (CHead q)      = FAll (reverse xs) (PAnd $ reverse ps) q
     simpl _  _  (CAnd _ _)     = error "impossible"
 
