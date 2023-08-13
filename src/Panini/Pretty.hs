@@ -126,10 +126,10 @@ prettyR p0 p2 = parensIf (p2 `needsParensRightOf` p0) (pretty p2)
 -------------------------------------------------------------------------------
 
 divider :: Doc -> Maybe (Either String String) -> Doc
-divider d label = PP.pageWidth $ \pw -> case label of
-  Just (Left  l) -> pretty l <+> div_ (getW pw - length l - 1)
-  Just (Right l) ->              div_ (getW pw - length l - 1) <+> pretty l
-  Nothing        ->              div_ (getW pw)  
+divider d label = PP.column $ \c -> PP.pageWidth $ \pw -> case label of
+  Just (Left  l) -> pretty l <+> div_ (getW pw - c - length l - 1)
+  Just (Right l) ->              div_ (getW pw - c - length l - 1) <+> pretty l
+  Nothing        ->              div_ (getW pw - c)  
  where
   div_ w = mconcat $ replicate w d
   getW = \case
