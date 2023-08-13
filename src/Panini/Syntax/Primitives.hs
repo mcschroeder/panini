@@ -1,5 +1,6 @@
 module Panini.Syntax.Primitives where
 
+import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
 import GHC.Generics
@@ -81,3 +82,6 @@ instance Hashable Value
 instance Pretty Value where
   pretty (Con c) = pretty c
   pretty (Var x) = pretty x
+
+instance Uniplate Value where
+  uniplate = plate

@@ -58,30 +58,30 @@ instance BoundedJoinSemilattice Pred where
 
 instance Uniplate Pred where
   uniplate = \case
+    PTrue         -> plate PTrue
+    PFalse        -> plate PFalse
     PAnd ps       -> plate PAnd ||* ps
     POr ps        -> plate POr ||* ps
     PImpl p q     -> plate PImpl |* p |* q
     PIff p q      -> plate PIff |* p |* q
     PNot p        -> plate PNot |* p
-    PExists x b p -> plate PExists |- x |- b |* p
-    PRel p       -> plate PRel |- p
-    PTrue         -> plate PTrue
-    PFalse        -> plate PFalse
+    PRel r        -> plate PRel |- r
     PAppK k ys    -> plate PAppK |- k |- ys
+    PExists x b p -> plate PExists |- x |- b |* p
 
 instance Biplate Pred Expr where
   biplate = \case
+    PTrue         -> plate PTrue
+    PFalse        -> plate PFalse
     PAnd ps       -> plate PAnd ||+ ps
     POr ps        -> plate POr ||+ ps
     PImpl p q     -> plate PImpl |+ p |+ q
     PIff p q      -> plate PIff |+ p |+ q
     PNot p        -> plate PNot |+ p
-    PExists x b p -> plate PExists |- x |- b |+ p
-    PRel p       -> plate PRel |+ p    
-    PTrue         -> plate PTrue
-    PFalse        -> plate PFalse
+    PRel r        -> plate PRel |+ r
     PAppK k ys    -> plate PAppK |- k |- ys
-
+    PExists x b p -> plate PExists |- x |- b |+ p
+    
 instance Pretty Pred where
   pretty p0 = case p0 of
     PAppK k xs -> ann Highlight $ prettyKVarName k <> prettyTuple xs

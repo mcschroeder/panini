@@ -75,16 +75,29 @@ instance PartialMeetSemilattice Expr where
 
 instance Uniplate Expr where
   uniplate = \case
+    EVal v           -> plate EVal |- v
+    EAbs a           -> plate EAbs |- a
+    ENot e           -> plate ENot |* e
     EAdd e1 e2       -> plate EAdd |* e1 |* e2
     ESub e1 e2       -> plate ESub |* e1 |* e2
     EMul e1 e2       -> plate EMul |* e1 |* e2
     EStrLen e1       -> plate EStrLen |* e1
-    EStrAt e1 e2     -> plate EStrAt |* e1 |* e2
+    EStrAt e1 e2     -> plate EStrAt  |* e1 |* e2
     EStrSub e1 e2 e3 -> plate EStrSub |* e1 |* e2 |* e3
     EFun f es        -> plate EFun |- f ||* es
-    ENot e -> plate ENot |* e
-    EAbs a -> plate EAbs |- a
-    EVal v -> plate EVal |- v
+
+instance Biplate Expr Value where
+  biplate = \case
+    EVal v           -> plate EVal |* v
+    EAbs a           -> plate EAbs |- a
+    ENot e           -> plate ENot |+ e
+    EAdd e1 e2       -> plate EAdd |+ e1 |+ e2
+    ESub e1 e2       -> plate ESub |+ e1 |+ e2
+    EMul e1 e2       -> plate EMul |+ e1 |+ e2
+    EStrLen e1       -> plate EStrLen |+ e1
+    EStrAt e1 e2     -> plate EStrAt  |+ e1 |+ e2
+    EStrSub e1 e2 e3 -> plate EStrSub |+ e1 |+ e2 |+ e3
+    EFun f es        -> plate EFun |- f ||+ es
 
 instance Pretty Expr where
   pretty p0 = case p0 of

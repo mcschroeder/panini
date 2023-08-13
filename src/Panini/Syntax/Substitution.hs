@@ -1,5 +1,6 @@
 module Panini.Syntax.Substitution where
 
+import Data.Generics.Uniplate.Operations
 import Data.List ((\\))
 import Panini.Syntax.AST
 import Panini.Syntax.Expressions
@@ -53,25 +54,20 @@ instance Subable Type where
     -- In a refined base type {n:b|r}, the value variable n names the
     -- value of type b that is being refined. Thus, we take n to be bound in r.    
     TBase n b r pv
-      | y == n     -> TBase n b r pv  -- (1)
-      | x == Var n -> TBase ṅ b ṙ̲ pv  -- (2)
-      | otherwise  -> TBase n b r̲ pv  -- (3)
+      | y == n     -> TBase n b            r  pv  -- (1)
+      | x == Var n -> TBase ṅ b (subst x y ṙ) pv  -- (2)
+      | otherwise  -> TBase n b (subst x y r) pv  -- (3)
       where
-        r̲ = subst x y r
-        ṙ̲ = subst x y ṙ
         ṙ = subst (Var ṅ) n r
         ṅ = freshName n (y : freeVars r)
 
     -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
     -- Note that t₁ might itself contain (free) occurrences of n.
     TFun n t₁ t₂ pv
-      | y == n     -> TFun n t̲₁̲ t₂ pv  -- (1)
-      | x == Var n -> TFun ṅ t̲₁̲ t̲₂̲̇ pv  -- (2)
-      | otherwise  -> TFun n t̲₁̲ t̲₂̲ pv  -- (3)
+      | y == n     -> TFun n (subst x y t₁)            t₂  pv  -- (1)
+      | x == Var n -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
+      | otherwise  -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
       where
-        t̲₁̲ = subst x y t₁
-        t̲₂̲ = subst x y t₂
-        t̲₂̲̇ = subst x y t₂̇
         t₂̇ = subst (Var ṅ) n t₂
         ṅ = freshName n (y : freeVars t₂)
 
@@ -79,95 +75,57 @@ instance Subable Type where
     TBase v _ r _ -> freeVars r \\ [v]
     TFun x t₁ t₂ _ -> freeVars t₁ ++ (freeVars t₂ \\ [x])
 
+------------------------------------------------------------------------------
+
 instance Subable Reft where
-  subst x y = \case
-    Unknown -> Unknown
-    Known p -> Known (subst x y p)
-  freeVars = \case
-    Unknown -> []
-    Known p -> freeVars p
+  subst x y = descendBi (subst @Pred x y)  
+  freeVars = concatMap (freeVars @Pred) . universeBi
+
+------------------------------------------------------------------------------
 
 instance Subable Pred where  
   subst x y = \case
     PExists n b p
-      | y == n     -> PExists n b p  -- (1)
-      | x == Var n -> PExists ṅ b ṗ̲  -- (2)
-      | otherwise  -> PExists n b p̲  -- (3)
+      | y == n     -> PExists n b            p   -- (1)
+      | x == Var n -> PExists ṅ b (subst x y ṗ)  -- (2)
+      | otherwise  -> PExists n b (subst x y p)  -- (3)
       where
-        p̲ = subst x y p
-        ṗ̲ = subst x y ṗ
         ṗ = subst (Var ṅ) n p
         ṅ = freshName n (y : freeVars p)
-        
-    PImpl p₁ p₂  -> PImpl (subst x y p₁) (subst x y p₂)
-    PIff p₁ p₂   -> PIff  (subst x y p₁) (subst x y p₂)
-    PAnd ps      -> PAnd    (map (subst x y) ps)
-    POr ps       -> POr     (map (subst x y) ps)
-    PAppK k xs   -> PAppK k (map (subst x y) xs)
-    PNot p₁      -> PNot (subst x y p₁)
-    PRel p      -> PRel (subst x y p)
-    PTrue        -> PTrue
-    PFalse       -> PFalse    
 
-  freeVars = \case
+    PAppK k xs -> PAppK k (map (subst x y) xs)
+    PRel r     -> PRel (subst x y r)
+    p          -> descend (subst x y) p
+
+  freeVars p0 = universe p0 >>= \case
     PExists n _ p -> freeVars p \\ [n]    
-    PImpl p₁ p₂   -> freeVars p₁ ++ freeVars p₂
-    PIff  p₁ p₂   -> freeVars p₁ ++ freeVars p₂
-    PAnd ps       -> concatMap freeVars ps
-    POr ps        -> concatMap freeVars ps
     PAppK _ xs    -> concatMap freeVars xs
-    PNot p₁       -> freeVars p₁
-    PRel p       -> freeVars p
-    PTrue         -> []
-    PFalse        -> []
+    PRel r        -> freeVars r    
+    _             -> []
     
+------------------------------------------------------------------------------
 
 instance Subable Rel where
-  subst x y = \case
-    Rel r p₁ p₂ -> Rel r (subst x y p₁) (subst x y p₂)
-  
-  freeVars = \case
-    Rel _ p₁ p₂  -> freeVars p₁ ++ freeVars p₂
+  subst x y = descendBi (subst @Expr x y)  
+  freeVars = concatMap (freeVars @Expr) . universeBi
+
+------------------------------------------------------------------------------
 
 instance Subable Expr where
-  subst x y = \case
-    EVal (Var n)
-      | y == n    -> EVal x
-      | otherwise -> EVar n
-
-    EVal (Con c) -> EVal (Con c)
-    EAdd p₁ p₂   -> EAdd (subst x y p₁) (subst x y p₂)
-    ESub p₁ p₂   -> ESub (subst x y p₁) (subst x y p₂)
-    EMul p₁ p₂   -> EMul (subst x y p₁) (subst x y p₂)
-    EStrLen p    -> EStrLen (subst x y p)
-    EStrAt p₁ p₂ -> EStrAt (subst x y p₁) (subst x y p₂)
-    EStrSub p₁ p₂ p₃ -> EStrSub (subst x y p₁) (subst x y p₂) (subst x y p₃)
-    EFun f ps -> EFun f (map (subst x y) ps)
-
-    --TODO
-    ENot p -> ENot (subst x y p)
-    EAbs a -> EAbs a
+  subst x y = descendBi (subst @Value x y)    
   
-  freeVars = \case
-    EVal (Var n)  -> [n]
-    EVal (Con _)  -> []
-    EFun f ps     -> f : concatMap freeVars ps
-    EAdd p₁ p₂    -> freeVars p₁ ++ freeVars p₂
-    ESub p₁ p₂    -> freeVars p₁ ++ freeVars p₂
-    EMul p₁ p₂    -> freeVars p₁ ++ freeVars p₂
-    EStrLen p     -> freeVars p
-    EStrAt p₁ p₂  -> freeVars p₁ ++ freeVars p₂
-    EStrSub p₁ p₂ p₃ -> freeVars p₁ ++ freeVars p₂ ++ freeVars p₃
+  freeVars e0 = universe e0 >>= \case  
+    EVal (Var n) -> [n]
+    EFun f es    -> f : concatMap freeVars es
+    _            -> []
 
-    --TODO
-    ENot p -> freeVars p
-    EAbs _ -> []
-
+------------------------------------------------------------------------------
 
 instance Subable Value where
   subst x y = \case
     Var n | y == n -> x
-    v -> v
+    v              -> v
+
   freeVars = \case
     Var n -> [n]
     Con _ -> []

@@ -65,14 +65,10 @@ instance Pretty Con where
 instance Subable Con where
   subst x y = \case
     CAll n b p c
-      | y == n     -> CAll n b p c  -- (1)
-      | x == Var n -> CAll ṅ b ṗ̲ ċ̲  -- (2)
-      | otherwise  -> CAll n b p̲ c̲  -- (3)
-      where        
-        p̲ = subst x y p
-        c̲ = subst x y c
-        ṗ̲ = subst x y ṗ
-        ċ̲ = subst x y ċ
+      | y == n     -> CAll n b            p             c   -- (1)
+      | x == Var n -> CAll ṅ b (subst x y ṗ) (subst x y ċ)  -- (2)
+      | otherwise  -> CAll n b (subst x y p) (subst x y c)  -- (3)
+      where
         ṗ = subst (Var ṅ) n p
         ċ = subst (Var ṅ) n c
         ṅ = freshName n (y : freeVars p ++ freeVars c)
