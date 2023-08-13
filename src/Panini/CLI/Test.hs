@@ -83,7 +83,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
         expected <- Text.readFile outFile
         if actual /= expected
           then do
-            putDocLn $ ann Error "FAIL" <\> diff expected actual              
+            putDocLn $ ann Error "FAIL" <\> diff expected actual
             return False
           else do
             putDocLn $ ann Success "OK"
@@ -91,11 +91,11 @@ testMain globalOpts = assert globalOpts.testMode $ do
 
   diff :: Text -> Text -> Doc
   diff expected actual = 
-    ann Margin (divider symDivH (Just $ Right "Expected")) <\>
+    ann Margin (divider symDivH (Just $ Left "Expected")) <\>
     pretty expected <\>
-    ann Margin (divider symDivH (Just $ Right "Actual")) <\>
+    ann Margin (divider symDivH (Just $ Left "Actual")) <\>
     pretty actual <\>
-    pretty (ann Margin $ divider symDivH Nothing)
+    pretty (ann Margin $ divider symDivH Nothing) <> "\n"
 
   putDoc :: Doc -> IO ()
   putDoc = putDocStdout globalOpts
