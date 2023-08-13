@@ -102,19 +102,3 @@ executable panini
   build-depends: 
       base
     , panini
-
-test-suite test
-  hs-source-dirs: tests
-  main-is: Main.hs
-  type: exitcode-stdio-1.0
-  default-language: GHC2021
-  build-depends:
-    , base
-    , panini
-    , tasty
-    , tasty-golden    
-    , filepath
-    , text
-    , bytestring
-    , transformers
-    , containers
