@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 module Panini.Solver.Grammar 
   ( GCon(..)
   , grammarConstraints

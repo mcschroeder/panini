@@ -91,7 +91,7 @@ infer g = \case
     checkBool g v
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer g e₂
-    let y = freshName "y" (freeVars v ++ freeVars c₁ ++ freeVars c₂)
+    let y = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
     let p₁ = EVal v `pEq` ECon (B True  NoPV)
     let p₂ = EVal v `pEq` ECon (B False NoPV)
     let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)

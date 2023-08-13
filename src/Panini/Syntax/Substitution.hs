@@ -1,7 +1,8 @@
+{-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.Substitution where
 
 import Data.Generics.Uniplate.Operations
-import Data.List ((\\))
+import Data.Set (Set, (\\))
 import Panini.Syntax.AST
 import Panini.Syntax.Expressions
 import Panini.Syntax.Names
@@ -11,7 +12,6 @@ import Panini.Syntax.Relations
 import Prelude
 
 -- TODO: move instances into correpsonding modules?
--- TODO: shouldnt freeVars be a set?
 
 ------------------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ class Subable a where
   subst :: Value -> Name -> a -> a
   
   -- | Returns all free variables of the given term.
-  freeVars :: a -> [Name]
+  freeVars :: a -> Set Name
 
 -- | @substN xs ys a@ substitutes each x for the corresponding y in a.
 substN :: Subable a => [Value] -> [Name] -> a -> a
@@ -59,7 +59,7 @@ instance Subable Type where
       | otherwise  -> TBase n b (subst x y r) pv  -- (3)
       where
         ṙ = subst (Var ṅ) n r
-        ṅ = freshName n (y : freeVars r)
+        ṅ = freshName n ([y] <> freeVars r)
 
     -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
     -- Note that t₁ might itself contain (free) occurrences of n.
@@ -69,17 +69,17 @@ instance Subable Type where
       | otherwise  -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
       where
         t₂̇ = subst (Var ṅ) n t₂
-        ṅ = freshName n (y : freeVars t₂)
+        ṅ = freshName n ([y] <> freeVars t₂)
 
   freeVars = \case
     TBase v _ r _ -> freeVars r \\ [v]
-    TFun x t₁ t₂ _ -> freeVars t₁ ++ (freeVars t₂ \\ [x])
+    TFun x t₁ t₂ _ -> (freeVars t₁ <> freeVars t₂) \\ [x]
 
 ------------------------------------------------------------------------------
 
 instance Subable Reft where
   subst x y = descendBi (subst @Pred x y)  
-  freeVars = concatMap (freeVars @Pred) . universeBi
+  freeVars = mconcat . map (freeVars @Pred) . universeBi
 
 ------------------------------------------------------------------------------
 
@@ -91,15 +91,15 @@ instance Subable Pred where
       | otherwise  -> PExists n b (subst x y p)  -- (3)
       where
         ṗ = subst (Var ṅ) n p
-        ṅ = freshName n (y : freeVars p)
+        ṅ = freshName n ([y] <> freeVars p)
 
     PAppK k xs -> PAppK k (map (subst x y) xs)
     PRel r     -> PRel (subst x y r)
     p          -> descend (subst x y) p
 
-  freeVars p0 = universe p0 >>= \case
+  freeVars p0 = mconcat . flip map (universe p0) $ \case
     PExists n _ p -> freeVars p \\ [n]    
-    PAppK _ xs    -> concatMap freeVars xs
+    PAppK _ xs    -> mconcat $ map freeVars xs
     PRel r        -> freeVars r    
     _             -> []
     
@@ -107,16 +107,16 @@ instance Subable Pred where
 
 instance Subable Rel where
   subst x y = descendBi (subst @Expr x y)  
-  freeVars = concatMap (freeVars @Expr) . universeBi
+  freeVars = mconcat . map (freeVars @Expr) . universeBi
 
 ------------------------------------------------------------------------------
 
 instance Subable Expr where
   subst x y = descendBi (subst @Value x y)    
   
-  freeVars e0 = universe e0 >>= \case  
+  freeVars e0 = mconcat . flip map (universe e0) $ \case
     EVal (Var n) -> [n]
-    EFun f es    -> f : concatMap freeVars es
+    EFun f es    -> [f] <> mconcat (map freeVars es)
     _            -> []
 
 ------------------------------------------------------------------------------

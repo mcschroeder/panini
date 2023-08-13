@@ -1,9 +1,11 @@
+{-# LANGUAGE OverloadedLists #-}
 module Panini.Solver.Constraints where
 
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
-import Data.List ((\\))
+import Data.Set ((\\))
+import Data.Set qualified as Set
 import GHC.Generics
 import Panini.Pretty
 import Panini.Syntax.Names
@@ -71,15 +73,15 @@ instance Subable Con where
       where
         ṗ = subst (Var ṅ) n p
         ċ = subst (Var ṅ) n c
-        ṅ = freshName n (y : freeVars p ++ freeVars c)
+        ṅ = freshName n ([y] <> freeVars p <> freeVars c)
 
     CHead p    -> CHead (subst x y p)
     CAnd c₁ c₂ -> CAnd  (subst x y c₁) (subst x y c₂)
 
   freeVars = \case
     CHead p      -> freeVars p
-    CAnd c₁ c₂   -> freeVars c₁ ++ freeVars c₂
-    CAll n _ p c -> (freeVars p ++ freeVars c) \\ [n]
+    CAnd c₁ c₂   -> freeVars c₁ <> freeVars c₂
+    CAll n _ p c -> (freeVars p <> freeVars c) \\ [n]
 
 ------------------------------------------------------------------------------
 
@@ -99,7 +101,7 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
     simpl xs ps (CAll x b p c) = simpl ((x',b):xs) (p':ps) c'
       where
         x' = if x `elem` vs then freshName x vs else x
-        vs = map fst xs ++ concatMap freeVars ps
+        vs = Set.fromList (map fst xs) <> mconcat (map freeVars ps)
         p' = if x' /= x then subst (Var x') x p else p
         c' = if x' /= x then subst (Var x') x c else c
 
