@@ -72,7 +72,10 @@ library
     Panini.Parser
     Panini.Pretty
     Panini.Pretty.Doc
+    Panini.Pretty.Fixity
     Panini.Pretty.Graphviz
+    Panini.Pretty.Render
+    Panini.Pretty.Style
     Panini.Pretty.Symbols
     Panini.Provenance
     Panini.SMT.RegLan
