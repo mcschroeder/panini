@@ -6,6 +6,7 @@ import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.Events
 import Panini.Pretty as PP
+import Panini.Version
 import Prelude
 import Prettyprinter.Util (reflow)
 import System.FilePath
@@ -29,7 +30,7 @@ data PanOptions = PanOptions
 
 opts :: ParserInfo PanOptions
 opts = info 
-  (panOptions <**> helper <**> simpleVersioner "v0.1") 
+  (panOptions <**> helper <**> simpleVersioner version)
   (fullDesc <> progDesc "Grammar Inference for Ad Hoc Parsers" <> 
     (footerDoc $ Just $ paragraphs
       [ "If no INPUT file is given and stdin is an interactive terminal,\

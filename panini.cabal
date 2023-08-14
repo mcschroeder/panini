@@ -38,6 +38,7 @@ library
     , directory
     , extra
     , filepath
+    , githash
     , hashable
     , haskeline
     , megaparsec == 9.2.*
@@ -97,6 +98,7 @@ library
     Panini.Syntax.Primitives    
     Panini.Syntax.Relations
     Panini.Syntax.Substitution
+    Panini.Version
 
 executable panini
   hs-source-dirs: app
