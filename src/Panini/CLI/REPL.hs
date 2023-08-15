@@ -26,6 +26,7 @@ import Panini.Parser
 import Panini.Pretty
 import Panini.Provenance
 import Panini.SMT.Z3
+import Panini.Version
 import Prelude
 import System.Console.Haskeline
 import System.Directory
@@ -64,8 +65,9 @@ replMain panOpts = do
 
 -- | Panini REPL.
 repl :: InputT Pan ()
-repl = loop
+repl = outputStrLn banner >> loop
   where
+    banner = version ++ "\nType :help for more information."
     prompt = "Panini> "
     byeMsg = "byeee 👋"
     multiMsg    = "╭── Entering multi-line mode. Press ⌃D to finish."
