@@ -2,23 +2,23 @@
 
 module Panini.Abstract.AInt
   ( AInt
-  , concreteIntCount
-  , concreteIntValues
-  , aMinimum
-  , aMaximum
+  , concreteCount
+  , concreteValues
+  , minimum
+  , maximum
   -- , toPred
-  , aIntegerEq
-  , aIntegerNe
-  , aIntegerGt
-  , aIntegerGe
-  , aIntegerLt
-  , aIntegerLe
-  , aIntegerGtA
-  , aIntegerGeA
-  , aIntegerLtA
-  , aIntegerLeA
-  , aIntegerAddI
-  , aContinuous
+  , eq
+  , ne
+  , gt
+  , ge
+  , lt
+  , le
+  , gtA
+  , geA
+  , ltA
+  , leA
+  , addI
+  , continuous
   , Inf(..)
   ) where
 
@@ -27,7 +27,7 @@ import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
 -- import Panini.Syntax
-import Prelude
+import Prelude hiding (minimum, maximum)
 import Prettyprinter qualified as PP
 
 -------------------------------------------------------------------------------
@@ -42,10 +42,10 @@ newtype AInt = AInt IntervalSequence
     , Hashable)
 
 -- | The number of concrete values represented by the abstract integer (i.e.,
--- the length of the list returned by 'concreteIntValues'), or 'Nothing' if the
+-- the length of the list returned by 'concreteValues'), or 'Nothing' if the
 -- number of concrete values is infinite.
-concreteIntCount :: AInt -> Maybe Integer
-concreteIntCount (AInt xs) = go 0 xs
+concreteCount :: AInt -> Maybe Integer
+concreteCount (AInt xs) = go 0 xs
   where
     go n (In (Fin a) (Fin b) : ys) = go (n + 1 + b - a) ys
     go n []                        = Just n
@@ -57,8 +57,8 @@ concreteIntCount (AInt xs) = go 0 xs
 -- finite, or if they approach only positive infinity (+∞), the values are
 -- returned in ascending order. If the values (also) tend toward negative
 -- infinity (-∞), no ordering guarantees are given.
-concreteIntValues :: AInt -> [Integer]
-concreteIntValues (AInt xs) = go xs
+concreteValues :: AInt -> [Integer]
+concreteValues (AInt xs) = go xs
   where
     go (In (Fin a) (Fin b) : ys) = [a..b] ++ go ys
     go (In (Fin a) PosInf  : _ ) = [a..]
@@ -74,69 +74,69 @@ interleave []     ys = ys
 
 -- | The smallest value represented by the abstract integer, which might be -∞
 -- or +∞, or 'Nothing' if the integer is ⊥.
-aMinimum :: AInt -> Maybe (Inf Integer)
-aMinimum (AInt xs) = case xs of
+minimum :: AInt -> Maybe (Inf Integer)
+minimum (AInt xs) = case xs of
   []         -> Nothing
   In a _ : _ -> Just a
 
 -- | The largest value represented by the abstract integer, which might +∞ or
 -- -∞, or 'Nothing' if the integer is ⊥.
-aMaximum :: AInt -> Maybe (Inf Integer)
-aMaximum (AInt xs) = case xs of
+maximum :: AInt -> Maybe (Inf Integer)
+maximum (AInt xs) = case xs of
   []               -> Nothing
   (last -> In _ b) -> Just b
 
-aContinuous :: AInt -> Bool
-aContinuous (AInt xs) = case xs of
+continuous :: AInt -> Bool
+continuous (AInt xs) = case xs of
   []  -> True
   [_] -> True
   _   -> False
 
 -- | An abstract integer @= i@.
-aIntegerEq :: Integer -> AInt
-aIntegerEq a = AInt [singleton a]
+eq :: Integer -> AInt
+eq a = AInt [singleton a]
 
 -- | An abstract integer @≠ i@, i.e., @{[-∞..i-1],[i+1..+∞]}@.
-aIntegerNe :: Integer -> AInt
-aIntegerNe a = AInt [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
+ne :: Integer -> AInt
+ne a = AInt [In NegInf (Fin (a - 1)), In (Fin (a + 1)) PosInf]
 
 -- | An abstract integer @> i@, i.e., @[i+1..+∞]@.
-aIntegerGt :: Integer -> AInt
-aIntegerGt a = AInt [In (Fin (a + 1)) PosInf]
+gt :: Integer -> AInt
+gt a = AInt [In (Fin (a + 1)) PosInf]
 
 -- | An abstract integer @≥ i@, i.e., @[i..+∞]@.
-aIntegerGe :: Integer -> AInt
-aIntegerGe a = AInt [In (Fin a) PosInf]
+ge :: Integer -> AInt
+ge a = AInt [In (Fin a) PosInf]
 
 -- | An abstract integer @< i@, i.e., @[-∞..i-1]@.
-aIntegerLt :: Integer -> AInt
-aIntegerLt a = AInt [In NegInf (Fin (a - 1))]
+lt :: Integer -> AInt
+lt a = AInt [In NegInf (Fin (a - 1))]
 
 -- | An abstract integer @≤ i@, i.e., @[-∞..i]@.
-aIntegerLe :: Integer -> AInt
-aIntegerLe a = AInt [In NegInf (Fin a)]
+le :: Integer -> AInt
+le a = AInt [In NegInf (Fin a)]
 
 -- TODO: document
-aIntegerGtA :: AInt -> AInt
-aIntegerGtA (AInt xs) = case xs of
+gtA :: AInt -> AInt
+gtA (AInt xs) = case xs of
   []               -> AInt []
   (last -> In _ b) -> AInt [In (succ <$> b) PosInf]
 
 -- TODO: document
-aIntegerGeA :: AInt -> AInt
-aIntegerGeA (AInt xs) = case xs of
+geA :: AInt -> AInt
+geA (AInt xs) = case xs of
   []               -> AInt []
   (last -> In _ b) -> AInt [In b PosInf]
 
 -- TODO: document
-aIntegerLtA :: AInt -> AInt
-aIntegerLtA (AInt xs) = case xs of
+ltA :: AInt -> AInt
+ltA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf (pred <$> a)]
 
 -- TODO: document
-aIntegerLeA :: AInt -> AInt
-aIntegerLeA (AInt xs) = case xs of
+leA :: AInt -> AInt
+leA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf a]
 
@@ -164,8 +164,8 @@ instance Pretty AInt where
 
 
 
-aIntegerAddI :: AInt -> Integer -> AInt
-aIntegerAddI (AInt xs) i = case xs of
+addI :: AInt -> Integer -> AInt
+addI (AInt xs) i = case xs of
   [In (Fin a) PosInf] -> AInt [In (Fin (a + i)) PosInf]
   _ -> undefined -- TODO
 

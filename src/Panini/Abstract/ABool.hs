@@ -1,7 +1,7 @@
 module Panini.Abstract.ABool
   ( ABool
   , concreteBool
-  , aBoolEq
+  , eq
   ) where
 
 import Algebra.Lattice
@@ -61,9 +61,9 @@ concreteBool False_ = Just False
 concreteBool _      = Nothing
 
 -- | An abstract Boolean equal to this concrete value.
-aBoolEq :: Bool -> ABool
-aBoolEq True  = True_
-aBoolEq False = False_
+eq :: Bool -> ABool
+eq True  = True_
+eq False = False_
 
 instance Pretty ABool where
   pretty Top    = prettySet [symTrue,symFalse]

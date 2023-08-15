@@ -3,6 +3,7 @@
 
 module Panini.Abstract.AString
   ( AString
+  , eq
   , lit
   , rep
   , anyChar
@@ -15,7 +16,8 @@ import Data.GSet -- from regexp
 import Data.Hashable
 import Data.Set qualified as S
 import GHC.Generics (Generic)
-import Panini.Abstract.AChar
+import Panini.Abstract.AChar (AChar)
+import Panini.Abstract.AChar qualified as AChar
 import Panini.Pretty hiding (Literal)
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
@@ -48,14 +50,17 @@ instance JoinSemilattice AString where
 instance BoundedJoinSemilattice AString where
   bot = AString rZero
 
+eq :: String -> AString
+eq = mconcat . map (lit . AChar.eq)
+
 lit :: AChar -> AString
-lit = AString . rLiteral . aCharToFiniteSet
+lit = AString . rLiteral . AChar.toFiniteSet
 
 rep :: AString -> Integer -> AString
 rep a n = mconcat $ replicate (fromIntegral n) a
 
 anyChar :: AString
-anyChar = AString $ rLiteral $ aCharToFiniteSet top
+anyChar = AString $ rLiteral $ AChar.toFiniteSet top
 
 star :: AString -> AString
 star (AString r) = AString $ rStar r
@@ -73,9 +78,9 @@ instance Pretty (RegExpView Char (RegExp Char)) where
         parensIf open $ pretty' False a <+> "|" <+> pretty' False b
       Times (view -> a) (view -> b) -> pretty a <> pretty b
       Star (view -> a) -> case a of
-        Literal c -> pretty (finiteSetToAChar c) <> "*"
+        Literal c -> pretty (AChar.fromFiniteSet c) <> "*"
         _ -> parens (pretty' False a) <> "*"
-      Literal c -> pretty (finiteSetToAChar c)
+      Literal c -> pretty (AChar.fromFiniteSet c)
 
 ------------------------------------------------------------------------------
 

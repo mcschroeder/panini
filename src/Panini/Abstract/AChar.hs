@@ -1,12 +1,12 @@
 module Panini.Abstract.AChar
   ( AChar
-  , concreteCharCount
-  , concreteCharValues
-  , aCharEq
-  , aCharNe
+  , concreteCount
+  , concreteValues
+  , eq
+  , ne
   -- , toPred
-  , aCharToFiniteSet
-  , finiteSetToAChar
+  , toFiniteSet
+  , fromFiniteSet
   ) where
 
 import Algebra.Lattice
@@ -24,16 +24,16 @@ import Prelude
 import Data.Set qualified as S
 import Data.GSet -- from regexp
 
-aCharToFiniteSet :: AChar -> FiniteSet Char
-aCharToFiniteSet (AChar True xs) = These $ intSetToSetOfChar xs
-aCharToFiniteSet (AChar False xs) = ComplementOf $ intSetToSetOfChar xs
+toFiniteSet :: AChar -> FiniteSet Char
+toFiniteSet (AChar True xs) = These $ intSetToSetOfChar xs
+toFiniteSet (AChar False xs) = ComplementOf $ intSetToSetOfChar xs
 
 intSetToSetOfChar :: IntSet -> S.Set Char
 intSetToSetOfChar = S.fromList . map (toEnum @Char) . I.toList
 
-finiteSetToAChar :: FiniteSet Char -> AChar
-finiteSetToAChar (These xs) = AChar True $ setOfCharToIntSet xs
-finiteSetToAChar (ComplementOf xs) = AChar False $ setOfCharToIntSet xs
+fromFiniteSet :: FiniteSet Char -> AChar
+fromFiniteSet (These xs) = AChar True $ setOfCharToIntSet xs
+fromFiniteSet (ComplementOf xs) = AChar False $ setOfCharToIntSet xs
 
 setOfCharToIntSet :: S.Set Char -> IntSet
 setOfCharToIntSet =  I.fromList . map (fromEnum @Char) . S.toList
@@ -71,23 +71,23 @@ toCharList :: IntSet -> [Char]
 toCharList = map (toEnum @Char) . I.toAscList
 
 -- | The number of concrete values represented by the abstract character.
-concreteCharCount :: AChar -> Int
-concreteCharCount (AChar True  cs) = I.size cs
-concreteCharCount (AChar False cs) = fromEnum @Char maxBound - I.size cs
+concreteCount :: AChar -> Int
+concreteCount (AChar True  cs) = I.size cs
+concreteCount (AChar False cs) = fromEnum @Char maxBound - I.size cs
 
 -- | The concrete values represented by the abstract character.
-concreteCharValues :: AChar -> [Char]
-concreteCharValues (AChar True  cs) = toCharList cs
-concreteCharValues (AChar False cs) = 
+concreteValues :: AChar -> [Char]
+concreteValues (AChar True  cs) = toCharList cs
+concreteValues (AChar False cs) = 
   filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
 -- | An abstract character @= c@.
-aCharEq :: Char -> AChar
-aCharEq = AChar True . I.singleton . fromEnum
+eq :: Char -> AChar
+eq = AChar True . I.singleton . fromEnum
 
 -- | An abstract character @≠ c@, i.e., @= Σ\c@.
-aCharNe :: Char -> AChar
-aCharNe = AChar False . I.singleton . fromEnum
+ne :: Char -> AChar
+ne = AChar False . I.singleton . fromEnum
 
 -- toPred :: Expr -> AChar -> Pred
 -- toPred lhs (AChar b cs) = case b of

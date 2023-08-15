@@ -7,10 +7,10 @@ module Panini.Abstract.Semantics
 import Algebra.Lattice
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Text qualified as Text
-import Panini.Abstract.ABool
-import Panini.Abstract.AChar
-import Panini.Abstract.AInt
-import Panini.Abstract.AString
+import Panini.Abstract.ABool as ABool
+import Panini.Abstract.AChar as AChar
+import Panini.Abstract.AInt as AInt
+import Panini.Abstract.AString as AString
 import Panini.Abstract.AValue
 import Panini.Error
 import Panini.Monad
@@ -39,8 +39,8 @@ norm = Uniplate.rewrite $ \case
   EInt  0 _ :+: e         -> Just e
   e         :+: EInt  0 _ -> Just e  
   EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV  
-  EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ aIntegerAddI a b
-  EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ aIntegerAddI b a
+  EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ AInt.addI a b
+  EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.addI b a
 
   e         :-: EInt  0 _ -> Just e
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
@@ -94,60 +94,54 @@ abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r0 = case isolate x (normRel r0) of
   r | x ∉ r -> return $ topExpr b
 
-  EVar _ :=: EBool c _ -> return $ EBoolA $ aBoolEq c
-  EVar _ :≠: EBool c _ -> return $ EBoolA $ aBoolEq (not c)
+  EVar _ :=: EBool c _ -> return $ EBoolA $ ABool.eq c
+  EVar _ :≠: EBool c _ -> return $ EBoolA $ ABool.eq (not c)
     
-  EVar _ :=: EInt c _ -> return $ EIntA $ aIntegerEq c
-  EVar _ :≠: EInt c _ -> return $ EIntA $ aIntegerNe c
-  EVar _ :>: EInt c _ -> return $ EIntA $ aIntegerGt c
-  EVar _ :≥: EInt c _ -> return $ EIntA $ aIntegerGe c
-  EVar _ :<: EInt c _ -> return $ EIntA $ aIntegerLt c
-  EVar _ :≤: EInt c _ -> return $ EIntA $ aIntegerLe c
+  EVar _ :=: EInt c _ -> return $ EIntA $ AInt.eq c
+  EVar _ :≠: EInt c _ -> return $ EIntA $ AInt.ne c
+  EVar _ :>: EInt c _ -> return $ EIntA $ AInt.gt c
+  EVar _ :≥: EInt c _ -> return $ EIntA $ AInt.ge c
+  EVar _ :<: EInt c _ -> return $ EIntA $ AInt.lt c
+  EVar _ :≤: EInt c _ -> return $ EIntA $ AInt.le c
 
-  EVar _ :=: EChar c _ -> return $ EStrA $ lit (aCharEq c)
-  EVar _ :≠: EChar c _ -> return $ EStrA $ lit (aCharNe c)
+  EVar _ :=: EChar c _ -> return $ EStrA $ lit (AChar.eq c)
+  EVar _ :≠: EChar c _ -> return $ EStrA $ lit (AChar.ne c)
+
+  EVar _ :=: EStr s _ -> return $ EStrA $ AString.eq $ Text.unpack s
 
   EVar _ :∈: EStrA s -> return $ EStrA s
 
-  EStrAt (EVar _) (EInt i _) :=: EChar c _ ->
-    return $ EStrA $ rep anyChar i <> lit (aCharEq c) <> star anyChar
-
-  EStrAt (EVar _) (EInt i _) :≠: EChar c _ -> 
-    return $ EStrA $ rep anyChar i <> lit (aCharNe c) <> star anyChar
-
-  -- TODO: find general solution, this only applies to |s| = [a,∞]
-  EStrLen (EVar _) :=: EIntA i
-    | Just (Fin a) <- aMinimum i, Just PosInf <- aMaximum i, aContinuous i
-    -> return $ EStrA $ rep anyChar a <> star anyChar
+  EStrAt (EVar _) (EInt i _) :=: EChar c _ -> return $ EStrA $ rep anyChar i <> lit (AChar.eq c) <> star anyChar
+  EStrAt (EVar _) (EInt i _) :≠: EChar c _ -> return $ EStrA $ rep anyChar i <> lit (AChar.ne c) <> star anyChar
 
   EStrLen (EVar _) :=: EInt i _ -> return $ EStrA $ rep anyChar i
+  EStrLen (EVar _) :≠: EInt i _ -> return $ EStrA $ joins1 [rep anyChar (i - 1), rep anyChar (i + 1) <> star anyChar]
+  EStrLen (EVar _) :≥: EInt i _ -> return $ EStrA $ rep anyChar i <> star anyChar  
+  EStrLen (EVar _) :>: EInt i _ -> return $ EStrA $ rep anyChar (i + 1) <> star anyChar
+  EStrLen (EVar _) :<: EInt 0 _ -> return $ EStrA bot
+  -- TODO EStrLen (EVar _) :≤: EInt 0 _ -> return $ EStrA ?
 
-  EStrLen (EVar _) :≠: EInt i _ ->
-    return $ EStrA $ joins1 [ rep anyChar (i - 1), rep anyChar (i + 1) <> star anyChar]
+  -- TODO: find general solution, this only applies to |s| = [a,∞]
+  EStrLen (EVar _) :=: EIntA i 
+    | Just (Fin a) <- AInt.minimum i, Just PosInf <- AInt.maximum i, AInt.continuous i
+    -> return $ EStrA $ rep anyChar a <> star anyChar
 
-  EStrLen (EVar _) :≥: EInt i _ -> return $ EStrA $ rep anyChar i <> star anyChar
-
-  EStrLen (EVar _) :≥: EIntA a -> case aMinimum (a ∧ aIntegerGe 0) of
+  EStrLen (EVar _) :≥: EIntA a -> case AInt.minimum (a ∧ AInt.ge 0) of
     Just (Fin i) -> return $ EStrA $ rep anyChar i <> star anyChar
     _            -> return $ EStrA bot
+  
+  EStrLen (EVar _) :<: EIntA a | AInt.minimum a < Just (Fin 0) -> return $ EStrA bot
 
-  EStrLen (EVar _) :>: EInt i _ ->
-      return $ EAbs $ AString $ rep anyChar (i + 1) <> star anyChar
-
-  EStrLen (EVar _) :<: EInt 0 _ -> return $ EStrA bot
-  EStrLen (EVar _) :<: EIntA a
-    | aMinimum a < Just (Fin 0) -> return $ EStrA bot
-    
     -- TODO: ???? I don't know about these...
   EVar _ :=: EVar y -> return $ EVar y
   EVar _ :≠: EVar y -> return $ ENot (EVar y)
 
   EVar _ :=: e@(EStrLen (EVar _)) -> return e
     
-  EVar _ :≠: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ aIntegerNe 0)
-  EVar _ :<: e@(EStrLen (EVar _)) -> return $ e :-: (EIntA $ aIntegerGe 1)
-  EVar _ :>: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ aIntegerGe 1)
-  EVar _ :≥: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ aIntegerGe 0)
+  EVar _ :≠: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ AInt.ne 0)
+  EVar _ :<: e@(EStrLen (EVar _)) -> return $ e :-: (EIntA $ AInt.ge 1)
+  EVar _ :>: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ AInt.ge 1)
+  EVar _ :≥: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ AInt.ge 0)
 
 
     -- TODO: ???? I don't know about these...
