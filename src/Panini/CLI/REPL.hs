@@ -57,15 +57,15 @@ replMain panOpts = do
 
   void $ runPan panState0 $ runInputT replConf $ do
     lift smtInit
-    repl
+    repl panOpts
 
   whenJust traceFile hClose
   
   exitSuccess
 
 -- | Panini REPL.
-repl :: InputT Pan ()
-repl = outputStrLn banner >> loop
+repl :: PanOptions -> InputT Pan ()
+repl panOpts = outputStrLn banner >> loop
   where
     banner = version ++ "\nType :help for more information."
     prompt = "Panini> "
@@ -104,15 +104,16 @@ repl = outputStrLn banner >> loop
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
     
     commandPrefixes = map head $ groupBy ((==) `on` fst) $ sortOn fst $ concat
-                    $ map (uncurry zip . bimap (tail . inits) repeat) commands
+                    $ map (uncurry zip . bimap (tail . inits) repeat) 
+                    $ commands panOpts
     
 -------------------------------------------------------------------------------
 
-commands :: [(String, String -> InputT Pan ())]
-commands = 
+commands :: PanOptions -> [(String, String -> InputT Pan ())]
+commands panOpts = 
   [ ("help", const help)
   , ("load", loadFiles . words)
-  , ("show", showEnv)
+  , ("show", showEnv panOpts)
   ]
 
 help :: InputT Pan ()
@@ -138,18 +139,17 @@ loadFile f = lift $ continueOnError $ addSourceLinesToError $ do
   elaborate module_ prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
--- TODO: proper pretty printing
-showEnv :: String -> InputT Pan ()
-showEnv "modules" = do
+showEnv :: PanOptions -> String -> InputT Pan ()
+showEnv panOpts "modules" = do
   env <- lift get
-  outputStrLn $ showPretty $ prettyList env.loadedModules
-showEnv _ = do
+  liftIO $ putDocStdout panOpts $ prettyList env.loadedModules <> "\n"
+showEnv panOpts _ = do
   env <- lift get
   forM_ (Map.toAscList env.environment) $ \case
-    (_,Assumed{_name,_type}) -> outputStrLn $ showPretty $ 
-      pretty _name <+> ":" <+> pretty _type
-    (_,Verified{_name,_solvedType}) -> outputStrLn $ showPretty $ 
-      pretty _name <+> ":" <+> pretty _solvedType
+    (_,Assumed{_name,_type}) -> liftIO $ putDocStdout panOpts $ 
+      pretty _name <+> ":" <+> pretty _type <> "\n"
+    (_,Verified{_name,_solvedType}) -> liftIO $ putDocStdout panOpts $ 
+      pretty _name <+> ":" <+> pretty _solvedType <> "\n"
 
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do
@@ -177,7 +177,7 @@ autocomplete = fallbackCompletion completeCommands completeFiles
         then return []
         else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
 
-    cmds = [":quit", ":paste"] ++ map ((':':) . fst) commands
+    cmds = [":quit", ":paste"] ++ map ((':':) . fst) (commands undefined) -- TODO
 
     completeFiles (r,s) = case splitCmd (reverse r) of
       (":load", _) -> completeFilename (r,s)
