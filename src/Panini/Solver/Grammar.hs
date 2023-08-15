@@ -68,12 +68,27 @@ solveAll = foldM solve1 mempty
     solve1 s (GCon x k c) = do
       logMessage $ "Solve grammar variable" <+> pretty k
       g <- solve $ GCon x k $ apply s c
+      logMessage $ "Found grammar assignment for" <+> pretty k
       logData g
       return $ Map.union g s
 
 -- | Solve a grammar constraint @∀s:𝕊. κ(s) ⇒ c@, returning a solution for @κ@.
 solve :: GCon -> Pan Assignment
+
+-- Trick to solve (simple) recursions: eliminate recursive κ applications by
+-- replacing them simply with true, then try to solve normally. If the
+-- recursions did not actually affect the grammar, the solution will validate
+-- the VC, which still includes the recursive applications. Otherwise, the
+-- recursion must have encoded some information that was lost by this simple
+-- elimination and the VC will be judged invalid.
+solve (GCon s k c) | k `elem` kvars c = do
+  logData c
+  logMessage $ "Eliminate recursive grammar variable" <+> pretty k
+  let c' = apply [(k,PTrue)] c
+  solve (GCon s k c')
+
 solve (GCon s k c) = do
+  logData c
   c' <- rewrite c
   g <- joins <$> mapM ((meets <$>) . mapM (abstractVarString s)) (unDNF c')  
   p <- PRel <$> concretizeVar s (EAbs $ AString g)
