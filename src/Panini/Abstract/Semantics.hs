@@ -42,6 +42,20 @@ norm = Uniplate.rewrite $ \case
   EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ aIntegerAddI a b
   EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ aIntegerAddI b a
 
+  e         :-: EInt  0 _ -> Just e
+  EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
+  -- EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ aIntegerSubI a b
+  -- EInt  a   :-: EIntA b _ -> Just $ EAbs $ AInt $ aIntegerSubI b a
+  -- TODO
+  
+  EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
+  
+  EStrAt (EStr s _) (EInt i _) -> 
+    Just $ EStr (Text.singleton $ Text.index s (fromIntegral i)) NoPV
+
+  EStrSub (EStr s _) (EInt i _) (EInt j _) ->
+    Just $ EStr (Text.take (fromIntegral $ j - i + 1) $ Text.drop (fromIntegral i) s) NoPV
+
   -- TODO: normalize more operations
 
   _ -> Nothing
@@ -61,10 +75,13 @@ isolate x = \case
   r | x ∉ r -> r
   r | x ∉ leftSide r -> maybe r (isolate x) (converse r)
 
-  Rel op (e1 :+: e2) e3 | x ∈ e1 -> isolate x $ Rel op e1 $ norm (e3 :-: e2)
-  Rel op (e1 :+: e2) e3 | x ∈ e2 -> isolate x $ Rel op e2 $ norm (e3 :-: e1)  
-  Rel op (e1 :-: e2) e3 | x ∈ e1 -> isolate x $ Rel op e1 $ norm (e3 :+: e2)
-  Rel op (e1 :-: e2) e3 | x ∈ e2 -> isolate x $ Rel op e2 $ norm (e1 :+: e3)
+  Rel op (e1 :+: e2) e3 
+    | x ∈ e1 -> isolate x $ Rel op e1 $ norm (e3 :-: e2)
+    | x ∈ e2 -> isolate x $ Rel op e2 $ norm (e3 :-: e1)  
+  
+  Rel op (e1 :-: e2) e3 
+    | x ∈ e1 -> isolate x $ Rel op e1 $ norm (e3 :+: e2)
+    | x ∈ e2 -> isolate x $ Rel op e2 $ norm (e1 :+: e3)
 
   r -> r
 
