@@ -104,58 +104,39 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :<: EInt c _ -> return $ EIntA $ aIntegerLt c
   EVar _ :≤: EInt c _ -> return $ EIntA $ aIntegerLe c
 
-  EVar _ :=: EChar c _ -> return $ EStrA $ aStringLit (aCharEq c)
-  EVar _ :≠: EChar c _ -> return $ EStrA $ aStringLit (aCharNe c)
+  EVar _ :=: EChar c _ -> return $ EStrA $ lit (aCharEq c)
+  EVar _ :≠: EChar c _ -> return $ EStrA $ lit (aCharNe c)
 
   EVar _ :∈: EStrA s -> return $ EStrA s
 
   EStrAt (EVar _) (EInt i _) :=: EChar c _ ->
-    return $ EStrA $ mconcat [ aStringRep aStringSigma i
-                               , aStringLit (aCharEq c)
-                               , aStringStar aStringSigma]  -- Σ^(i-1)cΣ*
+    return $ EStrA $ rep anyChar i <> lit (aCharEq c) <> star anyChar
 
   EStrAt (EVar _) (EInt i _) :≠: EChar c _ -> 
-    return $ EStrA $ mconcat $ [ aStringRep aStringSigma i
-                                 , aStringLit (aCharNe c)
-                                 , aStringStar aStringSigma]
-
+    return $ EStrA $ rep anyChar i <> lit (aCharNe c) <> star anyChar
 
   -- TODO: find general solution, this only applies to |s| = [a,∞]
-  EStrLen _ :=: EIntA i
-      | Just (Fin a) <- aMinimum i
-      , Just PosInf <- aMaximum i
-      , aContinuous i
-      -> return $ EStrA $ mconcat [ aStringRep aStringSigma a
-                         , aStringStar aStringSigma ]
+  EStrLen (EVar _) :=: EIntA i
+    | Just (Fin a) <- aMinimum i, Just PosInf <- aMaximum i, aContinuous i
+    -> return $ EStrA $ rep anyChar a <> star anyChar
 
-
-  EStrLen (EVar _) :=: EInt i _ -> return $ EStrA $ aStringRep aStringSigma i
+  EStrLen (EVar _) :=: EInt i _ -> return $ EStrA $ rep anyChar i
 
   EStrLen (EVar _) :≠: EInt i _ ->
-      return $ EStrA $ joins1  -- Σ^(i-1) | Σ^(i+1)Σ*
-        [ aStringRep aStringSigma (i-1)
-        , mconcat [ aStringRep aStringSigma i
-                  , aStringStar aStringSigma]  
-        ]
+    return $ EStrA $ joins1 [ rep anyChar (i - 1), rep anyChar (i + 1) <> star anyChar]
 
-  EStrLen (EVar _) :≥: EInt i _ ->
-      return $ EStrA $ mconcat [ aStringRep aStringSigma i
-                      , aStringStar aStringSigma]  -- Σ^iΣ*
+  EStrLen (EVar _) :≥: EInt i _ -> return $ EStrA $ rep anyChar i <> star anyChar
 
-  EStrLen (EVar _) :≥: EIntA a ->
-      case aMinimum (a ∧ aIntegerGe 0) of
-        Just (Fin i) -> return $ EStrA $ mconcat [ aStringRep aStringSigma i
-                                        , aStringStar aStringSigma]  -- Σ^iΣ*
-        _ -> return $ EStrA bot
+  EStrLen (EVar _) :≥: EIntA a -> case aMinimum (a ∧ aIntegerGe 0) of
+    Just (Fin i) -> return $ EStrA $ rep anyChar i <> star anyChar
+    _            -> return $ EStrA bot
 
   EStrLen (EVar _) :>: EInt i _ ->
-      return $ EAbs $ AString $ mconcat [ aStringRep aStringSigma (i + 1)
-                               , aStringStar aStringSigma]  -- Σ^iΣ*                           
+      return $ EAbs $ AString $ rep anyChar (i + 1) <> star anyChar
 
-    -- TODO: hardcoded hack?
   EStrLen (EVar _) :<: EInt 0 _ -> return $ EStrA bot
   EStrLen (EVar _) :<: EIntA a
-      | aMinimum a < Just (Fin 0) -> return $ EStrA bot
+    | aMinimum a < Just (Fin 0) -> return $ EStrA bot
     
     -- TODO: ???? I don't know about these...
   EVar _ :=: EVar y -> return $ EVar y

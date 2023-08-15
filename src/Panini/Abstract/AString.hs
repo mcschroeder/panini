@@ -3,10 +3,10 @@
 
 module Panini.Abstract.AString
   ( AString
-  , aStringLit
-  , aStringRep
-  , aStringSigma
-  , aStringStar
+  , lit
+  , rep
+  , anyChar
+  , star
   , toRegLan
   ) where
 
@@ -40,7 +40,7 @@ instance MeetSemilattice AString where
   AString r1 ∧ AString r2 = AString $ intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
-  top = aStringStar aStringSigma
+  top = star anyChar
 
 instance JoinSemilattice AString where
   AString r1 ∨ AString r2 = AString $ rPlus r1 r2
@@ -48,17 +48,17 @@ instance JoinSemilattice AString where
 instance BoundedJoinSemilattice AString where
   bot = AString rZero
 
-aStringLit :: AChar -> AString
-aStringLit = AString . rLiteral . aCharToFiniteSet
+lit :: AChar -> AString
+lit = AString . rLiteral . aCharToFiniteSet
 
-aStringRep :: AString -> Integer -> AString
-aStringRep a n = mconcat $ replicate (fromIntegral n) a
+rep :: AString -> Integer -> AString
+rep a n = mconcat $ replicate (fromIntegral n) a
 
-aStringSigma :: AString
-aStringSigma = AString $ rLiteral $ aCharToFiniteSet top
+anyChar :: AString
+anyChar = AString $ rLiteral $ aCharToFiniteSet top
 
-aStringStar :: AString -> AString
-aStringStar (AString r) = AString $ rStar r
+star :: AString -> AString
+star (AString r) = AString $ rStar r
 
 instance Pretty AString where
   pretty (AString r) = pretty $ view r
