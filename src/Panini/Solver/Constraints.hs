@@ -60,7 +60,7 @@ instance Pretty Con where
     CAnd c1 c2 -> align $ pretty c1 <+> wedge <\> pretty c2
     CAll x b p c -> parens $ case c of
       CHead _ ->          forall_ <+> pretty p <+> symImplies <+> pretty c
-      _       -> hang 2 $ forall_ <+> pretty p <+> symImplies <\> pretty c
+      _       -> hang 1 $ forall_ <+> pretty p <+> symImplies <\> pretty c
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
