@@ -97,11 +97,17 @@ instance Subable Pred where
     PRel r     -> PRel (subst x y r)
     p          -> descend (subst x y) p
 
-  freeVars p0 = mconcat . flip map (universe p0) $ \case
-    PExists n _ p -> freeVars p \\ [n]    
+  freeVars = \case
+    PTrue         -> []
+    PFalse        -> []
+    PAnd ps       -> mconcat $ map freeVars ps
+    POr ps        -> mconcat $ map freeVars ps
+    PImpl p1 p2   -> freeVars p1 <> freeVars p2
+    PIff p1 p2    -> freeVars p1 <> freeVars p2
+    PNot p        -> freeVars p
+    PRel r        -> freeVars r
     PAppK _ xs    -> mconcat $ map freeVars xs
-    PRel r        -> freeVars r    
-    _             -> []
+    PExists x _ p -> freeVars p \\ [x]
     
 ------------------------------------------------------------------------------
 
@@ -113,11 +119,19 @@ instance Subable Rel where
 
 instance Subable Expr where
   subst x y = descendBi (subst @Value x y)    
-  
-  freeVars e0 = mconcat . flip map (universe e0) $ \case
-    EVal (Var n) -> [n]
-    EFun f es    -> [f] <> mconcat (map freeVars es)
-    _            -> []
+
+  freeVars = \case
+    EVal (Var x)     -> [x]
+    EVal (Con _)     -> []
+    EAbs _           -> []
+    ENot e           -> freeVars e
+    EAdd e1 e2       -> freeVars e1 <> freeVars e2
+    ESub e1 e2       -> freeVars e1 <> freeVars e2
+    EMul e1 e2       -> freeVars e1 <> freeVars e2
+    EStrLen e        -> freeVars e
+    EStrAt e1 e2     -> freeVars e1 <> freeVars e2
+    EStrSub e1 e2 e3 -> freeVars e1 <> freeVars e2 <> freeVars e3
+    EFun f es        -> [f] <> mconcat (map freeVars es)
 
 ------------------------------------------------------------------------------
 
