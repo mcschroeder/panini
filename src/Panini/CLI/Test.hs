@@ -3,6 +3,7 @@ module Panini.CLI.Test (testMain) where
 
 import Control.Exception
 import Control.Monad.Extra
+import Data.Either
 import Data.Function
 import Data.List qualified as List
 import Data.Maybe
@@ -20,7 +21,7 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
-import Data.Either
+import Text.Printf
 
 -------------------------------------------------------------------------------
 
@@ -43,9 +44,12 @@ testMain globalOpts = assert globalOpts.testMode $ do
     exitFailure
 
  where
+  testName :: String -> Doc
+  testName inFile = pretty @String $ printf "%-40s " inFile
+
   runTest :: FilePath -> IO Bool
   runTest inFile = do
-    putDoc $ pretty inFile <+> "... "
+    putDoc $ testName inFile
     outFileExists <- doesFileExist (outFileFor inFile)
     errFileExists <- doesFileExist (errFileFor inFile)
     if outFileExists && errFileExists then do
@@ -77,7 +81,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       getInferredTypes
 
     whenJust traceFile hClose
-    when globalOpts.trace $ putDoc $ pretty inFile <+> "... "
+    when globalOpts.trace $ putDoc $ testName inFile
 
     let success = either (const False) isRight result
     let output = either viaShow (either pretty (vsep . map pretty)) result
@@ -92,7 +96,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
     if goldenFileExists then do
       expected <- Text.readFile goldenFile
       if actual /= expected then do
-        putDocLn $ ann Error "FAIL" <\> diff expected actual
+        putDocLn $ ann Error "FAIL" <\> diff goldenFile expected actual
         return False
       else do
         putDocLn $ ann Success "OK"
@@ -104,22 +108,26 @@ testMain globalOpts = assert globalOpts.testMode $ do
       if otherFileExists then do
         expected <- Text.readFile otherFile
         if actual /= expected then do
-          putDocLn $ ann Error "FAIL" <\> diff expected actual
+          putDocLn $ ann Error "FAIL" <\> diff otherFile expected actual
           return False
         else do
           putDocLn $ ann Error "FAIL" <+> "wrong exit code"
           return False
       else do
         withFile goldenFile WriteMode $ \h -> Text.hPutStr h actual      
-        putDocLn $ "created golden file" <+> pretty goldenFile
+        putDocLn $ 
+          ann Message "created golden file" <\>
+          ann Margin (divider symDivH (Just $ Right goldenFile)) <\>
+          pretty actual <\>
+          pretty (ann Margin $ divider symDivH Nothing) <> "\n"
         return True
   
-  diff :: Text -> Text -> Doc
-  diff expected actual = 
-    ann Margin (divider symDivH (Just $ Left "Expected")) <\>
+  diff :: FilePath -> Text -> Text -> Doc
+  diff expectedFile expected actual = 
+    ann Margin (divider symDivH (Just $ Right expectedFile)) <\>
     pretty expected <\>
-    ann Margin (divider symDivH (Just $ Left "Actual")) <\>
-    pretty actual <\>
+    ann Margin (divider symDivH (Just $ Right "Actual Output")) <\>
+    pretty actual <\>    
     pretty (ann Margin $ divider symDivH Nothing) <> "\n"
 
   outFileFor, errFileFor :: FilePath -> FilePath
