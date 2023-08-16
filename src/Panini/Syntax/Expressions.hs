@@ -73,21 +73,24 @@ typeOfExpr = \case
   EStrAt _ _    -> Just TString
   EStrSub _ _ _ -> Just TString
   EFun _ _      -> Nothing
-  
+
+eqTypeAE :: AValue -> Expr -> Bool
+eqTypeAE a e =  maybe True (typeOfAValue a ==) (typeOfExpr e)
+-- note: we assume that variables are always of the right type
+-- TODO: have vars track their types
+-- TODO: add a predicate typechecking pass
+
 -- TODO: allow more expression meets
 instance PartialMeetSemilattice Expr where  
   EAbs a ∧? EAbs b = EAbs <$> a ∧? b
     
   EAbs a ∧? e
-    | containsTop a, maybe True (typeOfAValue a ==) (typeOfExpr e) = Just e
-    -- note: we assume that variables are always of the right type
-    -- TODO: have vars track their types
-    -- TODO: add a predicate typechecking pass
+    | containsTop a, eqTypeAE a e = Just e
+    | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
 
   e ∧? EAbs a
-    | containsTop a, maybe True (typeOfAValue a ==) (typeOfExpr e) = Just e
-
-  -- TODO: add containsBot meet
+    | containsTop a, eqTypeAE a e = Just e
+    | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing

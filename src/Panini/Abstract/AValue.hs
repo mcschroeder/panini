@@ -3,8 +3,8 @@ module Panini.Abstract.AValue
   , ABool
   , AInt
   , AString
-  , containsTop
-  , containsBot
+  , containsTop, containsBot
+  , fillTop, fillBot
   , typeOfAValue
   ) where
 
@@ -51,6 +51,18 @@ containsBot = \case
   ABool   a -> isBot a
   AInt    a -> isBot a
   AString a -> isBot a
+
+fillTop :: AValue -> AValue
+fillTop = \case
+  ABool   _ -> ABool top
+  AInt    _ -> AInt top
+  AString _ -> AString top
+
+fillBot :: AValue -> AValue
+fillBot = \case
+  ABool   _ -> ABool bot
+  AInt    _ -> AInt bot
+  AString _ -> AString bot
 
 typeOfAValue :: AValue -> Base
 typeOfAValue = \case
