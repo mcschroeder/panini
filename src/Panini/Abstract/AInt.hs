@@ -19,6 +19,8 @@ module Panini.Abstract.AInt
   , ltA
   , leA
   , addI
+  , subI
+  , iSub
   , continuous
   , Inf(..)
   ) where
@@ -178,11 +180,22 @@ instance Pretty AInt where
                     $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
 
 
-
+-- TODO: finish addI
 addI :: AInt -> Integer -> AInt
 addI (AInt xs) i = case xs of
   [In (Fin a) PosInf] -> AInt [In (Fin (a + i)) PosInf]
-  _ -> undefined -- TODO
+  _ -> error $ showPretty $ "not implemented: AInt.addI" <+> pretty (AInt xs) <+> pretty i
+
+-- TODO: finish subI
+subI :: AInt -> Integer -> AInt
+subI (AInt xs) i = case xs of
+  [In (Fin a) PosInf] -> AInt [In (Fin (a - 1)) PosInf] 
+  _ -> error $ showPretty $ "not implemented: AInt.subI" <+> pretty (AInt xs) <+> pretty i
+
+iSub :: Integer -> AInt -> AInt
+iSub i (AInt xs) = case xs of
+  [In (Fin a) PosInf] | i >= 0 -> AInt [In NegInf (Fin (i - a))]
+  _ -> error $ showPretty $ "not implemented: AInt.iSub" <+> pretty (AInt xs) <+> pretty i
 
 -------------------------------------------------------------------------------
 

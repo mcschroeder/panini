@@ -44,9 +44,8 @@ norm = Uniplate.rewrite $ \case
 
   e         :-: EInt  0 _ -> Just e
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
-  -- EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ aIntegerSubI a b
-  -- EInt  a   :-: EIntA b _ -> Just $ EAbs $ AInt $ aIntegerSubI b a
-  -- TODO
+  EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ AInt.subI a b
+  EInt  a _ :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.iSub a b
   
   EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
   
@@ -104,6 +103,11 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :<: EInt c _ -> return $ EIntA $ AInt.lt c
   EVar _ :≤: EInt c _ -> return $ EIntA $ AInt.le c
 
+  EVar _ :=: EAbs a -> return $ EAbs a
+
+  EVar _ :>: EIntA a -> return $ EIntA $ AInt.gtA a
+  EVar _ :≥: EIntA a -> return $ EIntA $ AInt.geA a
+
   EVar _ :=: EChar c _ -> return $ EStrA $ lit (AChar.eq c)
   EVar _ :≠: EChar c _ -> return $ EStrA $ lit (AChar.ne c)
 
@@ -113,6 +117,10 @@ abstractVar x b r0 = case isolate x (normRel r0) of
 
   EStrAt (EVar _) (EInt i _) :=: EChar c _ -> return $ EStrA $ rep anyChar i <> lit (AChar.eq c) <> star anyChar
   EStrAt (EVar _) (EInt i _) :≠: EChar c _ -> return $ EStrA $ rep anyChar i <> lit (AChar.ne c) <> star anyChar
+
+  -- TODO: WARNING: these are over-approximations! (or are they?)
+  EStrAt (EVar s) (EVar i) :=: EChar _ _ | x == i -> return $ EStrLen (EVar s) :-: (EIntA $ AInt.gt 0)
+  EStrAt (EVar s) (EVar i) :≠: EChar _ _ | x == i -> return $ EStrLen (EVar s) :-: (EIntA $ AInt.gt 0)
 
   EStrLen (EVar _) :=: EInt i _ -> return $ EStrA $ rep anyChar i
   EStrLen (EVar _) :≠: EInt i _ -> return $ EStrA $ joins1 [rep anyChar (i - 1), rep anyChar (i + 1) <> star anyChar]
