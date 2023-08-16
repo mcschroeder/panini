@@ -25,6 +25,7 @@ data Error
   | IOError PV String
   | AbstractionImpossible Rel Name
   | ConcretizationImpossible Expr Name
+  | MeetImpossible Expr Expr PV
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
@@ -41,6 +42,7 @@ instance HasProvenance Error where
   getPV (IOError pv _) = pv
   getPV (AbstractionImpossible _ x) = getPV x -- TODO: ?
   getPV (ConcretizationImpossible _ x) = getPV x -- TODO: ?
+  getPV (MeetImpossible _ _ pv) = pv
 
   setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
   setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
@@ -55,6 +57,7 @@ instance HasProvenance Error where
   setPV pv (IOError _ e) = IOError pv e
   setPV pv (AbstractionImpossible r x) = AbstractionImpossible r (setPV pv x)
   setPV pv (ConcretizationImpossible e x) = ConcretizationImpossible e (setPV pv x)
+  setPV pv (MeetImpossible e1 e2 _) = MeetImpossible e1 e2 pv
 
 -------------------------------------------------------------------------------
 
@@ -117,9 +120,15 @@ prettyErrorMessage = \case
         "⟦" <> pretty e <> "⟧↓" <> pretty x 
     ]
 
+  MeetImpossible e1 e2 _ -> bullets
+    [ group $ 
+        (nest 4 $ msg "Cannot meet" <\> pretty e1) <\> 
+        (nest 4 $ msg "with" <\> pretty e2)
+    ]
+
   where
     msg     = ann Message . pretty @Text
-    bullets = mconcat . List.intersperse "\n" . map ("•" <+>)
+    bullets = mconcat . List.intersperse "\n" . map (\d -> "•" <+> align d)
 
 wavyDiagnostic :: SrcLoc -> Text -> Doc
 wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =

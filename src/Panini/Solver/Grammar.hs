@@ -22,8 +22,10 @@ import Data.Maybe
 import GHC.Generics
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
+import Panini.Error
 import Panini.Monad
 import Panini.Pretty
+import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -208,7 +210,7 @@ varElim x b ps = do
         x̂₁ <- abstractVar x b p
         case x̂₀ ∧? x̂₁ of
           Just x̂ -> return $ Map.insert v̄ x̂ x̂s
-          Nothing -> panic $ "cannot meet" <+> pretty (x̂₀,x̂₁)
+          Nothing -> throwError $ MeetImpossible x̂₀ x̂₁ (getPV x)
   x̂s <- foldM refine x̂s₀ pvs
 
   case fromJust $ Map.lookup [x] x̂s of
