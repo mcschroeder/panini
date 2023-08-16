@@ -124,17 +124,23 @@ extension is quite handy to easily input Unicode symbols.
 
 Alternatively, you can use the following ASCII equivalents for common symbols:
 
-| Unicode     | ASCII | Description
-|-------------|-------|-------------
-| `λ`         | `\`   | lambda abstraction
-| `→`         | `->`  | function arrow
-| `∧`         | `/\`  | conjunction
-| `∨`         | `\/`  | disjunction
-| `¬`         | `~`   | negation
-| `≠`         | `/=`  | disequality
-| `≤`         | `<=`  | less than or equal
-| `≥`         | `>=`  | greater than or equal
-| `⇒` or `⟹` | `==>` | implication
-| `⇔` or `⟺` | `<=>` | iff
+| Unicode | ASCII    | LaTex     | Description
+|---------|----------|-----------|-------------
+| `λ`     | `\`      | `\lambda` | lambda abstraction
+| `→`     | `->`     | `\to`     | function arrow
+| `𝟙`     | `unit`   | `\bb1`    | unit type
+| `𝔹`     | `bool`   | `\bbB`    | Boolean type
+| `ℤ`     | `int`    | `\bbZ`    | integer type
+| `ℕ`     | `nat`    | `\bbN`    | natural number type (unused)
+| `𝕊`     | `string` | `\bbS`    | string type
+| `∧`     | `/\`     | `\wedge`  | conjunction
+| `∨`     | `\/`     | `\vee`    | disjunction
+| `¬`     | `~`      | `\neg`    | negation
+| `≠`     | `/=`     | `\ne`     | inequality
+| `≤`     | `<=`     | `\le`     | less than or equal
+| `≥`     | `>=`     | `\ge`     | greater than or equal
+| `⇒` or `⟹` | `==>` | `\Rightarrow` or `\implies` | implication
+| `⇔` or `⟺` | `<=>` | `\Leftrightarrow` or `\iff` | iff
+
 
 Panini also has a `--no-unicode` flag which outputs only ASCII (but still permits Unicode input).
