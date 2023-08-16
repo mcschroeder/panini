@@ -9,8 +9,7 @@ eq : (a:ℤ) → (b:ℤ) → { c:𝔹 | c = true ⟺ a = b }
 and : (a:𝔹) → (b:𝔹) → { c:𝔹 | c = true ⟺ (a = true ∧ b = true) }
 assert : { b:𝔹 | b = true } → 𝟙
 
-parser : 𝕊 → 𝟙
-= \s:𝕊.
+parser = \s:𝕊.
     let n = length s in
     rec go1 : ℤ → ℤ → 𝟙 = λi1:ℤ. λj1:ℤ.
       let p1 = lt i1 n in
