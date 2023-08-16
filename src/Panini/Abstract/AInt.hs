@@ -4,6 +4,7 @@ module Panini.Abstract.AInt
   ( AInt
   , concreteCount
   , concreteValues
+  , concreteMember
   , minimum
   , maximum
   -- , toPred
@@ -65,6 +66,20 @@ concreteValues (AInt xs) = go xs
     go (In NegInf  (Fin b) : ys) = interleave [b,b-1..] (go ys)
     go (In NegInf  PosInf  : _ ) = interleave [0..] [-1,-2..]
     go []                        = []
+    go _                         = error "impossible"
+
+-- | Is the value represented by the abstract integer?
+concreteMember :: Integer -> AInt -> Bool
+concreteMember n (AInt xs)= go xs
+  where
+    go (In (Fin a) (Fin b) : ys) | n >= a, n <= b = True
+                                 | otherwise      = go ys
+    go (In (Fin a) PosInf  : _ ) | n >= a         = True
+                                 | otherwise      = False
+    go (In NegInf  (Fin b) : ys) | n <= b         = True
+                                 | otherwise      = go ys
+    go (In NegInf  PosInf  : _ ) = True
+    go []                        = False
     go _                         = error "impossible"
 
 -- | Interleaves two lists.

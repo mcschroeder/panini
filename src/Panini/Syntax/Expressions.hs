@@ -1,10 +1,12 @@
 module Panini.Syntax.Expressions where
 
 import Algebra.Lattice
+import Control.Applicative
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
 import GHC.Generics (Generic)
+import Panini.Abstract.AInt as AI
 import Panini.Abstract.AValue
 import Panini.Pretty
 import Panini.Provenance
@@ -61,6 +63,8 @@ pattern e1 :+: e2 = EAdd e1 e2
 pattern (:-:) :: Expr -> Expr -> Expr
 pattern e1 :-: e2 = ESub e1 e2
 
+------------------------------------------------------------------------------
+
 typeOfExpr :: Expr -> Maybe Base
 typeOfExpr = \case
   EVal v        -> typeOfValue v
@@ -80,20 +84,27 @@ eqTypeAE a e =  maybe True (typeOfAValue a ==) (typeOfExpr e)
 -- TODO: have vars track their types
 -- TODO: add a predicate typechecking pass
 
+------------------------------------------------------------------------------
+
 -- TODO: allow more expression meets
 instance PartialMeetSemilattice Expr where  
-  EAbs a ∧? EAbs b = EAbs <$> a ∧? b
-    
-  EAbs a ∧? e
-    | containsTop a, eqTypeAE a e = Just e
-    | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
-
-  e ∧? EAbs a
-    | containsTop a, eqTypeAE a e = Just e
-    | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
-
+  EAbs a ∧? EAbs b = EAbs <$> a ∧? b  
+  
   a ∧? b | a == b    = Just a
-         | otherwise = Nothing
+         | otherwise = tryMeetE a b <|> tryMeetE b a
+
+tryMeetE :: Expr -> Expr -> Maybe Expr
+tryMeetE (EAbs a) e
+  | containsTop a, eqTypeAE a e = Just e
+  | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
+  
+tryMeetE (EVar x) (EVar y :+: EAbs (AInt a))
+  | x == y, AI.concreteMember 0 a = Just $ EVar x
+  | x == y                        = Just $ EAbs (AInt bot)
+  
+tryMeetE _ _ = Nothing
+
+------------------------------------------------------------------------------
 
 instance Uniplate Expr where
   uniplate = \case
