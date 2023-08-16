@@ -69,6 +69,19 @@ simplifyPred = transform $ \case
   PExists x _ (PRel (Rel Eq (EVar v1) (EVar v2)))  -- ∃x. x = y
     | x == v1 || x == v2 -> PTrue
 
+  -- ∃x. x = z ∧ x = y₁ ∧ … ∧ x = yₙ   -->  y₁ = z ∧ … ∧ yₙ = z
+  PExists x _ (PAnd (PRel (EVar x1 :=: z@(EVal _)):ps))
+    | x == x1
+    , ys <- extract ps
+    , length ys == length ps 
+    -> PAnd $ map (\y -> PRel (EVar y :=: z)) ys
+    where
+      extract (PRel (EVar a :=: EVar b) : rs)
+        | x == a = b : extract rs
+        | x == b = a : extract rs
+      extract _ = []
+
+
   PRel (Rel Eq p q) | p == q -> PTrue
   PRel (Rel Le p q) | p == q -> PTrue
   PRel (Rel Ge p q) | p == q -> PTrue
