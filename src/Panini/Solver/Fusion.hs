@@ -39,15 +39,20 @@ solve ks_ex c0 = do
   logMessage $ "Non-excluded non-cut variables = " <\> pretty ks
 
   logMessage "Compute exact solutions for non-excluded non-cut variables"
-  let c1 = elim (Set.toAscList ks) c0
+  c1 <- elim (Set.toAscList ks) c0
   logData c1
   
   return c1
   
 -- | Eliminates a set of acyclic κ-variables iteratively via 'elim1'.
-elim :: [KVar] -> Con -> Con
-elim []     c = c
-elim (k:ks) c = elim ks (elim1 k c)
+elim :: [KVar] -> Con -> Pan Con
+elim ks c0 = foldM elimOne c0 ks
+ where
+  elimOne c k = do
+    logMessage $ "Eliminate" <+> pretty k
+    let c' = elim1 k c
+    -- logData c'
+    return c'
 
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
 -- scoped solution for κ in c.
