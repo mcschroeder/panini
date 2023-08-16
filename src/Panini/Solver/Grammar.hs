@@ -214,9 +214,7 @@ varElim x b ps = do
   x̂s <- foldM refine x̂s₀ pvs
 
   case fromJust $ Map.lookup [x] x̂s of
-    EAbs (ABool   a) | isBot a -> return Nothing
-    EAbs (AInt    a) | isBot a -> return Nothing
-    EAbs (AString a) | isBot a -> return Nothing
+    EAbs a | containsBot a -> return Nothing
     x̂Self -> do
       let x̂s' = filter (([x] /=) . fst) $ Map.assocs x̂s
       -- TODO: pick "smallest" meet

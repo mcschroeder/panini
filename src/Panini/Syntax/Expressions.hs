@@ -65,10 +65,11 @@ pattern e1 :-: e2 = ESub e1 e2
 instance PartialMeetSemilattice Expr where  
   EAbs a ∧? EAbs b = EAbs <$> a ∧? b
   
-   -- TODO: Is this correct?
-  EAbs (ABool   a) ∧? e | isTop a = Just e
-  EAbs (AInt    a) ∧? e | isTop a = Just e
-  EAbs (AString a) ∧? e | isTop a = Just e
+  -- TODO: check that e is of the same type
+  EAbs a ∧? e | containsTop a = Just e
+  e ∧? EAbs a | containsTop a = Just e
+
+  -- TODO: add containsBot meet
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing

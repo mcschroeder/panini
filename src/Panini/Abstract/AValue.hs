@@ -3,6 +3,8 @@ module Panini.Abstract.AValue
   , ABool
   , AInt
   , AString
+  , containsTop
+  , containsBot
   ) where
 
 import Algebra.Lattice
@@ -26,8 +28,8 @@ instance Hashable AValue
 
 instance Pretty AValue where
   pretty = \case
-    ABool a -> pretty a
-    AInt a -> pretty a
+    ABool   a -> pretty a
+    AInt    a -> pretty a
     AString a -> pretty a
 
 instance PartialMeetSemilattice AValue where
@@ -35,6 +37,18 @@ instance PartialMeetSemilattice AValue where
   AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
   _         ∧? _         = Nothing
+
+containsTop :: AValue -> Bool
+containsTop = \case
+  ABool   a -> isTop a
+  AInt    a -> isTop a
+  AString a -> isTop a
+
+containsBot :: AValue -> Bool
+containsBot = \case
+  ABool   a -> isBot a
+  AInt    a -> isBot a
+  AString a -> isBot a
 
 -- instance Complementable AValue where
 --   neg (ABool   a) = ABool   (neg a)
