@@ -136,6 +136,11 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :=: EVar y -> return $ EVar y
   EVar _ :≠: EVar y -> return $ ENot (EVar y)
 
+  EVar _ :>: EVar y -> return $ EVar y :+: (EIntA $ AInt.gt 0)
+  EVar _ :≥: EVar y -> return $ EVar y :+: (EIntA $ AInt.ge 0)
+  EVar _ :<: EVar y -> return $ EVar y :+: (EIntA $ AInt.lt 0)
+  EVar _ :≤: EVar y -> return $ EVar y :+: (EIntA $ AInt.le 0)
+
   EVar _ :=: e@(EStrLen (EVar _)) -> return e
     
   EVar _ :≠: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ AInt.ne 0)
@@ -143,6 +148,7 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :>: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ AInt.ge 1)
   EVar _ :≥: e@(EStrLen (EVar _)) -> return $ e :+: (EIntA $ AInt.ge 0)
 
+  EVar _ :=: e@(EStrAt (EVar _) (EVar _)) -> return e
 
     -- TODO: ???? I don't know about these...
   EVar _ :=: e@(EStrAt (EVar _) (ECon _)) -> return $ e       -- x = s[i]
