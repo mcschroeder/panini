@@ -5,6 +5,7 @@ module Panini.Abstract.AValue
   , AString
   , containsTop
   , containsBot
+  , typeOfAValue
   ) where
 
 import Algebra.Lattice
@@ -14,6 +15,7 @@ import Panini.Abstract.ABool
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
 import Panini.Pretty
+import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -49,6 +51,12 @@ containsBot = \case
   ABool   a -> isBot a
   AInt    a -> isBot a
   AString a -> isBot a
+
+typeOfAValue :: AValue -> Base
+typeOfAValue = \case
+  ABool   _ -> TBool
+  AInt    _ -> TInt
+  AString _ -> TString
 
 -- instance Complementable AValue where
 --   neg (ABool   a) = ABool   (neg a)

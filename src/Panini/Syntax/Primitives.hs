@@ -69,6 +69,13 @@ instance Pretty Constant where
   pretty (I c     _) = ann (Literal NumberLit) $ pretty c
   pretty (S t     _) = ann (Literal StringLit) $ viaShow t
 
+typeOfConstant :: Constant -> Base
+typeOfConstant = \case
+  U _   -> TUnit 
+  B _ _ -> TBool 
+  I _ _ -> TInt
+  S _ _ -> TString
+
 ------------------------------------------------------------------------------
 
 -- | A value is either a primitive constant or a variable.
@@ -85,3 +92,8 @@ instance Pretty Value where
 
 instance Uniplate Value where
   uniplate = plate
+
+typeOfValue :: Value -> Maybe Base
+typeOfValue = \case
+  Con c -> Just $ typeOfConstant c
+  Var _ -> Nothing

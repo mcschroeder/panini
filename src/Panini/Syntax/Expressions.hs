@@ -61,13 +61,31 @@ pattern e1 :+: e2 = EAdd e1 e2
 pattern (:-:) :: Expr -> Expr -> Expr
 pattern e1 :-: e2 = ESub e1 e2
 
+typeOfExpr :: Expr -> Maybe Base
+typeOfExpr = \case
+  EVal v        -> typeOfValue v
+  EAbs a        -> Just $ typeOfAValue a
+  ENot _        -> Just TBool
+  EAdd _ _      -> Just TInt
+  ESub _ _      -> Just TInt
+  EMul _ _      -> Just TInt
+  EStrLen _     -> Just TInt
+  EStrAt _ _    -> Just TString
+  EStrSub _ _ _ -> Just TString
+  EFun _ _      -> Nothing
+  
 -- TODO: allow more expression meets
 instance PartialMeetSemilattice Expr where  
   EAbs a ∧? EAbs b = EAbs <$> a ∧? b
-  
-  -- TODO: check that e is of the same type
-  EAbs a ∧? e | containsTop a = Just e
-  e ∧? EAbs a | containsTop a = Just e
+    
+  EAbs a ∧? e
+    | containsTop a, maybe True (typeOfAValue a ==) (typeOfExpr e) = Just e
+    -- note: we assume that variables are always of the right type
+    -- TODO: have vars track their types
+    -- TODO: add a predicate typechecking pass
+
+  e ∧? EAbs a
+    | containsTop a, maybe True (typeOfAValue a ==) (typeOfExpr e) = Just e
 
   -- TODO: add containsBot meet
 
