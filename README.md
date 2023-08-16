@@ -50,14 +50,14 @@ Grammar Inference for Ad Hoc Parsers
   ```
 
 * `panini --test` runs Panini in test mode: by default, all files matching
-  `tests/*.in` will be processed and their outputs compared against the
-  corresponding `tests/*.out` files.
+  `tests/*.pan` will be processed and their outputs compared against the
+  corresponding `tests/*.out` or `tests/*.err` files.
 
   ```console
   > panini --test
-  tests/T1.in ... OK
-  tests/T2.in ... OK
-  tests/T3.in ... OK
+  tests/T1.pan ... OK
+  tests/T2.pan ... OK
+  tests/T3.pan ... OK
   ...
   ```
 
