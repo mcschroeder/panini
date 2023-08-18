@@ -41,11 +41,20 @@ norm = Uniplate.rewrite $ \case
   EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV  
   EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ AInt.addI a b
   EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.addI b a
+  EIntA a   :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add a b
+
+  -- TODO
+  _         :-: EIntA b | isTop b -> Just $ EIntA b
 
   e         :-: EInt  0 _ -> Just e
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
   EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ AInt.subI a b
   EInt  a _ :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.iSub a b
+  EIntA a   :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub a b
+
+
+  -- TODO
+  (e1 :-: e2) :-: e3 -> Just $ norm $ e1 :-: norm (e2 :+: e3)  
   
   EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
   
@@ -114,6 +123,9 @@ abstractVar x b r0 = case isolate x (normRel r0) of
   EVar _ :=: EStr s _ -> return $ EStrA $ AString.eq $ Text.unpack s
 
   EVar _ :∈: EStrA s -> return $ EStrA s
+
+  -- TODO: generalize rhs
+  EVar _ :<: (e1 :-: e2) -> return $ norm $ ((e1 :-: e2) :-: (EIntA $ AInt.ge 1))
 
   EStrAt (EVar _) (EInt i _) :=: EChar c _ -> return $ EStrA $ rep anyChar i <> lit (AChar.eq c) <> star anyChar
   EStrAt (EVar _) (EInt i _) :≠: EChar c _ -> return $ EStrA $ rep anyChar i <> lit (AChar.ne c) <> star anyChar

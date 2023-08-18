@@ -19,8 +19,10 @@ module Panini.Abstract.AInt
   , ltA
   , leA
   , addI
+  , add
   , subI
   , iSub
+  , sub
   , continuous
   , Inf(..)
   ) where
@@ -186,16 +188,33 @@ addI (AInt xs) i = case xs of
   [In (Fin a) PosInf] -> AInt [In (Fin (a + i)) PosInf]
   _ -> error $ showPretty $ "not implemented: AInt.addI" <+> pretty (AInt xs) <+> pretty i
 
+-- TODO: finish add
+add :: AInt -> AInt -> AInt
+add (AInt xs) (AInt ys) = case (xs, ys) of
+  ([In (Fin a) (Fin b)], [In (Fin c) (Fin d)]) -> AInt [In (Fin $ a + c) (Fin $ b + d)]
+  ([In NegInf (Fin _)], [In (Fin _) PosInf]) -> AInt [In NegInf PosInf]
+  ([In (Fin a) PosInf], [In (Fin c) PosInf]) -> AInt [In (Fin $ a + c) PosInf]
+  _ -> error $ showPretty $ "not implemented: AInt.add" <+> pretty (AInt xs) <+> pretty (AInt ys)
+
+
 -- TODO: finish subI
 subI :: AInt -> Integer -> AInt
 subI (AInt xs) i = case xs of
   [In (Fin a) PosInf] -> AInt [In (Fin (a - 1)) PosInf] 
   _ -> error $ showPretty $ "not implemented: AInt.subI" <+> pretty (AInt xs) <+> pretty i
 
+-- TODO: finish iSub
 iSub :: Integer -> AInt -> AInt
 iSub i (AInt xs) = case xs of
   [In (Fin a) PosInf] | i >= 0 -> AInt [In NegInf (Fin (i - a))]
   _ -> error $ showPretty $ "not implemented: AInt.iSub" <+> pretty (AInt xs) <+> pretty i
+
+-- TODO: finish sub
+sub :: AInt -> AInt -> AInt
+sub (AInt xs) (AInt ys) = case (xs, ys) of
+  ([In (Fin a) (Fin b)], [In (Fin c) (Fin d)]) -> AInt [In (Fin $ a - d) (Fin $ b - c)]
+  ([In NegInf (Fin b)], [In (Fin c) PosInf]) -> AInt [In (Fin 0) (Fin $ b - c)]
+  _ -> error $ showPretty $ "not implemented: AInt.sub" <+> pretty (AInt xs) <+> pretty (AInt ys)
 
 -------------------------------------------------------------------------------
 
