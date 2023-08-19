@@ -176,6 +176,21 @@ abstractVar x b r0 = case isolate x (normRel r0) of
 
   -- TODO: generalize this sort of thing
   EVar _ :=: e@(EVar _ :-: EInt _ _) -> return e
+  
+  -- note: the following abstractions are over-fitting on tests 013 and 016
+  -- TODO: generalize these / are they even correct?
+  EVar _ :=: e@(EStrSub (EVar _) (EInt _ _) (EVar _)) -> return e
+  EStrSub (EVar _s) (EInt 0 _) (EVar n) :=: EVar t 
+    | n == x -> return $ EStrLen (EVar t) :-: EInt 1 NoPV
+  e@(EStrSub (EVar _s) (EInt 0 _) (EStrLen (EVar t1))) :=: EVar t2 
+    | t1 == x, t2 == x -> return e
+  EStrSub (EVar s) (EInt 0 _) (EStrLen (EVar _t)) :=: EStr y _
+    | s == x -> return $ EStrA $ AString.eq (Text.unpack y) <> star anyChar
+    -- TODO: what if |t| /= |y| ??
+  EStrLen (EStrSub (EVar s) (EInt 0 _) _) :≥: EInt 0 _
+    | s == x -> return $ EStrA $ star anyChar  
+    -- TODO: over-approximation?
+  
 
   r -> throwError $ AbstractionImpossible r x
 

@@ -1,1 +1,1 @@
-prefix_check : {s:𝕊 | s ∈ httpΣ} → 𝟙
+prefix_check : {s:𝕊 | s ∈ httpΣ*} → 𝟙
