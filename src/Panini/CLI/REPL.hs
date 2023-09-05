@@ -13,6 +13,7 @@ import Data.Bifunctor
 import Data.Char (isSpace, toLower)
 import Data.Function
 import Data.List (isPrefixOf, groupBy, sortOn, inits)
+import Data.List qualified as List
 import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -168,23 +169,22 @@ replSettings histFile =
       autoAddHistory = True
     }
 
--- TODO: improve this hacky implementation
 autocomplete :: CompletionFunc Pan
-autocomplete = fallbackCompletion completeCommands completeFiles
+autocomplete = (sorted <$>) . fallbackCompletion completeCommands completeFiles
   where
-    completeCommands = completeWord' Nothing isSpace $ \str -> do
-      if null str
-        then return []
-        else return $ map simpleCompletion $ filter (str `isPrefixOf`) cmds
-
-    cmds = [":quit", ":paste"] ++ map ((':':) . fst) (commands undefined) -- TODO
+    completeCommands = completeWord' Nothing isSpace $ \case
+      [] -> return []
+      s  -> return $ map simpleCompletion $ filter (s `isPrefixOf`) cmds
+    
+    cmds = map (':':) $ ["quit", "paste"] ++ map fst (commands undefined)
 
     completeFiles (r,s) = case splitCmd (reverse r) of
       (":load", _) -> completeFilename (r,s)
-      (":grammar", _) -> completeFilename (r,s)
-      _ -> pure (r,[])
+      _            -> pure (r, [])
     
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
+
+    sorted (r,cs) = (r, List.sortBy (compare `on` display) cs)
 
 -------------------------------------------------------------------------------
 
