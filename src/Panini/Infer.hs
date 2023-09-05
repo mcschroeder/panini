@@ -7,6 +7,7 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Panini.Error
 import Panini.Monad
+import Panini.Panic
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax

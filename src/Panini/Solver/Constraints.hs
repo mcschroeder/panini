@@ -7,6 +7,7 @@ import Data.Hashable
 import Data.Set ((\\))
 import Data.Set qualified as Set
 import GHC.Generics
+import Panini.Panic
 import Panini.Pretty
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -106,7 +107,7 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
         c' = if x' /= x then subst (Var x') x c else c
 
     simpl xs ps (CHead q)      = FAll (reverse xs) (PAnd $ reverse ps) q
-    simpl _  _  (CAnd _ _)     = error "impossible"
+    simpl _  _  (CAnd _ _)     = impossible
 
 
 instance Pretty FlatCon where

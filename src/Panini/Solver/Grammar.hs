@@ -24,6 +24,7 @@ import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Error
 import Panini.Monad
+import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Assignment
@@ -155,7 +156,7 @@ toDNF p0 = DNF $ unwrapDNF $ flip Uniplate.rewrite p0 $ \case
       in Just $ PAnd $ mconcat [y | PAnd y <- ys] ++ zs
     | any isPOr xs -> case partition isPOr xs of
         (POr ys : yys, zs) -> Just $ POr $ [PAnd $ y : (yys ++ zs) | y <- ys]
-        _ -> error "impossible"
+        _                  -> impossible
     | or [PRel (inverse r) `elem` xs | PRel r <- xs] -> Just PFalse
     | HashSet.size (HashSet.fromList xs) < length xs -> Just $ PAnd $ List.nub xs  -- TODO
 

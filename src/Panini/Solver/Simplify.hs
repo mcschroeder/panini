@@ -3,6 +3,7 @@
 module Panini.Solver.Simplify (simplifyCon, simplifyPred) where
 
 import Data.Generics.Uniplate.Operations
+import Panini.Panic
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
@@ -92,7 +93,7 @@ simplifyPred = transform $ \case
   PRel (Rel r (EVal (Con (I a _))) (EVal (Con (I b _)))) -> case r of
     Eq -> mkBoolPred $ a == b
     Ne -> mkBoolPred $ a /= b
-    _  -> undefined -- impossible
+    _  -> impossible
 
   p -> p
 

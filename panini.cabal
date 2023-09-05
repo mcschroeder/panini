@@ -70,6 +70,7 @@ library
     Panini.Infer
     Panini.Modules
     Panini.Monad
+    Panini.Panic
     Panini.Parser
     Panini.Pretty
     Panini.Pretty.Doc

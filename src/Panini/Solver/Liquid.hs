@@ -16,6 +16,7 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Panini.Monad
+import Panini.Panic
 import Panini.Pretty
 import Panini.SMT.Z3
 import Panini.Solver.Assignment
@@ -82,7 +83,7 @@ weaken s (FAll xs p (PAppK k ys)) =
       qs' <- PAnd <$> filterM keep (explode q0)
       return $ Map.insert k qs' s
 
-weaken _ _ = error "impossible"
+weaken _ _ = impossible
 
 explode :: Pred -> [Pred]
 explode (PAnd ps) = ps

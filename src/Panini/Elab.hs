@@ -20,6 +20,7 @@ import Panini.Error
 import Panini.Infer
 import Panini.Modules
 import Panini.Monad
+import Panini.Panic
 import Panini.Parser
 import Panini.Pretty
 import Panini.Provenance

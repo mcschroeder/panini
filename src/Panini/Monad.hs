@@ -16,7 +16,6 @@ module Panini.Monad
   , logEvent
   , getInferredTypes
   , getInferredGrammars
-  , panic
   ) where
 
 import Control.Exception
@@ -24,21 +23,22 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Function
 import Data.Generics.Uniplate.Operations
 import Data.List qualified as List
+import Data.Map.Strict qualified as Map
 import Data.Maybe
 import GHC.Stack
+import Panini.Abstract.AString
 import Panini.Environment
 import Panini.Error
 import Panini.Events
 import Panini.Modules
+import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax
 import Prelude
-import Panini.Abstract.AString
-import Data.Map.Strict qualified as Map
-import Data.Function
 
 -------------------------------------------------------------------------------
 
@@ -151,9 +151,3 @@ getInferredGrammars = concatMap extractGrammars
           panic $ "extractGrammars: irregular grammar:" <+> pretty t
       _ -> []
     extractGrammars _ = []
-
--------------------------------------------------------------------------------
-
-panic :: HasCallStack => Doc -> a
-panic msg = errorWithoutStackTrace $ 
-  "panic! " ++ showPretty msg ++ "\n\n" ++ prettyCallStack callStack

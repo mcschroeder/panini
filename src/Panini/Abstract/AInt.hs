@@ -30,6 +30,7 @@ module Panini.Abstract.AInt
 import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
+import Panini.Panic
 import Panini.Pretty
 -- import Panini.Syntax
 import Prelude hiding (minimum, maximum)
@@ -70,7 +71,7 @@ concreteValues (AInt xs) = go xs
     go (In NegInf  (Fin b) : ys) = interleave [b,b-1..] (go ys)
     go (In NegInf  PosInf  : _ ) = interleave [0..] [-1,-2..]
     go []                        = []
-    go _                         = error "impossible"
+    go _                         = impossible
 
 -- | Is the value represented by the abstract integer?
 concreteMember :: Integer -> AInt -> Bool
@@ -84,7 +85,7 @@ concreteMember n (AInt xs)= go xs
                                  | otherwise      = go ys
     go (In NegInf  PosInf  : _ ) = True
     go []                        = False
-    go _                         = error "impossible"
+    go _                         = impossible
 
 -- | Interleaves two lists.
 interleave :: [a] -> [a] -> [a]
