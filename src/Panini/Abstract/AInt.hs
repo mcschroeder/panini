@@ -7,7 +7,7 @@ module Panini.Abstract.AInt
   , concreteMember
   , minimum
   , maximum
-  -- , toPred
+  , continuous
   , eq
   , ne
   , gt
@@ -23,7 +23,6 @@ module Panini.Abstract.AInt
   , subI
   , iSub
   , sub
-  , continuous
   , Inf(..)
   ) where
 
@@ -32,7 +31,6 @@ import Data.Hashable
 import GHC.Generics
 import Panini.Panic
 import Panini.Pretty
--- import Panini.Syntax
 import Prelude hiding (minimum, maximum)
 import Prettyprinter qualified as PP
 
@@ -46,6 +44,14 @@ newtype AInt = AInt IntervalSequence
     , BoundedMeetSemilattice, BoundedJoinSemilattice
     , ComplementedLattice
     , Hashable)
+
+instance Pretty AInt where
+  pretty (AInt [])  = emptySet
+  pretty (AInt [x]) = pretty x
+  pretty (AInt xs)  = PP.encloseSep lbracket rbracket mid 
+                    $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
+
+-------------------------------------------------------------------------------
 
 -- | The number of concrete values represented by the abstract integer (i.e.,
 -- the length of the list returned by 'concreteValues'), or 'Nothing' if the
@@ -106,11 +112,15 @@ maximum (AInt xs) = case xs of
   []               -> Nothing
   (last -> In _ b) -> Just b
 
+-- | Whether the abstract integer is continuous, i.e., whether it contains all
+-- integers between its `minimum` and `maximum` values.
 continuous :: AInt -> Bool
 continuous (AInt xs) = case xs of
   []  -> True
   [_] -> True
   _   -> False
+
+-------------------------------------------------------------------------------
 
 -- | An abstract integer @= i@.
 eq :: Integer -> AInt
@@ -136,58 +146,37 @@ lt a = AInt [In NegInf (Fin (a - 1))]
 le :: Integer -> AInt
 le a = AInt [In NegInf (Fin a)]
 
--- TODO: document
+-- | An abstract integer @> α@, i.e., @[(maximum α + 1)..+∞]@.
 gtA :: AInt -> AInt
 gtA (AInt xs) = case xs of
   []               -> AInt []
   (last -> In _ b) -> AInt [In (succ <$> b) PosInf]
 
--- TODO: document
+-- | An abstract integer @≥ α@, i.e., @[(maximum α)..+∞]@.
 geA :: AInt -> AInt
 geA (AInt xs) = case xs of
   []               -> AInt []
   (last -> In _ b) -> AInt [In b PosInf]
 
--- TODO: document
+-- | An abstract integer @< α@, i.e., @[-∞..(minimum α - 1)]@.
 ltA :: AInt -> AInt
 ltA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf (pred <$> a)]
 
--- TODO: document
+-- | An abstract integer @≤ α@, i.e., @[-∞..(minimum α)]@.
 leA :: AInt -> AInt
 leA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf a]
 
--- toPred :: Expr -> AInt -> Pred
--- toPred lhs (AInt xs) = case xs of
---   []                                          -> PFalse
---   In NegInf  PosInf  : []                     -> PTrue
---   In (Fin a) (Fin b) : [] | a == b            -> mkRel Eq a
---   In (Fin a) (Fin b) : []                     -> mkRel Ge a ∧ mkRel Le b
---   In NegInf  (Fin b) : []                     -> mkRel Le b
---   In (Fin a) PosInf  : []                     -> mkRel Ge a
---   In NegInf  _       : (last -> In _ (Fin b)) -> meets $ mkRel Le b : holeRels
---   In (Fin a) _       : (last -> In _ PosInf ) -> meets $ mkRel Ge a : holeRels
---   In NegInf  _       : (last -> In _ PosInf ) -> meets $ holeRels
---   _                                           -> error "impossible"
---  where
---   mkRel r i = PRel r lhs (ECon (I i NoPV))
---   holeRels  = map (mkRel Ne) (holes xs)
-
-instance Pretty AInt where
-  pretty (AInt [])  = emptySet
-  pretty (AInt [x]) = pretty x
-  pretty (AInt xs)  = PP.encloseSep lbracket rbracket mid 
-                    $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
-
+-------------------------------------------------------------------------------
 
 -- TODO: finish addI
 addI :: AInt -> Integer -> AInt
 addI (AInt xs) i = case xs of
   [In (Fin a) PosInf] -> AInt [In (Fin (a + i)) PosInf]
-  _ -> error $ showPretty $ "not implemented: AInt.addI" <+> pretty (AInt xs) <+> pretty i
+  _ -> panic $ "not implemented: AInt.addI" <+> pretty (AInt xs) <+> pretty i
 
 -- TODO: finish add
 add :: AInt -> AInt -> AInt
@@ -195,27 +184,27 @@ add (AInt xs) (AInt ys) = case (xs, ys) of
   ([In (Fin a) (Fin b)], [In (Fin c) (Fin d)]) -> AInt [In (Fin $ a + c) (Fin $ b + d)]
   ([In NegInf (Fin _)], [In (Fin _) PosInf]) -> AInt [In NegInf PosInf]
   ([In (Fin a) PosInf], [In (Fin c) PosInf]) -> AInt [In (Fin $ a + c) PosInf]
-  _ -> error $ showPretty $ "not implemented: AInt.add" <+> pretty (AInt xs) <+> pretty (AInt ys)
+  _ -> panic $ "not implemented: AInt.add" <+> pretty (AInt xs) <+> pretty (AInt ys)
 
 
 -- TODO: finish subI
 subI :: AInt -> Integer -> AInt
 subI (AInt xs) i = case xs of
   [In (Fin a) PosInf] -> AInt [In (Fin (a - 1)) PosInf] 
-  _ -> error $ showPretty $ "not implemented: AInt.subI" <+> pretty (AInt xs) <+> pretty i
+  _ -> panic $ "not implemented: AInt.subI" <+> pretty (AInt xs) <+> pretty i
 
 -- TODO: finish iSub
 iSub :: Integer -> AInt -> AInt
 iSub i (AInt xs) = case xs of
   [In (Fin a) PosInf] | i >= 0 -> AInt [In NegInf (Fin (i - a))]
-  _ -> error $ showPretty $ "not implemented: AInt.iSub" <+> pretty (AInt xs) <+> pretty i
+  _ -> panic $ "not implemented: AInt.iSub" <+> pretty (AInt xs) <+> pretty i
 
 -- TODO: finish sub
 sub :: AInt -> AInt -> AInt
 sub (AInt xs) (AInt ys) = case (xs, ys) of
   ([In (Fin a) (Fin b)], [In (Fin c) (Fin d)]) -> AInt [In (Fin $ a - d) (Fin $ b - c)]
-  ([In NegInf (Fin b)], [In (Fin c) PosInf]) -> AInt [In (Fin 0) (Fin $ b - c)]
-  _ -> error $ showPretty $ "not implemented: AInt.sub" <+> pretty (AInt xs) <+> pretty (AInt ys)
+  ([In NegInf  (Fin b)], [In (Fin c) PosInf ]) -> AInt [In (Fin 0)       (Fin $ b - c)]
+  _ -> panic $ "not implemented: AInt.sub" <+> pretty (AInt xs) <+> pretty (AInt ys)
 
 -------------------------------------------------------------------------------
 
@@ -257,11 +246,6 @@ instance ComplementedLattice IntervalSequence where
       go (In _ b : y@(In c _) : zs) = In (succ <$> b) (pred <$> c) : go (y:zs)
       go [In _ b@(Fin _)] = [In (succ <$> b) PosInf]
       go _ = []  
-
--- | Returns all "holes" inbetween intervals.
--- holes :: IntervalSequence -> [Integer]
--- holes (In _ (Fin b) : y@(In (Fin c) _) : ys) = [b + 1 .. c - 1] ++ holes (y:ys)
--- holes _                                      = []
 
 -------------------------------------------------------------------------------
 
