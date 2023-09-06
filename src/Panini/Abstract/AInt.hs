@@ -18,10 +18,7 @@ module Panini.Abstract.AInt
   , geA
   , ltA
   , leA
-  , addI
   , add
-  , subI
-  , iSub
   , sub
   , Inf(..)
   ) where
@@ -170,41 +167,17 @@ leA (AInt xs) = case xs of
   []         -> AInt []
   In a _ : _ -> AInt [In NegInf a]
 
--------------------------------------------------------------------------------
-
--- TODO: finish addI
-addI :: AInt -> Integer -> AInt
-addI (AInt xs) i = case xs of
-  [In (Fin a) PosInf] -> AInt [In (Fin (a + i)) PosInf]
-  _ -> panic $ "not implemented: AInt.addI" <+> pretty (AInt xs) <+> pretty i
-
--- TODO: finish add
+-- | Add two abstract integers together, i.e., form the union of adding every
+-- value represented by the first abstract integer to every value represented by
+-- the second abstract integer.
 add :: AInt -> AInt -> AInt
-add (AInt xs) (AInt ys) = case (xs, ys) of
-  ([In (Fin a) (Fin b)], [In (Fin c) (Fin d)]) -> AInt [In (Fin $ a + c) (Fin $ b + d)]
-  ([In NegInf (Fin _)], [In (Fin _) PosInf]) -> AInt [In NegInf PosInf]
-  ([In (Fin a) PosInf], [In (Fin c) PosInf]) -> AInt [In (Fin $ a + c) PosInf]
-  _ -> panic $ "not implemented: AInt.add" <+> pretty (AInt xs) <+> pretty (AInt ys)
+add (AInt xs) (AInt ys) = AInt $ joins $ [[addIn x y] | x <- xs, y <- ys]
 
-
--- TODO: finish subI
-subI :: AInt -> Integer -> AInt
-subI (AInt xs) i = case xs of
-  [In (Fin a) PosInf] -> AInt [In (Fin (a - 1)) PosInf] 
-  _ -> panic $ "not implemented: AInt.subI" <+> pretty (AInt xs) <+> pretty i
-
--- TODO: finish iSub
-iSub :: Integer -> AInt -> AInt
-iSub i (AInt xs) = case xs of
-  [In (Fin a) PosInf] | i >= 0 -> AInt [In NegInf (Fin (i - a))]
-  _ -> panic $ "not implemented: AInt.iSub" <+> pretty (AInt xs) <+> pretty i
-
--- TODO: finish sub
+-- | Subtract one abstract integer from another, i.e., form the union of
+-- subtracting every value represented by the second abstract integer from every
+-- value represented by the first abstract integer.
 sub :: AInt -> AInt -> AInt
-sub (AInt xs) (AInt ys) = case (xs, ys) of
-  ([In (Fin a) (Fin b)], [In (Fin c) (Fin d)]) -> AInt [In (Fin $ a - d) (Fin $ b - c)]
-  ([In NegInf  (Fin b)], [In (Fin c) PosInf ]) -> AInt [In (Fin 0)       (Fin $ b - c)]
-  _ -> panic $ "not implemented: AInt.sub" <+> pretty (AInt xs) <+> pretty (AInt ys)
+sub (AInt xs) (AInt ys) = AInt $ joins $ [[subIn x y] | x <- xs, y <- ys]
 
 -------------------------------------------------------------------------------
 
@@ -258,6 +231,32 @@ instance Hashable Interval
 -- | Create a singleton interval @[a..a]@.
 singleton :: Integer -> Interval
 singleton a = In (Fin a) (Fin a)
+
+-- | Add two intervals together, i.e., @[a,b] + [c,d] = [a+b,c+d]@.
+addIn :: Interval -> Interval -> Interval
+addIn = curry $ \case
+  (In (Fin a) (Fin b), In (Fin c) (Fin d)) -> In (Fin $ a + c) (Fin $ b + d)
+  (In (Fin a) PosInf , In (Fin c) _      ) -> In (Fin $ a + c) PosInf
+  (In (Fin a) _      , In (Fin c) PosInf ) -> In (Fin $ a + c) PosInf
+  (In NegInf  (Fin b), In _       (Fin d)) -> In NegInf        (Fin $ b + d)
+  (In _       (Fin b), In NegInf  (Fin d)) -> In NegInf        (Fin $ b + d)
+  (In NegInf  _      , In _       PosInf ) -> In NegInf        PosInf
+  (In _       PosInf , In NegInf  _      ) -> In NegInf        PosInf
+  (In _       _      , In NegInf  PosInf ) -> In NegInf        PosInf
+  (In NegInf  PosInf , In _       _      ) -> In NegInf        PosInf  
+  _                                        -> impossible
+
+-- | Subtract two intervals, i.e., @[a,b] - [c,d] = [a-d,b-c]@.
+subIn :: Interval -> Interval -> Interval
+subIn = curry $ \case
+  (In (Fin a) (Fin b), In (Fin c) (Fin d)) -> In (Fin $ a - d) (Fin $ b - c)
+  (In (Fin a) PosInf , In _       (Fin d)) -> In (Fin $ a - d) PosInf
+  (In _       (Fin b), In (Fin c) PosInf ) -> In NegInf        (Fin $ b - c)
+  (In NegInf  (Fin b), In (Fin c) _      ) -> In NegInf        (Fin $ b - c)
+  (In (Fin a) _      , In NegInf  (Fin d)) -> In (Fin $ a - d) PosInf
+  (In _       _      , In NegInf  PosInf ) -> In NegInf        PosInf
+  (In NegInf  PosInf , In _       _      ) -> In NegInf        PosInf
+  _                                        -> impossible
 
 -- | @[a..b]@ precedes @[c..d]@ if @b < (c - 1)@.
 --

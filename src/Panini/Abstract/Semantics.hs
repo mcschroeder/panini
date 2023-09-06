@@ -40,8 +40,8 @@ norm = Uniplate.rewrite $ \case
   EInt  0 _ :+: e         -> Just e
   e         :+: EInt  0 _ -> Just e  
   EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV  
-  EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ AInt.addI a b
-  EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.addI b a
+  EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ AInt.add a (AInt.eq b)
+  EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add b (AInt.eq a)
   EIntA a   :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add a b
 
   -- TODO
@@ -49,8 +49,8 @@ norm = Uniplate.rewrite $ \case
 
   e         :-: EInt  0 _ -> Just e
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
-  EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ AInt.subI a b
-  EInt  a _ :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.iSub a b
+  EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ AInt.sub a (AInt.eq b)
+  EInt  a _ :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub (AInt.eq a) b
   EIntA a   :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub a b
 
 
