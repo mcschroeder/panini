@@ -5,8 +5,10 @@ import Control.Applicative
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
+import Data.Text qualified as Text
 import GHC.Generics (Generic)
-import Panini.Abstract.AInt as AI
+import Panini.Abstract.ABool as ABool
+import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AValue
 import Panini.Pretty
 import Panini.Provenance
@@ -47,6 +49,9 @@ pattern EInt i pv = ECon (I i pv)
 
 pattern EStr :: Text -> PV -> Expr
 pattern EStr s pv = ECon (S s pv)
+
+pattern EChar :: Char -> PV -> Expr
+pattern EChar c pv <- ECon (S (Text.unpack -> [c]) pv)
 
 pattern EBoolA :: ABool -> Expr
 pattern EBoolA a = EAbs (ABool a)
@@ -90,6 +95,14 @@ eqTypeAE a e =  maybe True (typeOfAValue a ==) (typeOfExpr e)
 instance PartialMeetSemilattice Expr where  
   EAbs a ∧? EAbs b = EAbs <$> a ∧? b  
   
+  EBool  a _ ∧? EBool  b _ = Just $ EBoolA $ ABool.eq a ∧ ABool.eq b
+  EBoolA a   ∧? EBool  b _ = Just $ EBoolA $ a          ∧ ABool.eq b
+  EBool  a _ ∧? EBoolA b   = Just $ EBoolA $ ABool.eq a ∧ b
+
+  EInt  a _ ∧? EInt  b _ = Just $ EIntA $ AInt.eq a ∧ AInt.eq b
+  EIntA a   ∧? EInt  b _ = Just $ EIntA $ a         ∧ AInt.eq b
+  EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
+
   a ∧? b | a == b    = Just a
          | otherwise = tryMeetE a b <|> tryMeetE b a
 
@@ -99,9 +112,13 @@ tryMeetE (EAbs a) e
   | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
   
 tryMeetE (EVar x) (EVar y :+: EAbs (AInt a))
-  | x == y, AI.concreteMember 0 a = Just $ EVar x
-  | x == y                        = Just $ EAbs (AInt bot)
+  | x == y, AInt.concreteMember 0 a = Just $ EVar x
+  | x == y                          = Just $ EAbs (AInt bot)
   
+tryMeetE (EStrLen (EVar s1)) (EStrLen (EVar s2) :+: EIntA a)
+  | s1 == s2, AInt.concreteMember 0 a = Just $ EStrLen (EVar s1)
+  | s1 == s2                          = Just $ EIntA bot
+
 tryMeetE _ _ = Nothing
 
 ------------------------------------------------------------------------------
