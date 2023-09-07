@@ -9,6 +9,7 @@ import Data.Set qualified as Set
 import GHC.Generics
 import Panini.Panic
 import Panini.Pretty
+import Panini.Syntax.Expressions
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
 import Panini.Syntax.Primitives
@@ -65,15 +66,15 @@ instance Pretty Con where
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
-instance Subable Con Value where
+instance Subable Con Expr where
   subst x y = \case
     CAll n b p c
-      | y == n     -> CAll n b            p             c   -- (1)
-      | x == Var n -> CAll ṅ b (subst x y ṗ) (subst x y ċ)  -- (2)
-      | otherwise  -> CAll n b (subst x y p) (subst x y c)  -- (3)
+      | y == n      -> CAll n b            p             c   -- (1)
+      | x == EVar n -> CAll ṅ b (subst x y ṗ) (subst x y ċ)  -- (2)
+      | otherwise   -> CAll n b (subst x y p) (subst x y c)  -- (3)
       where
-        ṗ = subst (Var ṅ) n p
-        ċ = subst (Var ṅ) n c
+        ṗ = subst (EVar ṅ) n p
+        ċ = subst (EVar ṅ) n c
         ṅ = freshName n ([y] <> freeVars p <> freeVars c)
 
     CHead p    -> CHead (subst x y p)
@@ -103,8 +104,8 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
       where
         x' = if x `elem` vs then freshName x vs else x
         vs = Set.fromList (map fst xs) <> mconcat (map freeVars ps)
-        p' = if x' /= x then subst (Var x') x p else p
-        c' = if x' /= x then subst (Var x') x c else c
+        p' = if x' /= x then subst (EVar x') x p else p
+        c' = if x' /= x then subst (EVar x') x c else c
 
     simpl xs ps (CHead q)      = FAll (reverse xs) (PAnd $ reverse ps) q
     simpl _  _  (CAnd _ _)     = impossible

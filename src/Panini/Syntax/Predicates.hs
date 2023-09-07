@@ -24,7 +24,7 @@ data Pred
   | PIff Pred Pred          -- ^ if-and-only-if @p₁ ⟺ p₂@
   | PNot Pred               -- ^ negation @¬p@
   | PRel Rel                -- ^ relation @e₁ ⋈ e₂@
-  | PAppK KVar [Value]      -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
+  | PAppK KVar [Expr]       -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists Name Base Pred  -- ^ existential quantification @∃x:b. p@
   deriving stock (Eq, Show, Read, Generic)
 

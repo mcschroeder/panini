@@ -50,26 +50,26 @@ substN xs ys p = foldr (uncurry subst) p $ zip xs ys
 
 ------------------------------------------------------------------------------
 
-instance Subable Type Value where
+instance Subable Type Expr where
   subst x y = \case
     -- In a refined base type {n:b|r}, the value variable n names the
     -- value of type b that is being refined. Thus, we take n to be bound in r.    
     TBase n b r pv
-      | y == n     -> TBase n b            r  pv  -- (1)
-      | x == Var n -> TBase ṅ b (subst x y ṙ) pv  -- (2)
-      | otherwise  -> TBase n b (subst x y r) pv  -- (3)
+      | y == n      -> TBase n b            r  pv  -- (1)
+      | x == EVar n -> TBase ṅ b (subst x y ṙ) pv  -- (2)
+      | otherwise   -> TBase n b (subst x y r) pv  -- (3)
       where
-        ṙ = subst (Var ṅ) n r
+        ṙ = subst (EVar ṅ) n r
         ṅ = freshName n ([y] <> freeVars r)
 
     -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
     -- Note that t₁ might itself contain (free) occurrences of n.
     TFun n t₁ t₂ pv
-      | y == n     -> TFun n (subst x y t₁)            t₂  pv  -- (1)
-      | x == Var n -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
-      | otherwise  -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
+      | y == n      -> TFun n (subst x y t₁)            t₂  pv  -- (1)
+      | x == EVar n -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
+      | otherwise   -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
       where
-        t₂̇ = subst (Var ṅ) n t₂
+        t₂̇ = subst (EVar ṅ) n t₂
         ṅ = freshName n ([y] <> freeVars t₂)
 
   freeVars = \case
@@ -78,20 +78,20 @@ instance Subable Type Value where
 
 ------------------------------------------------------------------------------
 
-instance Subable Reft Value where
+instance Subable Reft Expr where
   subst x y = descendBi (subst @Pred x y)  
   freeVars = mconcat . map (freeVars @Pred) . universeBi
 
 ------------------------------------------------------------------------------
 
-instance Subable Pred Value where  
+instance Subable Pred Expr where  
   subst x y = \case
     PExists n b p
-      | y == n     -> PExists n b            p   -- (1)
-      | x == Var n -> PExists ṅ b (subst x y ṗ)  -- (2)
-      | otherwise  -> PExists n b (subst x y p)  -- (3)
+      | y == n      -> PExists n b            p   -- (1)
+      | x == EVar n -> PExists ṅ b (subst x y ṗ)  -- (2)
+      | otherwise   -> PExists n b (subst x y p)  -- (3)
       where
-        ṗ = subst (Var ṅ) n p
+        ṗ = subst (EVar ṅ) n p
         ṅ = freshName n ([y] <> freeVars p)
 
     PAppK k xs -> PAppK k (map (subst x y) xs)
@@ -112,14 +112,16 @@ instance Subable Pred Value where
     
 ------------------------------------------------------------------------------
 
-instance Subable Rel Value where
+instance Subable Rel Expr where
   subst x y = descendBi (subst @Expr x y)  
   freeVars = mconcat . map (freeVars @Expr) . universeBi
 
 ------------------------------------------------------------------------------
 
-instance Subable Expr Value where
-  subst x y = descendBi (subst @Value x y)    
+instance Subable Expr Expr where
+  subst x y = \case
+    EVal (Var n) | y == n -> x
+    e                     -> descend (subst x y) e
 
   freeVars = \case
     EVal (Var x)     -> [x]

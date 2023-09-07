@@ -45,12 +45,12 @@ data GCon = GCon Name KVar Con
 instance Hashable GCon
 
 instance Pretty GCon where
-  pretty (GCon x k c) = pretty $ CAll x TString (PAppK k [Var x]) c
+  pretty (GCon x k c) = pretty $ CAll x TString (PAppK k [EVar x]) c
 
 -- | Returns all grammar constraints within the given constraint.
 grammarConstraints :: Con -> HashSet GCon
 grammarConstraints c0 = HashSet.fromList
-  [GCon x k c | CAll x TString (PAppK k [Var y]) c <- Uniplate.universe c0
+  [GCon x k c | CAll x TString (PAppK k [EVar y]) c <- Uniplate.universe c0
               , y == x
   ]
 
@@ -99,7 +99,7 @@ solve (GCon s k c) = do
   -- IMPORTANT: we need to substitute the free string variable s in the
   -- grammar solution with the generic κ parameter, so that later on we can
   -- apply without problems
-  let p' = subst (Var $ head $ kparams k) s p
+  let p' = subst (EVar $ head $ kparams k) s p
 
   return $ Map.singleton k p'
 
@@ -220,14 +220,8 @@ varElim x b ps = do
       let x̂s' = filter (([x] /=) . fst) $ Map.assocs x̂s
       -- TODO: pick "smallest" meet
       let (v̄ₘ,x̂ₘ) = if null x̂s' then ([x], x̂Self) else head x̂s'
-      let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
+      let qs = map (subst x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
       return $ Just qs
-
--- TODO: can this be done using the new Subable class?
-substExpr :: Expr -> Name -> Rel -> Rel
-substExpr x̂ x =  Uniplate.transformBi $ \case
-  EVal (Var y) | y == x -> x̂
-  e                     -> e
 
 -------------------------------------------------------------------------------
 
