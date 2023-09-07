@@ -1,6 +1,7 @@
 module Panini.Pretty 
   ( Pretty(..)
   , showPretty
+  , printPretty
   , (<\>), (<\\>), (<+>), PP.vcat, PP.vsep, PP.sep
   , PP.align, PP.hang, PP.group, PP.nest
   , PP.viaShow
@@ -78,6 +79,9 @@ showPretty = Text.unpack . renderDoc o . pretty
           , unicode    = True
           , fixedWidth = Nothing
           }
+
+printPretty :: Pretty a => a -> IO ()
+printPretty = putStrLn . showPretty
 
 -------------------------------------------------------------------------------
 
