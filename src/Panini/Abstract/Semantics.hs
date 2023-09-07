@@ -18,10 +18,10 @@ import Prelude
 
 -- local notation -------------------------------------------------------------
 
-(∈) :: Subable a => Name -> a -> Bool
+(∈) :: Subable a v => Name -> a -> Bool
 x ∈ e = x `elem` freeVars e
 
-(∉) :: Subable a => Name -> a -> Bool
+(∉) :: Subable a v => Name -> a -> Bool
 x ∉ e = x `notElem` freeVars e
 
 -------------------------------------------------------------------------------

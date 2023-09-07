@@ -223,6 +223,7 @@ varElim x b ps = do
       let qs = map (substExpr x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
       return $ Just qs
 
+-- TODO: can this be done using the new Subable class?
 substExpr :: Expr -> Name -> Rel -> Rel
 substExpr x̂ x =  Uniplate.transformBi $ \case
   EVal (Var y) | y == x -> x̂

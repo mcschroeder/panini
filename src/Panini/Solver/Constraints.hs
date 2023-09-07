@@ -65,7 +65,7 @@ instance Pretty Con where
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
-instance Subable Con where
+instance Subable Con Value where
   subst x y = \case
     CAll n b p c
       | y == n     -> CAll n b            p             c   -- (1)

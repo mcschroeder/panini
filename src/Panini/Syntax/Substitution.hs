@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module Panini.Syntax.Substitution where
 
 import Data.Generics.Uniplate.Operations
@@ -33,23 +34,23 @@ import Prelude
 -- (3) If the bound name @n@ is neither @x@ nor @y@, then we can just recurse
 --     into @e@.
 --
-class Subable a where
+class Subable a v | a -> v where
 
   -- | Capture-avoiding substitution.
   --
   -- @subst x y a  ===  a[x/y]  ===  a where x replaces y@
-  subst :: Value -> Name -> a -> a
+  subst :: v -> Name -> a -> a
   
   -- | Returns all free variables of the given term.
   freeVars :: a -> Set Name
 
 -- | @substN xs ys a@ substitutes each x for the corresponding y in a.
-substN :: Subable a => [Value] -> [Name] -> a -> a
+substN :: Subable a v => [v] -> [Name] -> a -> a
 substN xs ys p = foldr (uncurry subst) p $ zip xs ys
 
 ------------------------------------------------------------------------------
 
-instance Subable Type where
+instance Subable Type Value where
   subst x y = \case
     -- In a refined base type {n:b|r}, the value variable n names the
     -- value of type b that is being refined. Thus, we take n to be bound in r.    
@@ -77,13 +78,13 @@ instance Subable Type where
 
 ------------------------------------------------------------------------------
 
-instance Subable Reft where
+instance Subable Reft Value where
   subst x y = descendBi (subst @Pred x y)  
   freeVars = mconcat . map (freeVars @Pred) . universeBi
 
 ------------------------------------------------------------------------------
 
-instance Subable Pred where  
+instance Subable Pred Value where  
   subst x y = \case
     PExists n b p
       | y == n     -> PExists n b            p   -- (1)
@@ -111,13 +112,13 @@ instance Subable Pred where
     
 ------------------------------------------------------------------------------
 
-instance Subable Rel where
+instance Subable Rel Value where
   subst x y = descendBi (subst @Expr x y)  
   freeVars = mconcat . map (freeVars @Expr) . universeBi
 
 ------------------------------------------------------------------------------
 
-instance Subable Expr where
+instance Subable Expr Value where
   subst x y = descendBi (subst @Value x y)    
 
   freeVars = \case
@@ -135,7 +136,7 @@ instance Subable Expr where
 
 ------------------------------------------------------------------------------
 
-instance Subable Value where
+instance Subable Value Value where
   subst x y = \case
     Var n | y == n -> x
     v              -> v
