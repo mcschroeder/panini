@@ -51,7 +51,8 @@ pattern EStr :: Text -> PV -> Expr
 pattern EStr s pv = ECon (S s pv)
 
 pattern EChar :: Char -> PV -> Expr
-pattern EChar c pv <- ECon (S (Text.unpack -> [c]) pv)
+pattern EChar c pv <- ECon (S (Text.unpack -> [c]) pv) where
+  EChar c pv = ECon (S (Text.pack [c]) pv)
 
 pattern EBoolA :: ABool -> Expr
 pattern EBoolA a = EAbs (ABool a)

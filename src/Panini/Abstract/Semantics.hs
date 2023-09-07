@@ -48,72 +48,135 @@ topExpr b       = panic $ "no" <+> symTop <+> "for " <+> pretty b
 abstract :: Name -> Rel -> Maybe Expr
 abstract x r0 = case normRel r0 of
   r | x ∉ r -> Nothing
+
+  {----------------------------------------------------------
+            isolating x on the left-hand side
+  ----------------------------------------------------------}
+
+  -- ⟦ e₁ ▷ e₂ ⟧↑ₓ ≐ ⟦ e₂ ◁ e₁ ⟧↑ₓ  if x ∉ e₁
   r | x ∉ leftSide r -> abstract x =<< converse r
 
-  -- isolating x via arithmetic ---------------------------  
+  -- ⟦ e₁ + e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₁ ⋈ e₃ - e₂ ⟧↑ₓ  if x ∈ e₁ 
   Rel op (e1 :+: e2) e3 | x ∈ e1 -> abstract x $ Rel op e1 (e3 :-: e2)
-                        | x ∈ e2 -> abstract x $ Rel op e1 (e3 :-: e1)
-  Rel op (e1 :-: e2) e3 | x ∈ e1 -> abstract x $ Rel op e1 (e3 :+: e2)
-                        | x ∈ e2 -> abstract x $ Rel op e2 (e1 :+: e3)
 
-  -- simple constant relations: x ⋈ c ---------------------
-  EVar _x :≠: EBool c _ -> Just $ EBool (not c) NoPV
-  EVar _x :≠: EInt  c _ -> Just $ EIntA (AInt.ne c)
-  EVar _x :>: EInt  c _ -> Just $ EIntA (AInt.gt c)
-  EVar _x :≥: EInt  c _ -> Just $ EIntA (AInt.ge c)
-  EVar _x :<: EInt  c _ -> Just $ EIntA (AInt.lt c)
-  EVar _x :≤: EInt  c _ -> Just $ EIntA (AInt.le c)
-  EVar _x :>: EIntA a   -> Just $ EIntA (AInt.gtA a)
-  EVar _x :≥: EIntA a   -> Just $ EIntA (AInt.geA a)
-  EVar _x :<: EIntA a   -> Just $ EIntA (AInt.ltA a)
-  EVar _x :≤: EIntA a   -> Just $ EIntA (AInt.leA a)
-  EVar _x :≠: EChar c _ -> Just $ EStrA (lit $ AChar.ne c)
-
-  -- simple expression relations: x ⋈ e -------------------
-  Rel op (EVar _x) e 
-    | x ∈ e -> Nothing  -- x may only occur on left-hand side
-    | Eq <- op -> Just $ norm e
-    | Gt <- op -> Just $ norm (e :+: EIntA (AInt.gt 0))
-    | Ge <- op -> Just $ norm (e :+: EIntA (AInt.ge 0))
-    | Lt <- op -> Just $ norm (e :+: EIntA (AInt.lt 0))
-    | Le <- op -> Just $ norm (e :+: EIntA (AInt.le 0))
-
-  -- string length: |x| ⋈ n -------------------------------
-  EStrLen (EVar _x) :=: EInt i _ -> Just $ EStrA $ rep anyChar i
-  EStrLen (EVar _x) :≠: EInt i _ -> Just $ EStrA $ joins1 [rep anyChar (i - 1), rep anyChar (i + 1) <> star anyChar]
-  EStrLen (EVar _x) :≥: EInt i _ -> Just $ EStrA $ rep anyChar i <> star anyChar  
-  EStrLen (EVar _x) :>: EInt i _ -> Just $ EStrA $ rep anyChar (i + 1) <> star anyChar
-  EStrLen (EVar _x) :<: EInt 0 _ -> Just $ EStrA bot
+  -- ⟦ e₁ + e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₂ ⋈ e₃ - e₁ ⟧↑ₓ  if x ∈ e₂
+  Rel op (e1 :+: e2) e3 | x ∈ e2 -> abstract x $ Rel op e2 (e3 :-: e1)
   
-  -- TODO: find general solution, this only applies to |s| = [a,∞]
-  EStrLen (EVar _x) :=: EIntA a 
+  -- ⟦ e₁ - e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₁ ⋈ e₃ + e₂ ⟧↑ₓ  if x ∈ e₁
+  Rel op (e1 :-: e2) e3 | x ∈ e1 -> abstract x $ Rel op e1 (e3 :+: e2)
+    
+  -- ⟦ e₁ - e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₂ ⋈ e₁ + e₃ ⟧↑ₓ  if x ∈ e₂
+  Rel op (e1 :-: e2) e3 | x ∈ e2 -> abstract x $ Rel op e2 (e1 :+: e3)
+
+
+  {----------------------------------------------------------
+            equalizing generic integer expressions
+  ----------------------------------------------------------}
+
+  -- ⟦ e₁ > e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [1,+∞] ⟧↑ₓ
+  e1 :>: e2 -> abstract x $ e1 :=: (e2 :+: EIntA (AInt.gt 0))
+
+  -- ⟦ e₁ ≥ e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [0,+∞] ⟧↑ₓ
+  e1 :≥: e2 -> abstract x $ e1 :=: (e2 :+: EIntA (AInt.ge 0))
+
+  -- ⟦ e₁ < e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [-∞,-1] ⟧↑ₓ
+  e1 :<: e2 -> abstract x $ e1 :=: (e2 :+: EIntA (AInt.lt 0))
+
+  -- ⟦ e₁ ≤ e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [-∞,0] ⟧↑ₓ
+  e1 :≤: e2 -> abstract x $ e1 :=: (e2 :+: EIntA (AInt.le 0))
+
+
+  {----------------------------------------------------------
+              equalizing primitive inequalities
+  ----------------------------------------------------------}
+
+  -- ⟦ e ≠ b ⟧↑ₓ ≐ ⟦ e = b̅ ⟧↑ₓ
+  e :≠: EBool b pv -> abstract x $ e :=: EBool (not b) pv
+
+  -- ⟦ e ≠ b̂ ⟧↑ₓ ≐ ⟦ e = ¬b̂ ⟧↑ₓ
+  e :≠: EBoolA b -> abstract x $ e :=: EBoolA (neg b)
+
+  -- ⟦ e ≠ i ⟧↑ₓ ≐ ⟦ e = [-∞,i-1|i+1,∞] ⟧↑ₓ
+  e :≠: EInt i _ -> abstract x $ e :=: EIntA (AInt.ne i)
+
+  -- ⟦ e ≠ î ⟧↑ₓ ≐ ⟦ e = ¬î ⟧↑ₓ
+  e :≠: EIntA i -> abstract x $ e :=: EIntA (neg i)
+
+  -- ⟦ e ≠ c ⟧↑ₓ ≐ ⟦ e = Σ∖c  ⟧↑ₓ
+  e :≠: EChar c _ -> abstract x $ e :=: EStrA (lit $ AChar.ne c)
+
+
+  {---------------------------------------------------------
+          abstracting simple variable assignments
+  ---------------------------------------------------------}
+
+  -- ⟦ x = e ⟧↑ₓ ≐ e  if x ∉ e
+  EVar _x :=: e | x ∉ e -> Just e
+
+  {----------------------------------------------------------
+          abstracting string length expressions
+  ----------------------------------------------------------}
+
+  -- ⟦ |x| = i ⟧↑ₓ ≐ Σ^i
+  EStrLen (EVar _x) :=: (EInt i _) 
+    -> Just $ EStrA $ rep anyChar i
+  
+  -- ⟦ |x| = [i,+∞] ⟧↑ₓ ≐ Σ^(i)Σ*
+  EStrLen (EVar _x) :=: EIntA a
     | Just (Fin i) <- AInt.minimum a
     , Just PosInf  <- AInt.maximum a
     , AInt.continuous a
     -> Just $ EStrA $ rep anyChar i <> star anyChar
-  
-  EStrLen (EVar _x) :≥: EIntA a -> case AInt.minimum (a ∧ AInt.ge 0) of
-    Just (Fin i) -> Just $ EStrA $ rep anyChar i <> star anyChar
-    _            -> Just $ EStrA bot  
-  
-  EStrLen (EVar _x) :<: EIntA a | AInt.minimum a < Just (Fin 0) -> Just $ EStrA bot
 
-  -- string of character-at-index: x[i] ⋈ c ---------------
-  EStrAt (EVar _x) (EInt i _) :=: EChar c _ -> Just $ EStrA $ rep anyChar i <> lit (AChar.eq c) <> star anyChar
-  EStrAt (EVar _x) (EInt i _) :≠: EChar c _ -> Just $ EStrA $ rep anyChar i <> lit (AChar.ne c) <> star anyChar
+  -- TODO: implement general case
+  -- ⟦ |x| = [a₁,b₁|…|aₙ,bₙ] ⟧↑ₓ ≐ ???
 
-  -- index of character-at-index: s[x] ⋈ c ----------------
-  -- TODO: WARNING: these are over-approximations! (or are they?)
-  EStrAt (EVar s) (EVar i) :=: EChar _ _ | x == i -> Just $ EStrLen (EVar s) :-: (EIntA $ AInt.gt 0)
-  EStrAt (EVar s) (EVar i) :≠: EChar _ _ | x == i -> Just $ EStrLen (EVar s) :-: (EIntA $ AInt.gt 0)
+  -- ⟦ |x[e₁..e₂]| = e ⟧↑ₓ ≐ ⟦ |x| = e + [0,∞] ⟧↑  if x ∉ e
+  EStrLen (EStrSub (EVar x1) _e1 _e2) :=: e | x1 == x
+    -> abstract x $ EStrLen (EVar x) :=: (e :+: EIntA (AInt.ge 0))
   
+  {----------------------------------------------------------
+          abstracting character-at-index expressions
+  ----------------------------------------------------------}
+
+  -- ⟦ x[i] = c ⟧↑ₓ ≐ Σ^(i)cΣ*
+  EStrAt (EVar _x) (EInt i _) :=: EChar c _
+    -> Just $ EStrA $ rep anyChar i <> lit (AChar.eq c) <> star anyChar
+
+  -- ⟦ x[i] = ĉ ⟧↑ₓ ≐ Σ^(i)ĉΣ*
+  EStrAt (EVar _x) (EInt i _) :=: EStrA c
+    -> Just $ EStrA $ rep anyChar i <> c <> star anyChar
+
+  -- TODO: this is an over-approximation! (or is it?)
+  -- ⟦ s[x] = c ⟧↑ₓ ≐ |s| - [1,∞]
+  EStrAt (EVar s) (EVar x1) :=: EChar _ _ | x1 == x
+    -> Just $ EStrLen (EVar s) :-: (EIntA $ AInt.ge 1)
+  
+  {----------------------------------------------------------
+              abstracting substring expressions
+  ----------------------------------------------------------}
+
   -- note: the following abstractions are over-fitting on tests 013 and 016
   -- TODO: generalize these / are they even correct?
-  EStrSub (EVar _) (EInt 0 _) (EVar n) :=: EVar t | n == x -> Just $ EStrLen (EVar t) :-: EInt 1 NoPV
-  e@(EStrSub (EVar _s) (EInt 0 _) (EStrLen (EVar t1))) :=: EVar t2 | t1 == x, t2 == x -> Just e
-  EStrSub (EVar s) (EInt 0 _) (EStrLen (EVar _t)) :=: EStr y _ | s == x -> Just $ EStrA $ AString.eq (Text.unpack y) <> star anyChar -- TODO: what if |t| /= |y| ??
-  EStrLen (EStrSub (EVar s) (EInt 0 _) _) :≥: EInt 0 _ | s == x -> Just $ EStrA $ star anyChar  -- TODO: over-approximation?
+  
+  -- ⟦ s[0..x] = t ⟧↑ₓ ≐ |t| - 1
+  EStrSub (EVar _s) (EInt 0 _) (EVar x1) :=: EVar t | x1 == x 
+    -> Just $ EStrLen (EVar t) :-: EInt 1 NoPV
 
+  -- ⟦ s[0..|x|] = x ⟧↑ₓ ≐ s[0..|x|]
+  EStrSub (EVar s) (EInt 0 pv) (EStrLen (EVar x1)) :=: EVar x2 | x1 == x, x2 == x 
+    -> Just $ EStrSub (EVar s) (EInt 0 pv) (EStrLen (EVar x))
+
+  -- ⟦ x[0..|s|] = t ⟧↑ₓ ≐ tΣ*
+  EStrSub (EVar x1) (EInt 0 _) (EStrLen (EVar _s)) :=: EStr t _ | x1 == x 
+    -> Just $ EStrA $ AString.eq (Text.unpack t) <> star anyChar
+    -- TODO: what if |s| /= |t| ??
+
+  
+  {----------------------------------------------------------
+     whereof one cannot speak, thereof one must be silent 
+  ----------------------------------------------------------}
+  
   _ -> Nothing
 
 -------------------------------------------------------------------------------
