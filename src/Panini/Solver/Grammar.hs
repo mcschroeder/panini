@@ -9,18 +9,19 @@ module Panini.Solver.Grammar
 
 import Algebra.Lattice
 import Control.Monad.Extra
+import Data.Either (partitionEithers)
 import Data.Foldable
 import Data.Function
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.HashSet qualified as HashSet
-import Data.List (partition)
+import Data.List (partition,tails)
 import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import GHC.Generics
-import Panini.Abstract.AExpr ()
+import Panini.Abstract.AExpr
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Error
@@ -91,10 +92,20 @@ solve (GCon s k c) | k `elem` kvars c = do
   let c' = apply [(k,PTrue)] c
   solve (GCon s k c')
 
+-- TODO: clean up
 solve (GCon s k c) = do
   logData c
   c' <- rewrite c
-  g <- joins <$> mapM ((meets <$>) . mapM (abstractVarString s)) (unDNF c')  
+  logMessage "abstract string from rewritten constraints"
+  g <- joins <$> (forM (unDNF c') $ \ps -> do
+    logData ps
+    gs <- meets <$> (forM ps $ \p -> do
+      logMessage $ "abstract s from" <+> pretty p
+      g <- abstractVarString s p
+      logData g
+      return g)
+    logData gs
+    return gs)
   p <- PRel <$> concretizeVar s (EAbs $ AString g)
 
   -- IMPORTANT: we need to substitute the free string variable s in the
@@ -147,6 +158,7 @@ instance JoinSemilattice (DNF a) where
 instance BoundedJoinSemilattice (DNF a) where
   bot = DNF []
 
+-- TODO: clean up
 toDNF :: Pred -> DNF Rel
 toDNF p0 = DNF $ unwrapDNF $ flip Uniplate.rewrite p0 $ \case
   PAnd xs
@@ -173,7 +185,7 @@ toDNF p0 = DNF $ unwrapDNF $ flip Uniplate.rewrite p0 $ \case
   PNot (PRel r) -> Just $ PRel $ inverse r
 
   PImpl a b -> Just $ POr [PNot a, b]
-  PIff a b -> Just $ POr [PAnd [PNot a, PNot b], PAnd [a, b]]
+  PIff a b -> Just $ POr [PAnd [a, b], PAnd [PNot a, PNot b]]
 
   _ -> Nothing
 
@@ -198,32 +210,53 @@ unwrapDNF = \case
 varElimDNF :: Name -> Base -> DNF Rel -> Pan (DNF Rel)
 varElimDNF x b ps = DNF <$> mapMaybeM (varElim x b) (unDNF ps)
 
+-- TODO: clean up
 -- TODO: update submission
 -- | Algorithm 3 in OOPSLA'23 submission.
 varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
 varElim _ TUnit ps = return $ Just ps  -- TODO
 varElim x b ps = do
+  logMessage $ "varElim" <+> pretty x <+> pretty b
+  logData $  ps
+  let (pxs, ps') = List.partition (elem x . freeVars) ps
+  logData (pxs, ps')
+  let (pxs', xvs) = partitionEithers $ map (maybeToEither (isolateVar x)) pxs
+  logData (xvs, pxs')
+
   let bTop = topExpr b
 
-  let x̂s₀ = Map.singleton [x] bTop
-  let pvs = [(p,v̄) | p <- ps, let v̄ = freeVars p, x `elem` v̄]
-  let refine x̂s (p,v̄) = do
-        let x̂₀ = fromMaybe bTop $ Map.lookup v̄ x̂s
-        x̂₁ <- abstractVar x b p
-        case x̂₀ ∧? x̂₁ of
-          Just x̂ -> return $ Map.insert v̄ x̂ x̂s
-          Nothing -> throwError $ MeetImpossible x̂₀ x̂₁ (getPV x)
-  x̂s <- foldM refine x̂s₀ pvs
+  let x̂s₀ = Map.singleton [] bTop
+  let refine x̂s xv = do
+        logMessage $ "refine" <+> pretty xv
+        let vs = freeVars xv
+        let x̂ = fromMaybe bTop $ Map.lookup vs x̂s
+        case x̂ ∧? xv of
+          Just x̂' -> return $ Map.insert vs x̂' x̂s
+          Nothing -> throwError $ MeetImpossible x̂ xv NoPV  
+  x̂s <- foldM refine x̂s₀ xvs
+  logData x̂s
 
-  case fromJust $ Map.lookup [x] x̂s of
-    EAbs a | containsBot a -> return Nothing
-    x̂Self -> do
-      let x̂s' = filter (([x] /=) . fst) $ Map.assocs x̂s
-      -- TODO: URGENT: the choice here seems more important than I thought!
-      -- TODO: pick "smallest" meet
-      let (v̄ₘ,x̂ₘ) = if null x̂s' then ([x], x̂Self) else last x̂s' -- head x̂s'
-      let qs = map (subst x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
-      return $ Just qs
+  if any containsBotAExpr x̂s then do
+    logMessage "Nothing"
+    return Nothing
+  else do
+    let x̂s1 = map snd $ Map.toAscList x̂s
+    let qs1 = List.nub $ map normRel $ [x̂₁ :=: x̂₂ | (x̂₁:rest) <- tails x̂s1, x̂₂ <- rest]
+    logData qs1
+
+    let qs2 = concatMap (\px' -> map (\x̂ -> subst x̂ x px') x̂s1) pxs'
+    logData qs2
+
+    let qs = qs1 ++ qs2 ++ ps'
+    logData qs
+
+    return $ Just qs
+
+maybeToEither :: (a -> Maybe b) -> (a -> Either a b)
+maybeToEither f = \x -> maybe (Left x) Right (f x)
+
+containsBotAExpr :: AExpr -> Bool
+containsBotAExpr e = or [containsBot a | EAbs a <- Uniplate.universe e]
 
 -------------------------------------------------------------------------------
 

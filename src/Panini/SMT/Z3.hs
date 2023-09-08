@@ -17,6 +17,8 @@ import Prelude
 import System.Exit
 import System.Process
 
+-- TODO: add timeout
+
 -------------------------------------------------------------------------------
 
 smtInit :: Pan ()

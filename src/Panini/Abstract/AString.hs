@@ -24,6 +24,9 @@ import Prelude
 import RegExp.Operations
 import RegExp.RegExp
 
+-- TODO: add sophisticated regex simplifier (cf. Kahrs/Runciman 2022)
+-- TODO: add conversion to/from POSIX patterns (BRE)
+
 ------------------------------------------------------------------------------
 
 data AString = AString (RegExp Char)

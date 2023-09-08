@@ -15,6 +15,8 @@ import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
+-- TODO: ensure variable names are encoded properly (e.g., n')
+
 ------------------------------------------------------------------------------
 
 class SMTLIB a where

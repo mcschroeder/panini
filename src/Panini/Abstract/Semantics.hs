@@ -30,7 +30,8 @@ abstractVar :: Name -> Base -> Rel -> Pan AExpr
 abstractVar x b r
   | x ∉ r                  = return $ topExpr b  
   | Just e <- abstract x r = return e
-  | otherwise              = throwError $ AbstractionImpossible r x
+  | otherwise              = throwError $ AbstractionImpossible r x  
+                              -- TODO: report normalized r in error
 
 concretizeVar :: Name -> AExpr -> Pan Rel
 concretizeVar x e = case e of
@@ -43,7 +44,90 @@ topExpr TInt    = EAbs $ AInt top
 topExpr TString = EAbs $ AString top
 topExpr b       = panic $ "no" <+> symTop <+> "for " <+> pretty b
 
+botExpr :: Base -> AExpr
+botExpr TBool   = EAbs $ ABool bot
+botExpr TInt    = EAbs $ AInt bot
+botExpr TString = EAbs $ AString bot
+botExpr b       = panic $ "no" <+> symBot <+> "for " <+> pretty b
+
 -------------------------------------------------------------------------------
+
+-- TODO: eliminate isolateVar/abstract duplication
+
+isolateVar :: Name -> Rel -> Maybe AExpr
+isolateVar x r0 = norm <$> case normRel r0 of
+  r | x ∉ r -> Nothing
+
+  {----------------------------------------------------------
+            isolating x on the left-hand side
+  ----------------------------------------------------------}
+
+  -- ⟦ e₁ ▷ e₂ ⟧↑ₓ ≐ ⟦ e₂ ◁ e₁ ⟧↑ₓ  if x ∉ e₁
+  r | x ∉ leftSide r -> isolateVar x =<< converse r
+
+  -- ⟦ e₁ + e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₁ ⋈ e₃ - e₂ ⟧↑ₓ  if x ∈ e₁ 
+  Rel op (e1 :+: e2) e3 | x ∈ e1 -> isolateVar x $ Rel op e1 (e3 :-: e2)
+
+  -- ⟦ e₁ + e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₂ ⋈ e₃ - e₁ ⟧↑ₓ  if x ∈ e₂
+  Rel op (e1 :+: e2) e3 | x ∈ e2 -> isolateVar x $ Rel op e2 (e3 :-: e1)
+  
+  -- ⟦ e₁ - e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₁ ⋈ e₃ + e₂ ⟧↑ₓ  if x ∈ e₁
+  Rel op (e1 :-: e2) e3 | x ∈ e1 -> isolateVar x $ Rel op e1 (e3 :+: e2)
+    
+  -- ⟦ e₁ - e₂ ⋈ e₃ ⟧↑ₓ ≐ ⟦ e₂ ⋈ e₁ + e₃ ⟧↑ₓ  if x ∈ e₂
+  Rel op (e1 :-: e2) e3 | x ∈ e2 -> isolateVar x $ Rel op e2 (e1 :+: e3)
+
+
+  {----------------------------------------------------------
+            equalizing generic integer expressions
+  ----------------------------------------------------------}
+
+  -- ⟦ e₁ > e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [1,+∞] ⟧↑ₓ
+  e1 :>: e2 -> isolateVar x $ e1 :=: (e2 :+: EIntA (AInt.gt 0))
+
+  -- ⟦ e₁ ≥ e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [0,+∞] ⟧↑ₓ
+  e1 :≥: e2 -> isolateVar x $ e1 :=: (e2 :+: EIntA (AInt.ge 0))
+
+  -- ⟦ e₁ < e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [-∞,-1] ⟧↑ₓ
+  e1 :<: e2 -> isolateVar x $ e1 :=: (e2 :+: EIntA (AInt.lt 0))
+
+  -- ⟦ e₁ ≤ e₂ ⟧↑ₓ ≐ ⟦ e₁ = e₂ + [-∞,0] ⟧↑ₓ
+  e1 :≤: e2 -> isolateVar x $ e1 :=: (e2 :+: EIntA (AInt.le 0))
+
+
+  {----------------------------------------------------------
+              equalizing primitive inequalities
+  ----------------------------------------------------------}
+
+  -- ⟦ e ≠ b ⟧↑ₓ ≐ ⟦ e = b̅ ⟧↑ₓ
+  e :≠: EBool b pv -> isolateVar x $ e :=: EBool (not b) pv
+
+  -- ⟦ e ≠ b̂ ⟧↑ₓ ≐ ⟦ e = ¬b̂ ⟧↑ₓ
+  e :≠: EBoolA b -> isolateVar x $ e :=: EBoolA (neg b)
+
+  -- ⟦ e ≠ i ⟧↑ₓ ≐ ⟦ e = [-∞,i-1|i+1,∞] ⟧↑ₓ
+  e :≠: EInt i _ -> isolateVar x $ e :=: EIntA (AInt.ne i)
+
+  -- ⟦ e ≠ î ⟧↑ₓ ≐ ⟦ e = ¬î ⟧↑ₓ
+  e :≠: EIntA i -> isolateVar x $ e :=: EIntA (neg i)
+
+  -- ⟦ e ≠ c ⟧↑ₓ ≐ ⟦ e = Σ∖c  ⟧↑ₓ
+  e :≠: EChar c _ -> isolateVar x $ e :=: EStrA (lit $ AChar.ne c)
+
+
+  {---------------------------------------------------------
+          abstracting simple variable assignments
+  ---------------------------------------------------------}
+
+  -- ⟦ x = e ⟧↑ₓ ≐ e  if x ∉ e
+  EVar _x :=: e | x ∉ e -> Just e
+  
+  {----------------------------------------------------------
+     whereof one cannot speak, thereof one must be silent 
+  ----------------------------------------------------------}
+  
+  _ -> Nothing
+
 
 abstract :: Name -> Rel -> Maybe AExpr
 abstract x r0 = norm <$> case normRel r0 of
@@ -150,11 +234,35 @@ abstract x r0 = norm <$> case normRel r0 of
   EStrAt (EVar _x) (EInt i _) :=: EStrA c
     -> Just $ EStrA $ rep anyChar i <> c <> star anyChar
 
-  -- TODO: this is an over-approximation! (or is it?)
+  --  TODO: generalize
+  -- ⟦ x[[i,∞]] = c ⟧↑ₓ ≐ Σ*cΣ*   where i <= 0
+  EStrAt (EVar _x) (EIntA a) :=: EChar c _
+    | AInt.continuous a
+    , Just i <- AInt.minimum a, i <= Fin 0
+    , Just PosInf <- AInt.maximum a 
+    -> Just $ EStrA $ star anyChar <> lit (AChar.eq c) <> star anyChar
+
+  -- TODO: generalize
+  -- ⟦ x[|x|-1] = c ⟧↑ₓ ≐ Σ*c
+  EStrAt (EVar x1) (EStrLen (EVar x2) :+: EInt (-1) _) :=: EChar c _ | x1 == x2
+    -> Just $ EStrA $ star anyChar <> lit (AChar.eq c)
+
+  -- TODO: this is an over-approximation! 
+  -- we don't capture that x must be greater than 0
+  -- we don't capture that x is exactly all indexes of c in s
   -- ⟦ s[x] = c ⟧↑ₓ ≐ |s| - [1,∞]
   EStrAt (EVar s) (EVar x1) :=: EChar _ _ | x1 == x
     -> Just $ EStrLen (EVar s) :-: (EIntA $ AInt.ge 1)
   
+  -- TODO: this is an over-approximation! (same as above)
+  -- ⟦ s[x+e] = c ⟧↑ₓ ≐ |s| - [1,∞] + e
+  -- EStrAt (EVar s) (EVar x1 :+: e) :=: EChar _ _ | x1 == x
+  --   -> Just $ EStrLen (EVar s) :-: (EIntA $ AInt.ge 1) :-: e
+
+  -- TODO: hack WIP
+  EStrAt (EVar s) (EVar x1 :+: e) :=: EChar c pv | x1 == x
+    -> Just $ EFun "indexesOf" [EVar s, EChar c pv] :-: e
+
   {----------------------------------------------------------
               abstracting substring expressions
   ----------------------------------------------------------}
@@ -180,7 +288,8 @@ abstract x r0 = norm <$> case normRel r0 of
      whereof one cannot speak, thereof one must be silent 
   ----------------------------------------------------------}
   
-  _ -> Nothing
+  -- r -> trace (showPretty r) $ Nothing
+  _ -> Nothing  -- TODO: add to error message (or norm first)
 
 -------------------------------------------------------------------------------
 
