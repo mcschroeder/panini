@@ -46,7 +46,7 @@ topExpr b       = panic $ "no" <+> symTop <+> "for " <+> pretty b
 -------------------------------------------------------------------------------
 
 abstract :: Name -> Rel -> Maybe AExpr
-abstract x r0 = case normRel r0 of
+abstract x r0 = norm <$> case normRel r0 of
   r | x ∉ r -> Nothing
 
   {----------------------------------------------------------
