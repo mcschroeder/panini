@@ -4,6 +4,7 @@ module Panini.Abstract.AInt
   ( AInt
   , count
   , values
+  , intervals
   , member
   , minimum
   , maximum
@@ -20,6 +21,8 @@ module Panini.Abstract.AInt
   , leA
   , add
   , sub
+  , IntervalSequence
+  , Interval(..)
   , Inf(..)
   ) where
 
@@ -75,6 +78,10 @@ values (AInt xs) = go xs
     go (In NegInf  PosInf  : _ ) = interleave [0..] [-1,-2..]
     go []                        = []
     go _                         = impossible
+
+-- | Returns intervals of all integers represented by the abstract integer.
+intervals :: AInt -> IntervalSequence
+intervals (AInt xs) = xs
 
 -- | Is the value represented by the abstract integer?
 member :: Integer -> AInt -> Bool

@@ -120,16 +120,19 @@ abstract x r0 = case normRel r0 of
   -- ⟦ |x| = i ⟧↑ₓ ≐ Σ^i
   EStrLen (EVar _x) :=: (EInt i _) 
     -> Just $ EStrA $ rep anyChar i
-  
-  -- ⟦ |x| = [i,+∞] ⟧↑ₓ ≐ Σ^(i)Σ*
-  EStrLen (EVar _x) :=: EIntA a
-    | Just (Fin i) <- AInt.minimum a
-    , Just PosInf  <- AInt.maximum a
-    , AInt.continuous a
-    -> Just $ EStrA $ rep anyChar i <> star anyChar
 
-  -- TODO: implement general case
-  -- ⟦ |x| = [a₁,b₁|…|aₙ,bₙ] ⟧↑ₓ ≐ ???
+  -- ⟦ |x| = [a,b] ⟧↑ₓ ≐ ⟦ |x| = [0,b] ⟧↑ₓ  if a < 0
+  -- ⟦ |x| = [a,b] ⟧↑ₓ ≐ Σ^(a) | Σ^(a+1) | … | Σ^(b)
+  -- ⟦ |x| = [a,∞] ⟧↑ₓ ≐ Σ^(a)Σ*
+  -- ⟦ |x| = [a₁,b₁|…|aₙ,bₙ] ⟧↑ₓ ≐ ⟦ |x| = [a₁,b₁] ⟧↑ₓ ∨ … ∨ ⟦ |x| = [aₙ,bₙ] ⟧↑ₓ
+  EStrLen (EVar _x) :=: EIntA a 
+    -> Just $ EStrA $ joins1 $ flip concatMap (AInt.intervals a) $ \case
+      AInt.In _ (Fin n) | n < 0 -> [bot]
+      AInt.In NegInf  (Fin n) -> map (rep anyChar) [0..n]
+      AInt.In (Fin m) (Fin n) -> map (rep anyChar) [max 0 m..n]
+      AInt.In NegInf  PosInf  -> [star anyChar]
+      AInt.In (Fin m) PosInf  -> [rep anyChar (max 0 m) <> star anyChar]
+      _                       -> impossible
 
   -- ⟦ |x[e₁..e₂]| = e ⟧↑ₓ ≐ ⟦ |x| = e + [0,∞] ⟧↑  if x ∉ e
   EStrLen (EStrSub (EVar x1) _e1 _e2) :=: e | x1 == x
