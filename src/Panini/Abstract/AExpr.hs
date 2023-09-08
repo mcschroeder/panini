@@ -2,7 +2,13 @@
 -- TODO: remove
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Panini.Abstract.AExpr where
+module Panini.Abstract.AExpr
+  ( AExpr
+  , pattern EBoolA
+  , pattern EIntA
+  , pattern EStrA
+  , norm
+  ) where
 
 import Algebra.Lattice
 import Control.Applicative
@@ -46,10 +52,14 @@ instance PartialMeetSemilattice AExpr where
   EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
   EIntA b   ∧? EInt  a _ = Just $ EIntA $ AInt.eq a ∧ b
 
-  (e1 :+: EIntA a) ∧? e2               | e1 == e2, AInt.member 0 a = Just e1
-  (EIntA a :+: e1) ∧? e2               | e1 == e2, AInt.member 0 a = Just e1
-  e2               ∧? (e1 :+: EIntA a) | e1 == e2, AInt.member 0 a = Just e1
-  e2               ∧? (EIntA a :+: e1) | e1 == e2, AInt.member 0 a = Just e1
+  (e1 :+: EIntA a) ∧? (e2 :+: EIntA b) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
+  (e1 :+: EIntA a) ∧? (EIntA b :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
+  (e1 :+: EIntA a) ∧? e2               | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
+  (EIntA a :+: e1) ∧? (e2 :+: EIntA b) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
+  (EIntA a :+: e1) ∧? (EIntA b :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
+  (EIntA a :+: e1) ∧? e2               | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
+  e1               ∧? (e2 :+: EIntA a) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
+  e1               ∧? (EIntA a :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
