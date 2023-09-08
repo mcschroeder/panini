@@ -219,8 +219,9 @@ varElim x b ps = do
     EAbs a | containsBot a -> return Nothing
     x̂Self -> do
       let x̂s' = filter (([x] /=) . fst) $ Map.assocs x̂s
+      -- TODO: URGENT: the choice here seems more important than I thought!
       -- TODO: pick "smallest" meet
-      let (v̄ₘ,x̂ₘ) = if null x̂s' then ([x], x̂Self) else head x̂s'
+      let (v̄ₘ,x̂ₘ) = if null x̂s' then ([x], x̂Self) else last x̂s' -- head x̂s'
       let qs = map (subst x̂ₘ x) $ filter ((v̄ₘ /=) . freeVars) ps
       return $ Just qs
 
