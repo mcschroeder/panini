@@ -29,6 +29,7 @@ import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import GHC.Stack
+import Panini.Abstract.AExpr
 import Panini.Abstract.AString
 import Panini.Environment
 import Panini.Error

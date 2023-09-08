@@ -20,6 +20,7 @@ import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import GHC.Generics
+import Panini.Abstract.AExpr ()
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Error

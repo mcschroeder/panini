@@ -6,6 +6,7 @@ import Data.Text (Text)
 import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
+import Panini.Abstract.AExpr
 import Panini.Abstract.AString (toRegLan)
 import Panini.Pretty
 import Panini.Provenance

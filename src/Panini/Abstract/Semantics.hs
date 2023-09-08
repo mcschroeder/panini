@@ -2,9 +2,9 @@ module Panini.Abstract.Semantics where
 
 import Algebra.Lattice
 import Control.Monad
-import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Text qualified as Text
 import Panini.Abstract.AChar as AChar
+import Panini.Abstract.AExpr
 import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AValue
@@ -26,18 +26,18 @@ x ∉ e = x `notElem` freeVars e
 
 -------------------------------------------------------------------------------
 
-abstractVar :: Name -> Base -> Rel -> Pan Expr
+abstractVar :: Name -> Base -> Rel -> Pan AExpr
 abstractVar x b r
   | x ∉ r                  = return $ topExpr b  
   | Just e <- abstract x r = return e
   | otherwise              = throwError $ AbstractionImpossible r x
 
-concretizeVar :: Name -> Expr -> Pan Rel
+concretizeVar :: Name -> AExpr -> Pan Rel
 concretizeVar x e = case e of
   EStrA s -> return $ EVar x :∈: EStrA s  
   _       -> throwError $ ConcretizationImpossible e x
 
-topExpr :: Base -> Expr
+topExpr :: Base -> AExpr
 topExpr TBool   = EAbs $ ABool top
 topExpr TInt    = EAbs $ AInt top
 topExpr TString = EAbs $ AString top
@@ -45,7 +45,7 @@ topExpr b       = panic $ "no" <+> symTop <+> "for " <+> pretty b
 
 -------------------------------------------------------------------------------
 
-abstract :: Name -> Rel -> Maybe Expr
+abstract :: Name -> Rel -> Maybe AExpr
 abstract x r0 = case normRel r0 of
   r | x ∉ r -> Nothing
 
@@ -184,27 +184,3 @@ abstract x r0 = case normRel r0 of
 -- | Independently normalize each side of a relation.
 normRel :: Rel -> Rel
 normRel (Rel op e1 e2) = Rel op (norm e1) (norm e2)
-
--- | Normalize an expression by partial evaluation.
-norm :: Expr -> Expr
-norm = Uniplate.rewrite $ \case
-  ENot (EBool  a pv) -> Just $ EBool  (not a) pv
-  ENot (EBoolA a)    -> Just $ EBoolA (neg a)
-    
-  EInt  0 _ :+: e         -> Just e
-  e         :+: EInt  0 _ -> Just e  
-  EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV  
-  EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ AInt.add a (AInt.eq b)
-  EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add (AInt.eq a) b
-  EIntA a   :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add a b
-
-  e         :-: EInt  0 _ -> Just e
-  EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
-  EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ AInt.sub a (AInt.eq b)
-  EInt  a _ :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub (AInt.eq a) b
-  EIntA a   :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub a b
-
-  -- if nothing else works, maybe re-associating will help
-  (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)
-
-  _ -> Nothing

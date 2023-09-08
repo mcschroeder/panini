@@ -1,14 +1,10 @@
 module Panini.Syntax.Expressions where
 
-import Algebra.Lattice
-import Control.Applicative
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
-import Panini.Abstract.ABool as ABool
-import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AValue
 import Panini.Pretty
 import Panini.Provenance
@@ -54,15 +50,6 @@ pattern EChar :: Char -> PV -> Expr
 pattern EChar c pv <- ECon (S (Text.unpack -> [c]) pv) where
   EChar c pv = ECon (S (Text.pack [c]) pv)
 
-pattern EBoolA :: ABool -> Expr
-pattern EBoolA a = EAbs (ABool a)
-
-pattern EIntA :: AInt -> Expr
-pattern EIntA a = EAbs (AInt a)
-
-pattern EStrA :: AString -> Expr
-pattern EStrA a = EAbs (AString a)
-
 pattern (:+:) :: Expr -> Expr -> Expr
 pattern e1 :+: e2 = EAdd e1 e2
 
@@ -89,38 +76,6 @@ eqTypeAE a e =  maybe True (typeOfAValue a ==) (typeOfExpr e)
 -- note: we assume that variables are always of the right type
 -- TODO: have vars track their types
 -- TODO: add a predicate typechecking pass
-
-------------------------------------------------------------------------------
-
--- TODO: allow more expression meets
-instance PartialMeetSemilattice Expr where  
-  EAbs a ∧? EAbs b = EAbs <$> a ∧? b  
-  
-  EBool  a _ ∧? EBool  b _ = Just $ EBoolA $ ABool.eq a ∧ ABool.eq b
-  EBoolA a   ∧? EBool  b _ = Just $ EBoolA $ a          ∧ ABool.eq b
-  EBool  a _ ∧? EBoolA b   = Just $ EBoolA $ ABool.eq a ∧ b
-
-  EInt  a _ ∧? EInt  b _ = Just $ EIntA $ AInt.eq a ∧ AInt.eq b
-  EIntA a   ∧? EInt  b _ = Just $ EIntA $ a         ∧ AInt.eq b
-  EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
-
-  a ∧? b | a == b    = Just a
-         | otherwise = tryMeetE a b <|> tryMeetE b a
-
-tryMeetE :: Expr -> Expr -> Maybe Expr
-tryMeetE (EAbs a) e
-  | containsTop a, eqTypeAE a e = Just e
-  | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
-  
-tryMeetE (EVar x) (EVar y :+: EAbs (AInt a))
-  | x == y, AInt.concreteMember 0 a = Just $ EVar x
-  | x == y                          = Just $ EAbs (AInt bot)
-  
-tryMeetE (EStrLen (EVar s1)) (EStrLen (EVar s2) :+: EIntA a)
-  | s1 == s2, AInt.concreteMember 0 a = Just $ EStrLen (EVar s1)
-  | s1 == s2                          = Just $ EIntA bot
-
-tryMeetE _ _ = Nothing
 
 ------------------------------------------------------------------------------
 
