@@ -15,6 +15,7 @@ import Control.Applicative
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AInt as AInt
+import Panini.Abstract.AString as AString
 import Panini.Abstract.AValue
 import Panini.Provenance
 import Panini.Syntax.Expressions
@@ -51,6 +52,10 @@ instance PartialMeetSemilattice AExpr where
   EInt  a _ ∧? EInt  b _ = Just $ EIntA $ AInt.eq a ∧ AInt.eq b
   EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
   EIntA b   ∧? EInt  a _ = Just $ EIntA $ AInt.eq a ∧ b
+
+  EStr a _ ∧? EStr  b _ = Just $ EStrA $ AString.eq (Text.unpack a) ∧ AString.eq (Text.unpack b)
+  EStr a _ ∧? EStrA b   = Just $ EStrA $ AString.eq (Text.unpack a) ∧ b
+  EStrA b  ∧? EStr  a _ = Just $ EStrA $ AString.eq (Text.unpack a) ∧ b
 
   (e1 :+: EIntA a) ∧? (e2 :+: EIntA b) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
   (e1 :+: EIntA a) ∧? (EIntA b :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
