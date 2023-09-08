@@ -13,6 +13,7 @@ import Panini.Abstract.AValue
 import Panini.Provenance
 import Panini.Syntax.Expressions
 import Prelude
+import Data.Text qualified as Text
 
 ------------------------------------------------------------------------------
 
@@ -30,63 +31,75 @@ pattern EStrA a = EAbs (AString a)
 
 ------------------------------------------------------------------------------
 
--- TODO: we need to normalize expressions before meeting them
-
--- TODO: allow more expression meets
 instance PartialMeetSemilattice AExpr where  
   EAbs a ∧? EAbs b = EAbs <$> a ∧? b  
-  
+  EAbs a ∧? e      | containsTop a, eqTypeAE a e = Just e
+  EAbs a ∧? e      | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
+  e      ∧? EAbs a | containsTop a, eqTypeAE a e = Just e
+  e      ∧? EAbs a | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
+      
   EBool  a _ ∧? EBool  b _ = Just $ EBoolA $ ABool.eq a ∧ ABool.eq b
-  EBoolA a   ∧? EBool  b _ = Just $ EBoolA $ a          ∧ ABool.eq b
   EBool  a _ ∧? EBoolA b   = Just $ EBoolA $ ABool.eq a ∧ b
-
+  EBoolA b   ∧? EBool  a _ = Just $ EBoolA $ ABool.eq a ∧ b
+      
   EInt  a _ ∧? EInt  b _ = Just $ EIntA $ AInt.eq a ∧ AInt.eq b
-  EIntA a   ∧? EInt  b _ = Just $ EIntA $ a         ∧ AInt.eq b
   EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
+  EIntA b   ∧? EInt  a _ = Just $ EIntA $ AInt.eq a ∧ b
+
+  (e1 :+: EIntA a) ∧? e2               | e1 == e2, AInt.concreteMember 0 a = Just e1
+  (EIntA a :+: e1) ∧? e2               | e1 == e2, AInt.concreteMember 0 a = Just e1
+  e2               ∧? (e1 :+: EIntA a) | e1 == e2, AInt.concreteMember 0 a = Just e1
+  e2               ∧? (EIntA a :+: e1) | e1 == e2, AInt.concreteMember 0 a = Just e1
 
   a ∧? b | a == b    = Just a
-         | otherwise = tryMeetE a b <|> tryMeetE b a
-
-tryMeetE :: AExpr -> AExpr -> Maybe AExpr
-tryMeetE (EAbs a) e
-  | containsTop a, eqTypeAE a e = Just e
-  | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
-  
-tryMeetE (EVar x) (EVar y :+: EAbs (AInt a))
-  | x == y, AInt.concreteMember 0 a = Just $ EVar x
-  | x == y                          = Just $ EAbs (AInt bot)
-  
-tryMeetE (EStrLen (EVar s1)) (EStrLen (EVar s2) :+: EIntA a)
-  | s1 == s2, AInt.concreteMember 0 a = Just $ EStrLen (EVar s1)
-  | s1 == s2                          = Just $ EIntA bot
-
-tryMeetE e1 (e2 :-: EIntA a2)
-  = e1 ∧? (e2 :+: EIntA (AInt.sub (AInt.eq 0) a2))
-
-tryMeetE _ _ = Nothing
+         | otherwise = Nothing
 
 ------------------------------------------------------------------------------
 
--- | Normalize an expression by partial evaluation.
+-- | Normalize an abstract expression by (partial) evaluation.
 norm :: AExpr -> AExpr
 norm = Uniplate.rewrite $ \case
+  EVal _ -> Nothing
+  EAbs _ -> Nothing
+
   ENot (EBool  a pv) -> Just $ EBool  (not a) pv
   ENot (EBoolA a)    -> Just $ EBoolA (neg a)
-    
+
+  EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV
+  EInt  a _ :+: EIntA b   -> Just $ EIntA $ AInt.add (AInt.eq a) b
+  EIntA a   :+: EInt  b _ -> Just $ EIntA $ AInt.add a (AInt.eq b)
+  EIntA a   :+: EIntA b   -> Just $ EIntA $ AInt.add a b
   EInt  0 _ :+: e         -> Just e
-  e         :+: EInt  0 _ -> Just e  
-  EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV  
-  EIntA a   :+: EInt  b _ -> Just $ EAbs $ AInt $ AInt.add a (AInt.eq b)
-  EInt  a _ :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add (AInt.eq a) b
-  EIntA a   :+: EIntA b   -> Just $ EAbs $ AInt $ AInt.add a b
+  e         :+: EInt  0 _ -> Just e
+  EIntA a   :+: e         | [0] <- AInt.concreteValues a -> Just e
+  e         :+: EIntA a   | [0] <- AInt.concreteValues a -> Just e
+  EIntA a   :+: _         | isBot a -> Just $ EIntA bot  
+  _         :+: EIntA a   | isBot a -> Just $ EIntA bot
 
-  e         :-: EInt  0 _ -> Just e
-  EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
-  EIntA a   :-: EInt  b _ -> Just $ EAbs $ AInt $ AInt.sub a (AInt.eq b)
-  EInt  a _ :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub (AInt.eq a) b
-  EIntA a   :-: EIntA b   -> Just $ EAbs $ AInt $ AInt.sub a b
-
-  -- if nothing else works, maybe re-associating will help
+  -- re-associate addition to get more rewriting opportunities
   (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)
+
+  EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
+  EInt  a _ :-: EIntA b   -> Just $ EIntA $ AInt.sub (AInt.eq a) b
+  EIntA a   :-: EInt  b _ -> Just $ EIntA $ AInt.sub a (AInt.eq b)
+  EIntA a   :-: EIntA b   -> Just $ EIntA $ AInt.sub a b
+  e         :-: EInt  0 _ -> Just e
+  e         :-: EIntA a   | [0] <- AInt.concreteValues a -> Just e
+  EIntA a   :-: _         | isBot a -> Just $ EIntA bot
+  _         :-: EIntA a   | isBot a -> Just $ EIntA bot
+
+  -- rewrite constant subtractions into additions
+  e :-: EInt  a pv -> Just $ e :+: EInt (-a) pv
+  e :-: EIntA a    -> Just $ e :+: (EIntA $ AInt.sub (AInt.eq 0) a)
+  
+  EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
+  
+  EStrAt (EStr s _) (EInt (fromIntegral -> i) _)
+    | i < Text.length s 
+    -> Just $ EStr (Text.pack [Text.index s i]) NoPV    
+  
+  EStrSub (EStr s _) (EInt (fromIntegral -> i) _) (EInt (fromIntegral -> j) _)
+    | let n = Text.length s, i < n, j < n, i <= j
+    -> Just $ EStr (Text.take (j - i + 1) $ Text.drop i s) NoPV
 
   _ -> Nothing
