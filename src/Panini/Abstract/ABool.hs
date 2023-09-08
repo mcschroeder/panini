@@ -1,6 +1,6 @@
 module Panini.Abstract.ABool
   ( ABool
-  , concreteBool
+  , value
   , eq
   ) where
 
@@ -55,10 +55,10 @@ instance ComplementedLattice ABool where
   neg Bottom = Top
 
 -- | The single concrete value represented by the abstract Boolean, or Nothing.
-concreteBool :: ABool -> Maybe Bool
-concreteBool True_  = Just True
-concreteBool False_ = Just False
-concreteBool _      = Nothing
+value :: ABool -> Maybe Bool
+value True_  = Just True
+value False_ = Just False
+value _      = Nothing
 
 -- | An abstract Boolean equal to this concrete value.
 eq :: Bool -> ABool

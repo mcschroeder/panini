@@ -2,9 +2,9 @@
 
 module Panini.Abstract.AInt
   ( AInt
-  , concreteCount
-  , concreteValues
-  , concreteMember
+  , count
+  , values
+  , member
   , minimum
   , maximum
   , continuous
@@ -51,10 +51,10 @@ instance Pretty AInt where
 -------------------------------------------------------------------------------
 
 -- | The number of concrete values represented by the abstract integer (i.e.,
--- the length of the list returned by 'concreteValues'), or 'Nothing' if the
+-- the length of the list returned by 'values'), or 'Nothing' if the
 -- number of concrete values is infinite.
-concreteCount :: AInt -> Maybe Integer
-concreteCount (AInt xs) = go 0 xs
+count :: AInt -> Maybe Integer
+count (AInt xs) = go 0 xs
   where
     go n (In (Fin a) (Fin b) : ys) = go (n + 1 + b - a) ys
     go n []                        = Just n
@@ -66,8 +66,8 @@ concreteCount (AInt xs) = go 0 xs
 -- finite, or if they approach only positive infinity (+∞), the values are
 -- returned in ascending order. If the values (also) tend toward negative
 -- infinity (-∞), no ordering guarantees are given.
-concreteValues :: AInt -> [Integer]
-concreteValues (AInt xs) = go xs
+values :: AInt -> [Integer]
+values (AInt xs) = go xs
   where
     go (In (Fin a) (Fin b) : ys) = [a..b] ++ go ys
     go (In (Fin a) PosInf  : _ ) = [a..]
@@ -77,8 +77,8 @@ concreteValues (AInt xs) = go xs
     go _                         = impossible
 
 -- | Is the value represented by the abstract integer?
-concreteMember :: Integer -> AInt -> Bool
-concreteMember n (AInt xs)= go xs
+member :: Integer -> AInt -> Bool
+member n (AInt xs)= go xs
   where
     go (In (Fin a) (Fin b) : ys) | n >= a, n <= b = True
                                  | otherwise      = go ys

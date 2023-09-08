@@ -1,7 +1,7 @@
 module Panini.Abstract.AChar
   ( AChar
-  , concreteCount
-  , concreteValues
+  , count
+  , values
   , eq
   , ne
   -- , toPred
@@ -71,14 +71,14 @@ toCharList :: IntSet -> [Char]
 toCharList = map (toEnum @Char) . I.toAscList
 
 -- | The number of concrete values represented by the abstract character.
-concreteCount :: AChar -> Int
-concreteCount (AChar True  cs) = I.size cs
-concreteCount (AChar False cs) = fromEnum @Char maxBound - I.size cs
+count :: AChar -> Int
+count (AChar True  cs) = I.size cs
+count (AChar False cs) = fromEnum @Char maxBound - I.size cs
 
 -- | The concrete values represented by the abstract character.
-concreteValues :: AChar -> [Char]
-concreteValues (AChar True  cs) = toCharList cs
-concreteValues (AChar False cs) = 
+values :: AChar -> [Char]
+values (AChar True  cs) = toCharList cs
+values (AChar False cs) = 
   filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
 -- | An abstract character @= c@.

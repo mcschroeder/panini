@@ -46,10 +46,10 @@ instance PartialMeetSemilattice AExpr where
   EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
   EIntA b   ∧? EInt  a _ = Just $ EIntA $ AInt.eq a ∧ b
 
-  (e1 :+: EIntA a) ∧? e2               | e1 == e2, AInt.concreteMember 0 a = Just e1
-  (EIntA a :+: e1) ∧? e2               | e1 == e2, AInt.concreteMember 0 a = Just e1
-  e2               ∧? (e1 :+: EIntA a) | e1 == e2, AInt.concreteMember 0 a = Just e1
-  e2               ∧? (EIntA a :+: e1) | e1 == e2, AInt.concreteMember 0 a = Just e1
+  (e1 :+: EIntA a) ∧? e2               | e1 == e2, AInt.member 0 a = Just e1
+  (EIntA a :+: e1) ∧? e2               | e1 == e2, AInt.member 0 a = Just e1
+  e2               ∧? (e1 :+: EIntA a) | e1 == e2, AInt.member 0 a = Just e1
+  e2               ∧? (EIntA a :+: e1) | e1 == e2, AInt.member 0 a = Just e1
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
@@ -71,8 +71,8 @@ norm = Uniplate.rewrite $ \case
   EIntA a   :+: EIntA b   -> Just $ EIntA $ AInt.add a b
   EInt  0 _ :+: e         -> Just e
   e         :+: EInt  0 _ -> Just e
-  EIntA a   :+: e         | [0] <- AInt.concreteValues a -> Just e
-  e         :+: EIntA a   | [0] <- AInt.concreteValues a -> Just e
+  EIntA a   :+: e         | [0] <- AInt.values a -> Just e
+  e         :+: EIntA a   | [0] <- AInt.values a -> Just e
   EIntA a   :+: _         | isBot a -> Just $ EIntA bot  
   _         :+: EIntA a   | isBot a -> Just $ EIntA bot
 
@@ -84,7 +84,7 @@ norm = Uniplate.rewrite $ \case
   EIntA a   :-: EInt  b _ -> Just $ EIntA $ AInt.sub a (AInt.eq b)
   EIntA a   :-: EIntA b   -> Just $ EIntA $ AInt.sub a b
   e         :-: EInt  0 _ -> Just e
-  e         :-: EIntA a   | [0] <- AInt.concreteValues a -> Just e
+  e         :-: EIntA a   | [0] <- AInt.values a -> Just e
   EIntA a   :-: _         | isBot a -> Just $ EIntA bot
   _         :-: EIntA a   | isBot a -> Just $ EIntA bot
 
