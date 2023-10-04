@@ -53,6 +53,7 @@ library
     , unordered-containers
   exposed-modules:
     Algebra.Lattice
+    Algebra.Regex
     Panini.Abstract.ABool
     Panini.Abstract.AChar
     Panini.Abstract.AInt
