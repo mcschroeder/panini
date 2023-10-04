@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 
 -- based on Liang et. al. 2015. A Decision Procedure for Regular Membership and
 -- Length Constraints over Unbounded Strings.
@@ -7,13 +8,12 @@ module Algebra.Regex where
 import Data.Generics.Uniplate.Direct
 import Data.Generics.Uniplate.Operations
 import Prelude
+import Data.Set (Set)
+import Data.Set qualified as Set
 
-alphabet :: [Char]
-alphabet = "abcdefg"
 
 -- TODO: integrate intersection/meet into language?
 -- TODO: use charsets
--- TODO: how to enumerate infinite alphabet?
 
 data Regex
   = Zero
@@ -69,6 +69,15 @@ nullable = \case
   Times r1 r2 -> nullable r1 && nullable r2
   Star _      -> True
 
+alpha :: Regex -> Set Char
+alpha = \case
+  Zero -> []
+  One -> []
+  Lit c -> [c]
+  Plus r1 r2 -> alpha r1 <> alpha r2
+  Times r1 r2 -> alpha r1 <> alpha r2
+  Star r -> alpha r
+
 intersection :: Regex -> Regex -> Regex
 intersection = curry $ \case
   (_,Zero) -> Zero
@@ -82,22 +91,16 @@ intersection = curry $ \case
   (r,r')
     | r == r' -> r
   (r,r') 
-    | nullable r, nullable r' -> (Star r1) `Times` r1'
+    | nullable r, nullable r' -> foldl Plus One $ map deriv alphabet'
       where
-        (r1,r1') = rho (One `Plus` derivs)
-        derivs   = foldl1 Plus $ map deriv alphabet
-        deriv c  = (Lit c) `Times` (intersection (derivative c r) (derivative c r'))
-  (r,r') 
-    | otherwise -> Star r1 `Times` r1'
-      where
-        (r1, r1') = rho derivs
-        derivs    = foldl1 Plus $ map deriv alphabet
         deriv c   = (Lit c) `Times` (intersection (derivative c r) (derivative c r'))
+        alphabet' = Set.toList $ alpha r <> alpha r'
+  (r,r') 
+    | otherwise -> foldl1 Plus $ map deriv alphabet'
+      where
+        deriv c   = (Lit c) `Times` (intersection (derivative c r) (derivative c r'))
+        alphabet' = Set.toList $ alpha r <> alpha r'
 
-rho :: Regex -> (Regex, Regex)
-rho = \case
-  Zero -> (Zero, Zero)
-  r    -> (One, r)
 
 derivative :: Char -> Regex -> Regex
 derivative c = normalize . \case
