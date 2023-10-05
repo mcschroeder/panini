@@ -2,9 +2,10 @@ module Panini.Abstract.AChar
   ( AChar
   , count
   , values
+  , member
+  , choose
   , eq
   , ne
-  -- , toPred
   , toFiniteSet
   , fromFiniteSet
   ) where
@@ -15,14 +16,12 @@ import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import GHC.Generics
 import Panini.Pretty
--- import Panini.Syntax
 import Prelude
--- import Data.Text qualified as Text
 
 -------------------------------------------------------------------------------
 
 import Data.Set qualified as S
-import Data.GSet -- from regexp
+import Data.GSet (FiniteSet(..)) -- from regexp
 
 toFiniteSet :: AChar -> FiniteSet Char
 toFiniteSet (AChar True xs) = These $ intSetToSetOfChar xs
@@ -42,7 +41,7 @@ setOfCharToIntSet =  I.fromList . map (fromEnum @Char) . S.toList
 
 -- | An abstract character.
 data AChar = AChar Bool IntSet
-  deriving stock (Eq, Generic, Show, Read)
+  deriving stock (Eq, Ord, Generic, Show, Read)
 
 instance Hashable AChar
 
@@ -81,6 +80,15 @@ values (AChar True  cs) = toCharList cs
 values (AChar False cs) = 
   filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
+member :: Char -> AChar -> Bool
+member c (AChar True  cs) = I.member    (fromEnum @Char c) cs
+member c (AChar False cs) = I.notMember (fromEnum @Char c) cs
+
+choose :: AChar -> Maybe Char
+choose cs = case values cs of
+  []  -> Nothing
+  x:_ -> Just x
+
 -- | An abstract character @= c@.
 eq :: Char -> AChar
 eq = AChar True . I.singleton . fromEnum
@@ -88,13 +96,6 @@ eq = AChar True . I.singleton . fromEnum
 -- | An abstract character @≠ c@, i.e., @= Σ\c@.
 ne :: Char -> AChar
 ne = AChar False . I.singleton . fromEnum
-
--- toPred :: Expr -> AChar -> Pred
--- toPred lhs (AChar b cs) = case b of
---   True  -> joins $ map (mkRel Eq) $ toCharList cs
---   False -> meets $ map (mkRel Ne) $ toCharList cs
---  where
---   mkRel r c = PRel r lhs (ECon (S (Text.singleton c) NoPV))  
 
 instance Pretty AChar where
   pretty (AChar True cs) = case toCharList cs of
