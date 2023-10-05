@@ -53,7 +53,6 @@ library
     , unordered-containers
   exposed-modules:
     Algebra.Lattice
-    Algebra.Regex
     Panini.Abstract.ABool
     Panini.Abstract.AChar
     Panini.Abstract.AInt
@@ -81,6 +80,7 @@ library
     Panini.Pretty.Style
     Panini.Pretty.Symbols
     Panini.Provenance
+    Panini.Regex
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
