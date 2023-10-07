@@ -1,14 +1,42 @@
-{-# LANGUAGE OverloadedLists #-}
-
--- based on Liang et. al. 2015. A Decision Procedure for Regular Membership and
--- Length Constraints over Unbounded Strings.
-
--- charset trick / local mintermization due to Keil and Thiemann. 2014. Symbolic
--- Solving of Regular Expression Inequalities.
-
- -- Brzozowski (1964).
--- Valentin Antimirov , 1996. Partial derivatives of regular expressions and finite automaton constructions . Theoretical Computer Science 155 (1996) 291-319
-module Panini.Regex where
+-- | This module contains types and functions to work with semi-extended regular
+-- expressions (i.e., regexes that permit intersection).
+--
+-- There are two aspects of note:
+--
+--   1) The literals in the 'Regex' data type are whole character sets ('AChar')
+--      instead of just single characters ('Char'). This enables efficient and
+--      succinct representation of character classes (e.g., @[a-z]@).
+--
+--   2) Operations like 'intersection' and 'normalize' are implemented entirely
+--      algebraically, without intermediate translation into automata.
+--
+-- References:
+--
+--   * Acay, Josh. 2016. regexp. . https://github.com/cacay/regexp
+--   * Antimirov, Valentin. 1996. "Partial derivatives of regular expressions
+--     and finite automaton constructions." Theoretical Computer Science 155
+--     (1996): 291-319. https://doi.org/10.1016/0304-3975(95)00182-4
+--
+--   * Brzozowski, Janusz A. 1964. "Derivatives of Regular Expressions." Journal
+--     of the ACM 11, no. 4 (October 1964): 481-494.
+--     https://doi.org/10.1145/321239.321249
+--
+--   * Keil, Matthias and Peter Thiemann. 2014. "Symbolic Solving of Extended
+--     Regular Expression Inequalities." https://arxiv.org/abs/1410.3227
+--
+--   * Liang Tianyi, Nestan Tsiskaridze, Andrew Reynolds, Cesare Tinelli, and
+--     Clark Barrett. 2015. "A decision procedure for regular membership and
+--     length constraints over unbounded strings." Frontiers of Combining
+--     Systems (FroCoS 2015), LNAI 9322, 135–150.
+--     https://doi.org/10.1007/978-3-319-24246-0_9
+--
+module Panini.Regex
+  ( Regex(..)
+  , pattern Zero
+  , normalize
+  , intersection
+  , derivative
+  ) where
 
 import Algebra.Lattice hiding (join)
 import Data.Generics.Uniplate.Direct
@@ -19,28 +47,43 @@ import Panini.Pretty
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
 
--------------------------------------------------------------------------------
+-- TODO: add provenance to Regex
+-- TODO: preserve provenance through transformations
+-- TODO: prove correctness of operations
+-- TODO: prove time/space bounds of operations
+-- TODO: add conversion to/from POSIX (and/or other) regex patterns
+-- TODO: use Panini pretty printing
+-- TODO: replace AChar with more general CharSet?
 
+--------------------------------------------------------------------------------
+
+-- | The 'Regex' type defines regular expressions over Unicode character set.
+-- The constructor names follow typical algebraic notation. Literals ('Lit') are
+-- sets of symbols, instead of single characters.  Note that the empty regex is
+-- represented by an empty literal (see the 'Zero' pattern synonym below).
 data Regex
-  = One
-  | Lit AChar
-  | Plus Regex Regex
-  | Times Regex Regex
-  | Star Regex
+  = One                 -- ^ identitity element (1), empty string (ε)
+  | Lit AChar           -- ^ set of literal symbols (A), character class
+  | Plus Regex Regex    -- ^ union (r₁ + r₂), alternation (r₁ | r₂)
+  | Times Regex Regex   -- ^ concatentation (r₁ ⋅ r₂)
+  | Star Regex          -- ^ iteration, Kleene closure (r*)
   deriving stock (Eq, Ord)
 
+-- | zero element (0), empty set (∅), bottom (⊥)
 pattern Zero :: Regex
 pattern Zero <- Lit (isBot -> True) where
   Zero = Lit bot
 
+-- | Normalized union.
 instance JoinSemilattice Regex where
-  (∨) = Plus
+  r1 ∨ r2 = normalize $ Plus r1 r2
 
 instance BoundedJoinSemilattice Regex where
   bot = Zero
 
+-- | Normalized intersection.
 instance MeetSemilattice Regex where
-  (∧) = intersection
+  r1 ∧ r2 = normalize $ intersection r1 r2
 
 instance BoundedMeetSemilattice Regex where
   top = Star (Lit top)
@@ -57,11 +100,11 @@ instance Show Regex where
   showsPrec d = \case
     One         -> showString "ε"
     Lit c       -> showString $ showPretty c
-    Plus  r1 r2 -> showParen (d > 6) $ showsPrec 6 r1 . showString "|" . showsPrec 7 r2
-    Times r1 r2 -> showParen (d > 7) $ showsPrec 7 r1 . showsPrec 8 r2
+    Plus  r1 r2 -> showParen (d > 6) $ showsPrec 6 r1 . showString " + " . showsPrec 7 r2
+    Times r1 r2 -> showParen (d > 7) $ showsPrec 7 r1 . showString " ⋅ " . showsPrec 8 r2
     Star r      -> showParen (d > 10) $ showsPrec 11 r . showString "*"
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Rewrite a regex into a succinct normal form (Liang et al. 2015, Fig. 3).
 normalize :: Regex -> Regex
@@ -92,7 +135,7 @@ nullable = \case
   Times r1 r2 -> nullable r1 && nullable r2
   Star _      -> True
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Compute the intersection of two regexes.
 --
@@ -127,7 +170,7 @@ intersection = π []
          , Just c <- [AChar.choose p]
          ]
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | The derivative c⁻¹r of a regex r with respect to a character c is a new
 -- regex that accepts all words that would be accepted by r if they were
@@ -152,7 +195,7 @@ derivative c = normalize . \case
     | nullable r1 -> (derivative c r1 `Times` r2) `Plus` derivative c r2
     | otherwise   -> (derivative c r1 `Times` r2)
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | The  /next literals/ of a regex are a set {A₁,A₂,...,Aₙ} of mutually
 -- disjoint character sets Aᵢ such that all symbols in each character set yield
@@ -163,8 +206,8 @@ derivative c = normalize . \case
 -- (Keil and Thiemann 2014, section 5.2)
 next :: Regex -> Set AChar
 next = \case
-  One             -> [bot]
-  Lit a           -> [a]
+  One             -> Set.singleton bot
+  Lit a           -> Set.singleton a
   Star r          -> next r
   Plus r1 r2      -> next r1 ⋈ next r2
   Times r1 r2 
