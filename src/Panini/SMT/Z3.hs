@@ -17,7 +17,7 @@ import Prelude
 import System.Exit
 import System.Process
 
--- TODO: add timeout
+-- TODO: make solver timeout adjustable
 
 -------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ smtValid cs = do
   logData query
 
   logMessage "Check satisfiability"
-  (code, output, _) <- liftIO $ readProcessWithExitCode "z3" ["-smt2", "-in"] query
+  (code, output, _) <- liftIO $ readProcessWithExitCode "z3" ["-smt2", "-in", "-T:5"] query
   logData output
 
   case code of
