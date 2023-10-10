@@ -275,6 +275,19 @@ abstract x r0 = norm <$> case normRel r0 of
     | i == 0, j == fromIntegral (Text.length t) - 1 
     -> Right $ EStrA $ AString.eq (Text.unpack t) <> star anyChar
 
+  -- TODO: generalize (remove i == 0)
+  EStrSub (EVar _s) (EInt i _) (EInt j _) :=: EStrA t
+    | i == 0, let n = j - i + 1, let t' = t ∧ rep anyChar n
+    -> Right $ EStrA $ t' <> star anyChar
+
+  -- TODO: generalize (remove i == 0)
+  EStrSub (EVar _s) (EIntA i) (EIntA j) :=: EStr t _
+    | [0] <- AInt.values i
+    , let n = fromIntegral (Text.length t)
+    , [n'] <- AInt.values $ j ∧ AInt.eq n
+    , n == n'
+    -> Right $ EStrA $ AString.eq (Text.unpack t) <> star anyChar
+
   -- ⟦ s[0..x] = t ⟧↑ₓ ≐ |t| - 1
   EStrSub (EVar _s) (EInt 0 _) (EVar x1) :=: EVar t | x1 == x 
     -> Right $ EStrLen (EVar t) :-: EInt 1 NoPV
