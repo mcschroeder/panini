@@ -104,8 +104,8 @@ encodeSubstring p1 p2 p3 =
   sexpr ["str.substr", encode p1, encode p2, encode offset]
   where
     offset = case (p2,p3) of
-      (ECon (I i _), ECon (I j _)) -> ECon (I (j - i) NoPV)
-      _                            -> ESub p3 p2
+      (ECon (I i _), ECon (I j _)) -> ECon (I (j - i + 1) NoPV)
+      _                            -> p3 :-: p2 :+: (EInt 1 NoPV)
 
 -- TODO: ensure uniqueness
 instance SMTLIB KVar where
