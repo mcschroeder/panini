@@ -55,6 +55,7 @@ library
     Algebra.Lattice
     Panini.Abstract.ABool
     Panini.Abstract.AChar
+    Panini.Abstract.AExpr
     Panini.Abstract.AInt
     Panini.Abstract.AString
     Panini.Abstract.AValue
