@@ -269,7 +269,11 @@ abstract x r0 = norm <$> case normRel r0 of
 
   -- note: the following abstractions are over-fitting on tests 013 and 016
   -- TODO: generalize these / are they even correct?
-  
+
+  EStrSub (EVar _s) (EInt i _) (EInt j _) :=: EStr t _
+    | i == 0, j == fromIntegral (Text.length t) - 1 
+    -> Just $ EStrA $ AString.eq (Text.unpack t) <> star anyChar
+
   -- ⟦ s[0..x] = t ⟧↑ₓ ≐ |t| - 1
   EStrSub (EVar _s) (EInt 0 _) (EVar x1) :=: EVar t | x1 == x 
     -> Just $ EStrLen (EVar t) :-: EInt 1 NoPV

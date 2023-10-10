@@ -1,5 +1,5 @@
 assert : { b:𝔹 | b = true } → 𝟙
-startswith : (p:string) -> (s:string) -> {b:bool | b = true <=> s[0..|p|] = p}
+startswith : (p:string) -> (s:string) -> {b:bool | b = true <=> s[0..|p|-1] = p}
 
 prefix_check = \s:string.
   let prefix = "http" in

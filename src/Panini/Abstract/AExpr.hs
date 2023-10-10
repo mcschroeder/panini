@@ -66,6 +66,9 @@ instance PartialMeetSemilattice AExpr where
   e1               ∧? (e2 :+: EIntA a) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
   e1               ∧? (EIntA a :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
 
+  EStrSub s1 i1 j1 ∧? EStrSub s2 i2 j2 
+    | s1 == s2, Just i <- i1 ∧? i2, Just j <- j1 ∧? j2 = Just $ EStrSub s1 i j
+
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
 
