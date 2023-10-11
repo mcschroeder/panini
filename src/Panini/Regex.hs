@@ -1,8 +1,8 @@
 module Panini.Regex where
 
 import Algebra.Lattice
+import Data.Containers.ListUtils
 import Data.Generics.Uniplate.Direct
-import Data.List qualified as List
 import Data.Semigroup
 import Data.String
 import Panini.Abstract.AChar (AChar)
@@ -27,8 +27,7 @@ data Regex
   | Opt Regex     -- ^ option (r?)
   deriving stock (Eq, Ord, Show, Read)
 -- TODO: n-times repetition
--- TODO: plus
--- TODO: opt
+-- TODO: Plus (+)
 
 -- | zero element (0), empty set (∅), bottom (⊥)
 pattern Zero :: Regex
@@ -48,28 +47,10 @@ pattern AnyChar <- Lit (isTop -> True) where
 pattern All :: Regex
 pattern All = Star AnyChar
 
-opt :: Regex -> Regex
-opt Zero           = One
-opt One            = One
-opt r | nullable r = r
-opt r              = Opt r
-
-star :: Regex -> Regex
-star Zero     = One
-star One      = One
-star (Star r) = Star r
-star r        = Star r
-
 instance IsString Regex where
   fromString = Word
 
--- TODO: singleton literals
 instance Semigroup Regex where
-  Zero     <> _        = Zero
-  _        <> Zero     = Zero
-  One      <> r        = r
-  r        <> One      = r
-  Word a   <> Word b   = Word (a ++ b)
   Times xs <> Times ys = Times (xs ++ ys)
   Times xs <> r        = Times (xs ++ [r])
   r        <> Times xs = Times (r:xs)
@@ -83,21 +64,10 @@ instance Monoid Regex where
   mempty = One
 
 instance JoinSemilattice Regex where
-  r        ∨ r' | r == r' = r
-  Zero     ∨ r            = r
-  r        ∨ Zero         = r
-  One      ∨ r            = opt r  
-  r        ∨ One          = opt r
-  Opt r1   ∨ r2           = opt (r1 ∨ r2)
-  r1       ∨ Opt r2       = opt (r1 ∨ r2)
-  Lit a    ∨ Lit b        = Lit (a ∨ b)
-  Lit a    ∨ Word [b]     = Lit (a ∨ AChar.eq b)
-  Word [a] ∨ Lit b        = Lit (AChar.eq a ∨ b)
-  Word [a] ∨ Word [b]     = Lit (AChar.eq a ∨ AChar.eq b)
-  Plus xs  ∨ Plus ys      = Plus $ List.nub (xs ++ ys)
-  Plus xs  ∨ r            = if r `elem` xs then Plus xs else Plus (xs ++ [r])
-  r        ∨ Plus xs      = if r `elem` xs then Plus xs else Plus (r:xs)
-  r1       ∨ r2           = Plus [r1,r2]
+  Plus rs1 ∨ Plus rs2 = Plus (rs1 ++ rs2)
+  Plus rs  ∨ r        = Plus (rs ++ [r])
+  r        ∨ Plus rs  = Plus (r:rs)
+  r1       ∨ r2       = Plus [r1,r2]
 
 instance BoundedJoinSemilattice Regex where
   bot = Zero
@@ -107,15 +77,12 @@ instance BoundedJoinSemilattice Regex where
 instance Pretty Regex where
   pretty = \case
     Lit c -> pretty c
-    Word s -> pretty s
+    Word [] -> "ε"
+    Word s -> ann (Literal StringLit) $ pretty s
     Plus rs -> parens $ concatWithOp "+" $ map pretty rs
-    Times rs -> mconcat $ map pretty rs
-    Star r@(Times _) -> parens (pretty r) <> "*"
-    Star r@(Word _) -> parens (pretty r) <> "*"
-    Star r -> pretty r <> "*"
-    Opt r@(Times _) -> parens (pretty r) <> "?"
-    Opt r@(Word _) -> parens (pretty r) <> "?"
-    Opt r -> pretty r <> "?"
+    Times rs -> parens $ concatWithOp "⋅" $ map pretty rs
+    Star r -> parens (pretty r) <> "*"
+    Opt r -> parens (pretty r) <> "?"
 
 instance Uniplate Regex where
   uniplate = \case
@@ -138,5 +105,85 @@ nullable = \case
   Star _   -> True
   Opt _    -> True
 
+-------------------------------------------------------------------------------
 
--- TODO: simplify explicitly (not implicitly via construction)
+-- TODO: implement more complex simplifications à la Kahrs/Runciman 2022
+
+simplify :: Regex -> Regex
+simplify = rewrite $ \case
+  Lit a | [c] <- AChar.values a -> Just $ Word [c]
+
+  Plus rs0 -> case nubOrd rs0 of
+    []                             -> Just Zero
+    [r]                            -> Just r
+    rs1 | any (== One) rs1         -> Just $ Opt $ Plus $ filter (== One) rs1
+        | any isOpt rs1            -> Just $ Opt $ Plus $ concatMap flatOpt rs1
+        | all isLit rs1            -> Just $ Lit $ joins [a | Lit a <- rs1]
+        | all isWord1 rs1          -> Just $ Lit $ joins [AChar.eq c | Word [c] <- rs1]
+        | any isPlus rs1           -> Just $ Plus $ concatMap flatPlus rs1
+        | length rs1 /= length rs0 -> Just $ Plus rs1
+        | otherwise                -> Nothing
+
+  Times rs0 -> case filter (/= One) rs0 of
+    []                             -> Just One
+    [r]                            -> Just r
+    rs1 | any (== Zero) rs1        -> Just Zero
+        | all isWord rs1           -> Just $ Word $ concat [s | Word s <- rs1]
+        | any isTimes rs1          -> Just $ Times $ concatMap flatTimes rs1
+        | length rs1 /= length rs0 -> Just $ Times rs1
+        | otherwise                -> Nothing
+
+  Star Zero     -> Just One
+  Star One      -> Just One
+  Star (Star r) -> Just $ Star r
+  
+  Opt Zero           -> Just One
+  Opt One            -> Just One
+  Opt r | nullable r -> Just r
+
+  _ -> Nothing
+
+isLit :: Regex -> Bool
+isLit (Lit _) = True
+isLit _       = False
+{-# INLINE isLit #-}
+
+isWord :: Regex -> Bool
+isWord (Word _) = True
+isWord _        = False
+{-# INLINE isWord #-}
+
+isWord1 :: Regex -> Bool
+isWord1 (Word [_]) = True
+isWord1 _          = False
+{-# INLINE isWord1 #-}
+
+isTimes :: Regex -> Bool
+isTimes (Times _) = True
+isTimes _         = False
+{-# INLINE isTimes #-}
+
+isPlus :: Regex -> Bool
+isPlus (Plus _) = True
+isPlus _        = False
+{-# INLINE isPlus #-}
+
+isOpt :: Regex -> Bool
+isOpt (Opt _) = True
+isOpt _       = False
+{-# INLINE isOpt #-}
+
+flatTimes :: Regex -> [Regex]
+flatTimes (Times xs) = xs
+flatTimes x          = [x]
+{-# INLINE flatTimes #-}
+
+flatPlus :: Regex -> [Regex]
+flatPlus (Plus xs) = xs
+flatPlus x         = [x]
+{-# INLINE flatPlus #-}
+
+flatOpt :: Regex -> [Regex]
+flatOpt (Opt r) = [r]
+flatOpt x       = [x]
+{-# INLINE flatOpt #-}
