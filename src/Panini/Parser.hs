@@ -406,6 +406,7 @@ pexprTerm = choice
 pexprOps :: [[Operator Parser Expr]]
 pexprOps =
   [ [ Postfix opSubStr ]
+  , [ prefix symNot ENot ]
   , [ infixL (op "*") (EMul)
     ]
   , [ infixL (op "+") (EAdd)
