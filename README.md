@@ -141,6 +141,8 @@ Alternatively, you can use the following ASCII equivalents for common symbols:
 | `≥`     | `>=`     | `\ge`     | greater than or equal
 | `⇒` or `⟹` | `==>` | `\Rightarrow` or `\implies` | implication
 | `⇔` or `⟺` | `<=>` | `\Leftrightarrow` or `\iff` | iff
+| `∈`     | `\in`    | `\in`     | included in
+| `∉`     | `\notin` | `\notin`  | not included in
 
 
 Panini also has a `--no-unicode` flag which outputs only ASCII (but still permits Unicode input).

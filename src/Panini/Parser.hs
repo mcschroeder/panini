@@ -390,6 +390,8 @@ relation = choice
   , Lt <$ op "<"
   , Ge <$ symGe
   , Gt <$ op ">"
+  , In <$ symIn
+  , Ni <$ symNotIn
   ]
 
 pexpr :: Parser Expr
@@ -506,3 +508,9 @@ symIff = op "<=>" <|> symbol "⇔" <|> symbol "⟺"
 
 symAll :: Parser ()
 symAll = op "forall" <|> symbol "∀"
+
+symIn :: Parser ()
+symIn = op "\\in" <|> symbol "∈"
+
+symNotIn :: Parser ()
+symNotIn = op "\\notin" <|> symbol "∉"
