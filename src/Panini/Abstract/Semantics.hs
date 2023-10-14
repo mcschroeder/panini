@@ -301,7 +301,41 @@ abstract x r0 = norm <$> case normRel r0 of
     -> Right $ EStrA $ AString.eq (Text.unpack t) <> star anyChar
     -- TODO: what if |s| /= |t| ??
 
+  {----------------------------------------------------------
+          miscellanous  (TODO)
+  ----------------------------------------------------------}
+
+  -- TODO: generalize beyond str_indexof(s,t,0) = [0,∞]
+  EFun "str_indexof" [EVar _s, EStr t _, EInt 0 _] :=: EIntA a
+    | Just (Fin 0) <- AInt.minimum a, Just PosInf <- AInt.maximum a, AInt.continuous a
+    -> Right $ EStrA $ star anyChar <> AString.eq (Text.unpack t) <> star anyChar
   
+  -- TODO: generalize beyond str_indexof(s,"c",[i,∞]) = -1
+  EFun "str_indexof" [EVar _s, EChar c _, EIntA a] :=: EInt (-1) _
+    | Just (Fin i) <- AInt.minimum a, Just PosInf <- AInt.maximum a, AInt.continuous a
+    -> Right $ EStrA $ rep anyChar i <> star anyChar <> lit (AChar.ne c)
+
+  -- TODO: generalize beyond str_indexof(s,"c",str_indexof(s,"c",0)+1) = -1
+  EFun "str_indexof" [EVar s1, EChar c1 _, 
+    EFun "str_indexof" [EVar s2, EChar c2 _, EInt 0 _] :+: EInt 1 _] :=: EInt (-1) _
+    | s1 == x, s1 == s2, c1 == c2
+    -> Right $ EStrA $ star (lit (AChar.ne c1)) <> opt (lit (AChar.eq c1) <> star (lit (AChar.ne c1)))
+
+  -- TODO: generalize beyond str_indexof(s,"c",[-∞,+∞]) = -1
+  EFun "str_indexof" [EVar _s, EChar c _, EIntA a] :=: EInt (-1) _ | isTop a
+    -> Right $ EStrA $ star anyChar <> star (lit (AChar.ne c))
+
+  -- -- TODO: generalize beyond str_indexof(s,"c",0) = [i..j] where j <= -1
+  EFun "str_indexof" [EVar _s, EChar c _, EInt 0 _] :=: EIntA a
+    | Just j <- AInt.maximum a, j < Fin 0
+    -> Right $ EStrA $ star (lit (AChar.ne c))
+  
+  -- TODO: generalize beyond str_indexof(s,"c",[_..0]) = -1
+  EFun "str_indexof" [EVar _s, EChar c _, EIntA a] :=: EInt (-1) _
+    | let a' = a ∧ AInt.ge 0, [0] <- AInt.values a'
+    -> Right $ EStrA $ star (lit (AChar.ne c))
+
+
   {----------------------------------------------------------
      whereof one cannot speak, thereof one must be silent 
   ----------------------------------------------------------}

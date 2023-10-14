@@ -8,6 +8,7 @@ module Panini.Abstract.AString
   , rep
   , anyChar
   , star
+  , opt
   , toRegLan
   ) where
 
@@ -67,6 +68,10 @@ anyChar = AString $ rLiteral $ AChar.toFiniteSet top
 
 star :: AString -> AString
 star (AString r) = AString $ rStar r
+
+-- | r?
+opt :: AString -> AString
+opt (AString r) = AString (rOne `rPlus` r)
 
 instance Pretty AString where
   pretty (AString r) = pretty $ view r

@@ -16,6 +16,7 @@ import Panini.Syntax
 import Prelude
 
 -- TODO: ensure variable names are encoded properly (e.g., n')
+-- TODO: allow EFun names to contain dots to match SMT-LIB (e.g. "str.indexof")
 
 ------------------------------------------------------------------------------
 
@@ -91,6 +92,7 @@ instance SMTLIB Expr where
     EAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
     ESub e1 e2       -> sexpr ["-", encode e1, encode e2]
     EMul e1 e2       -> sexpr ["*", encode e1, encode e2]
+    EFun "str_indexof" ps -> sexpr ("str.indexof" : map encode ps)
     EFun x ps        -> sexpr (encode x : map encode ps)
     EStrLen p        -> sexpr ["str.len", encode p]
     EStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
