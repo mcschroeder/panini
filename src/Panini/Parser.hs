@@ -257,7 +257,7 @@ constant = label "constant" $ choice
       return $ B x pv
     
     intLit = label "integer" $ do
-      (x, pv) <- withPV $ L.signed empty L.decimal
+      (x, pv) <- withPV $ L.signed whitespace L.decimal
       whitespace
       return $ I x pv
     
