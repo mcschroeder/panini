@@ -11,6 +11,7 @@ import Panini.Provenance
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
+import Prettyprinter qualified as PP
 
 ------------------------------------------------------------------------------
 
@@ -108,7 +109,7 @@ instance Biplate Expr Value where
 instance Pretty Expr where
   pretty p0 = case p0 of
     EVal v -> pretty v
-    EFun f ps -> pretty f <> prettyTuple ps
+    EFun f ps -> pretty f <> PP.hang 0 (prettyTuple ps)
     EMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
     EAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2
     ESub p1 p2 -> prettyL p0 p1 <+> "-" <+> prettyR p0 p2
