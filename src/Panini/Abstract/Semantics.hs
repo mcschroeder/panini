@@ -309,6 +309,11 @@ abstract x r0 = norm <$> case normRel r0 of
   EFun "str_indexof" [EVar _s, EStr t _, EInt 0 _] :=: EIntA a
     | Just (Fin 0) <- AInt.minimum a, Just PosInf <- AInt.maximum a, AInt.continuous a
     -> Right $ EStrA $ star anyChar <> AString.eq (Text.unpack t) <> star anyChar
+
+  -- TODO: generalize beyond str_indexof(s,"c",0) = [-∞,+∞]
+  EFun "str_indexof" [EVar _s, EChar c _, EInt 0 _] :=: EIntA a
+    | isTop a
+    -> Right $ EStrA $ star (lit (AChar.ne c)) <> opt (lit (AChar.eq c) <> star anyChar)
   
   -- TODO: generalize beyond str_indexof(s,"c",[i,∞]) = -1
   EFun "str_indexof" [EVar _s, EChar c _, EIntA a] :=: EInt (-1) _
