@@ -54,7 +54,10 @@ replMain panOpts = do
         when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
         -- TODO: consider logging with getExternalPrint instead of to stderr
 
-  let panState0 = defaultState { eventHandler }
+  let panState0 = defaultState 
+        { eventHandler
+        , Panini.Monad.smtTimeout = panOpts.smtTimeout 
+        }
 
   void $ runPan panState0 $ runInputT replConf $ do
     lift smtInit

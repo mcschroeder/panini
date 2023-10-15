@@ -54,7 +54,10 @@ batchMain panOpts = do
         whenJust traceFile (putEventFile panOpts ev)
         when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
 
-  let panState0 = defaultState { eventHandler }
+  let panState0 = defaultState 
+        { eventHandler
+        , Panini.Monad.smtTimeout = panOpts.smtTimeout 
+        }
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ addSourceLinesToError $ do

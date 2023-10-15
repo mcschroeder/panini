@@ -70,7 +70,9 @@ testMain globalOpts = assert globalOpts.testMode $ do
           { eventHandler = \ev -> do
               whenJust traceFile (putEventFile globalOpts ev)
               when globalOpts.trace (putEventStderr globalOpts ev)
-              -- note how we don't log errors to stderr by default here 
+              -- note how we don't log errors to stderr by default here
+          
+          , Panini.Monad.smtTimeout = globalOpts.smtTimeout
           }
 
     result <- try @SomeException $ runPan panState0 $ do

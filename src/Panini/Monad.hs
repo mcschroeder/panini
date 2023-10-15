@@ -62,6 +62,8 @@ data PanState = PanState {
   -- | Function for handling diagnostic events. Called synchronously whenever an
   -- event occurs. Default is @const (return ())@.
   , eventHandler :: Event -> IO ()
+
+  , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
   }
 
 defaultState :: PanState
@@ -70,6 +72,7 @@ defaultState = PanState
   , kvarCount = 0
   , loadedModules = []
   , eventHandler = const (return ())
+  , smtTimeout = 10
   }
 
 -------------------------------------------------------------------------------

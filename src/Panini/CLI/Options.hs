@@ -12,6 +12,8 @@ import Prettyprinter.Util (reflow)
 import System.FilePath
 import System.IO
 
+-- TODO: validate smtTimeout option (>= 0)
+
 -------------------------------------------------------------------------------
 
 data PanOptions = PanOptions
@@ -25,6 +27,7 @@ data PanOptions = PanOptions
   , unicode :: Bool
   , testMode :: Bool
   , termWidth :: Maybe Int
+  , smtTimeout :: Int
   }
   deriving stock (Show, Read)
 
@@ -93,6 +96,12 @@ opts = info
       <*> (optional $ option auto $
             long "term-width" <>
             hidden
+          )
+      <*> (option auto $
+            long "smt-timeout" <>
+            metavar "SECONDS" <>
+            help "SMT solver timeout (default: 10 seconds)" <>
+            value 10
           )
 
 -------------------------------------------------------------------------------
