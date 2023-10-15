@@ -26,6 +26,7 @@ data PanOptions = PanOptions
   , color :: Bool
   , unicode :: Bool
   , testMode :: Bool
+  , createGoldenFiles :: Bool
   , termWidth :: Maybe Int
   , smtTimeout :: Int
   }
@@ -46,7 +47,8 @@ opts = info
         \ INPUT/*.pan will be processed and their outputs compared against the\
         \ corresponding golden files; if no INPUT is given, it is per default\
         \ assumed to be a directory named \"tests\". If any test input file\
-        \ has no matching golden file yet, one will be automatically created\
+        \ has no matching golden file yet and the --create-golden-files flag\
+        \ is passed, a corresponding golden file will be automatically created\
         \ from the current output. Both --trace and --trace-file are available\
         \ in test mode."
       ])
@@ -92,6 +94,10 @@ opts = info
       <*> (switch $
             long "test" <>
             help "Run tests"
+          )
+      <*> (switch $
+            long "create-golden-files" <>
+            help "Automatically create missing golden files"
           )
       <*> (optional $ option auto $
             long "term-width" <>

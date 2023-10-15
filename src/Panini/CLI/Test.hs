@@ -115,11 +115,18 @@ testMain globalOpts = assert globalOpts.testMode $ do
         else do
           putDocLn $ ann Error "FAIL" <+> "wrong exit code"
           return False
-      else do
+      else if globalOpts.createGoldenFiles then do        
         withFile goldenFile WriteMode $ \h -> Text.hPutStr h actual      
         putDocLn $ 
           ann Message "created golden file" <\>
           ann Margin (divider symDivH (Just $ Right goldenFile)) <\>
+          pretty actual <\>
+          pretty (ann Margin $ divider symDivH Nothing) <> "\n"
+        return True
+      else do
+        putDocLn $ 
+          ann Message "missing golden file" <\>
+          ann Margin (divider symDivH (Just $ Right "Output")) <\>
           pretty actual <\>
           pretty (ann Margin $ divider symDivH Nothing) <> "\n"
         return True
