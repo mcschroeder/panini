@@ -64,7 +64,9 @@ gconKVar (GCon _ k _) = k
 -- | Solve a set of grammar constraints, returning the combined solution.
 -- 
 -- The current approach orders constraints by κ variable name and tries to solve
--- them sequentially, applying intermediate solutions on the way.
+-- them sequentially, applying intermediate solutions on the way. Multiple
+-- solutions to the same variable (i.e., if some κᵢ appears multiple times) are
+-- meet-ed together.
 solveAll :: HashSet GCon -> Pan Assignment
 solveAll = foldM solve1 mempty
          . List.sortBy (compare `on` gconKVar)
@@ -75,7 +77,12 @@ solveAll = foldM solve1 mempty
       g <- solve $ GCon x k $ apply s c
       logMessage $ "Found grammar assignment for" <+> pretty k
       logData g
-      return $ Map.union g s
+      return $ Map.unionWith meet' g s
+    
+    -- TODO: refactor solve to return AString and concretize higher up
+    meet' (PRel (s1 :∈: g1)) (PRel (s2 :∈: g2)) 
+      | s1 == s2, Just g <- g1 ∧? g2 = PRel (s1 :∈: g)
+    meet' p q = p ∧ q
 
 -- | Solve a grammar constraint @∀s:𝕊. κ(s) ⇒ c@, returning a solution for @κ@.
 solve :: GCon -> Pan Assignment
