@@ -46,7 +46,7 @@ parseSource path src = do
 -------------------------------------------------------------------------------
 
 parseProgram :: FilePath -> Text -> Either Error Program
-parseProgram = parseA (many statement)
+parseProgram = parseA $ whitespace >> many statement
 
 parseStatement :: FilePath -> Text -> Either Error Statement
 parseStatement = parseA statement
