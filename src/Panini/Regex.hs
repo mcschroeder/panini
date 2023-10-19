@@ -1,3 +1,47 @@
+-- | This module contains types and functions to work with extended regular
+-- expressions (i.e., regexes that permit intersection and complement).
+--
+-- There are some aspects of note:
+--
+--   1) The constructors of the 'Regex' data type are somewhat optimized for
+--      efficiency of representation and thus not mathematically "minimal". For
+--      example, choice (+) and sequence (⋅) are n-ary operations, and we
+--      include a redundant constructor for optionals (?).
+--
+--   2) The literals in the 'Regex' data type are character sets ('AChar')
+--      instead of just single characters ('Char'). This enables efficient and
+--      succinct representation of character classes (e.g., @[a-z]@).
+--
+--   3) Operations like 'intersection' and 'normalize' are implemented entirely
+--      algebraically, without intermediate translation into automata.
+--
+-- References:
+--
+--   * Acay, Josh. "A Regular Expression Library for Haskell." Unpublished
+--     manuscript, dated May 22, 2018. LaTeX files and Haskell source code.
+--     https://github.com/cacay/regexp
+--
+--   * Antimirov, Valentin. 1996. "Partial derivatives of regular expressions
+--     and finite automaton constructions." Theoretical Computer Science 155
+--     (1996): 291-319. https://doi.org/10.1016/0304-3975(95)00182-4
+--
+--   * Arden, Dean N. 1961. "Delayed Logic and Finite State Machines."
+--     Proceedings of the 2nd Annual Symposium on Switching Circuit Theory and
+--     Logical Design (SWCT 1961), 133-151. https://doi.org/10.1109/FOCS.1961.13
+--
+--   * Brzozowski, Janusz A. 1964. "Derivatives of Regular Expressions." Journal
+--     of the ACM 11, no. 4 (October 1964): 481-494.
+--     https://doi.org/10.1145/321239.321249
+--
+--   * Keil, Matthias and Peter Thiemann. 2014. "Symbolic Solving of Extended
+--     Regular Expression Inequalities." https://arxiv.org/abs/1410.3227
+--
+--   * Liang Tianyi, Nestan Tsiskaridze, Andrew Reynolds, Cesare Tinelli, and
+--     Clark Barrett. 2015. "A decision procedure for regular membership and
+--     length constraints over unbounded strings." Frontiers of Combining
+--     Systems (FroCoS 2015), LNAI 9322, 135–150.
+--     https://doi.org/10.1007/978-3-319-24246-0_9
+--
 module Panini.Regex where
 
 import Algebra.Lattice
@@ -15,6 +59,7 @@ import Data.Map qualified as Map
 import Control.Monad.Trans.State.Strict
 import Data.Bifunctor
 import Data.List qualified as List
+import Data.Map.Strict (Map)
 
 -------------------------------------------------------------------------------
 
@@ -22,6 +67,12 @@ import Data.List qualified as List
 type CharSet = AChar
 
 -------------------------------------------------------------------------------
+
+-- TODO: simplification vs standardization: simplification is needed for
+-- succinctness (human readability); standardization is needed for correctness
+-- of algorithm (so that intermediate expressions don't blow up infinitely but
+-- instead collapse to unique representations)
+
 
 -- | The 'Regex' type defines regular expressions over Unicode characters.
 data Regex  
@@ -77,6 +128,12 @@ instance JoinSemilattice Regex where
 
 instance BoundedJoinSemilattice Regex where
   bot = Zero
+
+instance MeetSemilattice Regex where
+  r1 ∧ r2 = intersection r1 r2
+
+instance BoundedMeetSemilattice Regex where
+  top = All
 
 -------------------------------------------------------------------------------
 
@@ -197,14 +254,16 @@ flatOpt x       = [x]
 
 -------------------------------------------------------------------------------
 
--- TODO: simplification vs standardization: simplification is needed for
--- succinctness (human readability); standardization is needed for correctness
--- of algorithm (so that intermediate expressions don't blow up infinitely but
--- instead collapse to unique representations)
-
--- TODO: cleanup
--- TODO: comment
-
+-- | Compute the intersection of two regexes.
+--
+-- The implementation works purely algebraically, without going through a DFA.
+-- It is based on the equation-solving approach by Acay (unpublished manuscript,
+-- 2018), using Arden's lemma (1961) and Gaussian elimination to solve a system
+-- of regex equations. The approach is similar to the one by Liang et al. (2015,
+-- Fig. 8), where the interplay of the π and ρ functions essentially does the
+-- same thing. Like Acay, we also make use of the local mintermization approach
+-- by Keil and Thiemann (2014) to effectively compute precise derivatives over
+-- large alphabets (see the 'next' function below).
 intersection :: Regex -> Regex -> Regex
 intersection = curry $ solve $ \(r1,r2) ->
   let c0 = if nullable r1 && nullable r2 then One else Zero
@@ -214,6 +273,9 @@ intersection = curry $ solve $ \(r1,r2) ->
            ]
   in (c0,cx)
 
+-- | Compute the complement of a regex.
+--
+-- See the 'intersection' operation for notes on the implementation.
 complement :: Regex -> Regex
 complement = solve $ \r ->
   let c0 = if nullable r then Zero else One
@@ -224,13 +286,31 @@ complement = solve $ \r ->
            ]
   in (c0 ∨ c1, cx)
 
-solve :: Ord x => (x -> (Regex, [(Regex,x)])) -> x -> Regex
+-------------------------------------------------------------------------------
+
+-- | An unknown term @c⋅X@ consisting of a coefficient @c@ and a variable @X@.
+type Term x = (Regex,x)
+
+-- | The right-hand side of an equation @Xᵢ = c₀ + c₁⋅X₁ + c₂⋅X₂ + … + cₙXₙ@,
+-- with @c₀@ being a known constant term.
+type RHS x = (Regex, [Term x])
+
+-- | A system of regex equations.
+type System x = Map x (RHS x)
+
+-- | @solve f x0@ dynamically constructs and solves a system of linear regex
+-- equations, given an initial unknown variable @x0@ and a function @f@ that
+-- computes the right-hand side of any unknown variable.
+solve :: forall x. Ord x => (x -> RHS x) -> x -> Regex
 solve f x0 = evalState (go x0) mempty
  where
+  go :: x -> State (System x) Regex
   go x = do
     s <- gets $ Map.lookup x
     case s of
-      Just (c0, []) -> return c0      
+      Just (c0, []) -> 
+        return c0
+
       Just (c0, cx) | x `elem` map snd cx -> do
         let (cx0, cx') = List.partition ((== x) . snd) cx
         let a = simplify $ Star (Plus (map fst cx0))
@@ -252,13 +332,14 @@ solve f x0 = evalState (go x0) mempty
         modify' $ Map.insert x (c0,cx)
         go x
 
+  update :: x -> RHS x -> RHS x -> RHS x
   update x (c0,cx) (d0,dy) = (simplify $ d0 ∨ (Plus d0'), dyx' ++ dyy)
    where
     (dyx, dyy) = List.partition ((== x) . snd) dy
     dyx' = concatMap (\c -> map (first (simplify . (c <>))) cx) $ map fst dyx
     d0' = map (\c -> simplify $ c <> c0) $ map fst dyx
 
-
+-------------------------------------------------------------------------------
 
 -- | The derivative c⁻¹r of a regex r with respect to a character c is a new
 -- regex that accepts all words that would be accepted by r if they were
