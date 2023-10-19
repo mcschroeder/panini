@@ -52,7 +52,7 @@ solve c0 = do
   let s_fusion = Map.fromList $ zip (Set.toList $ kvars c0) (repeat PTrue)
 
   logMessage "Simplify"
-  let !c3 = simplifyCon c2 -- TODO: disable this and make it work regardless
+  let !c3 = c2 --simplifyCon c2 -- TODO: disable this and make it work regardless
   logData c3
 
   logMessage "Find remaining grammar constraints"

@@ -7,6 +7,11 @@ import Panini.Panic
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Panini.Abstract.AExpr
+import Panini.Abstract.AString (anyChar)
+import Data.List qualified as List
+import Data.Set qualified as Set
+import Panini.Solver.Assignment
 
 ------------------------------------------------------------------------------
 
@@ -21,10 +26,13 @@ simplifyCon = transform go . transformBi simplifyPred
       CAnd CFalse _      -> CFalse
       CAnd _      CFalse -> CFalse      
 
-      CAll _ _ PFalse _     -> CTrue
-      CAll _ _ _      CTrue -> CTrue
+      -- CAll _ _ PFalse _ -> CTrue
+      
+      -- c0@(CAll _ _ _ CTrue) | null (freeVars c0) -> CTrue
+      -- c0@(CAll _ _ _ CTrue) -> CTrue
       
       CAll x _ p c
+        | [y] <- Set.toList (freeVars p <> freeVars c), x == y, null (kvars p <> kvars c) -> CTrue
         | x `notElem` (freeVars p <> freeVars c) -> case (p,c) of
           (PTrue , _      ) -> c
           (_     , CFalse ) -> CHead (PNot p)
@@ -52,7 +60,7 @@ simplifyPred = transform $ \case
   
   PImpl PTrue  b      -> b
   PImpl PFalse _      -> PTrue
-  PImpl _      PTrue  -> PTrue
+  -- PImpl _      PTrue  -> PTrue
   PImpl a      PFalse -> PNot a
   
   PImpl a b | a == b -> PTrue
@@ -64,24 +72,54 @@ simplifyPred = transform $ \case
 
   PIff a b | a == b -> PTrue
 
-  PExists x _ p
-    | x `notElem` freeVars p -> p
+  -- PExists x _ p
+  --   | [y] <- Set.toList (freeVars p), x == y -> PTrue
+
+  -- PExists x _ p
+  --   | x `notElem` freeVars p -> p
   
-  PExists x _ (PRel (Rel Eq (EVar v1) (EVar v2)))  -- ∃x. x = y
-    | x == v1 || x == v2 -> PTrue
+  -- PExists x _ (PRel (Rel Eq (EVar v1) (EVar v2)))
+  --   | x == v1 || x == v2 -> PTrue
 
-  -- ∃x. x = z ∧ x = y₁ ∧ … ∧ x = yₙ   -->  y₁ = z ∧ … ∧ yₙ = z
-  PExists x _ (PAnd (PRel (EVar x1 :=: z@(EVal _)):ps))
-    | x == x1
-    , ys <- extract ps
-    , length ys == length ps 
-    -> PAnd $ map (\y -> PRel (EVar y :=: z)) ys
-    where
-      extract (PRel (EVar a :=: EVar b) : rs)
-        | x == a = b : extract rs
-        | x == b = a : extract rs
-      extract _ = []
+  -- PExists _ _ _ -> PTrue
 
+  -- PExists x _ p
+  --   | isTrivial p -> PTrue
+  --   | PAnd ps <- p
+  --   , ([_],ps') <- List.partition isTrivial ps
+  --   , x `notElem` freeVars (PAnd ps')
+  --   -> PAnd ps'    
+  --  where
+  --   isTrivial = \case
+  --     PRel (EVar v1 :=: EVar v2) -> v1 == x || v2 == x
+  --     PIff (PRel (EVar v1 :=: EBool True _)) _ -> v1 == x
+  --     _ -> False
+
+  -- -- ∃x. x = z ∧ x = y₁ ∧ … ∧ x = yₙ   -->  y₁ = z ∧ … ∧ yₙ = z
+  -- PExists x _ (PAnd (PRel (EVar x1 :=: z@(EVal _)):ps))
+  --   | x == x1
+  --   , ys <- extract ps
+  --   , length ys == length ps 
+  --   -> PAnd $ map (\y -> PRel (EVar y :=: z)) ys
+  --   where
+  --     extract (PRel (EVar a :=: EVar b) : rs)
+  --       | x == a = b : extract rs
+  --       | x == b = a : extract rs
+  --     extract _ = []
+
+
+  -- PExists x TInt (PAnd [PRel (EVar x1 :≥: EInt y pv), PRel (EVar x2 :=: EStrLen (EVar s))])
+  --   | x == x1, x1 == x2
+  --   -> PRel (EStrLen (EVar s) :≥: EInt y pv)
+
+  -- -- ∃(x:𝔹). x = _ ⟺ q  -->  true
+  -- PExists x TBool (PIff (PRel (EVar x1 :=: EBool _ _)) q) 
+  --   | x == x1, x `notElem` freeVars q
+  --   -> PTrue
+
+  -- PExists x TString (PRel (EVar x1 :=: EStrAt (EVar s) i))
+  --   | x == x1, x /= s
+  --   -> PRel (EStrAt (EVar s) i :=: EStrA anyChar)
 
   PRel (Rel Eq p q) | p == q -> PTrue
   PRel (Rel Le p q) | p == q -> PTrue

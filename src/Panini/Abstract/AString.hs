@@ -54,6 +54,9 @@ instance JoinSemilattice AString where
 instance BoundedJoinSemilattice AString where
   bot = AString rZero
 
+instance ComplementedLattice AString where
+  neg (AString r) = AString (complement r)
+
 eq :: String -> AString
 eq = mconcat . map (lit . AChar.eq)
 

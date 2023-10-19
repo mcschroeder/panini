@@ -42,6 +42,7 @@ topExpr :: Base -> AExpr
 topExpr TBool   = EAbs $ ABool top
 topExpr TInt    = EAbs $ AInt top
 topExpr TString = EAbs $ AString top
+--topExpr TUnit   = ECon (U NoPV)
 topExpr b       = panic $ "no" <+> symTop <+> "for " <+> pretty b
 
 botExpr :: Base -> AExpr
@@ -225,6 +226,11 @@ abstract x r0 = norm <$> case normRel r0 of
   {----------------------------------------------------------
           abstracting character-at-index expressions
   ----------------------------------------------------------}
+
+  -- note: we can't just say neg c b/c str.at constraints to single chars
+  -- TODO: ensure this in a more systematic way
+  EStrAt e1 e2 :≠: EStrA c
+    -> abstract x $ EStrAt e1 e2 :=: EStrA (anyChar ∧ neg c)
 
   -- ⟦ x[i] = c ⟧↑ₓ ≐ Σ^(i)cΣ*
   EStrAt (EVar _x) (EInt i _) :=: EChar c _

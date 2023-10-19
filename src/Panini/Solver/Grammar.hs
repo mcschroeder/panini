@@ -73,10 +73,9 @@ solveAll = foldM solve1 mempty
          . HashSet.toList
   where
     solve1 s (GCon x k c) = do
-      logMessage $ "Solve grammar variable" <+> pretty k
+      logMessage $ "Solve for grammar variable" <+> pretty k
       g <- solve $ GCon x k $ apply s c
-      logMessage $ "Found grammar assignment for" <+> pretty k
-      logData g
+      logMessage $ "Found grammar assignment" <+> pretty g
       return $ Map.unionWith meet' g s
     
     -- TODO: refactor solve to return AString and concretize higher up
@@ -101,10 +100,12 @@ solve (GCon s k c) | k `elem` kvars c = do
 
 -- TODO: clean up
 solve (GCon s k c) = do
+  logMessage "Rewrite grammar constraint"
   logData c
   c' <- rewrite c
+  logData c'
   logMessage "abstract string from rewritten constraints"
-  g <- joins <$> (forM (unDNF c') $ \ps -> do
+  g <- joins <$> (forM c' $ \ps -> do
     logData ps
     gs <- meets <$> (forM ps $ \p -> do
       logMessage $ "abstract s from" <+> pretty p
@@ -129,72 +130,83 @@ abstractVarString x r = abstractVar x TString r >>= \case
 
 -------------------------------------------------------------------------------
 
-rewrite :: Con -> Pan (DNF Rel)
-rewrite = \case
-  CHead p      -> return $ toDNF p
-  CAnd c1 c2   -> liftA2 (∧) (rewrite c1) (rewrite c2)
-  CAll x b p c -> case c of
-    CAll x2 b2 p2 c2 -> varElimDNF x b =<< rewrite (CAll x2 b2 (p ∧ p2) c2)
-    CHead q          -> varElimDNF x b $ toDNF $ p ∧ q
-    CAnd c1 c2 -> (joins <$>) . forM (unDNF $ toDNF p) $ \p' -> do
-        c1' <- varElimDNF x b =<< meet (DNF [p']) <$> rewrite c1
-        c2' <- varElimDNF x b =<< meet (DNF [p']) <$> rewrite c2
-        return $ c1' ⟑ c2'
+rewrite :: Con -> Pan [[Rel]]
+rewrite c0 = unwrapDNF <$> go c0
+ where
+  go :: Con -> Pan Pred
+  go = \case
+    CHead p      -> dnf p
+    CAnd c1 c2   -> dnf =<< liftA2 (∧) (wrapDNF <$> rewrite c1) (wrapDNF <$> rewrite c2)    
+    CAll x b p c -> dnf =<< PNot . PExists x b . PNot . PImpl p <$> wrapDNF <$> rewrite c
+  
+  dnf :: Pred -> Pan Pred
+  dnf = \case
+    PTrue                   -> return PTrue
+    PFalse                  -> return PFalse    
+    PRel r | isContra r     -> return PFalse
+    PRel r                  -> return $ PRel r          
+    PNot PTrue              -> return PFalse
+    PNot PFalse             -> return PTrue    
+    PNot (PRel r)           -> dnf $ PRel (inverse r)
+    PNot (PNot x)           -> dnf x
+    PNot (PAnd xs)          -> dnf $ POr (map PNot xs)
+    PNot (POr xs)           -> dnf $ PAnd (map PNot xs)    
+    PNot (PImpl a b)        -> dnf $ PAnd [a, PNot b]    
+    PNot (PIff a b)         -> dnf $ PIff a (PNot b)  -- TODO: optimize arbitrary choice?
+    PNot x                  -> dnf =<< PNot <$> dnf x        
+    PImpl a b               -> dnf $ POr [PNot a, b]
+    PIff a b                -> dnf $ POr [PAnd [a,b], PAnd [PNot a, PNot b]]    
+    PAnd [x]                -> dnf x
+    PAnd xs0 -> filter (/= PTrue) . nub' <$> mapM dnf xs0 >>= \case
+      xs1 | null xs1        -> return PTrue
+          | elem PFalse xs1 -> return PFalse
+          | hasContra xs1   -> return PFalse
+          | any isPOr xs1   -> dnf $ POr $ distributeAnds xs1
+          | any isPAnd xs1  -> dnf $ PAnd $ associateAnds xs1
+          | otherwise       -> return $ PAnd xs1
+    POr [x]                 -> dnf x
+    POr xs0 -> filter (/= PFalse) . nub' <$> mapM dnf xs0 >>= \case
+      xs1 | null xs1        -> return PFalse
+          | elem PTrue xs1  -> return PTrue
+          | any isPOr xs1   -> dnf $ POr $ associateOrs xs1
+          | otherwise       -> return $ POr xs1
+    PExists x b p           -> wrapDNF <$> (mapMaybeM (varElim x b) =<< unwrapDNF <$> dnf p)
+    PAppK _ _               -> impossible
+  
+-- | Associate nested conjunctions, e.g., a ∧ (b ∧ c) ∧ d ≡ a ∧ b ∧ c ∧ d.
+associateAnds :: [Pred] -> [Pred]
+associateAnds xs = case partition isPAnd xs of
+  (ys,zs) -> concat [y | PAnd y <- ys] ++ zs
+{-# INLINE associateAnds #-}
 
-(⟑) :: DNF a -> DNF a -> DNF a
-DNF [] ⟑ DNF [] = DNF []
-p      ⟑ DNF [] = p
-DNF [] ⟑ q      = q
-p      ⟑ q      = p ∧ q
+-- | Associate nested disjunctions, e.g., a ∨ (b ∨ c) ∨ d ≡ a ∨ b ∨ c ∨ d.
+associateOrs :: [Pred] -> [Pred]
+associateOrs xs = case partition isPOr xs of
+  (ys,zs) -> concat [y | POr y <- ys] ++ zs
+{-# INLINE associateOrs #-}
 
--------------------------------------------------------------------------------
+-- | Distribute a list of conjuncts over any nested disjunctions, resulting in a
+-- list of disjuncts, e.g., a ∧ (b ∨ c) ∧ d ≡ (a ∧ b ∧ d) ∨ (a ∧ c ∧ d).
+distributeAnds :: [Pred] -> [Pred]
+distributeAnds xs = case partition isPOr xs of
+  (ys,zs) -> map (PAnd . (zs ++)) $ sequence [y | POr y <- ys]
+{-# INLINE distributeAnds #-}
 
-newtype DNF a = DNF { unDNF :: [[a]] }
+-- | Whether a conjunction contains both a literal and its dual, e.g., a ∧ ¬a.
+hasContra :: [Pred] -> Bool
+hasContra xs = or [PRel (inverse r) `elem` xs | PRel r <- xs]
+{-# INLINE hasContra #-}
 
-instance MeetSemilattice (DNF a) where
-  DNF ps ∧ DNF qs = DNF [p ++ q | p <- ps, q <- qs]
+-- | Whether a relation is contradictory, e.g., a = ⊥ or a ≠ ⊤.
+isContra :: Rel -> Bool
+isContra (e1 :=: e2) = containsBotAExpr e1 || containsBotAExpr e2
+isContra (e1 :≠: e2) = containsTopAExpr e1 || containsTopAExpr e2
+isContra _           = False
+{-# INLINE isContra #-}
 
-instance BoundedMeetSemilattice (DNF a) where
-  top = DNF [[]]
-
-instance JoinSemilattice (DNF a) where
-  DNF [[]] ∨ _        = DNF [[]]
-  _        ∨ DNF [[]] = DNF [[]]
-  DNF ps   ∨ DNF qs   = DNF (ps ++ qs)
-
-instance BoundedJoinSemilattice (DNF a) where
-  bot = DNF []
-
--- TODO: clean up
-toDNF :: Pred -> DNF Rel
-toDNF p0 = DNF $ unwrapDNF $ flip Uniplate.rewrite p0 $ \case
-  PAnd xs
-    | PFalse `elem` xs -> Just PFalse
-    | PTrue `elem` xs -> Just $ PAnd $ List.filter (/= PTrue) xs
-    | any isPAnd xs ->
-      let (ys, zs) = partition isPAnd xs
-      in Just $ PAnd $ mconcat [y | PAnd y <- ys] ++ zs
-    | any isPOr xs -> case partition isPOr xs of
-        (POr ys : yys, zs) -> Just $ POr $ [PAnd $ y : (yys ++ zs) | y <- ys]
-        _                  -> impossible
-    | or [PRel (inverse r) `elem` xs | PRel r <- xs] -> Just PFalse
-    | HashSet.size (HashSet.fromList xs) < length xs -> Just $ PAnd $ List.nub xs  -- TODO
-
-  POr xs
-    | PTrue `elem` xs -> Just PTrue
-    | PFalse `elem` xs -> Just $ POr $ List.filter (/= PFalse) xs
-    | any isPOr xs ->
-      let (ys, zs) = partition isPOr xs
-      in Just $ POr $ mconcat [y | POr y <- ys] ++ zs
-
-  PNot (POr xs) -> Just $ PAnd $ map PNot xs
-  PNot (PAnd xs) -> Just $ POr $ map PNot xs
-  PNot (PRel r) -> Just $ PRel $ inverse r
-
-  PImpl a b -> Just $ POr [PNot a, b]
-  PIff a b -> Just $ POr [PAnd [a, b], PAnd [PNot a, PNot b]]
-
-  _ -> Nothing
+wrapDNF :: [[Rel]] -> Pred
+wrapDNF = POr . map (PAnd . map PRel)
+{-# INLINE wrapDNF #-}
 
 unwrapDNF :: Pred -> [[Rel]]
 unwrapDNF = \case
@@ -210,52 +222,54 @@ unwrapDNF = \case
       | otherwise = panic $ "expected all PRel instead of" <+> pretty ys
     unOr xs
       | all isPAnd xs = [unAnd ys | PAnd ys <- xs]
+      | (ys,zs) <- partition isPAnd xs, all isPRel zs = [unAnd y | PAnd y <- ys] ++ [[r] | PRel r <- zs]
       | otherwise = panic $ "expected all PAnd instead of" <+> pretty xs
 
--------------------------------------------------------------------------------
+nub' :: Hashable a => [a] -> [a]
+nub' = HashSet.toList . HashSet.fromList
+{-# INLINE nub' #-}
 
-varElimDNF :: Name -> Base -> DNF Rel -> Pan (DNF Rel)
-varElimDNF x b ps = DNF <$> mapMaybeM (varElim x b) (unDNF ps)
+-------------------------------------------------------------------------------
 
 -- TODO: clean up
 -- TODO: update submission
 -- | Algorithm 3 in OOPSLA'23 submission.
 varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
-varElim _ TUnit ps = return $ Just ps  -- TODO
+varElim x TUnit ps = return $ Just $ map (\r -> subst (ECon (U NoPV)) x r) ps
 varElim x b ps = do
-  logMessage $ "varElim" <+> pretty x <+> pretty b
-  logData $  ps
+  -- logMessage $ "varElim" <+> pretty x <+> pretty b
+  -- logData $  ps
   let (pxs, ps') = List.partition (elem x . freeVars) ps
-  logData (pxs, ps')
+  -- logData (pxs, ps')
   let (pxs', xvs) = partitionEithers $ map (maybeToEither (isolateVar x)) pxs
-  logData (xvs, pxs')
+  -- logData (xvs, pxs')
 
   let bTop = topExpr b
 
   let x̂s₀ = Map.singleton [] bTop
   let refine x̂s xv = do
-        logMessage $ "refine" <+> pretty xv
+        -- logMessage $ "refine" <+> pretty xv
         let vs = freeVars xv
         let x̂ = fromMaybe bTop $ Map.lookup vs x̂s
         case x̂ ∧? xv of
           Just x̂' -> return $ Map.insert vs x̂' x̂s
           Nothing -> throwError $ MeetImpossible x̂ xv NoPV  
   x̂s <- foldM refine x̂s₀ xvs
-  logData x̂s
+  -- logData x̂s
 
   if any containsBotAExpr x̂s then do
-    logMessage "Nothing"
+    -- logMessage "Nothing"
     return Nothing
   else do
     let x̂s1 = map snd $ Map.toAscList x̂s
     let qs1 = List.nub $ map normRel $ [x̂₁ :=: x̂₂ | (x̂₁:rest) <- tails x̂s1, x̂₂ <- rest]
-    logData qs1
+    -- logData qs1
 
     let qs2 = concatMap (\px' -> map (\x̂ -> subst x̂ x px') x̂s1) pxs'
-    logData qs2
+    -- logData qs2
 
     let qs = qs1 ++ qs2 ++ ps'
-    logData qs
+    -- logData qs
 
     return $ Just qs
 
@@ -265,16 +279,22 @@ maybeToEither f = \x -> maybe (Left x) Right (f x)
 containsBotAExpr :: AExpr -> Bool
 containsBotAExpr e = or [containsBot a | EAbs a <- Uniplate.universe e]
 
+containsTopAExpr :: AExpr -> Bool
+containsTopAExpr e = or [containsTop a | EAbs a <- Uniplate.universe e]
+
 -------------------------------------------------------------------------------
 
 isPOr :: Pred -> Bool
 isPOr (POr _) = True
 isPOr _       = False
+{-# INLINE isPOr #-}
 
 isPAnd :: Pred -> Bool
 isPAnd (PAnd _) = True
 isPAnd _        = False
+{-# INLINE isPAnd #-}
 
 isPRel :: Pred -> Bool
 isPRel (PRel _) = True
 isPRel _        = False
+{-# INLINE isPRel #-}
