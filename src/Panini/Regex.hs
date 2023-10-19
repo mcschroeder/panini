@@ -135,6 +135,9 @@ instance MeetSemilattice Regex where
 instance BoundedMeetSemilattice Regex where
   top = All
 
+instance ComplementedLattice Regex where
+  neg = complement
+
 -------------------------------------------------------------------------------
 
 instance Pretty Regex where
