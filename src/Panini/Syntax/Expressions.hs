@@ -18,16 +18,16 @@ import Prettyprinter qualified as PP
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
 data Expr  
-  = EVal Value              -- ^ constant @c@ or variable @x@
-  | EAbs AValue             -- ^ abstract value @α@
-  | ENot Expr               -- ^ Boolean negation @¬e@
-  | EAdd Expr Expr          -- ^ integer addition @e₁ + e₂@
-  | ESub Expr Expr          -- ^ integer subtraction @e₁ - e₂@
-  | EMul Expr Expr          -- ^ integer multiplication @e₁ * e₂@
-  | EStrLen Expr            -- ^ string length @|s|@
-  | EStrAt Expr Expr        -- ^ character at index @s[i]@
-  | EStrSub Expr Expr Expr  -- ^ substring @s[i..j]@ (inclusive bounds)
-  | EFun Name [Expr]        -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@   
+  = EVal !Value                -- ^ constant @c@ or variable @x@
+  | EAbs !AValue               -- ^ abstract value @α@
+  | ENot !Expr                 -- ^ Boolean negation @¬e@
+  | EAdd !Expr !Expr           -- ^ integer addition @e₁ + e₂@
+  | ESub !Expr !Expr           -- ^ integer subtraction @e₁ - e₂@
+  | EMul !Expr !Expr           -- ^ integer multiplication @e₁ * e₂@
+  | EStrLen !Expr              -- ^ string length @|s|@
+  | EStrAt !Expr !Expr         -- ^ character at index @s[i]@
+  | EStrSub !Expr !Expr !Expr  -- ^ substring @s[i..j]@ (inclusive bounds)
+  | EFun !Name ![Expr]         -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@   
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable Expr

@@ -21,9 +21,9 @@ import Prelude
 ------------------------------------------------------------------------------
 
 data AValue
-  = ABool ABool
-  | AInt AInt
-  | AString AString
+  = ABool !ABool
+  | AInt !AInt
+  | AString !AString
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable AValue

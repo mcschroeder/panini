@@ -23,9 +23,9 @@ import Prelude
 -- some variable to satisfy a hypothesis ('CAll') or conjoins two
 -- sub-constraints ('CAnd').
 data Con
-  = CHead Pred               -- p
-  | CAnd Con Con             -- c1 /\ c2
-  | CAll Name Base Pred Con  -- forall x:b. p ==> c  
+  = CHead !Pred                  -- p
+  | CAnd !Con !Con               -- c1 ∧ c2
+  | CAll !Name !Base !Pred !Con  -- ∀(x:b). p ⟹ c  
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable Con

@@ -230,8 +230,8 @@ instance ComplementedLattice IntervalSequence where
 -------------------------------------------------------------------------------
 
 -- | An integer interval @[a..b]@ where @a <= b@.
-data Interval = In (Inf Integer) (Inf Integer)
-  deriving stock (Eq, Generic, Show, Read)
+data Interval = In !(Inf Integer) !(Inf Integer)
+  deriving stock (Ord, Eq, Generic, Show, Read)
 
 instance Hashable Interval
 
@@ -307,7 +307,7 @@ instance Pretty Interval where
 -------------------------------------------------------------------------------
 
 -- | A type extended with negative and positive infinity.
-data Inf a = NegInf | Fin a | PosInf
+data Inf a = NegInf | Fin !a | PosInf
   deriving stock (Functor, Eq, Generic, Show, Read)
 
 instance Hashable a => Hashable (Inf a)

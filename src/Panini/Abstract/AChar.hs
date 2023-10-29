@@ -40,7 +40,7 @@ setOfCharToIntSet =  I.fromList . map (fromEnum @Char) . S.toList
 -------------------------------------------------------------------------------
 
 -- | An abstract character.
-data AChar = AChar Bool IntSet
+data AChar = AChar !Bool !IntSet
   deriving stock (Eq, Ord, Generic, Show, Read)
 
 instance Hashable AChar

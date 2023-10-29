@@ -15,7 +15,7 @@ import Prelude
 ------------------------------------------------------------------------------
 
 -- | A name for something, e.g. a variable or a binder.
-data Name = Name Text PV
+data Name = Name !Text !PV
   deriving stock (Show, Read)
 
 instance HasProvenance Name where

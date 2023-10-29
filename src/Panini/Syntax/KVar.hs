@@ -23,7 +23,7 @@ import Prelude
 -- applications.
 --
 -- In the literature, κ-variables are sometimes referred to as /Horn variables/.
-data KVar = KVar Int [Base]
+data KVar = KVar !Int ![Base]
   deriving stock (Ord, Eq, Show, Read, Generic)
 
 instance Hashable KVar

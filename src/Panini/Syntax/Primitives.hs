@@ -31,10 +31,10 @@ instance Pretty Base where
 
 -- | Primitive constants.
 data Constant
-  = U         PV  -- unit
-  | B Bool    PV  -- true, false
-  | I Integer PV  -- 0, -1, 1, ...
-  | S Text    PV  -- "lorem ipsum"
+  = U          !PV  -- unit
+  | B !Bool    !PV  -- true, false
+  | I !Integer !PV  -- 0, -1, 1, ...
+  | S !Text    !PV  -- "lorem ipsum"
   deriving stock (Show, Read)
 
 -- | Equality between constants ignores provenance.
@@ -80,8 +80,8 @@ typeOfConstant = \case
 
 -- | A value is either a primitive constant or a variable.
 data Value
-  = Con Constant 
-  | Var Name
+  = Con !Constant 
+  | Var !Name
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable Value

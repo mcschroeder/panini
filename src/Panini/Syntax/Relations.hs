@@ -10,7 +10,7 @@ import Prelude
 ------------------------------------------------------------------------------
 
 -- | Relation between expressions.
-data Rel = Rel Rop Expr Expr    -- ^ binary relation @e₁ ⋈ e₂@  
+data Rel = Rel !Rop !Expr !Expr    -- ^ binary relation @e₁ ⋈ e₂@  
   deriving stock (Eq, Show, Read, Generic)
 
 -- | Returns the left-hand side of a relation.
