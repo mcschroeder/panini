@@ -21,6 +21,7 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
+import System.Time.Extra
 import Text.Printf
 
 -------------------------------------------------------------------------------
@@ -60,7 +61,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       execPan inFile >>= compareResult inFile
 
   -- TODO: read local options from inFile header comment
-  execPan :: FilePath -> IO (Bool, Text)
+  execPan :: FilePath -> IO (Bool, Seconds, Text)
   execPan inFile = do
     src <- Text.readFile inFile
 
@@ -75,7 +76,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
           , Panini.Monad.smtTimeout = globalOpts.smtTimeout
           }
 
-    result <- try @SomeException $ runPan panState0 $ do
+    (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
       smtInit
       module_ <- liftIO $ getModule inFile
       prog <- parseSource (moduleLocation module_) src
@@ -88,20 +89,23 @@ testMain globalOpts = assert globalOpts.testMode $ do
     let success = either (const False) isRight result
     let output = either viaShow (either pretty (vsep . map pretty)) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
-    return (success, actual)
+    return (success, time, actual)
   
-  compareResult :: FilePath -> (Bool, Text) -> IO Bool
-  compareResult inFile (success, actual) = do
+  compareResult :: FilePath -> (Bool, Seconds, Text) -> IO Bool
+  compareResult inFile (success, time, actual) = do
+    let prettyTime = ann Margin $ parens $ pretty $ showDuration time
     let goldenFile | success   = outFileFor inFile
                    | otherwise = errFileFor inFile
     goldenFileExists <- doesFileExist goldenFile
     if goldenFileExists then do
       expected <- Text.readFile goldenFile
       if actual /= expected then do
-        putDocLn $ ann Error "FAIL" <\> diff goldenFile expected actual
+        putDocLn $ 
+          ann Error "FAIL" <+> prettyTime <\> 
+          diff goldenFile expected actual
         return False
       else do
-        putDocLn $ ann Success "OK"
+        putDocLn $ ann Success "OK" <+> prettyTime
         return True
     else do
       let otherFile | success   = errFileFor inFile
@@ -110,22 +114,24 @@ testMain globalOpts = assert globalOpts.testMode $ do
       if otherFileExists then do
         expected <- Text.readFile otherFile
         if actual /= expected then do
-          putDocLn $ ann Error "FAIL" <\> diff otherFile expected actual
+          putDocLn $ 
+            ann Error "FAIL" <+> prettyTime <\> 
+            diff otherFile expected actual
           return False
         else do
-          putDocLn $ ann Error "FAIL" <+> "wrong exit code"
+          putDocLn $ ann Error "FAIL" <+> "wrong exit code" <+> prettyTime
           return False
       else if globalOpts.createGoldenFiles then do        
         withFile goldenFile WriteMode $ \h -> Text.hPutStr h actual      
         putDocLn $ 
-          ann Message "created golden file" <\>
+          ann Message "created golden file" <+> prettyTime <\>
           ann Margin (divider symDivH (Just $ Right goldenFile)) <\>
           pretty actual <\>
           pretty (ann Margin $ divider symDivH Nothing) <> "\n"
         return True
       else do
         putDocLn $ 
-          ann Message "missing golden file" <\>
+          ann Message "missing golden file" <+> prettyTime <\>
           ann Margin (divider symDivH (Just $ Right "Output")) <\>
           pretty actual <\>
           pretty (ann Margin $ divider symDivH Nothing) <> "\n"
