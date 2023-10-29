@@ -100,7 +100,7 @@ prettyTuple :: Pretty a => [a] -> Doc
 prettyTuple = listed lparen rparen . map pretty
 
 prettyList :: Pretty a => [a] -> Doc
-prettyList = listed lbracket rbracket . map pretty
+prettyList = PP.align . listed lbracket rbracket . map pretty
 
 prettySet :: Pretty a => [a] -> Doc
 prettySet = listed lbrace rbrace . map pretty
