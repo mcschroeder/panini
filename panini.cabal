@@ -90,7 +90,6 @@ library
     Panini.Solver.Fusion
     Panini.Solver.Grammar
     Panini.Solver.Liquid
-    Panini.Solver.Simplify
     Panini.Syntax
     Panini.Syntax.AST
     Panini.Syntax.Expressions

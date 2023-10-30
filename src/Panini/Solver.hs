@@ -16,7 +16,6 @@ import Panini.Solver.Fusion qualified as Fusion
 import Panini.Solver.Grammar (gconKVar)
 import Panini.Solver.Grammar qualified as Grammar
 import Panini.Solver.Liquid qualified as Liquid
-import Panini.Solver.Simplify
 import Panini.Syntax
 import Prelude
 
@@ -51,19 +50,15 @@ solve c0 = do
   -- TODO: Revisit this issue.
   let s_fusion = Map.fromList $ zip (Set.toList $ kvars c0) (repeat PTrue)
 
-  --logMessage "Simplify"
-  let !c3 = c2 --simplifyCon c2 -- TODO: disable this and make it work regardless
-  --logData c3
-
   logMessage "Find remaining grammar constraints"
-  let gcs3 = Grammar.grammarConstraints c3
+  let gcs3 = Grammar.grammarConstraints c2
   logData gcs3
 
   logMessage $ "Infer grammars"
   s_grammar <- Grammar.solveAll gcs3
 
   logMessage "Apply grammar solution"
-  let !c4 = apply s_grammar c3
+  let !c4 = apply s_grammar c2
   logData c4
 
   let !c5 = c4 -- TODO: investigate simplification here
