@@ -51,9 +51,9 @@ solve c0 = do
   -- TODO: Revisit this issue.
   let s_fusion = Map.fromList $ zip (Set.toList $ kvars c0) (repeat PTrue)
 
-  logMessage "Simplify"
+  --logMessage "Simplify"
   let !c3 = c2 --simplifyCon c2 -- TODO: disable this and make it work regardless
-  logData c3
+  --logData c3
 
   logMessage "Find remaining grammar constraints"
   let gcs3 = Grammar.grammarConstraints c3
