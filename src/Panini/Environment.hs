@@ -31,10 +31,10 @@ data Definition
 
 -------------------------------------------------------------------------------
 
-hasInferredType :: Definition -> Bool
-hasInferredType = \case
+isVerified :: Definition -> Bool
+isVerified = \case
   Assumed{} -> False
-  Verified{_assumedType,_solvedType} -> _assumedType /= Just _solvedType
+  Verified{} -> True
 
 -------------------------------------------------------------------------------
 

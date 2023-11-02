@@ -71,8 +71,8 @@ batchMain panOpts = do
     prog <- parseSource (moduleLocation module_) src
     elaborate module_ prog
     if panOpts.outputGrammars 
-      then vsep . map pretty <$> getInferredGrammars
-      else vsep . map pretty <$> getInferredTypes
+      then vsep . map pretty <$> getVerifiedGrammars
+      else vsep . map pretty <$> getVerifiedTypes
   
   whenJust traceFile hClose
 

@@ -14,8 +14,8 @@ module Panini.Monad
   , logMessage
   , logData
   , logEvent
-  , getInferredTypes
-  , getInferredGrammars
+  , getVerifiedTypes
+  , getVerifiedGrammars
   ) where
 
 import Control.Exception
@@ -130,21 +130,19 @@ getPaniniModuleName cs =
 
 -- TODO: these don't really belong here
 
--- | Return type signatures for all definitions in the environment whose final
--- solved type was differen than the originally assumed (given) one, sorted by
--- order of appearance in source files.
-getInferredTypes :: Pan [TypeSig]
-getInferredTypes = map (toTypeSig . snd)
+-- | Return type signatures for all verified definitions in the environment.
+getVerifiedTypes :: Pan [TypeSig]
+getVerifiedTypes = map (toTypeSig . snd)
                  . List.sortBy (compare `on` getPV . fst) 
                  . Map.toList 
-                 . Map.filter hasInferredType 
+                 . Map.filter isVerified 
                  <$> gets environment
 
--- | Return all inferred grammars in the environment.
-getInferredGrammars :: Pan [AString]
-getInferredGrammars = concatMap extractGrammars 
+-- | Return all verified grammars in the environment.
+getVerifiedGrammars :: Pan [AString]
+getVerifiedGrammars = concatMap extractGrammars 
                     . map (\(TypeSig _ t) -> t) 
-                    <$> getInferredTypes
+                    <$> getVerifiedTypes
   where    
     -- TODO: this is pretty hacky and limited
     extractGrammars :: Type -> [AString]

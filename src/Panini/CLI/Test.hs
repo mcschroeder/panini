@@ -81,7 +81,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       module_ <- liftIO $ getModule inFile
       prog <- parseSource (moduleLocation module_) src
       elaborate module_ prog
-      getInferredTypes
+      getVerifiedTypes
 
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
