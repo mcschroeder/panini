@@ -132,6 +132,9 @@ matchTypeAnnotation inferred user = do
   let k_holes = Set.fromList [ k    | (k, Unknown) <- Map.toList s0]
   return (s_top, k_holes)
  where
+  go _ (TBase _ b1 (Known PTrue) _) (TBase _ b2 (Known PTrue) _)
+    | b1 == b2 = return mempty
+
   go g (TBase x1 b1 (Known (PAppK k ys)) _) (TBase x2 b2 r2 _)
     | b1 == b2 = do
       let kps = Map.fromList $ zip [y | EVar y <- ys] (kparams k)
