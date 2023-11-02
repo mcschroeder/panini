@@ -4,6 +4,7 @@ import GHC.Stack
 import Panini.Pretty
 import Panini.Version
 import Prelude
+import Control.Exception
 
 panic :: HasCallStack => Doc -> a
 panic msg = errorWithoutStackTrace $ mconcat
@@ -14,3 +15,6 @@ panic msg = errorWithoutStackTrace $ mconcat
 
 impossible :: HasCallStack => a
 impossible = withFrozenCallStack $ panic "the impossible happened!"
+
+assertM :: HasCallStack => Monad m => Bool -> m ()
+assertM p = withFrozenCallStack $ assert p (return ())
