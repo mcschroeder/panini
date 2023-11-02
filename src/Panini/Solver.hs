@@ -27,15 +27,22 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- TODO: expand set of extracted qualifiers
+-- TODO: we assume kparams are always named z0,...,zn
 extractQualifiers :: Con -> [Base] -> [Pred]
-extractQualifiers con = \case
+extractQualifiers con = List.nub . \case
   [TUnit] -> [PTrue]
   [TBool] -> [ PRel $ EVar "z0" :=: EBool True NoPV
              , PRel $ EVar "z0" :=: EBool False NoPV 
              ]
-  [TInt] -> List.nub [ PRel (Rel op (EVar "z0") e2) 
+  [TInt] -> [ PRel (Rel op (EVar "z0") e2) 
             | PRel (Rel op (EVar _) e2@(EInt _ _)) <- universeBi con
             ]
+  [TInt, TInt] -> 
+    [ PRel $ substN [EVar "z0", EVar "z1"] xs r
+    | PRel r <- universeBi con 
+    , let fvs = freeVars r, Set.size fvs == 2
+    , xs <- List.permutations $ Set.toList fvs
+    ]
   ts -> panic $ "extractQualifiers" <+> pretty ts <+> "not implemented"
 
 
