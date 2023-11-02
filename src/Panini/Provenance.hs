@@ -85,6 +85,10 @@ seekToLine :: Int -> Handle -> IO ()
 seekToLine n h = replicateM_ (n - 1) $ BS.hGetLine h
 
 readNumLines :: Int -> Handle -> IO Text
-readNumLines n h = do
-  ls <- replicateM n $ BS.hGetLine h
-  return $ Text.decodeUtf8 $ mconcat ls
+readNumLines n0 h = go [] n0
+ where
+  go s 0 = return $ Text.decodeUtf8 $ mconcat $ reverse s
+  go s n = hIsEOF h >>= \case
+    True  -> go s 0
+    False -> do t <- BS.hGetLine h
+                go (t:s) (n-1)
