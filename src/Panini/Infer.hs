@@ -62,10 +62,9 @@ infer g = \case
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv -> do
     t̂₁ <- fresh (shape t̃₁)
-    ĉ₁ <- sub t̂₁ t̃₁
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ pv
-    let c = ĉ₁ ∧ (cImpl x t̂₁ c₂)
+    let c = cImpl x t̂₁ c₂
     return (t, c)
   
   -- inf/let ----------------------------------------------

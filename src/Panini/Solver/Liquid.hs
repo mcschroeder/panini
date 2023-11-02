@@ -11,9 +11,11 @@
 -------------------------------------------------------------------------------
 module Panini.Solver.Liquid (solve) where
 
+import Algebra.Lattice (meets)
 import Control.Monad
 import Data.List (partition)
 import Data.Map qualified as Map
+import Data.Map.Strict (Map)
 import Data.Set qualified as Set
 import Panini.Monad
 import Panini.Panic
@@ -26,18 +28,18 @@ import Prelude
 
 -- | Solve non-nested constrained Horn clauses (CHCs) given a set of candidates.
 -- Returns 'Nothing' if no solution could be found.
-solve :: [FlatCon] -> [Pred] -> Pan (Maybe Assignment)
+solve :: [FlatCon] -> Map [Base] [Pred] -> Pan (Maybe Assignment)
 solve cs qs = do
   logMessage $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
   logData csk
 
   logMessage $ "Construct initial solution" <+> sigma <> subscript 0
-  -- TODO: we assume free vars in qs to match the k param names (z1,...,zn)
-  -- this is clearly not good
-  let ks = kvars csk
-  let qs' = if null qs then PTrue else PAnd qs
-  let s0 = Map.fromList $ map (\k -> (k, qs')) $ Set.toList ks
+  -- TODO: we still assume free vars in qs to match the k param names (z0,...,zn)
+  let s0 = Map.fromList
+         [ (k, q) | k@(KVar _ ts) <- Set.toList (kvars cs)
+         , let q = maybe PTrue meets (Map.lookup ts qs)
+         ]
   logData s0
 
   logMessage $ "Iteratively weaken" <+> sigma <+> 
@@ -80,7 +82,7 @@ weaken s (FAll xs p (PAppK k ys)) =
     Just q0 -> do
       let p' = apply s p
       let keep q = smtValid [FAll xs p' (substN ys (kparams k) q)]
-      qs' <- PAnd <$> filterM keep (explode q0)
+      qs' <- meets <$> filterM keep (explode q0)
       return $ Map.insert k qs' s
 
 weaken _ _ = impossible

@@ -92,10 +92,15 @@ solve :: GCon -> Pan Assignment
 -- the VC, which still includes the recursive applications. Otherwise, the
 -- recursion must have encoded some information that was lost by this simple
 -- elimination and the VC will be judged invalid.
-solve (GCon s k c) | k `elem` kvars c = do
+-- solve (GCon s k c) | k `elem` kvars c = do
+--   logData c
+--   logMessage $ "Eliminate recursive grammar variable" <+> pretty k
+--   let c' = apply [(k,PTrue)] c
+--   solve (GCon s k c')
+solve (GCon s k c) | not $ null $ kvars c = do
   logData c
-  logMessage $ "Eliminate recursive grammar variable" <+> pretty k
-  let c' = apply [(k,PTrue)] c
+  logMessage $ "Assume nested" <+> kappa <+> "variables to be" <+> pretty PTrue
+  let c' = apply (Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)]) c
   solve (GCon s k c')
 
 -- TODO: clean up
