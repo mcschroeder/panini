@@ -3,7 +3,6 @@ module Panini.Syntax.Names where
 
 import Data.Char (isDigit)
 import Data.Hashable
-import Data.Set (Set)
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -48,7 +47,7 @@ isDummy :: Name -> Bool
 isDummy n = n == dummyName
 
 -- | Returns a fresh name based on a given name, avoiding unwanted names.
-freshName :: Name -> Set Name -> Name
+freshName :: Foldable t => Name -> t Name -> Name
 freshName x ys = go (nextSubscript x)
  where
   go x'

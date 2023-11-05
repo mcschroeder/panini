@@ -121,8 +121,9 @@ fresh = go []
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
       κ <- freshK (b:ts)
-      let p = PAppK κ (EVar v : xs)
-      return $ TBase v b (Known p) (Derived pv "ins/hole")
+      let v' = if v `elem` xs then freshName v xs else v
+      let p = PAppK κ (map EVar (v':xs))
+      return $ TBase v' b (Known p) (Derived pv "ins/hole")
     
     -- ins/conc -------------------------------------------
     go _ t@(TBase _ _ (Known _) _) = return t
@@ -130,7 +131,7 @@ fresh = go []
     -- ins/fun --------------------------------------------
     go g (TFun x s t pv) = do
       ŝ <- go g s
-      t̂ <- go ((EVar x, s) : g) t
+      t̂ <- go ((x,s):g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
 
 freshK :: [Base] -> Pan KVar
