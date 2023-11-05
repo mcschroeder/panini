@@ -9,7 +9,6 @@ module Panini.Solver.Grammar
 
 import Algebra.Lattice
 import Control.Monad.Extra
-import Data.Either (partitionEithers)
 import Data.Foldable
 import Data.Function
 import Data.Generics.Uniplate.Operations qualified as Uniplate
@@ -24,13 +23,12 @@ import GHC.Generics
 import Panini.Abstract.AExpr
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
-import Panini.Error
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
-import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
+import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
 
@@ -100,19 +98,32 @@ solve :: GCon -> Pan Assignment
 solve (GCon s k c) | not $ null $ kvars c = do
   logData c
   logMessage $ "Assume nested" <+> kappa <+> "variables to be" <+> pretty PTrue
-  let c' = apply (Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)]) c
-  solve (GCon s k c')
+  let c2 = apply (Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)]) c
+  logMessage "Simplify"
+  let c3 = simplify c2
+  solve (GCon s k c3)
 
 -- TODO: clean up
 solve (GCon s k c) = do
   logData c
   logMessage "Rewrite grammar constraint"  
-  c' <- rewrite c
-  logData c'
-  logMessage "Abstract string from rewritten grammar constraint"  
-  g <- joins <$> mapM (fmap meets . mapM (abstractVarString s)) c'
+  c1 <- rewrite c
+  logData c1
+  let c2 = PNot c1
+  logData c2
+  let c3 = dnf c2
+  logData c3
+  g0 <- forM c3 $ \rs -> do
+    logMessage $ "rs =" <+> pretty rs
+    g <- meets <$> mapM (abstractVarString s) rs
+    logData g
+    return g
+  --g <- joins <$> mapM (fmap meets . mapM (abstractVarString s)) c'
+  let g = joins g0
   logData g
-  p <- PRel <$> concretizeVar s (EAbs $ AString g)
+  let g2 = neg g
+  logData g2
+  p <- PRel <$> concretizeVar s (EAbs $ AString g2)
 
   -- IMPORTANT: we need to substitute the free string variable s in the
   -- grammar solution with the generic κ parameter, so that later on we can
@@ -128,15 +139,18 @@ abstractVarString x r = abstractVar x TString r >>= \case
 
 -------------------------------------------------------------------------------
 
-rewrite :: Con -> Pan [[Rel]]
+rewrite :: Con -> Pan Pred
 rewrite c0 = do
-  logMessage $ "Eliminate ∀"
+  --logMessage $ "Eliminate ∀"
   let c1 = elimAll c0
-  logData c1
-  logMessage $ "Eliminate ∃"
+  logData $ group $ "elimAll" <\> pretty c0 <\> "⇝" <\> pretty c1
+  --logMessage $ "Eliminate ∃"
   c2 <- elimExists c1
-  logData c2
-  return $ dnf c2
+  logData $ group $ "elimExists" <\> pretty c1 <\> "⇝" <\> pretty c2
+  -- let c3 = dnf c2
+  -- logData $ group $ "dnf" <\> pretty c2 <\> "⇝" <\> pretty c3
+  -- return c3
+  return c2
  where
   elimAll :: Con -> Pred
   elimAll = \case
@@ -157,84 +171,71 @@ rewrite c0 = do
     PExists x t p -> fromDNF <$> (mapMaybeM (varElim x t) =<< dnf <$> elimExists p)
     PAppK _ _     -> impossible
   
-  dnf :: Pred -> [[Rel]]
-  dnf = \case
-    PTrue                -> [[]]
-    PFalse               -> []
-    PRel r               -> [[r]]
-    PNot PTrue           -> []
-    PNot PFalse          -> [[]]
-    PNot (PRel r)        -> [[inverse r]]
-    PNot (PNot x)        -> dnf x
-    PNot (PAnd xs)       -> dnf $ POr (map PNot xs)
-    PNot (POr xs)        -> dnf $ PAnd (map PNot xs)    
-    PNot (PImpl a b)     -> dnf $ PAnd [a, PNot b]    
-    PNot (PIff a b)      -> dnf $ PIff a (PNot b)  -- TODO: optimize arbitrary choice?
-    PNot (PExists _ _ _) -> impossible
-    PNot (PAppK _ _)     -> impossible
-    PImpl a b            -> dnf $ POr [PNot a, b]
-    PIff a b             -> dnf $ POr [PAnd [a,b], PAnd [PNot a, PNot b]]    
-    PAnd xs              -> map concat $ sequence $ nub' $ map dnf xs
-    POr xs               -> nub' $ concat $ map dnf xs
-    PExists _ _ _        -> impossible
-    PAppK _ _            -> impossible
+dnf :: Pred -> [[Rel]]
+dnf = \case
+  PTrue                -> [[]]
+  PFalse               -> []
+  PRel r               -> [[r]]
+  PNot PTrue           -> []
+  PNot PFalse          -> [[]]
+  PNot (PRel r)        -> [[inverse r]]
+  PNot (PNot x)        -> dnf x
+  PNot (PAnd xs)       -> dnf $ POr (map PNot xs)
+  PNot (POr xs)        -> dnf $ PAnd (map PNot xs)    
+  PNot (PImpl a b)     -> dnf $ PAnd [a, PNot b]    
+  PNot (PIff a b)      -> dnf $ PIff a (PNot b)  -- TODO: optimize arbitrary choice?
+  PNot (PExists _ _ _) -> impossible
+  PNot (PAppK _ _)     -> impossible
+  PImpl a b            -> dnf $ POr [PNot a, b]
+  PIff a b             -> dnf $ POr [PAnd [a,b], PAnd [PNot a, PNot b]]    
+  PAnd xs              -> map concat $ sequence $ nub' $ map dnf xs
+  POr xs               -> nub' $ concat $ map dnf xs
+  PExists _ _ _        -> impossible
+  PAppK _ _            -> impossible
   
-  fromDNF :: [[Rel]] -> Pred
-  fromDNF [[]] = PTrue
-  fromDNF [] = PFalse
-  fromDNF xs = POr $ map (PAnd . map PRel) xs
+fromDNF :: [[Rel]] -> Pred
+fromDNF [[]] = PTrue
+fromDNF []   = PFalse
+fromDNF xs   = POr $ map (PAnd . map PRel) xs
 
 nub' :: Hashable a => [a] -> [a]
 nub' = HashSet.toList . HashSet.fromList
 {-# INLINE nub' #-}
 
+
 -------------------------------------------------------------------------------
 
--- TODO: clean up
--- TODO: update submission
--- | Algorithm 3 in OOPSLA'23 submission.
+-- TODO: proper normalization
+norm' :: Rel -> Maybe Rel
+norm' r0 = case normRel r0 of
+  e1 :=: e2     
+    | e1 == e2 -> Nothing
+    | null (freeVars e1), not (null (freeVars e2)) -> norm' (e2 :=: e1)
+    | otherwise -> Just (e1 :=: e2)
+  r1 -> Just r1
+
 varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
-varElim x TUnit ps = return $ Just $ map (\r -> subst (ECon (U NoPV)) x r) ps
-varElim x b ps = do
-  logMessage $ "varElim" <+> pretty x <+> pretty b <+> pretty ps
-  let (pxs, ps') = List.partition (elem x . freeVars) ps
-  -- logData (pxs, ps')
-  let (pxs', xvs) = partitionEithers $ map (maybeToEither (isolateVar x)) pxs
-  -- logData (xvs, pxs')
-
-  let bTop = topExpr b
-
-  let x̂s₀ = Map.singleton [] bTop
-  let refine x̂s xv = do
-        -- logMessage $ "refine" <+> pretty xv
-        let vs = freeVars xv
-        let x̂ = fromMaybe bTop $ Map.lookup vs x̂s
-        case x̂ ∧? xv of
-          Just x̂' -> return $ Map.insert vs x̂' x̂s
-          Nothing -> throwError $ MeetImpossible x̂ xv NoPV  
-  x̂s <- foldM refine x̂s₀ xvs
-  -- logData x̂s
-
-  if any containsBotAExpr x̂s then do
-    logData $ group (pretty ps <\> "⇝" <\> "Nothing")
-    -- logMessage "Nothing"
+varElim x b φ = do
+  logMessage $ divider symDivH Nothing
+  logMessage $ "varElim" <+> pretty x <+> pretty b
+  logMessage $ "φ  =" <+> pretty φ  
+  ξ <- mapM (abstractVar x b) [r | r <- φ, x `elem` freeVars r]
+  logMessage $ "ξ  =" <+> pretty ξ  
+  let ξₘ = converge partialMeets (topExpr b : ξ)
+  logMessage $ "ξₘ =" <+> pretty ξₘ
+  if any containsBotAExpr ξₘ then do
     return Nothing
   else do
-    let x̂s1 = map snd $ Map.toAscList x̂s
-    let qs1 = List.nub $ map normRel $ [x̂₁ :=: x̂₂ | (x̂₁:rest) <- tails x̂s1, x̂₂ <- rest]
-    -- logData qs1
+    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- tails ξₘ, e₂ <- es]    
+    logMessage $ "ψ₁ =" <+> pretty ψ₁
+    let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
+    logMessage $ "ψ₂ =" <+> pretty ψ₂
+    let ψ = catMaybes $ List.nub $ map norm' $ ψ₁ ++ ψ₂
+    logMessage $ "ψ  =" <+> pretty ψ
+    return $ Just ψ
 
-    let qs2 = concatMap (\px' -> map (\x̂ -> subst x̂ x px') x̂s1) pxs'
-    -- logData qs2
-
-    let qs = qs1 ++ qs2 ++ ps'
-    
-    logData $ group (pretty ps <\> "⇝" <\> pretty qs)
-
-    return $ Just qs
-
-maybeToEither :: (a -> Maybe b) -> (a -> Either a b)
-maybeToEither f = \x -> maybe (Left x) Right (f x)
+converge :: Eq a => (a -> a) -> a -> a
+converge = until =<< ((==) =<<)
 
 containsBotAExpr :: AExpr -> Bool
 containsBotAExpr e = or [containsBot a | EAbs a <- Uniplate.universe e]

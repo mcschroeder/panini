@@ -134,7 +134,7 @@ instance Subable Expr Expr where
     EStrLen e        -> freeVars e
     EStrAt e1 e2     -> freeVars e1 <> freeVars e2
     EStrSub e1 e2 e3 -> freeVars e1 <> freeVars e2 <> freeVars e3
-    EFun f es        -> [f] <> mconcat (map freeVars es)
+    EFun _ es        -> mconcat (map freeVars es)
 
 ------------------------------------------------------------------------------
 

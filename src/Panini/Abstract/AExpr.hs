@@ -69,6 +69,7 @@ instance PartialMeetSemilattice AExpr where
   EStrSub s1 i1 j1 ∧? EStrSub s2 i2 j2 
     | s1 == s2, Just i <- i1 ∧? i2, Just j <- j1 ∧? j2 = Just $ EStrSub s1 i j
 
+
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
 
@@ -111,6 +112,8 @@ norm = Uniplate.rewrite $ \case
   e :-: EIntA a    -> Just $ e :+: (EIntA $ AInt.sub (AInt.eq 0) a)
   
   EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
+
+  EStrLen (EStrA a) | isTop a -> Just $ EIntA $ AInt.ge 0
   
   EStrAt (EStr s _) (EInt (fromIntegral -> i) _)
     | i < Text.length s 
