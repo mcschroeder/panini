@@ -21,6 +21,7 @@ import Panini.Solver.Fusion qualified as Fusion
 import Panini.Solver.Grammar (gconKVar)
 import Panini.Solver.Grammar qualified as Grammar
 import Panini.Solver.Liquid qualified as Liquid
+import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
 
@@ -58,9 +59,13 @@ solve s0 ks_ex c0 = do
 
   logMessage $ "Eliminate local acyclic" <+> kappa <+> "variables"
   c2 <- Fusion.solve (ks_ex <> ks_gram) c1
-  
+
+  logMessage $ "Simplify"
+  let c3 = simplify c2
+  logData c3
+
   logMessage "Find remaining grammar constraints"
-  let gcs3 = Grammar.grammarConstraints c2
+  let gcs3 = Grammar.grammarConstraints c3
   logData gcs3
 
   logMessage $ "Infer grammars"
