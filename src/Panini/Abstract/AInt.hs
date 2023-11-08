@@ -263,6 +263,8 @@ subIn = curry $ \case
   (In (Fin a) _      , In NegInf  (Fin d)) -> In (Fin $ a - d) PosInf
   (In _       _      , In NegInf  PosInf ) -> In NegInf        PosInf
   (In NegInf  PosInf , In _       _      ) -> In NegInf        PosInf
+  (In NegInf  _      , In NegInf  _      ) -> In NegInf        PosInf
+  (In _       PosInf , In _       PosInf ) -> In NegInf        PosInf  
   _                                        -> impossible
 
 -- | @[a..b]@ precedes @[c..d]@ if @b < (c - 1)@.
