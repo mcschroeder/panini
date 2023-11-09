@@ -110,7 +110,7 @@ class PartialMeetSemilattice a where
   (∧?) :: a -> a -> Maybe a
 
 partialMeets :: (Foldable t, PartialMeetSemilattice a) => t a -> [a]
-partialMeets = foldr go [] . toList
+partialMeets = foldl' (flip go) [] . toList
   where
     go x []     = [x]
     go x (y:ys) = case x ∧? y of
