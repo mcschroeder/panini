@@ -45,14 +45,13 @@
 module Panini.Regex where
 
 import Algebra.Lattice
+import Control.Exception
 import Control.Monad.Trans.State.Strict
-import Data.Bifunctor
 import Data.Containers.ListUtils
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
-import Data.List qualified as List
-import Data.Map qualified as Map
 import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Semigroup hiding (All)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -134,26 +133,28 @@ instance BoundedJoinSemilattice Regex where
   bot = Zero
 
 instance MeetSemilattice Regex where
-  r1 ∧ r2 = intersection r1 r2
+  r1 ∧ r2 = simplify $ intersection r1 r2
 
 instance BoundedMeetSemilattice Regex where
   top = All
 
 instance ComplementedLattice Regex where
-  neg = complement
+  neg = simplify . complement
 
 -------------------------------------------------------------------------------
 
 instance Pretty Regex where
-  pretty = \case
-    Lit c -> pretty c
-    Word [] -> "ε"
-    Word s -> ann (Literal StringLit) $ pretty s
-    Plus rs -> parens $ concatWithOp "+" $ map pretty rs
-    Times rs -> parens $ mconcat $ map pretty rs -- concatWithOp "⋅" $ map pretty rs
-    Star r@(Lit _) -> pretty r <> "*"
-    Star r -> parens (pretty r) <> "*"
-    Opt r -> parens (pretty r) <> "?"
+  pretty = go True
+   where
+    go o = \case
+      Lit c -> pretty c
+      Word [] -> epsilon
+      Word s -> pretty s
+      Plus rs -> parensIf o $ concatWithOp "+" $ map (go False) rs
+      Times rs -> mconcat $ map (go True) rs
+      Star r@(Lit _) -> pretty r <> "*"
+      Star r -> parens (go False r) <> "*"
+      Opt r -> parens (go False r) <> "?"
 
 instance Uniplate Regex where
   uniplate = \case
@@ -274,11 +275,11 @@ flatOpt x       = [x]
 intersection :: Regex -> Regex -> Regex
 intersection = curry $ solve $ \(r1,r2) ->
   let c0 = if nullable r1 && nullable r2 then One else Zero
-      cx = [ (Lit p, (simplify $ derivative c r1, simplify $ derivative c r2)) 
+      cx = [ ((simplify $ derivative c r1, simplify $ derivative c r2), Lit p) 
            | p <- Set.toList $ next r1 ⋈ next r2
            , Just c <- [AChar.choose p]
            ]
-  in (c0,cx)
+  in (c0, Map.fromList cx)
 
 -- | Compute the complement of a regex.
 --
@@ -287,26 +288,25 @@ complement :: Regex -> Regex
 complement = solve $ \r ->
   let c0 = if nullable r then Zero else One
       c1 = Lit (neg $ joins $ next r) <> All
-      cx = [ (Lit p, simplify $ derivative c r)
+      cx = [ (simplify $ derivative c r, Lit p)
            | p <- Set.toList $ next r
            , Just c <- [AChar.choose p]
            ]
-  in (c0 ∨ c1, cx)
+  in (c0 ∨ c1, Map.fromList cx)
 
 -------------------------------------------------------------------------------
-
--- | An unknown term @c⋅X@ consisting of a coefficient @c@ and a variable @X@.
-type Term x = (Regex,x)
-
--- | The right-hand side of an equation @Xᵢ = c₀ + c₁⋅X₁ + c₂⋅X₂ + … + cₙXₙ@,
--- with @c₀@ being a known constant term.
-type RHS x = (Regex, [Term x])
 
 -- | A system of regex equations.
 type System x = Map x (RHS x)
 
--- | @solve f x0@ dynamically constructs and solves a system of linear regex
--- equations, given an initial unknown variable @x0@ and a function @f@ that
+-- | The right-hand side of an equation @Xᵢ = c₀ + c₁⋅X₁ + c₂⋅X₂ + … + cₙXₙ@,
+-- with @c₀@ being a known constant term. Each unknown term @c⋅X@, consisting of
+-- a coefficient @c@ and a variable @X@, is represented as an entry in a map
+-- from @X@ to @c@.
+type RHS x = (Regex, Map x Regex)
+
+-- | @solve f X₀@ dynamically constructs and solves a system of linear regex
+-- equations, given an initial unknown variable @X₀@ and a function @f@ that
 -- computes the right-hand side of any unknown variable.
 solve :: forall x. Ord x => (x -> RHS x) -> x -> Regex
 solve f x0 = evalState (go x0) mempty
@@ -315,36 +315,42 @@ solve f x0 = evalState (go x0) mempty
   go x = do
     s <- gets $ Map.lookup x
     case s of
-      Just (c0, []) -> 
+      Just (c0,xs) ->
+        assert (null xs)
         return c0
 
-      Just (c0, cx) | x `elem` map snd cx -> do
-        let (cx0, cx') = List.partition ((== x) . snd) cx
-        let a = simplify $ Star (Plus (map fst cx0))
-        let c0' = simplify $ a <> c0
-        let cx'' = map (first (simplify . (a <>))) cx'
-        modify' $ Map.insert x (c0',cx'')
-        modify' $ Map.map $ update x (c0',cx'')
-        go x
-        
-      Just (c0, cx) -> do
-        cx' <- zip (map fst cx) <$> mapM go (map snd cx)
-        let c0' = simplify $ joins $ c0 : map (simplify . uncurry (<>)) cx'
-        modify' $ Map.insert x (c0',[])
-        modify' $ Map.map $ update x (c0',[])
-        return c0'
-      
       Nothing -> do
-        let (c0,cx) = f x
-        modify' $ Map.insert x (c0,cx)
-        go x
+        (c0,ys) <- elim x <$> resolve (f x)
+        modify' $ Map.insert x (c0,ys)
+        cs <- mapM (\(y,c) -> (c <>) <$> go y) (Map.toList ys)
+        let c0' = joins (c0:cs)
+        modify' $ Map.insert x (c0', mempty)
+        return c0'
 
-  update :: x -> RHS x -> RHS x -> RHS x
-  update x (c0,cx) (d0,dy) = (simplify $ d0 ∨ (Plus d0'), dyx' ++ dyy)
-   where
-    (dyx, dyy) = List.partition ((== x) . snd) dy
-    dyx' = concatMap (\c -> map (first (simplify . (c <>))) cx) $ map fst dyx
-    d0' = map (\c -> simplify $ c <> c0) $ map fst dyx
+  resolve :: RHS x -> State (System x) (RHS x)
+  resolve (c0,xs) = do
+    rs <- mapM resolveTerm (Map.toList xs)
+    return $ foldr combine (c0, mempty) rs
+
+  resolveTerm :: (x, Regex) -> State (System x) (RHS x)
+  resolveTerm (x,c) = do
+    s <- gets $ Map.lookup x
+    case s of
+      Just (c0,xs) -> scale c <$> resolve (c0,xs)
+      _            -> return (Zero, Map.singleton x c)
+
+  elim :: x -> RHS x -> RHS x
+  elim x (c0,xs) = 
+    case Map.lookup x xs of
+      Nothing -> (c0,xs)
+      Just cx -> assert (not $ nullable cx)
+                 scale (Star cx) (c0, Map.delete x xs)
+
+  scale :: Regex -> RHS x -> RHS x
+  scale r (c0,xs) = (r <> c0, Map.map (r <>) xs)
+
+  combine :: RHS x -> RHS x -> RHS x
+  combine (c01,xs1) (c02,xs2) = (c01 ∨ c02, Map.unionWith (∨) xs1 xs2)
 
 -------------------------------------------------------------------------------
 
