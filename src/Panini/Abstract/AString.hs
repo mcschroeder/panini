@@ -20,7 +20,7 @@ import Data.Set qualified as S
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
-import Panini.Pretty hiding (Literal)
+import Panini.Pretty
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
 import Panini.Regex
@@ -37,7 +37,6 @@ newtype AString = AString Regex
     , JoinSemilattice, BoundedJoinSemilattice
     , MeetSemilattice, BoundedMeetSemilattice
     , ComplementedLattice
-    , Pretty
     )
 
 instance Hashable AString where
@@ -69,18 +68,23 @@ toChar (AString r) = case simplify r of
   _        -> Nothing
 
 -- TODO: actual regex syntax (.) vs formalized view (Σ)
--- instance Pretty (RegExpView Char (RegExp Char)) where
---   pretty = pretty' True
---    where
---     pretty' open = \case
---       One -> epsilon
---       Plus (view -> a) (view -> b) -> 
---         parensIf open $ pretty' False a <+> "|" <+> pretty' False b
---       Times (view -> a) (view -> b) -> pretty a <> pretty b
---       Star (view -> a) -> case a of
---         Literal c -> pretty (AChar.fromFiniteSet c) <> "*"
---         _ -> parens (pretty' False a) <> "*"
---       Literal c -> pretty (AChar.fromFiniteSet c)
+-- TODO: unify pretty printing Regex vs AString
+instance Pretty AString where
+  pretty (AString r0) = go True r0
+   where
+    go o = \case
+      Zero -> emptySet
+      One -> epsilon
+      AnyChar -> bigSigma
+      All -> bigSigma <> "*"
+      Lit c -> pretty c
+      Word [] -> epsilon
+      Word s -> pretty s
+      Plus rs -> parensIf o $ concatWithOp "|" $ map (go False) rs
+      Times rs -> mconcat $ map (go True) rs
+      Star r@(Lit _) -> pretty r <> "*"
+      Star r -> parens (go False r) <> "*"
+      Opt r -> parens (go False r) <> "?"
 
 ------------------------------------------------------------------------------
 
@@ -100,21 +104,6 @@ toRegLan (AString r0) = go r0
     Times rs -> foldr1 SMT.Conc (map go rs)
     Star r -> SMT.Star (go r)
     Opt r -> SMT.Opt (go r)
-
--- toRegLan (AString s) = go $ view s
---   where
---     go = \case
---       One -> SMT.None
---       Plus a b -> SMT.Union (go $ view a) (go $ view b)
---       Times a b -> SMT.Conc (go $ view a) (go $ view b)
---       Star (view -> Literal (ComplementOf a)) | null a -> SMT.All
---       Star a -> SMT.Star (go $ view a)
---       Literal (These a)
---         | null a -> SMT.None
---         | otherwise -> charsetToRegLan a
---       Literal (ComplementOf a) 
---         | null a -> SMT.AllChar
---         | otherwise -> SMT.Diff SMT.AllChar (charsetToRegLan a)
     
   charsetToRegLan cs = case (S.size cs, S.findMin cs, S.findMax cs) of
       (1,l,_) -> SMT.ToRe [l]
