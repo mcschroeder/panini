@@ -399,8 +399,7 @@ next :: Regex -> Set CharSet
 next = \case
   Lit a          -> Set.singleton a
   Word []        -> Set.singleton bot
-  Word [x]       -> Set.singleton (AChar.eq x)
-  Word (x:xs)    -> Set.singleton (AChar.eq x) ⋈ next (Word xs)
+  Word (x:_)     -> Set.singleton (AChar.eq x)
   Plus []        -> Set.singleton bot
   Plus [r]       -> next r
   Plus (r:rs)    -> next r ⋈ next (Plus rs)
