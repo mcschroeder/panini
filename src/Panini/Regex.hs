@@ -45,21 +45,23 @@
 module Panini.Regex where
 
 import Algebra.Lattice
+import Control.Monad.Trans.State.Strict
+import Data.Bifunctor
 import Data.Containers.ListUtils
 import Data.Generics.Uniplate.Direct
+import Data.Hashable
+import Data.List qualified as List
+import Data.Map qualified as Map
+import Data.Map.Strict (Map)
 import Data.Semigroup hiding (All)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.String
+import GHC.Generics
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
 import Panini.Pretty
 import Prelude
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Data.Map qualified as Map
-import Control.Monad.Trans.State.Strict
-import Data.Bifunctor
-import Data.List qualified as List
-import Data.Map.Strict (Map)
 
 -------------------------------------------------------------------------------
 
@@ -82,7 +84,7 @@ data Regex
   | Times [Regex] -- ^ sequence (r₁ ⋅ r₂), concatenation (r₁ <> r₂)
   | Star Regex    -- ^ iteration, Kleene closure (r*)
   | Opt Regex     -- ^ option (r?)
-  deriving stock (Eq, Ord, Show, Read)
+  deriving stock (Eq, Ord, Show, Read, Generic)
 -- TODO: n-times repetition
 -- TODO: Plus (+)
 
@@ -103,6 +105,8 @@ pattern AnyChar <- Lit (isTop -> True) where
 -- | set of all words (Σ*), top (⊤)
 pattern All :: Regex
 pattern All = Star AnyChar
+
+instance Hashable Regex
 
 instance IsString Regex where
   fromString = Word

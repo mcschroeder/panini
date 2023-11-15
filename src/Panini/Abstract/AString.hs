@@ -17,14 +17,14 @@ import Algebra.Lattice
 import Data.GSet -- from regexp
 import Data.Hashable
 import Data.Set qualified as S
+import Data.String
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
 import Panini.Pretty
+import Panini.Regex
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
-import Panini.Regex
-import Data.String
 
 -- TODO: add conversion to/from POSIX patterns (BRE)
 
@@ -37,10 +37,8 @@ newtype AString = AString Regex
     , JoinSemilattice, BoundedJoinSemilattice
     , MeetSemilattice, BoundedMeetSemilattice
     , ComplementedLattice
+    , Hashable
     )
-
-instance Hashable AString where
-  hashWithSalt s (AString r) = 1 -- TODO
 
 eq :: String -> AString
 eq = AString . fromString
