@@ -46,7 +46,6 @@ library
     , parser-combinators
     , prettyprinter
     , process
-    , regexp
     , text
     , transformers
     , uniplate
