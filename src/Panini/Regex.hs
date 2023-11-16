@@ -8,7 +8,7 @@
 --      example, choice (+) and sequence (⋅) are n-ary operations, and we
 --      include a redundant constructor for optionals (?).
 --
---   2) The literals in the 'Regex' data type are character sets ('AChar')
+--   2) The literals in the 'Regex' data type are character sets ('CharSet')
 --      instead of just single characters ('Char'). This enables efficient and
 --      succinct representation of character classes (e.g., @[a-z]@).
 --
@@ -57,15 +57,9 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
-import Panini.Abstract.AChar (AChar)
-import Panini.Abstract.AChar qualified as AChar
-import Panini.Pretty
+import Panini.Regex.CharSet (CharSet)
+import Panini.Regex.CharSet qualified as CS
 import Prelude
-
--------------------------------------------------------------------------------
-
--- TODO
-type CharSet = AChar
 
 -------------------------------------------------------------------------------
 
@@ -143,19 +137,6 @@ instance ComplementedLattice Regex where
 
 -------------------------------------------------------------------------------
 
-instance Pretty Regex where
-  pretty = go True
-   where
-    go o = \case
-      Lit c -> pretty c
-      Word [] -> epsilon
-      Word s -> pretty s
-      Plus rs -> parensIf o $ concatWithOp "+" $ map (go False) rs
-      Times rs -> mconcat $ map (go True) rs
-      Star r@(Lit _) -> pretty r <> "*"
-      Star r -> parens (go False r) <> "*"
-      Opt r -> parens (go False r) <> "?"
-
 instance Uniplate Regex where
   uniplate = \case
     Lit c    -> plate Lit |- c
@@ -183,7 +164,7 @@ nullable = \case
 
 simplify :: Regex -> Regex
 simplify = rewrite $ \case
-  Lit a | [c] <- AChar.values a -> Just $ Word [c]
+  Lit a | [c] <- CS.toList a -> Just $ Word [c]
 
   Plus rs0 -> case filter (/= Zero) $ nubOrd rs0 of
     []                             -> Just Zero
@@ -191,7 +172,7 @@ simplify = rewrite $ \case
     rs1 | any (== One) rs1         -> Just $ Opt $ Plus $ filter (/= One) rs1
         | any isOpt rs1            -> Just $ Opt $ Plus $ concatMap flatOpt rs1
         | all isLit rs1            -> Just $ Lit $ joins [a | Lit a <- rs1]
-        | all isWord1 rs1          -> Just $ Lit $ joins [AChar.eq c | Word [c] <- rs1]
+        | all isWord1 rs1          -> Just $ Lit $ joins [CS.singleton c | Word [c] <- rs1]
         | any isPlus rs1           -> Just $ Plus $ concatMap flatPlus rs1
         | length rs1 /= length rs0 -> Just $ Plus rs1
         | otherwise                -> Nothing
@@ -277,7 +258,7 @@ intersection = curry $ solve $ \(r1,r2) ->
   let c0 = if nullable r1 && nullable r2 then One else Zero
       cx = [ ((simplify $ derivative c r1, simplify $ derivative c r2), Lit p) 
            | p <- Set.toList $ next r1 ⋈ next r2
-           , Just c <- [AChar.choose p]
+           , Just c <- [CS.choose p]
            ]
   in (c0, Map.fromList cx)
 
@@ -290,7 +271,7 @@ complement = solve $ \r ->
       c1 = Lit (neg $ joins $ next r) <> All
       cx = [ (simplify $ derivative c r, Lit p)
            | p <- Set.toList $ next r
-           , Just c <- [AChar.choose p]
+           , Just c <- [CS.choose p]
            ]
   in (c0 ∨ c1, Map.fromList cx)
 
@@ -368,7 +349,7 @@ solve f x0 = evalState (go x0) mempty
 derivative :: Char -> Regex -> Regex
 derivative c = \case
   Lit d 
-    | AChar.member c d -> One
+    | CS.member c d -> One
     | otherwise     -> Zero
   Word []           -> Zero
   Word (x:xs) 
@@ -399,7 +380,7 @@ next :: Regex -> Set CharSet
 next = \case
   Lit a          -> Set.singleton a
   Word []        -> Set.singleton bot
-  Word (x:_)     -> Set.singleton (AChar.eq x)
+  Word (x:_)     -> Set.singleton (CS.singleton x)
   Plus []        -> Set.singleton bot
   Plus [r]       -> next r
   Plus (r:rs)    -> next r ⋈ next (Plus rs)

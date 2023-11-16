@@ -14,15 +14,15 @@ module Panini.Abstract.AString
   ) where
 
 import Algebra.Lattice
-import Data.GSet -- from regexp
 import Data.Hashable
-import Data.Set qualified as S
+import Data.IntSet qualified as IS
 import Data.String
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
 import Panini.Pretty
 import Panini.Regex
+import Panini.Regex.CharSet qualified as CS
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
 
@@ -44,7 +44,7 @@ eq :: String -> AString
 eq = AString . fromString
 
 lit :: AChar -> AString
-lit = AString . Lit
+lit = AString . Lit . AChar.toCharSet
 
 rep :: AString -> Integer -> AString
 rep a n = mconcat $ replicate (fromIntegral n) a
@@ -61,7 +61,7 @@ opt (AString r) = AString (Opt r)
 
 toChar :: AString -> Maybe AChar
 toChar (AString r) = case simplify r of
-  Lit c    -> Just c
+  Lit c    -> Just (AChar.fromCharSet c)
   Word [c] -> Just (AChar.eq c)
   _        -> Nothing
 
@@ -75,12 +75,12 @@ instance Pretty AString where
       One -> epsilon
       AnyChar -> bigSigma
       All -> bigSigma <> "*"
-      Lit c -> pretty c
+      Lit c -> pretty (AChar.fromCharSet c)
       Word [] -> epsilon
       Word s -> pretty s
       Plus rs -> parensIf o $ concatWithOp "|" $ map (go False) rs
       Times rs -> mconcat $ map (go True) rs
-      Star r@(Lit _) -> pretty r <> "*"
+      Star r@(Lit _) -> pretty (AString r) <> "*"
       Star r -> parens (go False r) <> "*"
       Opt r -> parens (go False r) <> "?"
 
@@ -94,16 +94,16 @@ toRegLan (AString r0) = go r0
     One -> SMT.ToRe ""    
     AnyChar -> SMT.AllChar
     All -> SMT.All
-    Lit c -> case AChar.toFiniteSet c of
-      These a -> charsetToRegLan a
-      ComplementOf a -> SMT.Diff SMT.AllChar (charsetToRegLan a)
+    Lit c -> case CS.fromCharSet c of
+      (True, a) -> charsetToRegLan a
+      (False, a) -> SMT.Diff SMT.AllChar (charsetToRegLan a)
     Word s -> SMT.ToRe s
     Plus rs -> foldr1 SMT.Union (map go rs)
     Times rs -> foldr1 SMT.Conc (map go rs)
     Star r -> SMT.Star (go r)
     Opt r -> SMT.Opt (go r)
     
-  charsetToRegLan cs = case (S.size cs, S.findMin cs, S.findMax cs) of
-      (1,l,_) -> SMT.ToRe [l]
-      (n,l,u) | fromEnum u - fromEnum l + 1 == n -> SMT.Range l u
-      _ -> foldr1 SMT.Union $ map (SMT.ToRe . pure) $ S.toList cs
+  charsetToRegLan cs = case (IS.size cs, IS.findMin cs, IS.findMax cs) of
+      (1,l,_) -> SMT.ToRe [toEnum @Char l]
+      (n,l,u) | fromEnum u - fromEnum l + 1 == n -> SMT.Range (toEnum @Char l) (toEnum @Char u)
+      _ -> foldr1 SMT.Union $ map (SMT.ToRe . pure . toEnum @Char) $ IS.toList cs
