@@ -7,7 +7,7 @@
 -- that need to be re-constructed anytime charsets are joined/meeted).
 -- 
 module Panini.Regex.CharSet
-  ( CharSet
+  ( CharSet(..)
   , empty
   , full
   , singleton
@@ -22,7 +22,6 @@ module Panini.Regex.CharSet
   , choose
   , fromCharSet
   , intSetToCharList
-  , printERE
   ) where
 
 import Algebra.Lattice
@@ -117,16 +116,3 @@ fromCharSet (CharSet b xs) = (b,xs)
 
 intSetToCharList :: IntSet -> [Char]
 intSetToCharList = map (toEnum @Char) . I.toAscList
-
--------------------------------------------------------------------------------
-
--- TODO: print ranges
--- TODO: print pre-defined POSIX character classes
--- TODO: proper escaping
-
-printERE :: CharSet -> String
-printERE (CharSet b s) = case (b, intSetToCharList s) of
-  (True , [x]) -> [x]
-  (True , xs ) -> "[" ++ xs ++ "]"
-  (False, [] ) -> "."
-  (False, xs ) -> "[^" ++ xs ++ "]"

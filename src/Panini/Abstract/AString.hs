@@ -23,6 +23,7 @@ import Panini.Abstract.AChar qualified as AChar
 import Panini.Pretty
 import Panini.Regex
 import Panini.Regex.CharSet qualified as CS
+import Panini.Regex.POSIX
 import Panini.SMT.RegLan qualified as SMT
 import Prelude
 

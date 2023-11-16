@@ -14,9 +14,11 @@ import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
-import Prelude
+import Panini.Regex
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
+import Panini.Regex.POSIX
+import Prelude
 
 -------------------------------------------------------------------------------
 
@@ -54,7 +56,7 @@ ne :: Char -> AChar
 ne = AChar . CS.complement . CS.singleton
 
 instance Pretty AChar where
-  pretty (AChar cs) = pretty $ CS.printERE cs
+  pretty (AChar cs) = pretty $ printERE $ Lit cs
 
 toCharSet :: AChar -> CharSet
 toCharSet (AChar cs) = cs
