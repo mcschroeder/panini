@@ -65,27 +65,13 @@ toChar (AString r) = case simplify r of
   Word [c] -> Just (AChar.eq c)
   _        -> Nothing
 
--- TODO: actual regex syntax (.) vs formalized view (Σ)
--- TODO: unify pretty printing Regex vs AString
+-- TODO: separate pretty printing / ERE printing?
 instance Pretty AString where
-  pretty (AString r0) = go True r0
-   where
-    go o = \case
-      Zero -> emptySet
-      One -> epsilon
-      AnyChar -> bigSigma
-      All -> bigSigma <> "*"
-      Lit c -> pretty (AChar.fromCharSet c)
-      Word [] -> epsilon
-      Word s -> pretty s
-      Plus rs -> parensIf o $ concatWithOp "|" $ map (go False) rs
-      Times rs -> mconcat $ map (go True) rs
-      Star r@(Lit _) -> pretty (AString r) <> "*"
-      Star r -> parens (go False r) <> "*"
-      Opt r -> parens (go False r) <> "?"
+  pretty (AString r) = pretty $ printERE r
 
 ------------------------------------------------------------------------------
 
+-- TODO: move to Regex?
 toRegLan :: AString -> SMT.RegLan
 toRegLan (AString r0) = go r0
  where

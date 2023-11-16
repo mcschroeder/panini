@@ -12,12 +12,17 @@ module Panini.Regex.CharSet
   , full
   , singleton
   , complement
+  , union
+  , intersection
+  , null
+  , isFull
   , size
   , toList
   , member
   , choose
   , fromCharSet
   , intSetToCharList
+  , printERE
   ) where
 
 import Algebra.Lattice
@@ -25,7 +30,7 @@ import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
 import GHC.Generics
-import Prelude
+import Prelude hiding (null)
 
 -------------------------------------------------------------------------------
 
@@ -37,8 +42,8 @@ instance Hashable CharSet
 
 instance MeetSemilattice        CharSet where (∧) = intersection
 instance JoinSemilattice        CharSet where (∨) = union
-instance BoundedMeetSemilattice CharSet where top = full
-instance BoundedJoinSemilattice CharSet where bot = empty
+instance BoundedMeetSemilattice CharSet where top = full  -- TODO: non-unique?
+instance BoundedJoinSemilattice CharSet where bot = empty -- TODO: non-unique?
 instance ComplementedLattice    CharSet where neg = complement
 
 -------------------------------------------------------------------------------
@@ -73,10 +78,20 @@ intersection (CharSet False xs) (CharSet False ys) = CharSet False (I.union     
 intersection (CharSet True  xs) (CharSet False ys) = CharSet True  (I.difference   xs ys)
 intersection (CharSet False xs) (CharSet True  ys) = CharSet True  (I.difference   ys xs)
 
+-- | Whether the set is empty.
+null :: CharSet -> Bool
+null (CharSet True  xs) = I.null xs
+null (CharSet False xs) = fromEnum @Char maxBound + 1 == I.size xs
+
+-- | Whether the set is full.
+isFull :: CharSet -> Bool
+isFull (CharSet True  xs) = fromEnum @Char maxBound + 1 == I.size xs
+isFull (CharSet False xs) = I.null xs
+
 -- | The number of characters in the set.
 size :: CharSet -> Int
 size (CharSet True  cs) = I.size cs
-size (CharSet False cs) = fromEnum @Char maxBound - I.size cs
+size (CharSet False cs) = fromEnum @Char maxBound + 1 - I.size cs
 
 -- | The characters in the set, in undefined order.
 toList :: CharSet -> [Char]
@@ -102,3 +117,16 @@ fromCharSet (CharSet b xs) = (b,xs)
 
 intSetToCharList :: IntSet -> [Char]
 intSetToCharList = map (toEnum @Char) . I.toAscList
+
+-------------------------------------------------------------------------------
+
+-- TODO: print ranges
+-- TODO: print pre-defined POSIX character classes
+-- TODO: proper escaping
+
+printERE :: CharSet -> String
+printERE (CharSet b s) = case (b, intSetToCharList s) of
+  (True , [x]) -> [x]
+  (True , xs ) -> "[" ++ xs ++ "]"
+  (False, [] ) -> "."
+  (False, xs ) -> "[^" ++ xs ++ "]"

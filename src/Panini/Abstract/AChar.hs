@@ -54,15 +54,7 @@ ne :: Char -> AChar
 ne = AChar . CS.complement . CS.singleton
 
 instance Pretty AChar where
-  pretty (AChar cs) = case CS.fromCharSet cs of
-    (True, s) -> case CS.intSetToCharList s of
-      []  -> emptySet
-      [x] -> pretty x
-      xs  -> prettySetTight xs
-    (False, s) -> case CS.intSetToCharList s of
-      []  -> bigSigma
-      [x] -> parens $ bigSigma <> setMinus <> pretty x
-      xs  -> parens $ bigSigma <> setMinus <> prettySetTight xs
+  pretty (AChar cs) = pretty $ CS.printERE cs
 
 toCharSet :: AChar -> CharSet
 toCharSet (AChar cs) = cs

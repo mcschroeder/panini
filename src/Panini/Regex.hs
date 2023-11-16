@@ -50,6 +50,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Containers.ListUtils
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Semigroup hiding (All)
@@ -403,3 +404,21 @@ l1 ⋈ l2 = Set.fromList $ concat $
     ]
   | a1 <- Set.toList l1, a2 <- Set.toList l2
   ]
+
+-------------------------------------------------------------------------------
+
+printERE :: Regex -> String
+printERE = go False
+ where
+  go o = \case
+    Lit c        -> CS.printERE c
+    Word s       -> s
+    Plus xs      -> parens o $ mconcat $ List.intersperse "|" $ map (go False) xs
+    Times xs     -> mconcat $ map (go True) xs
+    Star (Lit c) -> CS.printERE c <> "*"
+    Star x       -> parens True (go False x) <> "*"
+    Opt (Lit c)  -> CS.printERE c <> "*"
+    Opt x        -> parens True (go False x) <> "?"
+
+  parens True s = "(" ++ s ++ ")"
+  parens False s = s
