@@ -7,7 +7,7 @@ import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Panini.Abstract.AExpr
-import Panini.Abstract.AString (toRegLan)
+import Panini.Abstract.AString (AString, toRegLan)
 import Panini.Pretty
 import Panini.Provenance
 import Panini.SMT.RegLan
@@ -66,7 +66,7 @@ instance SMTLIB Pred where
 
 instance SMTLIB Rel where
   encode = \case
-    Rel In e1 (EStrA r) -> sexpr ["str.in.re", encode e1, encode (toRegLan r)]
+    Rel In e1 e2 -> sexpr ["str.in.re", encode e1, encode e2]
     Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
 
 instance SMTLIB RegLan where
@@ -88,6 +88,7 @@ instance SMTLIB RegLan where
 instance SMTLIB Expr where
   encode = \case
     EVal v           -> encode v
+    EStrA a          -> encode a
     ENot e           -> sexpr ["not", encode e]
     EAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
     ESub e1 e2       -> sexpr ["-", encode e1, encode e2]
@@ -108,6 +109,9 @@ encodeSubstring p1 p2 p3 =
     offset = case (p2,p3) of
       (ECon (I i _), ECon (I j _)) -> ECon (I (j - i + 1) NoPV)
       _                            -> p3 :-: p2 :+: (EInt 1 NoPV)
+
+instance SMTLIB AString where
+  encode = encode . toRegLan
 
 -- TODO: ensure uniqueness
 instance SMTLIB KVar where

@@ -15,16 +15,16 @@ module Panini.Abstract.AString
 
 import Algebra.Lattice
 import Data.Hashable
-import Data.IntSet qualified as IS
+
 import Data.String
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
 import Panini.Pretty
 import Panini.Regex
-import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.POSIX
-import Panini.SMT.RegLan qualified as SMT
+import Panini.Regex.SMT qualified
+import Panini.SMT.RegLan (RegLan)
 import Prelude
 
 -- TODO: add conversion to/from POSIX patterns (BRE)
@@ -70,27 +70,6 @@ toChar (AString r) = case simplify r of
 instance Pretty AString where
   pretty (AString r) = pretty $ printERE r
 
-------------------------------------------------------------------------------
-
--- TODO: move to Regex?
-toRegLan :: AString -> SMT.RegLan
-toRegLan (AString r0) = go r0
- where
-  go = \case
-    Zero -> SMT.None
-    One -> SMT.ToRe ""    
-    AnyChar -> SMT.AllChar
-    All -> SMT.All
-    Lit c -> case CS.fromCharSet c of
-      (True, a) -> charsetToRegLan a
-      (False, a) -> SMT.Diff SMT.AllChar (charsetToRegLan a)
-    Word s -> SMT.ToRe s
-    Plus rs -> foldr1 SMT.Union (map go rs)
-    Times rs -> foldr1 SMT.Conc (map go rs)
-    Star r -> SMT.Star (go r)
-    Opt r -> SMT.Opt (go r)
-    
-  charsetToRegLan cs = case (IS.size cs, IS.findMin cs, IS.findMax cs) of
-      (1,l,_) -> SMT.ToRe [toEnum @Char l]
-      (n,l,u) | fromEnum u - fromEnum l + 1 == n -> SMT.Range (toEnum @Char l) (toEnum @Char u)
-      _ -> foldr1 SMT.Union $ map (SMT.ToRe . pure . toEnum @Char) $ IS.toList cs
+-- TODO: replace with SMTLIB instance
+toRegLan :: AString -> RegLan
+toRegLan (AString r) = Panini.Regex.SMT.toRegLan r
