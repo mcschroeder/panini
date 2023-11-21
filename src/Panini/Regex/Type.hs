@@ -1,33 +1,55 @@
-module Panini.Regex.Type where
+{-
+This module implements an efficient regular expression type.
+
+Some aspects of note:
+
+  1) Literals are represented as character sets ('CharSet') instead of just
+     single characters ('Char'). This enables efficient and succinct
+     representation of character classes (e.g., @[a-z]@; see also
+     "Panini.Regex.POSIX").
+  
+  2) Smart pattern synonyms ensure that 'Regex' instances are
+     efficient-by-construction and uphold certain invariants, while still
+     allowing natural deconstruction via pattern matching.
+
+-}
+module Panini.Regex.Type
+  ( Regex(Lit,Word)
+  , pattern Zero
+  , pattern One
+  , pattern AnyChar
+  , pattern All
+  , pattern Times
+  , pattern Plus
+  , pattern Star
+  , pattern Opt  
+  , nullable
+  ) where
 
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Semigroup hiding (All)
+import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
 import Panini.Regex.CharSet (CharSet)
 import Prelude
 
+-- TODO: m-to-n-times repetition {m,n}
+-- TODO: one-or-more repetition (+)
+
 -------------------------------------------------------------------------------
-
--- TODO: simplification vs standardization: simplification is needed for
--- succinctness (human readability); standardization is needed for correctness
--- of algorithm (so that intermediate expressions don't blow up infinitely but
--- instead collapse to unique representations)
-
 
 -- | The 'Regex' type defines regular expressions over Unicode characters.
 data Regex  
   = Lit CharSet   -- ^ set of literal symbols, character class
   | Word String   -- ^ word, sequence of singleton literals
-  | Plus [Regex]  -- ^ choice (r₁ + r₂), alternation (r₁ | r₂), join (r₁ ∨ r₂)
-  | Times [Regex] -- ^ sequence (r₁ ⋅ r₂), concatenation (r₁ <> r₂)
-  | Star Regex    -- ^ iteration, Kleene closure (r*)
-  | Opt Regex     -- ^ option (r?)
+  | Plus_ [Regex]
+  | Times_ [Regex] 
+  | Star_ Regex
+  | Opt_ Regex
   deriving stock (Eq, Ord, Show, Read, Generic)
--- TODO: n-times repetition
--- TODO: Plus (+)
 
 -- | zero element (0), empty set (∅), bottom (⊥)
 pattern Zero :: Regex
@@ -47,6 +69,80 @@ pattern AnyChar <- Lit (isTop -> True) where
 pattern All :: Regex
 pattern All = Star AnyChar
 
+-- | sequence (r₁ ⋅ r₂), concatenation (r₁ <> r₂)
+--
+-- Invariants:
+--    1) Every sequence consists of at least two elements.
+--    2) Sequences do not contain other sequences.
+--    3) Sequences do not contain 'Zero' or 'One'.
+--
+pattern Times :: [Regex] -> Regex
+pattern Times xs <- Times_ xs where
+  Times xs | elem Zero xs' = Zero
+           | null xs'      = One
+           | [r] <- xs'    = r
+           | otherwise     = Times_ xs
+   where
+    xs' = concatMap flatTimes xs
+    flatTimes = \case
+      Times ys -> ys
+      One      -> []
+      y        -> [y]
+
+-- | choice (r₁ + r₂), alternation (r₁ | r₂), join (r₁ ∨ r₂)
+--
+-- Invariants:
+--    1) Every choice consists of at least two elements.
+--    2) Choices do not contain other choices.
+--    3) Choices do not contain 'Zero' or 'One' or 'Opt'.
+--    3) Choices do not contain duplicates.
+--    4) Choices are ordered (via 'Ord').
+--
+pattern Plus :: [Regex] -> Regex
+pattern Plus xs <- Plus_ xs where
+  Plus xs | any nullable xs && not (any nullable xs') = Opt (Plus_ xs')
+          | null xs'   = Zero
+          | [r] <- xs' = r          
+          | otherwise  = Plus_ xs'
+   where
+    xs' = Set.toAscList $ Set.fromList $ concatMap flatPlus xs
+    flatPlus = \case
+      Plus ys -> ys
+      Zero    -> []
+      One     -> []
+      Opt y   -> flatPlus y
+      y       -> [y]
+
+-- | iteration, Kleene closure (r*)
+--
+-- Invariants:
+--    1) Iterations do not contain other iterations.
+--    2) Iterations do not contain 'Zero' or 'One' or 'Opt'.
+--
+pattern Star :: Regex -> Regex
+pattern Star x <- Star_ x where
+  Star Zero     = One
+  Star One      = One
+  Star (Star x) = Star_ x
+  Star (Opt x)  = Star_ x
+  Star x        = Star_ x
+
+-- | option (r?)
+--
+-- Invariants:
+--    1) Options do not contain nullable expressions.
+--    2) Options do not contain 'Zero'
+--
+pattern Opt :: Regex -> Regex
+pattern Opt x <- Opt_ x where
+  Opt Zero           = One
+  Opt x | nullable x = x
+        | otherwise  = Opt_ x
+
+{-# COMPLETE Lit, Word, Plus, Times, Star, Opt #-}
+
+-------------------------------------------------------------------------------
+
 instance Hashable Regex
 
 instance IsString Regex where
@@ -64,8 +160,6 @@ instance Semigroup Regex where
 
 instance Monoid Regex where
   mempty = One
-
--------------------------------------------------------------------------------
 
 instance Uniplate Regex where
   uniplate = \case
