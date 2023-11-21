@@ -1,8 +1,8 @@
 module Panini.Regex.POSIX where
 
 import Data.List (intersperse)
-import Panini.Regex
 import Panini.Regex.CharSet
+import Panini.Regex.Type
 import Prelude
 
 -- TODO: print character ranges

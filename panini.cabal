@@ -82,8 +82,11 @@ library
     Panini.Provenance
     Panini.Regex
     Panini.Regex.CharSet
+    Panini.Regex.Operations
     Panini.Regex.POSIX
+    Panini.Regex.Simplify
     Panini.Regex.SMT
+    Panini.Regex.Type
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3

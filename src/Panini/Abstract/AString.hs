@@ -32,14 +32,23 @@ import Prelude
 ------------------------------------------------------------------------------
 
 newtype AString = AString Regex
-  deriving stock (Eq, Show, Read, Generic)  
-  deriving newtype 
-    ( Semigroup, Monoid
-    , JoinSemilattice, BoundedJoinSemilattice
-    , MeetSemilattice, BoundedMeetSemilattice
-    , ComplementedLattice
-    , Hashable
-    )
+  deriving stock (Eq, Show, Read, Generic)
+  deriving newtype (Semigroup, Monoid, Hashable)
+
+instance JoinSemilattice AString where
+  AString r1 ∨ AString r2 = AString (Plus [r1,r2])
+
+instance BoundedJoinSemilattice AString where
+  bot = AString Zero
+
+instance MeetSemilattice AString where
+  AString r1 ∧ AString r2 = AString $ simplify $ intersection r1 r2
+
+instance BoundedMeetSemilattice AString where
+  top = AString All
+
+instance ComplementedLattice AString where
+  neg (AString r) = AString $ simplify $ complement r
 
 eq :: String -> AString
 eq = AString . fromString
