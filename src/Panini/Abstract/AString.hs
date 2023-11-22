@@ -15,14 +15,14 @@ module Panini.Abstract.AString
 
 import Algebra.Lattice
 import Data.Hashable
-
 import Data.String
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
+import Panini.Panic
 import Panini.Pretty
 import Panini.Regex
-import Panini.Regex.POSIX
+import Panini.Regex.POSIX.ERE qualified as ERE
 import Panini.Regex.SMT qualified
 import Panini.SMT.RegLan (RegLan)
 import Prelude
@@ -78,7 +78,10 @@ toChar (AString r) = case simplify r of
 
 -- TODO: separate pretty printing / ERE printing?
 instance Pretty AString where
-  pretty (AString r) = pretty $ printERE $ toERE r
+  pretty (AString Zero) = emptySet
+  pretty (AString r) = case ERE.fromRegex r of
+    Just ere -> pretty $ ERE.printERE ere
+    Nothing -> panic $ "Cannot convert regex to ERE"
 
 -- TODO: replace with SMTLIB instance
 toRegLan :: AString -> RegLan

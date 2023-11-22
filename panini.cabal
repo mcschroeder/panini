@@ -83,7 +83,8 @@ library
     Panini.Regex
     Panini.Regex.CharSet
     Panini.Regex.Operations
-    Panini.Regex.POSIX
+    Panini.Regex.POSIX.BE
+    Panini.Regex.POSIX.ERE
     Panini.Regex.Simplify
     Panini.Regex.SMT
     Panini.Regex.Type

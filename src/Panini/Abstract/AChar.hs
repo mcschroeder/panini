@@ -14,10 +14,9 @@ import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
-import Panini.Regex
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.POSIX
+import Panini.Regex.POSIX.BE qualified as BE
 import Prelude
 
 -- TODO: AChar pretty printing vs. conversion to ERE
@@ -58,7 +57,9 @@ ne :: Char -> AChar
 ne = AChar . CS.complement . CS.singleton
 
 instance Pretty AChar where
-  pretty (AChar cs) = pretty $ printERE $ toERE $ Lit cs
+  pretty (AChar cs) = case BE.fromCharSet cs of
+    Just be -> pretty $ BE.printBE be
+    Nothing -> emptySet
 
 toCharSet :: AChar -> CharSet
 toCharSet (AChar cs) = cs
