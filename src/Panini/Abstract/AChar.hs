@@ -20,6 +20,8 @@ import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.POSIX
 import Prelude
 
+-- TODO: AChar pretty printing vs. conversion to ERE
+
 -------------------------------------------------------------------------------
 
 -- | An abstract character.
@@ -56,7 +58,7 @@ ne :: Char -> AChar
 ne = AChar . CS.complement . CS.singleton
 
 instance Pretty AChar where
-  pretty (AChar cs) = pretty $ printERE $ Lit cs
+  pretty (AChar cs) = pretty $ printERE $ toERE $ Lit cs
 
 toCharSet :: AChar -> CharSet
 toCharSet (AChar cs) = cs

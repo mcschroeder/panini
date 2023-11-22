@@ -28,6 +28,7 @@ import Panini.SMT.RegLan (RegLan)
 import Prelude
 
 -- TODO: add conversion to/from POSIX patterns (BRE)
+-- TODO: AString pretty printing vs. conversion to ERE
 
 ------------------------------------------------------------------------------
 
@@ -77,7 +78,7 @@ toChar (AString r) = case simplify r of
 
 -- TODO: separate pretty printing / ERE printing?
 instance Pretty AString where
-  pretty (AString r) = pretty $ printERE r
+  pretty (AString r) = pretty $ printERE $ toERE r
 
 -- TODO: replace with SMTLIB instance
 toRegLan :: AString -> RegLan
