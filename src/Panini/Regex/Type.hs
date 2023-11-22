@@ -73,8 +73,8 @@ pattern All = Star AnyChar
 --
 -- Invariants:
 --    1) Every sequence consists of at least two elements.
---    2) Sequences do not contain other sequences.
---    3) Sequences do not contain 'Zero' or 'One'.
+--    2) Sequences do not immediately contain other sequences.
+--    3) Sequences do not immediately contain 'Zero' or 'One'.
 --
 pattern Times :: [Regex] -> Regex
 pattern Times xs <- Times_ xs where
@@ -93,8 +93,8 @@ pattern Times xs <- Times_ xs where
 --
 -- Invariants:
 --    1) Every choice consists of at least two elements.
---    2) Choices do not contain other choices.
---    3) Choices do not contain 'Zero' or 'One' or 'Opt'.
+--    2) Choices do not immediately contain other choices.
+--    3) Choices do not immediately contain 'Zero' or 'One' or 'Opt'.
 --    3) Choices do not contain duplicates.
 --    4) Choices are ordered (via 'Ord').
 --
@@ -116,8 +116,8 @@ pattern Plus xs <- Plus_ xs where
 -- | iteration, Kleene closure (r*)
 --
 -- Invariants:
---    1) Iterations do not contain other iterations.
---    2) Iterations do not contain 'Zero' or 'One' or 'Opt'.
+--    1) Iterations do not immediately contain other iterations.
+--    2) Iterations do not immediately contain 'Zero' or 'One' or 'Opt'.
 --
 pattern Star :: Regex -> Regex
 pattern Star x <- Star_ x where
@@ -130,8 +130,8 @@ pattern Star x <- Star_ x where
 -- | option (r?)
 --
 -- Invariants:
---    1) Options do not contain nullable expressions.
---    2) Options do not contain 'Zero'
+--    1) Options do not immediately contain nullable expressions.
+--    2) Options do not immediately contain 'Zero'
 --
 pattern Opt :: Regex -> Regex
 pattern Opt x <- Opt_ x where
