@@ -101,10 +101,8 @@ pattern Times xs <- Times_ xs where
 --
 pattern Plus :: [Regex] -> Regex
 pattern Plus xs <- Plus_ xs where
-  Plus xs | any nullable xs && not (any nullable xs') = Opt (Plus_ xs')
-          | null xs'   = Zero
-          | [r] <- xs' = r          
-          | otherwise  = Plus_ xs'
+  Plus xs | any nullable xs && not (any nullable xs') = Opt $ mkPlus xs'
+          | otherwise                                 =       mkPlus xs'
    where
     xs' = Set.toAscList $ Set.fromList $ concatMap flatPlus xs
     flatPlus = \case
@@ -113,6 +111,10 @@ pattern Plus xs <- Plus_ xs where
       One     -> []
       Opt y   -> flatPlus y
       y       -> [y]
+    mkPlus = \case
+      []  -> Zero
+      [y] -> y
+      ys  -> Plus_ ys
 
 -- | iteration, Kleene closure (r*)
 --
