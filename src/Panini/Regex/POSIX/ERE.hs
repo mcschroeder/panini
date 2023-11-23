@@ -17,9 +17,11 @@ References:
 -}
 module Panini.Regex.POSIX.ERE where
 
+import Data.Hashable
 import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
+import GHC.Generics
 import Panini.Regex.POSIX.BE (BE)
 import Panini.Regex.POSIX.BE qualified as BE
 import Panini.Regex.CharSet qualified as CS
@@ -36,10 +38,12 @@ import Panini.Panic
 -- | Extended Regular Expression (ERE) as defined by the POSIX standard.
 data ERE
   = Alt (NonEmpty Con)  -- ^ alternation @x|y|z@
+  deriving stock (Eq, Ord, Show, Read, Generic)
 
 -- | ERE concatenation.
 data Con
   = Con (NonEmpty Exp)  -- ^ concatenation @xyz@
+  deriving stock (Eq, Ord, Show, Read, Generic)
 
 -- | ERE (sub)expressions.
 data Exp
@@ -50,6 +54,7 @@ data Exp
   | Dol          -- ^ dollar sign @$@ (matches end of string)
   | Grp ERE      -- ^ group @(x)@
   | Dup Exp Dup  -- ^ duplication @r*@, @r?@, @r{2,5}@
+  deriving stock (Eq, Ord, Show, Read, Generic)
 
 -- | ERE duplication symbols.
 data Dup
@@ -59,6 +64,12 @@ data Dup
   | Exa Int      -- ^ exact number of occurrences @{m}@
   | Min Int      -- ^ minimum number of occurrences @{m,}@
   | Inv Int Int  -- ^ any number of occurrences within interval @{m,n}@
+  deriving stock (Eq, Ord, Show, Read, Generic)
+
+instance Hashable ERE
+instance Hashable Con
+instance Hashable Exp
+instance Hashable Dup
 
 ------------------------------------------------------------------------------
 
