@@ -28,6 +28,7 @@ import Panini.Regex.CharSet qualified as CS
 import Prelude
 import Panini.Regex.Type
 import Panini.Panic
+import Panini.Pretty
 
 -- TODO: escaping
 -- TODO: parsing
@@ -72,6 +73,9 @@ instance Hashable Exp
 instance Hashable Dup
 
 ------------------------------------------------------------------------------
+
+instance Pretty ERE where
+  pretty = ann (Literal StringLit) . pretty . printERE
 
 printERE :: ERE -> String
 printERE (Alt xs) = concat $ List.intersperse "|" $ map printCon $ NE.toList xs
