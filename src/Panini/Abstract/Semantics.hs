@@ -33,11 +33,6 @@ abstractVar x b r = case abstract x b r of
     logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
     return e
 
-concretizeVar :: Name -> AExpr -> Pan Rel
-concretizeVar x e = case e of
-  EStrA s -> return $ EVar x :∈: EStrA s  
-  _       -> throwError $ ConcretizationImpossible e x
-
 topExpr :: Base -> AExpr
 topExpr TBool   = EAbs $ ABool top
 topExpr TInt    = EAbs $ AInt top

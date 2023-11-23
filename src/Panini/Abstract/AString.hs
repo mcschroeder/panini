@@ -10,6 +10,7 @@ module Panini.Abstract.AString
   , star
   , opt
   , toChar
+  , toRegex
   , toRegLan
   ) where
 
@@ -70,6 +71,9 @@ toChar (AString r) = case simplify r of
   Lit c    -> Just (AChar.fromCharSet c)
   Word [c] -> Just (AChar.eq c)
   _        -> Nothing
+
+toRegex :: AString -> Regex
+toRegex (AString r) = r
 
 instance Pretty AString where
   pretty (AString r) = pretty r

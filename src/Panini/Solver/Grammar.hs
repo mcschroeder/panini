@@ -21,11 +21,14 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe
 import GHC.Generics
 import Panini.Abstract.AExpr
+import Panini.Abstract.AString qualified as AString
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
+import Panini.Provenance
+import Panini.Regex qualified as Regex
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
@@ -73,13 +76,15 @@ solveAll = foldM solve1 mempty
     solve1 s (GCon x k c) = do
       logMessage $ "Solve for grammar variable" <+> pretty k
       g <- solve $ GCon x k $ apply s c
-      logMessage $ "Found grammar assignment" <+> pretty g
-      return $ Map.unionWith meet' g s
+      let s' = Map.unionWith meet' g s
+      logData s'
+      return s'
     
-    -- TODO: refactor solve to return AString and concretize higher up
-    meet' (PRel (s1 :∈: g1)) (PRel (s2 :∈: g2)) 
-      | s1 == s2, Just g <- g1 ∧? g2 = PRel (s1 :∈: g)
+    meet' (PRel (s1 :∈: EStrA a1)) (PRel (s2 :∈: EStrA a2))
+      | s1 == s2 = PRel $ s1 :∈: EStrA (a1 ∧ a2)
     meet' p q = p ∧ q
+
+-------------------------------------------------------------------------------
 
 -- | Solve a grammar constraint @∀s:𝕊. κ(s) ⇒ c@, returning a solution for @κ@.
 solve :: GCon -> Pan Assignment
@@ -103,39 +108,35 @@ solve (GCon s k c) | not $ null $ kvars c = do
   let c3 = simplify c2
   solve (GCon s k c3)
 
--- TODO: clean up
 solve (GCon s k c) = do
   logData c
   logMessage "Rewrite grammar constraint"  
-  c1 <- rewrite c
-  logData c1
-  let c2 = PNot c1
-  logData c2
-  let c3 = dnf c2
-  logData c3
-  g0 <- forM c3 $ \rs -> do
-    logMessage $ "rs =" <+> pretty rs
-    g <- meets <$> mapM (abstractVarString s) rs
-    logData g
-    return g
-  --g <- joins <$> mapM (fmap meets . mapM (abstractVarString s)) c'
-  let g = joins g0
+  c' <- dnf <$> PNot <$> rewrite c
+  logData c'
+  logMessage $ "Abstract free string variable" <+> pretty s
+  g <- neg <$> joins <$> mapM (stringElim s) c'
   logData g
-  let g2 = neg g
-  logData g2
-  p <- PRel <$> concretizeVar s (EAbs $ AString g2)
+  logMessage $ "Make grammar assignment for" <+> pretty k  
+  let a = makeGrammarAssignment k g
+  logData a  
+  return a
 
-  -- IMPORTANT: we need to substitute the free string variable s in the
-  -- grammar solution with the generic κ parameter, so that later on we can
-  -- apply without problems
-  let p' = subst (EVar $ head $ kparams k) s p
+stringElim :: Name -> [Rel] -> Pan AString
+stringElim s = (meets <$>) . mapM ((extract <$>) . abstractVar s TString)
+ where
+  extract (EStrA g) = g
+  extract a         = panic $ "stringElim.extract: unexpected" <+> pretty a
 
-  return $ Map.singleton k p'
-
-abstractVarString :: Name -> Rel -> Pan AString
-abstractVarString x r = abstractVar x TString r >>= \case
-  EAbs (AString s) -> return s
-  a -> panic $ "expected abstract string instead of" <+> pretty a
+-- | Make a grammar assignment for an abstract string, ensuring the result is
+-- concretely representable, e.g., @κ(z₀) ↦ z₀ ∈ a.*@ or @κ(z₀) ↦ false@.
+makeGrammarAssignment :: KVar -> AString -> Assignment
+makeGrammarAssignment k g = Map.singleton k $ case AString.toRegex g of
+  Regex.Zero -> PFalse
+  Regex.One  -> PRel $ EVar s :=: EStr "" NoPV
+  Regex.All  -> PTrue
+  _r         -> PRel $ EVar s :∈: EStrA g
+ where
+  s = head $ kparams k
 
 -------------------------------------------------------------------------------
 
