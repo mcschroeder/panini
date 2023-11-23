@@ -82,7 +82,7 @@ pattern Times xs <- Times_ xs where
   Times xs | elem Zero xs' = Zero
            | null xs'      = One
            | [r] <- xs'    = r
-           | otherwise     = Times_ xs
+           | otherwise     = Times_ xs'
    where
     xs' = concatMap flatTimes xs
     flatTimes = \case
