@@ -127,6 +127,7 @@ instance Subable Expr Expr where
     EVal (Var x)     -> [x]
     EVal (Con _)     -> []
     EAbs _           -> []
+    EReg _           -> []
     ENot e           -> freeVars e
     EAdd e1 e2       -> freeVars e1 <> freeVars e2
     ESub e1 e2       -> freeVars e1 <> freeVars e2

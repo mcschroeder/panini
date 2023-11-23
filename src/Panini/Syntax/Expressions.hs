@@ -8,6 +8,7 @@ import GHC.Generics (Generic)
 import Panini.Abstract.AValue
 import Panini.Pretty
 import Panini.Provenance
+import Panini.Regex.POSIX.ERE (ERE)
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
@@ -20,6 +21,7 @@ import Prettyprinter qualified as PP
 data Expr  
   = EVal !Value                -- ^ constant @c@ or variable @x@
   | EAbs !AValue               -- ^ abstract value @α@
+  | EReg !ERE                  -- ^ regular expression @RE@
   | ENot !Expr                 -- ^ Boolean negation @¬e@
   | EAdd !Expr !Expr           -- ^ integer addition @e₁ + e₂@
   | ESub !Expr !Expr           -- ^ integer subtraction @e₁ - e₂@
@@ -63,6 +65,7 @@ typeOfExpr :: Expr -> Maybe Base
 typeOfExpr = \case
   EVal v        -> typeOfValue v
   EAbs a        -> Just $ typeOfAValue a
+  EReg _        -> Just TString
   ENot _        -> Just TBool
   EAdd _ _      -> Just TInt
   ESub _ _      -> Just TInt
@@ -84,6 +87,7 @@ instance Uniplate Expr where
   uniplate = \case
     EVal v           -> plate EVal |- v
     EAbs a           -> plate EAbs |- a
+    EReg r           -> plate EReg |- r
     ENot e           -> plate ENot |* e
     EAdd e1 e2       -> plate EAdd |* e1 |* e2
     ESub e1 e2       -> plate ESub |* e1 |* e2
@@ -97,6 +101,7 @@ instance Biplate Expr Value where
   biplate = \case
     EVal v           -> plate EVal |* v
     EAbs a           -> plate EAbs |- a
+    EReg r           -> plate EReg |- r
     ENot e           -> plate ENot |+ e
     EAdd e1 e2       -> plate EAdd |+ e1 |+ e2
     ESub e1 e2       -> plate ESub |+ e1 |+ e2
@@ -119,6 +124,7 @@ instance Pretty Expr where
       pretty p1 <> "[" <> pretty p2 <> ".." <> pretty p3 <> "]"
     ENot e -> symNeg <> parens (pretty e)
     EAbs a -> pretty a
+    EReg r -> pretty r
 
 instance HasFixity Expr where
   fixity (EMul _ _) = Infix LeftAss 6

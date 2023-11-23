@@ -10,6 +10,8 @@ import Panini.Abstract.AExpr
 import Panini.Abstract.AString (AString, toRegLan)
 import Panini.Pretty
 import Panini.Provenance
+import Panini.Regex.POSIX.ERE qualified as ERE
+import Panini.Regex.SMT qualified as Regex
 import Panini.SMT.RegLan
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -89,6 +91,7 @@ instance SMTLIB Expr where
   encode = \case
     EVal v           -> encode v
     EStrA a          -> encode a
+    EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r
     ENot e           -> sexpr ["not", encode e]
     EAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
     ESub e1 e2       -> sexpr ["-", encode e1, encode e2]

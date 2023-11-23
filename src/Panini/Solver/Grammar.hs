@@ -29,6 +29,7 @@ import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Regex qualified as Regex
+import Panini.Regex.POSIX.ERE qualified as ERE
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
@@ -134,7 +135,9 @@ makeGrammarAssignment k g = Map.singleton k $ case AString.toRegex g of
   Regex.Zero -> PFalse
   Regex.One  -> PRel $ EVar s :=: EStr "" NoPV
   Regex.All  -> PTrue
-  _r         -> PRel $ EVar s :∈: EStrA g
+  r -> case ERE.fromRegex r of
+    Just ere -> PRel $ EVar s :∈: EReg ere
+    Nothing  -> panic $ "cannot convert Regex to ERE:" <+> pretty r
  where
   s = head $ kparams k
 
