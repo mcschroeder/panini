@@ -18,6 +18,7 @@ module Panini.Regex.CharSet
   , isFull
   , size
   , toList
+  , fromList
   , member
   , choose
   , fromCharSet
@@ -113,6 +114,9 @@ toList (CharSet True  cs) = intSetToCharList cs
 toList (CharSet False cs) = 
   filter (\x -> fromEnum x `I.notMember` cs) $ enumFromTo minBound maxBound
 
+fromList :: [Char] -> CharSet
+fromList = CharSet True . charListToIntSet
+
 -- | Whether a given character is in the set.
 member :: Char -> CharSet -> Bool
 member c (CharSet True  cs) = I.member    (fromEnum @Char c) cs
@@ -131,3 +135,6 @@ fromCharSet (CharSet b xs) = (b,xs)
 
 intSetToCharList :: IntSet -> [Char]
 intSetToCharList = map (toEnum @Char) . I.toAscList
+
+charListToIntSet :: [Char] -> IntSet
+charListToIntSet = I.fromList . map (fromEnum @Char)

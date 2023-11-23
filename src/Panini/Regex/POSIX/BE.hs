@@ -31,6 +31,7 @@ import Prelude
 -- TODO: support equivalence classes
 -- TODO: support collating symbols
 -- TODO: parsing
+-- TODO: more efficient conversion from/to CharSet (recognize ranges)
 
 -------------------------------------------------------------------------------
 
@@ -84,3 +85,13 @@ fromCharSet (CharSet b s) = case (b, NE.nonEmpty $ CS.intSetToCharList s) of
   (True,  Just xs) -> Just $ Mat $ NE.map Ord xs
   (False, Nothing) -> Just $ Mat $ NE.singleton $ Ran '\NUL' (maxBound @Char)
   (False, Just xs) -> Just $ Non $ NE.map Ord xs
+
+-- | Construct a 'CharSet' from a 'BE'.
+toCharSet :: BE -> CharSet
+toCharSet = \case
+  Mat xs -> CS.fromList $ concatMap go xs
+  Non xs -> CS.complement $ CS.fromList $ concatMap go xs
+ where
+  go = \case
+    Ord c     -> [c]
+    Ran c1 c2 -> enumFromTo c1 c2

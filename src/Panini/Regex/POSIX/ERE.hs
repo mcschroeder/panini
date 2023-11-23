@@ -33,6 +33,7 @@ import Panini.Pretty
 -- TODO: escaping
 -- TODO: parsing
 -- TODO: how to deal with ERE 'Per' excluding \NUL vs. Regex 'AnyChar' ?
+-- TODO: figure out how to deal with anchors (should unanchored EREs convert to Σ*(r)Σ* ?)
 
 ------------------------------------------------------------------------------
 
@@ -147,3 +148,34 @@ fromRegex = regexToAlt
     | CS.isFull cs                 = Just $ Per  -- note: deviation from standard
     | Just be <- BE.fromCharSet cs = Just $ Bra be
     | otherwise                    = Nothing
+
+
+-- | Construct a 'Regex' from an 'ERE'.
+--
+-- Note: For consistency with 'fromRegex', the same deviations from the standard
+-- as noted there apply (i.e., Σ is converted to @.@).
+toRegex :: ERE -> Regex
+toRegex ere0 = altToRegex ere0
+ where
+  altToRegex = \case
+    Alt xs  -> Plus $ map conToRegex $ NE.toList xs
+  
+  conToRegex = \case
+    Con xs  -> Times $ map expToRegex $ NE.toList xs
+  
+  expToRegex = \case
+    Chr c   -> Word [c]
+    Per     -> AnyChar  -- note: deviation from standard    
+    Bra b   -> Lit $ BE.toCharSet b
+    Cir     -> panic $ "Cannot convert anchored ERE to Regex:" <+> pretty ere0
+    Dol     -> panic $ "Cannot convert anchored ERE to Regex:" <+> pretty ere0
+    Grp r   -> altToRegex r
+    Dup r d -> dupToRegex (expToRegex r) d
+  
+  dupToRegex r = \case
+    Ast     -> Star r
+    Pls     -> r <> Star r
+    Que     -> Opt r
+    Exa m   -> Times (replicate m r)
+    Min m   -> Times (replicate m r) <> Star r
+    Inv m n -> Plus [Times (replicate i r) | i <- [m..n]]
