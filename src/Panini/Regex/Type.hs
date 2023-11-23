@@ -33,6 +33,7 @@ import Data.Semigroup hiding (All)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
+import Panini.Pretty
 import Panini.Regex.CharSet (CharSet)
 import Prelude
 
@@ -169,6 +170,20 @@ instance Uniplate Regex where
     Times rs -> plate Times ||* rs
     Star r   -> plate Star |* r
     Opt r    -> plate Opt |* r
+
+instance Pretty Regex where
+  pretty = go (7 :: Int)
+   where
+    go p = \case
+      Zero     -> emptySet
+      One      -> epsilon
+      Lit c    -> pretty c
+      Word [c] -> ann (Literal StringLit) $ pretty c
+      Word s   -> parensIf (p >= 8) $ ann (Literal StringLit) $ pretty s
+      Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
+      Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
+      Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
+      Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 
 
 -------------------------------------------------------------------------------
 
