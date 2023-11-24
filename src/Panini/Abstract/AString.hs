@@ -69,7 +69,6 @@ opt (AString r) = AString (Opt r)
 toChar :: AString -> Maybe AChar
 toChar (AString r) = case simplify r of
   Lit c    -> Just (AChar.fromCharSet c)
-  Word [c] -> Just (AChar.eq c)
   _        -> Nothing
 
 toRegex :: AString -> Regex

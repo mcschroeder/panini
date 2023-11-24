@@ -14,9 +14,8 @@ Some aspects of note:
 
 -}
 module Panini.Regex.Type
-  ( Regex(Lit,Word)
+  ( Regex(One,Lit)
   , pattern Zero
-  , pattern One
   , pattern AnyChar
   , pattern All
   , pattern Times
@@ -35,6 +34,7 @@ import Data.String
 import GHC.Generics
 import Panini.Pretty
 import Panini.Regex.CharSet (CharSet)
+import Panini.Regex.CharSet qualified as CS
 import Prelude
 
 -- TODO: m-to-n-times repetition {m,n}
@@ -44,8 +44,8 @@ import Prelude
 
 -- | The 'Regex' type defines regular expressions over Unicode characters.
 data Regex  
-  = Lit CharSet   -- ^ set of literal symbols, character class
-  | Word String   -- ^ word, sequence of singleton literals
+  = One           -- ^ identitity element (1), empty string (ε)
+  | Lit CharSet   -- ^ set of literal symbols, character class
   | Plus_ [Regex]
   | Times_ [Regex] 
   | Star_ Regex
@@ -56,10 +56,6 @@ data Regex
 pattern Zero :: Regex
 pattern Zero <- Lit (isBot -> True) where
   Zero = Lit bot
-
--- | identitity element (1), empty string (ε)
-pattern One :: Regex
-pattern One = Word ""
 
 -- | set of all singleton words (Σ), class of all characters
 pattern AnyChar :: Regex
@@ -142,14 +138,14 @@ pattern Opt x <- Opt_ x where
   Opt x | nullable x = x
         | otherwise  = Opt_ x
 
-{-# COMPLETE Lit, Word, Plus, Times, Star, Opt #-}
+{-# COMPLETE One, Lit, Plus, Times, Star, Opt #-}
 
 -------------------------------------------------------------------------------
 
 instance Hashable Regex
 
 instance IsString Regex where
-  fromString = Word
+  fromString = Times . map (Lit . CS.singleton)
 
 instance Semigroup Regex where
   Times xs <> Times ys = Times (xs ++ ys)
@@ -166,8 +162,8 @@ instance Monoid Regex where
 
 instance Uniplate Regex where
   uniplate = \case
+    One      -> plate One
     Lit c    -> plate Lit |- c
-    Word s   -> plate Word |- s
     Plus rs  -> plate Plus ||* rs
     Times rs -> plate Times ||* rs
     Star r   -> plate Star |* r
@@ -180,8 +176,6 @@ instance Pretty Regex where
       Zero     -> emptySet
       One      -> epsilon
       Lit c    -> pretty c
-      Word [c] -> ann (Literal StringLit) $ pretty c
-      Word s   -> parensIf (p >= 8) $ ann (Literal StringLit) $ pretty s
       Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
       Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
       Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
@@ -192,8 +186,8 @@ instance Pretty Regex where
 -- | A regex is /nullable/ if it accepts the empty string.
 nullable :: Regex -> Bool
 nullable = \case
+  One      -> True
   Lit _    -> False
-  Word s   -> null s
   Plus rs  -> or $ map nullable rs
   Times rs -> and $ map nullable rs
   Star _   -> True

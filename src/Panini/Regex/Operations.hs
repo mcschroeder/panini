@@ -152,12 +152,9 @@ solve f x0 = evalState (go x0) mempty
 -- function while giving the classic Brzozowski definition (Fig. 6).
 derivative :: Char -> Regex -> Regex
 derivative c = \case
+  One               -> Zero
   Lit d 
     | CS.member c d -> One
-    | otherwise     -> Zero
-  Word []           -> Zero
-  Word (x:xs) 
-    | c == x        -> Word xs
     | otherwise     -> Zero
   Plus []           -> Zero
   Plus [r]          -> derivative c r
@@ -182,9 +179,8 @@ derivative c = \case
 -- derivative)
 next :: Regex -> Set CharSet
 next = \case
+  One            -> Set.singleton bot
   Lit a          -> Set.singleton a
-  Word []        -> Set.singleton bot
-  Word (x:_)     -> Set.singleton (CS.singleton x)
   Plus []        -> Set.singleton bot
   Plus [r]       -> next r
   Plus (r:rs)    -> next r ⋈ next (Plus rs)

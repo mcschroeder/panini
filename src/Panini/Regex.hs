@@ -3,7 +3,6 @@
 module Panini.Regex
   ( Regex(..)
   , pattern Zero
-  , pattern One
   , pattern All
   , pattern AnyChar
   , pattern Times

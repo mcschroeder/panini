@@ -19,7 +19,6 @@ toRegLan = \case
   Lit c -> case CS.fromCharSet c of
     (True, a) -> charsetToRegLan a
     (False, a) -> SMT.Diff SMT.AllChar (charsetToRegLan a)
-  Word s -> SMT.ToRe s
   Plus rs -> foldr1 SMT.Union (map toRegLan rs)
   Times rs -> foldr1 SMT.Conc (map toRegLan rs)
   Star r -> SMT.Star (toRegLan r)

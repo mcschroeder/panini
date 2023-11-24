@@ -121,7 +121,6 @@ fromRegex = regexToAlt
 
   regexToCon :: Regex -> Maybe Con
   regexToCon = \case
-    Word s   -> Con <$> NE.fromList <$> pure (map Chr s)
     Times xs -> Con <$> NE.fromList <$> mapM regexToExp xs
     r        -> Con <$> NE.singleton <$> regexToExp r
   
@@ -129,7 +128,6 @@ fromRegex = regexToAlt
   regexToExp = \case
     One      -> Nothing
     Lit cs   -> litToExp cs
-    Word [c] -> pure $ Chr c
     Star r   -> regexToDup r Ast
     Opt r    -> regexToDup r Que
     r        -> Grp <$> regexToAlt r
@@ -137,8 +135,6 @@ fromRegex = regexToAlt
   regexToDup :: Regex -> Dup -> Maybe Exp
   regexToDup r d = case r of
     Lit cs   -> Dup <$> litToExp cs <*> pure d
-    Word [c] -> Dup <$> pure (Chr c) <*> pure d
-    Word _   -> Dup <$> (Grp <$> regexToAlt r) <*> pure d
     Plus _   -> Dup <$> (Grp <$> regexToAlt r) <*> pure d
     Times _  -> Dup <$> (Grp <$> regexToAlt r) <*> pure d
     _        -> impossible
@@ -164,7 +160,7 @@ toRegex ere0 = altToRegex ere0
     Con xs  -> Times $ map expToRegex $ NE.toList xs
   
   expToRegex = \case
-    Chr c   -> Word [c]
+    Chr c   -> Lit $ CS.singleton c
     Per     -> AnyChar  -- note: deviation from standard    
     Bra b   -> Lit $ BE.toCharSet b
     Cir     -> panic $ "Cannot convert anchored ERE to Regex:" <+> pretty ere0
