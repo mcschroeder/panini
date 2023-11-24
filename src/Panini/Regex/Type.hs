@@ -6,11 +6,18 @@ Some aspects of note:
   1) Literals are represented as character sets ('CharSet') instead of just
      single characters ('Char'). This enables efficient and succinct
      representation of character classes (e.g., @[a-z]@; see also
-     "Panini.Regex.POSIX").
+     "Panini.Regex.POSIX.BE").
   
   2) Smart pattern synonyms ensure that 'Regex' instances are
      efficient-by-construction and uphold certain invariants, while still
-     allowing natural deconstruction via pattern matching.
+     allowing natural deconstruction via pattern matching. The invariants are
+     based on the standardisation rules from Kahrs and Runciman (2022).
+
+References:
+
+  * Kahrs, Stefan and Colin Runciman. 2022. "Simplifying Regular Expressions
+    Further." Journal of Symbolic Computation 109 (2022): 124–143.
+    https://doi.org/10.1016/j.jsc.2021.08.003
 
 -}
 module Panini.Regex.Type
