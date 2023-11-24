@@ -41,6 +41,9 @@ data CharSet = CharSet !Bool !IntSet
 
 instance Hashable CharSet
 
+instance Semigroup CharSet where (<>)   = union
+instance Monoid    CharSet where mempty = empty
+
 instance MeetSemilattice        CharSet where (∧) = intersection
 instance JoinSemilattice        CharSet where (∨) = union
 instance BoundedMeetSemilattice CharSet where top = full  -- TODO: non-unique?
