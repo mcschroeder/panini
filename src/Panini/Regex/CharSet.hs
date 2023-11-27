@@ -16,6 +16,7 @@ module Panini.Regex.CharSet
   , intersection
   , null
   , isFull
+  , isSubsetOf
   , size
   , toList
   , fromList
@@ -105,6 +106,14 @@ null (CharSet False xs) = fromEnum @Char maxBound + 1 == I.size xs
 isFull :: CharSet -> Bool
 isFull (CharSet True  xs) = fromEnum @Char maxBound + 1 == I.size xs
 isFull (CharSet False xs) = I.null xs
+
+isSubsetOf :: CharSet -> CharSet -> Bool
+isSubsetOf (CharSet True  xs) (CharSet True  ys) = I.isSubsetOf xs ys
+isSubsetOf (CharSet False xs) (CharSet False ys) = I.isSubsetOf ys xs
+isSubsetOf (CharSet True  xs) (CharSet False ys) = I.null $ I.intersection xs ys
+isSubsetOf (CharSet False xs) (CharSet True  ys) = 
+  -- all (\c -> I.member c xs || I.member c ys) [0 .. fromEnum $ maxBound @Char]
+  fromEnum @Char maxBound + 1 == I.size (I.union xs ys)
 
 -- | The number of characters in the set.
 size :: CharSet -> Int
