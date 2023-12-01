@@ -15,8 +15,11 @@ import Data.Function
 import Data.List (partition, sortBy)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
+import Panini.Regex.Operations
 import Panini.Regex.Type
 import Prelude
+import Debug.Trace
+import Panini.Pretty
 
 -------------------------------------------------------------------------------
 
@@ -29,6 +32,7 @@ simplify = goFree
       | r' <- Plus (map goFree xs), r' /= r -> goFree r'
     Times xs
       | r' <- fuseSequence xs, r' /= r -> goFree r'
+      --  | r' <- pressSequence xs, r' /= r -> goFree r'
       | r' <- Times (map goFree xs), r' /= r -> goFree r'
     Star x
       | r' <- Star (goStar x), r' /= r -> goFree r'    
@@ -104,8 +108,7 @@ flatNullable = \case
 -- | Factorize an ordered list of choices by pairwise application of the
 -- distributive laws, choosing the smallest overall outcome.
 --
---     (a⋅x)+(a⋅y) = a⋅(x+y)
---     (x⋅b)+(y⋅b) = (x+y)⋅b
+--     (a⋅x)+(a⋅y) = a⋅(x+y)            (x⋅b)+(y⋅b) = (x+y)⋅b
 --
 factorChoices :: [Regex] -> Regex
 factorChoices xs = smaller
@@ -170,6 +173,29 @@ liftStarChoices xs = case partition (\x -> alpha x `CS.isSubsetOf` a1) xs of
   (ys, zs) -> Plus $ map (Lit . alpha1) ys ++ zs
  where
   a1 = alpha1 (Plus xs)
+
+-------------------------------------------------------------------------------
+
+-- | Replace self-star-equivalent nullable subsequences with starred choices.
+--
+--     x?⋅y? = (x + y)*  if L(x?⋅y?) = L ((x?⋅y?)*)
+---
+pressSequence :: [Regex] -> Regex
+pressSequence = Times . go []
+ where
+  go ys (x:xs)
+    | nullable x = go (x:ys) xs
+    | otherwise  = tryPress (reverse ys) ++ x : go [] xs
+  go ys []       = tryPress (reverse ys)
+
+  tryPress ys
+    | length ys >= 2, selfStarEq (Times ys) = [Star (Plus ys)]
+    | otherwise = ys
+
+-- | Checks whether L(r) = L(r*).
+selfStarEq :: Regex -> Bool
+selfStarEq r = trace (showPretty $ "selfStarEq" <+> pretty r) equivalence r (Star r)
+-- TODO: can we somehow exploit this special case of equivalence checking?
 
 -------------------------------------------------------------------------------
 
