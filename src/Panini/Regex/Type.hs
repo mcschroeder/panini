@@ -57,7 +57,10 @@ data Regex
   | Times_ [Regex] 
   | Star_ Regex
   | Opt_ Regex
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock 
+    ( Eq -- ^ structural equivalence
+    , Ord, Show, Read, Generic
+    )
 
 -- | zero element (0), empty set (∅), bottom (⊥)
 pattern Zero :: Regex

@@ -1,7 +1,7 @@
 {-|
-This module implements 'intersection' and 'complement' of regular expressions
-and it does so entirely algebraically, without intermediate translation into
-automata.
+This module implements 'intersection', 'complement', and 'equivalence' of
+regular expressions and it does so entirely algebraically, without intermediate
+translation into automata.
 
 References:
 
@@ -41,7 +41,6 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Simplify
 import Panini.Regex.Type
 import Prelude
 
@@ -60,7 +59,7 @@ import Prelude
 intersection :: Regex -> Regex -> Regex
 intersection = curry $ solve $ \(r1,r2) ->
   let c0 = if nullable r1 && nullable r2 then One else Zero
-      cx = [ ((simplify $ derivative c r1, simplify $ derivative c r2), Lit p) 
+      cx = [ ((derivative c r1, derivative c r2), Lit p) 
            | p <- Set.toList $ next r1 ⋈ next r2
            , Just c <- [CS.choose p]
            ]
@@ -73,11 +72,20 @@ complement :: Regex -> Regex
 complement = solve $ \r ->
   let c0 = if nullable r then Zero else One
       c1 = Lit (neg $ joins $ next r) <> All
-      cx = [ (simplify $ derivative c r, Lit p)
+      cx = [ (derivative c r, Lit p)
            | p <- Set.toList $ next r
            , Just c <- [CS.choose p]
            ]
   in (Plus [c0,c1], Map.fromList cx)
+
+-------------------------------------------------------------------------------
+
+-- TODO: implement equivalence checking more directly/efficiently
+
+-- | Semantic equivalence of two regular expressions, i.e., language equality.
+equivalence :: Regex -> Regex -> Bool
+equivalence r1 r2 =
+  Plus [intersection r1 (complement r2), intersection (complement r1) r2] == Zero
 
 -------------------------------------------------------------------------------
 
