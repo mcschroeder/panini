@@ -32,7 +32,7 @@ simplify = goFree
       | r' <- Plus (map goFree xs), r' /= r -> goFree r'
     Times xs
       | r' <- fuseSequence xs, r' /= r -> goFree r'
-      --  | r' <- pressSequence xs, r' /= r -> goFree r'
+      | r' <- pressSequence xs, r' /= r -> goFree r'
       | r' <- Times (map goFree xs), r' /= r -> goFree r'
     Star x
       | r' <- Star (goStar x), r' /= r -> goFree r'    
@@ -310,9 +310,11 @@ pressSequence = Times . go []
     | otherwise  = tryPress (reverse ys) ++ x : go [] xs
   go ys []       = tryPress (reverse ys)
 
+  tryPress []               = []
+  tryPress [y]              = [y]
   tryPress ys
-    | length ys >= 2, selfStarEq (Times ys) = [Star (Plus ys)]
-    | otherwise = ys
+    | selfStarEq (Times ys) = [Star (Plus $ map flatNullable ys)]
+    | otherwise             = ys
 
 -- | Checks whether L(r) = L(r*).
 selfStarEq :: Regex -> Bool
