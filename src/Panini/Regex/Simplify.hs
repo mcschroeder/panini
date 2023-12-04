@@ -12,7 +12,7 @@ References:
 module Panini.Regex.Simplify (simplify) where
 
 import Data.Function
-import Data.List (partition, sortBy, uncons)
+import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Operations
@@ -110,9 +110,12 @@ flatNullable = \case
 --
 --     a⋅x + a⋅y = a⋅(x+y)            x⋅b + y⋅b = (x+y)⋅b
 --
--- Factorization might peel off nullables if this leads to a size reduction.
+-- Factorization might peel off or re-arrange sub-expressions, if this leads to
+-- a size reduction, according to the following additional laws:
 --
---     a?⋅x + a⋅y = a⋅(x+y) + x       x⋅b? + y⋅b = (x+y)⋅b + x
+--      a?⋅x + a ⋅y = a ⋅(   x + y) + x    x⋅b?    + y⋅b  = (x    + y)⋅b + x
+--   a ⋅a*⋅x + a*⋅y = a*⋅(a ⋅x + y)        x⋅b*⋅b  + y⋅b* = (x⋅b  + y)⋅b*
+--   a*⋅a ⋅x + a ⋅y = a ⋅(a*⋅x + y)        x⋅b ⋅b* + y⋅b  = (x⋅b* + y)⋅b
 --
 factorChoices :: [Regex] -> Regex
 factorChoices xs = smaller
@@ -123,33 +126,125 @@ factorChoices xs = smaller
 
   factorPrefixes []         = []
   factorPrefixes [x]        = [x]
-  factorPrefixes (ax:ay:zs) = case splitPrefix ax ay of
-    ([], Opt a1:x1, _) 
+  factorPrefixes (ax:ay:zs) = case splitPrefix ax ay of    
+    ---------------------------------------------------
+    -- a?⋅x + a⋅y = x + a⋅(x+y)
+    ([], Opt a1:x1, _)
       | (a,x,y) <- splitPrefix (flatTimes a1 ++ x1) ay
-      , not (null a), size (Times a) >= size (Times x) + 1
-                     ->  x : factorPrefixes (mkFacPre a x y : zs)
+      , not (null a)
+      , size (Times a) >= size (Times x) + 1
+      -> x : factorPrefixes (mkFacPre a x y : zs)
+
+    ---------------------------------------------------
+    -- a⋅x + a?⋅y = y + a⋅(x+y)
     ([], _, Opt a1:y1) 
       | (a,x,y) <- splitPrefix ax (flatTimes a1 ++ y1)
-      , not (null a), size (Times a) >= size (Times y) + 1
-                     ->  y : factorPrefixes (mkFacPre a x y : zs)
-    ([], _, _)       -> ax : factorPrefixes (            ay : zs)
-    (a , x, y)       ->      factorPrefixes (mkFacPre a x y : zs)
+      , not (null a)
+      , size (Times a) >= size (Times y) + 1
+      -> y : factorPrefixes (mkFacPre a x y : zs)    
+
+    ---------------------------------------------------
+    -- a*⋅a⋅x + a⋅y = a⋅(a*⋅x + y)
+    ([], Star a1:ax1, _)
+      | a1' <- flatTimes a1
+      , (a2,x1) <- splitAt (length a1') ax1
+      , a1' == a2
+      , (a,x,y) <- splitPrefix (a2 ++ Star a1:x1) ay
+      , not (null a)
+      -> factorPrefixes (mkFacPre a x y : zs)
+    
+    ---------------------------------------------------
+    -- a⋅x + a*⋅a⋅y = a⋅(x + a*⋅y)
+    ([], _, Star a1:ay1)
+      | a1' <- flatTimes a1
+      , (a2,y1) <- splitAt (length a1') ay1
+      , a1' == a2
+      , (a,x,y) <- splitPrefix ax (a2 ++ Star a1:y1)
+      , not (null a)
+      -> factorPrefixes (mkFacPre a x y : zs)
+    
+    ---------------------------------------------------
+    -- a⋅a*⋅x + a*⋅y = a*⋅(a⋅x + y)
+    ([], break isStar -> (a1, Star a2:x1), _)
+      | a1 == flatTimes a2
+      , (a,x,y) <- splitPrefix (Star a2:a1 ++ x1) ay
+      , not (null a)
+      -> factorPrefixes (mkFacPre a x y : zs)
+    
+    ---------------------------------------------------
+    -- a*⋅x + a⋅a*⋅y = a*⋅(x + a⋅y)
+    ([], _, break isStar -> (a1, Star a2:y1))
+      | a1 == flatTimes a2
+      , (a,x,y) <- splitPrefix ax (Star a2:a1 ++ y1)
+      , not (null a)
+      -> factorPrefixes (mkFacPre a x y : zs)
+    
+    ---------------------------------------------------
+    ([], _, _) -> ax : factorPrefixes (ay:zs)
+
+    ---------------------------------------------------
+    -- a⋅x + a⋅y = a⋅(x+y)
+    (a, x, y) -> factorPrefixes (mkFacPre a x y : zs)
 
   mkFacPre a x y = a ++ [Plus [Times x, Times y]]
 
   factorSuffixes []         = []
   factorSuffixes [x]        = [x]
   factorSuffixes (xb:yb:zs) = case splitSuffix xb yb of
+    ---------------------------------------------------
+    -- x⋅b? + y⋅b = x + (x+y)⋅b
     (unsnoc -> Just (x1, Opt b1), _, []) 
       | (x,y,b) <- splitSuffix (x1 ++ flatTimes b1) yb
-      , not (null b), size (Times b) >= size (Times x) + 1
-               ->  x : factorSuffixes (mkFacSuf x y b : zs)
+      , not (null b)
+      , size (Times b) >= size (Times x) + 1
+      -> x : factorSuffixes (mkFacSuf x y b : zs)
+    
+    ---------------------------------------------------
+    -- x⋅b + y⋅b? = y + (x+y)⋅b
     (_, unsnoc -> Just (y1, Opt b1), []) 
       | (x,y,b) <- splitSuffix xb (y1 ++ flatTimes b1)
-      , not (null b), size (Times b) >= size (Times y) + 1
-               ->  y : factorSuffixes (mkFacSuf x y b : zs)
-    (_, _, []) -> xb : factorSuffixes (            yb : zs)
-    (x, y, b ) ->      factorSuffixes (mkFacSuf x y b : zs)
+      , not (null b)
+      , size (Times b) >= size (Times y) + 1
+      -> y : factorSuffixes (mkFacSuf x y b : zs)
+    
+    ---------------------------------------------------
+    -- x⋅b⋅b* + y⋅b = (x⋅b* + y)⋅b
+    (unsnoc -> Just (xb1, Star b1), _, [])
+      | b1' <- flatTimes b1
+      , (x1,b2) <- splitAtEnd (length b1') xb1
+      , b1' == b2
+      , (x,y,b) <- splitSuffix (x1 ++ Star b1 : b2) yb
+      , not (null b)
+      -> factorSuffixes (mkFacSuf x y b : zs)
+    
+    ---------------------------------------------------
+    -- x⋅b + y⋅b⋅b* = (x + y⋅b*)⋅b
+    (_, unsnoc -> Just (yb1, Star b1), [])
+      | b1' <- flatTimes b1
+      , (y1,b2) <- splitAtEnd (length b1') yb1
+      , b1' == b2
+      , (x,y,b) <- splitSuffix xb (y1 ++ Star b1 : b2)
+      , not (null b)
+      -> factorSuffixes (mkFacSuf x y b : zs)
+    
+    ---------------------------------------------------
+    -- x⋅b*⋅b + y⋅b* = (x⋅b + y)⋅b*
+    ([], breakEnd isStar -> (unsnoc -> Just (x1, Star b2), b1), _)
+      | b1 == flatTimes b2
+      , (x,y,b) <- splitSuffix (x1 ++ b1 ++ [Star b2]) yb
+      , not (null b)
+      -> factorPrefixes (mkFacSuf x y b : zs)
+    
+    ---------------------------------------------------
+    -- x⋅b* + y⋅b*⋅b = (x + y⋅b)⋅b*
+    ([], _, breakEnd isStar -> (unsnoc -> Just (y1, Star b2), b1))
+      | b1 == flatTimes b2
+      , (x,y,b) <- splitSuffix xb (y1 ++ b1 ++ [Star b2])
+      , not (null b)
+      -> factorPrefixes (mkFacSuf x y b : zs)
+    
+    (_, _, []) -> xb : factorSuffixes (yb:zs)
+    (x, y, b ) -> factorSuffixes (mkFacSuf x y b : zs)
 
   mkFacSuf x y b = Plus [Times x, Times y] : b
 
@@ -157,6 +252,10 @@ flatTimes :: Regex -> [Regex]
 flatTimes = \case
   Times xs -> xs
   x        -> [x]
+
+isStar :: Regex -> Bool
+isStar (Star _) = True
+isStar _        = False
 
 -- | Split two lists at the longest common prefix.
 --
