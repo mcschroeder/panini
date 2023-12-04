@@ -12,7 +12,7 @@ References:
 module Panini.Regex.Simplify (simplify) where
 
 import Data.Function
-import Data.List (partition, sortBy)
+import Data.List (partition, sortBy, uncons)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Operations
@@ -108,22 +108,50 @@ flatNullable = \case
 -- | Factorize an ordered list of choices by pairwise application of the
 -- distributive laws, choosing the smallest overall outcome.
 --
---     (a⋅x)+(a⋅y) = a⋅(x+y)            (x⋅b)+(y⋅b) = (x+y)⋅b
+--     a⋅x + a⋅y = a⋅(x+y)            x⋅b + y⋅b = (x+y)⋅b
+--
+-- Factorization might peel off nullables if this leads to a size reduction.
+--
+--     a?⋅x + a⋅y = a⋅(x+y) + x       x⋅b? + y⋅b = (x+y)⋅b + x
 --
 factorChoices :: [Regex] -> Regex
 factorChoices xs = smaller
-  (apply (pairwise factorPrefix) xs)
-  (apply (pairwise factorSuffix . sortBy (compare `on` reverse)) xs)
+  (apply factorPrefixes xs)
+  (apply (factorSuffixes . sortBy (compare `on` reverse)) xs)
  where
   apply f = Plus . map Times . f . map flatTimes
-  
-  factorPrefix ax ay = case splitPrefix ax ay of
-    ([], _, _) -> Nothing
-    (a , x, y) -> Just $ a ++ [Plus [Times x, Times y]]
 
-  factorSuffix xb yb = case splitSuffix xb yb of
-    (_, _, []) -> Nothing
-    (x, y, b ) -> Just $ Plus [Times x, Times y] : b
+  factorPrefixes []         = []
+  factorPrefixes [x]        = [x]
+  factorPrefixes (ax:ay:zs) = case splitPrefix ax ay of
+    ([], Opt a1:x1, _) 
+      | (a,x,y) <- splitPrefix (flatTimes a1 ++ x1) ay
+      , not (null a), size (Times a) >= size (Times x) + 1
+                     ->  x : factorPrefixes (mkFacPre a x y : zs)
+    ([], _, Opt a1:y1) 
+      | (a,x,y) <- splitPrefix ax (flatTimes a1 ++ y1)
+      , not (null a), size (Times a) >= size (Times y) + 1
+                     ->  y : factorPrefixes (mkFacPre a x y : zs)
+    ([], _, _)       -> ax : factorPrefixes (            ay : zs)
+    (a , x, y)       ->      factorPrefixes (mkFacPre a x y : zs)
+
+  mkFacPre a x y = a ++ [Plus [Times x, Times y]]
+
+  factorSuffixes []         = []
+  factorSuffixes [x]        = [x]
+  factorSuffixes (xb:yb:zs) = case splitSuffix xb yb of
+    (unsnoc -> Just (x1, Opt b1), _, []) 
+      | (x,y,b) <- splitSuffix (x1 ++ flatTimes b1) yb
+      , not (null b), size (Times b) >= size (Times x) + 1
+               ->  x : factorSuffixes (mkFacSuf x y b : zs)
+    (_, unsnoc -> Just (y1, Opt b1), []) 
+      | (x,y,b) <- splitSuffix xb (y1 ++ flatTimes b1)
+      , not (null b), size (Times b) >= size (Times y) + 1
+               ->  y : factorSuffixes (mkFacSuf x y b : zs)
+    (_, _, []) -> xb : factorSuffixes (            yb : zs)
+    (x, y, b ) ->      factorSuffixes (mkFacSuf x y b : zs)
+
+  mkFacSuf x y b = Plus [Times x, Times y] : b
 
 flatTimes :: Regex -> [Regex]
 flatTimes = \case
@@ -152,14 +180,9 @@ splitSuffix xs0 ys0 = go [] (reverse xs0) (reverse ys0)
   go zs (x:xs) (y:ys) | x == y = go (x:zs) xs ys
   go zs xs ys = (reverse xs, reverse ys, zs)
 
--- | Apply a function pairwise to a list of values, reducing them if possible,
--- otherwise continuing on.
-pairwise :: (a -> a -> Maybe a) -> [a] -> [a]
-pairwise _ [] = []
-pairwise _ [x] = [x]
-pairwise f (x:y:zs) = case f x y of
-  Just z -> pairwise f (z:zs)
-  Nothing -> x : pairwise f (y:zs)
+-- TODO: replace by Data.List.unsnoc once we depend on base-4.19
+unsnoc :: [a] -> Maybe ([a], a)
+unsnoc xs = (\(hd, tl) -> (reverse tl, hd)) <$> uncons (reverse xs)
 
 -------------------------------------------------------------------------------
 
