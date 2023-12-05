@@ -18,8 +18,6 @@ import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Operations
 import Panini.Regex.Type
 import Prelude
-import Debug.Trace
-import Panini.Pretty
 
 -------------------------------------------------------------------------------
 
@@ -27,33 +25,26 @@ simplify :: Regex -> Regex
 simplify = goFree
  where
   goFree r = case r of
-    Plus xs
-      | r' <- factorChoices xs, r' /= r -> goFree r'
-      | r' <- Plus (map goFree xs), r' /= r -> goFree r'
-    Times xs
-      | r' <- fuseSequence xs, r' /= r -> goFree r'
-      | r' <- pressSequence xs, r' /= r -> goFree r'
-      | r' <- Times (map goFree xs), r' /= r -> goFree r'
-    Star x
-      | r' <- Star (goStar x), r' /= r -> goFree r'    
-    Opt x
-      | r' <- Opt (goOpt x), r' /= r -> goFree r'
-    x -> x
+    Plus  xs | r' <- factorChoices xs      , r' /= r -> goFree r'
+             | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
+    Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
+             | r' <- pressSequence xs      , r' /= r -> goFree r'
+             | r' <- Times (map goFree xs) , r' /= r -> goFree r'
+    Star  x  | r' <- Star (goStar x)       , r' /= r -> goFree r'    
+    Opt   x  | r' <- Opt (goOpt x)         , r' /= r -> goFree r'
+    _                                                -> r  
   
   goOpt r = case r of
-    Times xs
-      | r' <- fuseOptSequence xs, r' /= r -> goOpt r'
-    x -> goFree x
-
+    Times xs | r' <- fuseOptSequence xs    , r' /= r -> goOpt r'
+    x                                                -> goFree x
+  
   goStar r = case r of
-    Plus xs
-      | r' <- fuseStarChoices xs, r' /= r -> goStar r'
-      | r' <- liftStarChoices xs, r' /= r -> goStar r'
-    Times xs
-      | r' <- fuseStarSequence xs, r' /= r -> goStar r'
-    x 
-      | alpha x == alpha1 x -> Lit $ alpha1 x
-      | otherwise -> goOpt x
+    Plus  xs | r' <- fuseStarChoices xs    , r' /= r -> goStar r'
+             | r' <- liftStarChoices xs    , r' /= r -> goStar r'
+    Times xs | r' <- fuseStarSequence xs   , r' /= r -> goStar r'
+    Lit   x                                          -> Lit x
+    _        | r' <- liftStar r            , r' /= r -> goStar r'
+    _                                                -> goOpt r
 
 -------------------------------------------------------------------------------
 
@@ -285,6 +276,14 @@ unsnoc xs = (\(hd, tl) -> (reverse tl, hd)) <$> uncons (reverse xs)
 
 -------------------------------------------------------------------------------
 
+-- | Apply the basic lifting law to a starred expression.
+--
+--    x* = α̂₁(x)*  if α(x) = α₁(x)
+--
+liftStar :: Regex -> Regex
+liftStar r | alpha r == a1 = Lit a1 where a1 = alpha1 r
+liftStar r                 = r
+
 -- | Apply the the generalized lifting law on a starred list of choices.
 --
 --     (x + y)* = (α̂₁(x) + y)*  if α(x) ⊆ α₁(x + y)
@@ -318,7 +317,7 @@ pressSequence = Times . go []
 
 -- | Checks whether L(r) = L(r*).
 selfStarEq :: Regex -> Bool
-selfStarEq r = trace (showPretty $ "selfStarEq" <+> pretty r) equivalence r (Star r)
+selfStarEq r = equivalence r (Star r)
 -- TODO: can we somehow exploit this special case of equivalence checking?
 
 -------------------------------------------------------------------------------
