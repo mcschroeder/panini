@@ -28,6 +28,7 @@ simplify = goFree
     Plus  xs | r' <- factorChoices xs      , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
     Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
+             | r' <- liftSequence xs       , r' /= r -> goFree r'
              | r' <- pressSequence xs      , r' /= r -> goFree r'
              | r' <- Times (map goFree xs) , r' /= r -> goFree r'
     Star  x  | r' <- Star (goStar x)       , r' /= r -> goFree r'    
@@ -294,6 +295,18 @@ liftStarChoices xs = case partition (\x -> alpha x `CS.isSubsetOf` a1) xs of
   (ys, zs) -> Plus $ map (Lit . alpha1) ys ++ zs
  where
   a1 = alpha1 (Plus xs)
+
+-- | Apply lifting to adjacent subsequences.
+--
+--    x* ⋅ y? = x*  if α(y) ⊆ α₁(x)
+--
+liftSequence :: [Regex] -> Regex
+liftSequence = Times . go
+ where
+  go (Star x : Star y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
+  go (Star x : Opt  y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
+  go (x:xs) = x : go xs
+  go [] = []
 
 -------------------------------------------------------------------------------
 
