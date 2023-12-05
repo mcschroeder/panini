@@ -115,11 +115,14 @@ solve (GCon s k c) = do
   c' <- dnf <$> PNot <$> rewrite c
   logData c'
   logMessage $ "Abstract free string variable" <+> pretty s
-  g <- neg <$> joins <$> mapM (stringElim s) c'
+  g0 <- neg <$> joins <$> mapM (stringElim s) c'
+  logData g0
+  logMessage $ "Simplify abstract string"
+  let g = AString.simplify g0
   logData g
   logMessage $ "Make grammar assignment for" <+> pretty k  
   let a = makeGrammarAssignment k g
-  logData a  
+  logData a
   return a
 
 stringElim :: Name -> [Rel] -> Pan AString

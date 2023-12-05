@@ -12,6 +12,7 @@ module Panini.Abstract.AString
   , toChar
   , toRegex
   , toRegLan
+  , Panini.Abstract.AString.simplify
   ) where
 
 import Algebra.Lattice
@@ -39,13 +40,16 @@ instance BoundedJoinSemilattice AString where
   bot = AString Zero
 
 instance MeetSemilattice AString where
-  AString r1 ∧ AString r2 = AString $ simplify $ intersection r1 r2
+  AString r1 ∧ AString r2 = AString $ intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
   top = AString All
 
 instance ComplementedLattice AString where
-  neg (AString r) = AString $ simplify $ complement r
+  neg (AString r) = AString $ complement r
+
+simplify :: AString -> AString
+simplify (AString r) = AString $ Panini.Regex.simplify r
 
 eq :: String -> AString
 eq = AString . fromString
@@ -67,7 +71,7 @@ opt :: AString -> AString
 opt (AString r) = AString (Opt r)
 
 toChar :: AString -> Maybe AChar
-toChar (AString r) = case simplify r of
+toChar (AString r) = case Panini.Regex.simplify r of
   Lit c    -> Just (AChar.fromCharSet c)
   _        -> Nothing
 
