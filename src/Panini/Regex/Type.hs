@@ -102,8 +102,9 @@ pattern Times xs <- Times_ xs where
 --    1) Every choice consists of at least two elements.
 --    2) Choices do not immediately contain other choices.
 --    3) Choices do not immediately contain 'Zero' or 'One' or 'Opt'.
---    3) Choices do not contain duplicates.
---    4) Choices are ordered (via 'Ord').
+--    4) Choices do not immediately contain more than one set of literals.
+--    5) Choices do not contain duplicates.
+--    6) Choices are ordered (via 'Ord').
 --
 pattern Plus :: [Regex] -> Regex
 pattern Plus xs <- Plus_ xs where
@@ -120,6 +121,7 @@ pattern Plus xs <- Plus_ xs where
     mkPlus = \case
       []  -> Zero
       [y] -> y
+      (Lit a : Lit b : ys) -> mkPlus $ Lit (a <> b) : ys
       ys  -> Plus_ ys
 
 -- | iteration, Kleene closure (r*)
