@@ -13,6 +13,7 @@ import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
+import Panini.Regex.POSIX.ERE qualified as Regex.POSIX.ERE
 import Panini.Syntax
 import Prelude
 
@@ -111,6 +112,9 @@ abstract x b r = case r of
   EVar _ :<: e | b == TInt -> Right $ e :-: EIntA (AInt.ge 1)
 
   EVar _ :=: e -> Right e
+
+  EVar _ :∈: EReg ere -> Right $ EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere
+  EVar _ :∉: EReg ere -> Right $ EStrA $ neg $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere
 
   EStrLen (EVar _) :=: EInt  n _ -> Right $ EStrA $ absStrLen (AInt.eq n)
   EStrLen (EVar _) :=: EIntA n   -> Right $ EStrA $ absStrLen n

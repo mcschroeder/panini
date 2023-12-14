@@ -11,6 +11,7 @@ module Panini.Abstract.AString
   , opt
   , toChar
   , toRegex
+  , fromRegex
   , toRegLan
   , Panini.Abstract.AString.simplify
   ) where
@@ -77,6 +78,9 @@ toChar (AString r) = case Panini.Regex.simplify r of
 
 toRegex :: AString -> Regex
 toRegex (AString r) = r
+
+fromRegex :: Regex -> AString
+fromRegex = AString
 
 instance Pretty AString where
   pretty (AString r) = pretty r
