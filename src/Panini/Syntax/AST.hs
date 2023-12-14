@@ -88,9 +88,8 @@ data Type
 instance Pretty Type where
   pretty = \case
     TFun x t1@(TBase v t r _) t2 _
-      | x == v, isT r, isDummy x ->         pretty t  `arr` pretty t2
-      | x == v, isT r            -> x `col` pretty t  `arr` pretty t2
-      | x == v                   ->         pretty t1 `arr` pretty t2
+      | x == v, isT r, isDummy x -> pretty t  `arr` pretty t2
+      | x == v                   -> pretty t1 `arr` pretty t2
   
     TFun x t1@(TFun _ _ _ _) t2 _
       | isDummy x ->         parens (pretty t1) `arr` pretty t2
@@ -101,8 +100,8 @@ instance Pretty Type where
       | otherwise -> x `col` pretty t1 `arr` pretty t2
 
     TBase v t r _
-      | isT r      ->                  pretty t
-      | otherwise  -> braces $ v `col` pretty t <+> mid <+> pretty r
+      | isT r, isDummy v ->                  pretty t
+      | otherwise        -> braces $ v `col` pretty t <+> mid <+> pretty r
    
    where    
     isT (Known PTrue) = True
