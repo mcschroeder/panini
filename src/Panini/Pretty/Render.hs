@@ -30,7 +30,7 @@ renderDoc o =
   go _ STEmpty       = mempty
   go _ (STChar c)    = LB.singleton c
   go _ (STText _ t)  = LB.fromText t
-  go _ (STLine i)    = LB.singleton '\n' <> spaces i
+  go s (STLine i)    = suspend s $ LB.singleton '\n' <> spaces i
   go s (STConcat ds) = mconcat $ map (go s) ds
 
   go s (STAnn a d)
@@ -46,6 +46,11 @@ renderDoc o =
   sgr cs = LB.fromString $ setSGRCode cs
 
   spaces i = LB.fromText $ Text.replicate i $ Text.singleton ' '
+
+  suspend s d
+    | null s         = d
+    | null o.styling = d
+    | otherwise      = sgr [Reset] <> d <> sgr (concatMap s2sgr s)
 
 sDiff :: Style -> Style -> Style
 sDiff old new = Style 
