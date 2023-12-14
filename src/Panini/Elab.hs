@@ -9,12 +9,11 @@ module Panini.Elab
   , envToContext -- TODO: weird place for this?
   ) where
 
+import Algebra.Lattice
 import Control.Monad.Extra
 import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Maybe
-import Data.Set (Set)
-import Data.Set qualified as Set
 import Data.Text.IO qualified as Text
 import Panini.Environment
 import Panini.Error
@@ -102,56 +101,65 @@ define x e = do
   logData g
 
   logMessage $ "Infer type of" <+> pretty x
-  (t1,vc) <- infer g e
-  logData t1  
+  (t1,c1) <- infer g e
+  logData t1
 
-  logMessage $ "Match inferred type against assumption:" <+> pretty t0m
-  (s0, ks_ex) <- fromMaybe (mempty, kvars t1) <$> mapM (matchTypeAnnotation t1) t0m
+  logMessage $ "Ensure inferred type is subtype of" <+> pretty t0m
+  vc <- case t0m of
+    Nothing -> return c1
+    Just t̃ -> do      
+      t̂ <- fresh t̃  -- note that we don't apply shape!
+      c2 <- sub t1 t̂
+      return (c1 ∧ c2)
+
+  let ks_ex = kvars t1
   logMessage $ "Top-level type holes:" <+> pretty ks_ex
-  logMessage $ "Top-level assignment:" <+> pretty s0
 
   logMessage "Solve VC"
   logData vc
-  solve s0 ks_ex vc >>= \case
+  solve ks_ex vc >>= \case
     Just s -> do
       logMessage "Apply solution to type"
       let t2 = apply s t1
       logData t2
-      envExtend x $ Verified x t0m e t1 vc s t2
+      
+      logMessage $ "Match inferred type against" <+> pretty t0m
+      t3 <- case t0m of
+        Nothing -> return t2
+        Just t̃ -> matchTypeSig t2 t̃
+      logData t3
+      
+      envExtend x $ Verified x t0m e t1 vc s t3
     
     Nothing -> do
       throwError $ InvalidVC x vc
 
--- | Matches an inferred type signature against a user-provided annotation,
--- extracting top-level κ assignments and collecting those κs that stand for
--- explicit type holes.
-matchTypeAnnotation :: Type -> Type -> Pan (Assignment, Set KVar)
-matchTypeAnnotation inferred user = do
-  s0 <- go [] inferred user
-  let s_top   = Map.fromList [(k,p) | (k, Known p) <- Map.toList s0]
-  let k_holes = Set.fromList [ k    | (k, Unknown) <- Map.toList s0]
-  return (s_top, k_holes)
+-- | Match an inferred type signature against a user-provided annotation.
+matchTypeSig :: Type -> Type -> Pan Type
+matchTypeSig inferred user = do
+  let (t,w) = go inferred user
+  when w $ logMessage $ nest 2 $ "Warning:" <\>
+    hang 2 ("User-provided type annotation" <\> pretty user) <\>
+    hang 2 ("overrides more precise inferred type" <\> pretty inferred) <\>
+    hang 2 ("resulting in less precise final type" <\> pretty t)
+  return t
  where
-  go _ (TBase _ b1 (Known PTrue) _) (TBase _ b2 (Known PTrue) _)
-    | b1 == b2 = return mempty
+  go (TBase v1 b1 r1 pv1) (TBase v2 b2 r2 pv2) 
+    | b1 == b2 = case (r1,r2) of
+      (Unknown , _       ) -> impossible
+      (Known p1, Known p2) -> (TBase v2 b2 r2 pv2, p1 /= p2)
+      (Known p1, Unknown ) -> (TBase v2 b1 r  pv1, False) 
+        where 
+          r = Known $ subst (EVar v2) v1 p1
+  
+  go (TFun x1 s1 t1 pv1) (TFun x2 s2 t2 _) = 
+    (TFun x2 s t pv1, ws || wt)
+    where 
+      (s, ws) = go s1  s2
+      (t, wt) = go t1' t2
+      t1'     = subst (EVar x2) x1 t1
 
-  go g (TBase x1 b1 (Known (PAppK k ys)) _) (TBase x2 b2 r2 _)
-    | b1 == b2 = do
-      let kps = Map.fromList $ zip [y | EVar y <- ys] (kparams k)
-      assertM $ Map.size kps == length ys
-      let xs = [ (EVar x_user, k_param) 
-               | (x_user, x_inf) <- Map.toList $ Map.insert x2 x1 g
-               , Just k_param <- [Map.lookup x_inf kps]
-               ]
-      let r2' = uncurry substN (unzip xs) r2
-      return $ Map.singleton k r2'
-  
-  go g (TFun x1 s1 t1 _) (TFun x2 s2 t2 _) = do
-    a1 <- go g s1 s2
-    a2 <- go (Map.insert x2 x1 g) t1 t2
-    return $ a1 <> a2
-  
-  go _ _ _ = throwError $ InvalidSubtype inferred user
+  go _ _ = impossible
 
 
 -- | Import a module into the environment.

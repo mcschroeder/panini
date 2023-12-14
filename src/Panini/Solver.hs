@@ -47,12 +47,8 @@ extractQualifiers con = List.nub . \case
   ts -> panic $ "extractQualifiers" <+> pretty ts <+> "not implemented"
 
 
-solve :: Assignment -> Set KVar -> Con -> Pan (Maybe Assignment)
-solve s0 ks_ex c0 = do
-  logMessage $ "Apply initial assignment" <+> pretty s0
-  let c1 = apply s0 c0
-  logData c1
-
+solve :: Set KVar -> Con -> Pan (Maybe Assignment)
+solve ks_ex c1 = do  
   let gcs1 = Grammar.grammarConstraints c1  
   let ks_gram = Set.fromList $ map gconKVar $ HashSet.toList gcs1
   logMessage $ "Grammar variables:" <+> pretty ks_gram
@@ -92,6 +88,6 @@ solve s0 ks_ex c0 = do
     Nothing -> return Nothing
     Just s_liquid -> do
       logMessage "Found a valid solution!"
-      let s_final = Map.unions [s0, s_grammar, s_liquid]
+      let s_final = Map.unions [s_grammar, s_liquid]
       logData s_final
       return $ Just s_final
