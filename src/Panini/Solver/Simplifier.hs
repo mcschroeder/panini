@@ -11,10 +11,30 @@ simplify = rewrite $ \case
   CAnd c1 (CHead PTrue) -> Just c1
   CAll _ _ _ (CHead PTrue) -> Just (CHead PTrue)
 
-  CAll x TBool (PIff (PRel (EVar x1 :=: EBool True _)) p1)
-    (CAll y TBool (PAnd [PIff (PRel (EVar y1 :=: EBool True _)) p2, PRel (EVar y2 :=: EVar x2)])
-      (CHead (PRel (EVar y3 :=: EBool True _))))
-    | x == x1, x `notElem` freeVars p1, y == y1, y `notElem` freeVars p2, p1 == p2, x == x2, y == y2, y == y3 -> Just $ CHead p1
+  CAll x _ PTrue c | x `notElem` freeVars c -> Just c
+
+  -- The common pattern
+  --       ∀x:𝔹. (x = true ⇔ φ) ⇒ (∀y:𝔹. (y = true ⇔ φ) ∧ y = x ⇒ y = true) ∧ ψ
+  -- can be simplified to
+  --       φ ∧ ψ
+  CAll x TBool (PIff (PRel (EVar x1 :=: EBool True _)) p1) cs
+    | x == x1, x `notElem` freeVars p1
+    , (c1,c2) <- leftmostAnd cs
+    , (CAll y TBool (PAnd [ PIff (PRel (EVar y1 :=: EBool True _)) p2
+                          , PRel (EVar y2 :=: EVar x2)])
+                    (CHead (PRel (EVar y3 :=: EBool True _)))) <- c1
+    , y == y1, y `notElem` freeVars p2
+    , p1 == p2, x == x2, y == y2, y == y3
+    -> case c2 of
+      Nothing                    -> Just $ CHead p1
+      Just q 
+        | x `notElem` freeVars q -> Just $ CAnd (CHead p1) q
+        | otherwise              -> Just $ CAll x TBool p1 q
+   where
+    leftmostAnd = \case
+      CAnd (CAnd c1 c2) c3 -> leftmostAnd (CAnd c1 (CAnd c2 c3))
+      CAnd c c3            -> (c, Just c3)
+      c                    -> (c, Nothing)
 
   CAll x b p c | p' <- simplifyPred p, p' /= p -> Just $ CAll x b p' c
   CHead p      | p' <- simplifyPred p, p' /= p -> Just $ CHead p
