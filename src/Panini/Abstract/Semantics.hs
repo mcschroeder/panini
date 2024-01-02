@@ -73,6 +73,7 @@ abstract x b r = case r of
   i :=: (EFun "_StrAt_index" [s,c] :-: y) -> abstract x b $ EStrAt s (norm $ i :+: y) :=: c
 
   EStrSub s (EInt 0 _) (EStrLen (EVar _x1) :+: EInt (-1) _) :≠: EVar _x2 | x ∉ s, _x1 == _x2 -> Right $ EFun "_StrComp" [EStrSub s (EInt 0 NoPV) (EIntA $ AInt.ge 0)]
+  EStrSub s (EInt 0 _) (EStrLen (EVar _x1) :-: EInt   1  _) :≠: EVar _x2 | x ∉ s, _x1 == _x2 -> Right $ EFun "_StrComp" [EStrSub s (EInt 0 NoPV) (EIntA $ AInt.ge 0)]
 
   EStrSub (EVar _x1) (EInt 0 _) (EIntA j1) :=: EStrSub (EVar _x2) (EInt 0 _) (EIntA j2) 
     | _x1 == _x2, j1 ∧ AInt.ge 0 == AInt.ge 0, j2 ∧ AInt.ge 0 == AInt.ge 0
