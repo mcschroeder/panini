@@ -55,10 +55,8 @@ solve ks_ex c1 = do
 
   logMessage $ "Eliminate local acyclic" <+> kappa <+> "variables"
   c2 <- Fusion.solve (ks_ex <> ks_gram) c1
-
-  logMessage $ "Simplify"
-  let c3 = simplify c2
-  logData c3
+  
+  c3 <- simplify c2
 
   logMessage "Find remaining grammar constraints"
   let gcs3 = Grammar.grammarConstraints c3

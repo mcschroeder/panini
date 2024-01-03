@@ -1,12 +1,20 @@
-module Panini.Solver.Simplifier (simplify) where
+module Panini.Solver.Simplifier (simplify, simplifyCon, simplifyPred) where
 
 import Data.Generics.Uniplate.Operations
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Panini.Monad
 
-simplify :: Con -> Con
-simplify = rewrite $ \case
+simplify :: Con -> Pan Con
+simplify c = do
+  logMessage "Simplify constraint"
+  let c' = simplifyCon c
+  logData c'
+  return c'
+
+simplifyCon :: Con -> Con
+simplifyCon = rewrite $ \case
   CAnd (CHead PTrue) c2 -> Just c2
   CAnd c1 (CHead PTrue) -> Just c1
   CAll _ _ _ (CHead PTrue) -> Just (CHead PTrue)
