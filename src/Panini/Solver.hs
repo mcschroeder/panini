@@ -48,7 +48,9 @@ extractQualifiers con = List.nub . \case
 
 
 solve :: Set KVar -> Con -> Pan (Maybe Assignment)
-solve ks_ex c1 = do  
+solve ks_ex c0 = do
+  c1 <- simplify c0
+
   let gcs1 = Grammar.grammarConstraints c1  
   let ks_gram = Set.fromList $ map gconKVar $ HashSet.toList gcs1
   logMessage $ "Grammar variables:" <+> pretty ks_gram
