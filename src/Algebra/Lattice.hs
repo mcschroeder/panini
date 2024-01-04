@@ -100,7 +100,12 @@ type BoundedLattice a = (BoundedMeetSemilattice a, BoundedJoinSemilattice a)
 -- [Meet complement] @a '∧' 'neg' a == 'bot'@
 -- [Join complement] @a '∨' 'neg' a == 'top'@
 class BoundedLattice a => ComplementedLattice a where
+  -- | The complement (negation) of an element.
   neg :: a -> a
+
+  -- | The difference between two elements.
+  diff :: a -> a -> a
+  diff x y =  x ∧ neg (x ∧ y)
 
 -------------------------------------------------------------------------------
 
