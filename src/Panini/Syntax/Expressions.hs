@@ -2,6 +2,7 @@ module Panini.Syntax.Expressions where
 
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.List qualified as List
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
@@ -12,7 +13,6 @@ import Panini.Regex.POSIX.ERE (ERE)
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
-import Prettyprinter qualified as PP
 
 ------------------------------------------------------------------------------
 
@@ -114,7 +114,7 @@ instance Biplate Expr Value where
 instance Pretty Expr where
   pretty p0 = case p0 of
     EVal v -> pretty v
-    EFun f ps -> pretty f <> PP.hang 0 (prettyTuple ps)
+    EFun f ps -> pretty f <> parens (mconcat $ List.intersperse ", " $ map pretty ps)
     EMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
     EAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2
     ESub p1 p2 -> prettyL p0 p1 <+> "-" <+> prettyR p0 p2
