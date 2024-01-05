@@ -7,6 +7,7 @@ module Panini.Abstract.AExpr
   , pattern EBoolA
   , pattern EIntA
   , pattern EStrA
+  , pattern ECharA  
   , norm
   ) where
 
@@ -15,6 +16,7 @@ import Control.Applicative
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AInt as AInt
+import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AValue
 import Panini.Provenance
@@ -28,13 +30,44 @@ import Data.Text qualified as Text
 type AExpr = Expr
 
 pattern EBoolA :: ABool -> AExpr
-pattern EBoolA a = EAbs (ABool a)
+pattern EBoolA a <- (toABool -> Just a) where
+  EBoolA a = EAbs (ABool a)
+
+toABool :: AExpr -> Maybe ABool
+toABool = \case
+  EAbs (ABool a) -> Just a
+  EBool b _      -> Just (ABool.eq b)
+  _              -> Nothing
 
 pattern EIntA :: AInt -> AExpr
-pattern EIntA a = EAbs (AInt a)
+pattern EIntA a <- (toAInt -> Just a) where
+  EIntA a = EAbs (AInt a)
+
+toAInt :: AExpr -> Maybe AInt
+toAInt = \case
+  EAbs (AInt a) -> Just a
+  EInt n _      -> Just (AInt.eq n)
+  _             -> Nothing
 
 pattern EStrA :: AString -> AExpr
-pattern EStrA a = EAbs (AString a)
+pattern EStrA a <- (toAString -> Just a) where
+  EStrA a = EAbs (AString a)
+
+toAString :: AExpr -> Maybe AString
+toAString = \case
+  EAbs (AString a) -> Just a
+  EStr s _         -> Just (AString.eq $ Text.unpack s)
+  _                -> Nothing
+
+pattern ECharA :: AChar -> AExpr
+pattern ECharA a <- (toAChar -> Just a)  where
+  ECharA a = EAbs (AString (lit a))
+
+toAChar :: AExpr -> Maybe AChar
+toAChar = \case
+  EAbs (AString s) -> AString.toChar s
+  EChar c _        -> Just $ AChar.eq c
+  _                -> Nothing
 
 ------------------------------------------------------------------------------
 
@@ -85,8 +118,6 @@ norm = Uniplate.rewrite $ \case
   ENot (EBoolA a)    -> Just $ EBoolA (neg a)
 
   EInt  a _ :+: EInt  b _ -> Just $ EInt (a + b) NoPV
-  EInt  a _ :+: EIntA b   -> Just $ EIntA $ AInt.add (AInt.eq a) b
-  EIntA a   :+: EInt  b _ -> Just $ EIntA $ AInt.add a (AInt.eq b)
   EIntA a   :+: EIntA b   -> Just $ EIntA $ AInt.add a b
   EInt  0 _ :+: e         -> Just e
   e         :+: EInt  0 _ -> Just e
@@ -99,17 +130,11 @@ norm = Uniplate.rewrite $ \case
   (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)
 
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
-  EInt  a _ :-: EIntA b   -> Just $ EIntA $ AInt.sub (AInt.eq a) b
-  EIntA a   :-: EInt  b _ -> Just $ EIntA $ AInt.sub a (AInt.eq b)
   EIntA a   :-: EIntA b   -> Just $ EIntA $ AInt.sub a b
   e         :-: EInt  0 _ -> Just e
   e         :-: EIntA a   | [0] <- AInt.values a -> Just e
   EIntA a   :-: _         | isBot a -> Just $ EIntA bot
   _         :-: EIntA a   | isBot a -> Just $ EIntA bot
-
-  -- rewrite constant subtractions into additions
-  e :-: EInt  a pv -> Just $ e :+: EInt (-a) pv
-  e :-: EIntA a    -> Just $ e :+: (EIntA $ AInt.sub (AInt.eq 0) a)
   
   EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
 
@@ -122,5 +147,7 @@ norm = Uniplate.rewrite $ \case
   EStrSub (EStr s _) (EInt (fromIntegral -> i) _) (EInt (fromIntegral -> j) _)
     | let n = Text.length s, i < n, j < n, i <= j
     -> Just $ EStr (Text.take (j - i + 1) $ Text.drop i s) NoPV
+
+  EFun "_StrComplement" [EStrA s] -> Just $ EStrA $ neg s
 
   _ -> Nothing

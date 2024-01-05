@@ -109,12 +109,12 @@ solve (GCon s k c) | not $ null $ kvars c = do
   solve (GCon s k c3)
 
 solve (GCon s k c) = do
+  logMessage "Rewrite grammar constraint:"
   logData c
-  logMessage "Rewrite grammar constraint"  
-  c' <- dnf <$> PNot <$> rewrite c
+  c' <- dnf <$> rewrite c
   logData c'
   logMessage $ "Abstract free string variable" <+> pretty s
-  g0 <- neg <$> joins <$> mapM (stringElim s) c'
+  g0 <- joins <$> mapM (stringElim s) c'
   logData g0
   logMessage $ "Simplify abstract string"
   let g = AString.simplify g0
@@ -147,15 +147,12 @@ makeGrammarAssignment k g = Map.singleton k $ case AString.toRegex g of
 
 rewrite :: Con -> Pan Pred
 rewrite c0 = do
-  --logMessage $ "Eliminate ∀"
+  logMessage $ "Eliminate ∀"
   let c1 = elimAll c0
-  logData $ group $ "elimAll" <\> pretty c0 <\> "⇝" <\> pretty c1
-  --logMessage $ "Eliminate ∃"
+  logData c1
+  logMessage $ "Eliminate ∃"
   c2 <- elimExists c1
-  logData $ group $ "elimExists" <\> pretty c1 <\> "⇝" <\> pretty c2
-  -- let c3 = dnf c2
-  -- logData $ group $ "dnf" <\> pretty c2 <\> "⇝" <\> pretty c3
-  -- return c3
+  logData c2
   return c2
  where
   elimAll :: Con -> Pred
@@ -219,6 +216,10 @@ norm' r0 = case normRel r0 of
     | null (freeVars e1), not (null (freeVars e2)) -> norm' (e2 :=: e1)
     | otherwise -> Just (e1 :=: e2)
   r1 -> Just r1
+
+-- | Independently normalize each side of a relation.
+normRel :: Rel -> Rel
+normRel (Rel op e1 e2) = Rel op (norm e1) (norm e2)
 
 varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
 varElim x b φ = do

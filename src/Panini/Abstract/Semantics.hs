@@ -2,7 +2,6 @@ module Panini.Abstract.Semantics where
 
 import Algebra.Lattice
 import Control.Monad
-import Data.Text qualified as Text
 import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AExpr
 import Panini.Abstract.AInt as AInt
@@ -51,19 +50,11 @@ botExpr b       = panic $ "no" <+> symBot <+> "for " <+> pretty b
 abstract :: Name -> Base -> Rel -> Either Rel AExpr
 abstract x b r = case r of
   Rel _ e1 e2 | x ∉ e1, x ∉ e2 -> Left r
+  Rel _ e1 e2 | x ∉ e1, x ∈ e2 -> maybe (Left r) (abstract x b) (converse r)
 
   -- here, x may be on both sides ---------------------------------------------
 
-  EFun "_StrComp" [e1] :=: EFun "_StrComp" [e2] -> abstract x b $ e1 :=: e2
-  EFun "_StrComp" [e1] :=: e2                   -> abstract x b $ e1 :≠: e2
-  e1                   :=: EFun "_StrComp" [e2] -> abstract x b $ e1 :≠: e2
-
-  (EFun "_StrSub_index_end" [s,t,i]      ) :=: j -> abstract x b $ EStrSub s i         j        :=: t
-  (EFun "_StrSub_index_end" [s,t,i] :+: y) :=: j -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
-  (EFun "_StrSub_index_end" [s,t,i] :-: y) :=: j -> abstract x b $ EStrSub s i (norm $ j :+: y) :=: t
-  j :=: (EFun "_StrSub_index_end" [s,t,i]      ) -> abstract x b $ EStrSub s i         j        :=: t
-  j :=: (EFun "_StrSub_index_end" [s,t,i] :+: y) -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
-  j :=: (EFun "_StrSub_index_end" [s,t,i] :-: y) -> abstract x b $ EStrSub s i (norm $ j :+: y) :=: t
+  EFun "_StrComplement" [e1] :≠: EFun "_StrComplement" [e2] -> abstract x b $ e1 :≠: e2
 
   (EFun "_StrAt_index" [s,c]      ) :=: i -> abstract x b $ EStrAt s         i        :=: c
   (EFun "_StrAt_index" [s,c] :+: y) :=: i -> abstract x b $ EStrAt s (norm $ i :-: y) :=: c
@@ -72,86 +63,95 @@ abstract x b r = case r of
   i :=: (EFun "_StrAt_index" [s,c] :+: y) -> abstract x b $ EStrAt s (norm $ i :-: y) :=: c
   i :=: (EFun "_StrAt_index" [s,c] :-: y) -> abstract x b $ EStrAt s (norm $ i :+: y) :=: c
 
-  EStrSub s (EInt 0 _) (EStrLen (EVar _x1) :+: EInt (-1) _) :≠: EVar _x2 | x ∉ s, _x1 == _x2 -> Right $ EFun "_StrComp" [EStrSub s (EInt 0 NoPV) (EIntA $ AInt.ge 0)]
-  EStrSub s (EInt 0 _) (EStrLen (EVar _x1) :-: EInt   1  _) :≠: EVar _x2 | x ∉ s, _x1 == _x2 -> Right $ EFun "_StrComp" [EStrSub s (EInt 0 NoPV) (EIntA $ AInt.ge 0)]
+  (EFun "_StrAt_index" [s,c]      ) :≠: i -> abstract x b $ EStrAt s         i        :≠: c
+  (EFun "_StrAt_index" [s,c] :+: y) :≠: i -> abstract x b $ EStrAt s (norm $ i :-: y) :≠: c
+  (EFun "_StrAt_index" [s,c] :-: y) :≠: i -> abstract x b $ EStrAt s (norm $ i :+: y) :≠: c
+  i :≠: (EFun "_StrAt_index" [s,c]      ) -> abstract x b $ EStrAt s         i        :≠: c
+  i :≠: (EFun "_StrAt_index" [s,c] :+: y) -> abstract x b $ EStrAt s (norm $ i :-: y) :≠: c
+  i :≠: (EFun "_StrAt_index" [s,c] :-: y) -> abstract x b $ EStrAt s (norm $ i :+: y) :≠: c
 
-  EStrSub (EVar _x1) (EInt 0 _) (EIntA j1) :=: EStrSub (EVar _x2) (EInt 0 _) (EIntA j2) 
-    | _x1 == _x2, j1 ∧ AInt.ge 0 == AInt.ge 0, j2 ∧ AInt.ge 0 == AInt.ge 0
-    -> Right $ EStrA top
+  (EFun "_StrSub_index_end" [s,t,i] :+: y) :=: j 
+    -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
 
-  Rel _ e1 e2 | x ∉ e1, x ∈ e2 -> maybe (Left r) (abstract x b) (converse r)
+  EStrAt (EVar x1) (EStrLen (EVar x2) :-: EIntA n) :=: ECharA c | x == x1, x == x2 
+    -> Right $ EStrA $ absStrAtRev n c
+
+  EStrSub s (EInt 0 _) (EStrLen (EVar x1) :-: EInt 1 _) :=: EFun "_StrComplement" [EVar x2]
+    | x ∉ s, x == x1, x == x2
+    -> Right $ EFun "_StrComplement" [EStrSub s (EInt 0 NoPV) (EIntA $ AInt.ge 0)]
+
+  EStrSub s (EInt 0 _) (EStrLen (EVar x1) :-: EInt 1 _) :≠: EVar x2
+    | x ∉ s, x == x1, x == x2
+    -> Right $ EFun "_StrComplement" [EStrSub s (EInt 0 NoPV) (EIntA $ AInt.ge 0)]
+
+
+  EStrSub (EVar x1) (EInt 0 _) (EIntA j) :≠: EStrSub (EVar x2) (EInt 0 _) (EIntA l)
+    | x == x1, x == x2, not $ isBot $ j ∧ l
+    -> Right $ EStrA bot
+
   Rel _ e1 e2 | x ∈ e1, x ∈ e2 -> Left r
 
   -- below, x occurs only on LHS (but possibly more than once) ----------------
 
-  (e1 :+: e2) :=: e3 | x ∉ e2 -> abstract x b $ e1 :=: (norm $ e3 :-: e2)
-  (e1 :-: e2) :=: e3 | x ∉ e2 -> abstract x b $ e1 :=: (norm $ e3 :+: e2)
+  EVar _x :=: e -> Right e
 
-  e :≠: EBool  c _ -> abstract x b $ e :=: EBool  (not c) NoPV
-  e :≠: EBoolA c   -> abstract x b $ e :=: EBoolA (neg c)
-
-  e :≠: EInt  n _ -> abstract x b $ e :=: EIntA (AInt.ne n)
-  e :≥: EInt  n _ -> abstract x b $ e :=: EIntA (AInt.ge n)
-  e :>: EInt  n _ -> abstract x b $ e :=: EIntA (AInt.gt n)
-  e :≤: EInt  n _ -> abstract x b $ e :=: EIntA (AInt.le n)
-  e :<: EInt  n _ -> abstract x b $ e :=: EIntA (AInt.lt n)
-
-  e :≠: EIntA n -> abstract x b $ e :=: EIntA (neg n)
+  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :-: e2)
+  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e3 :-: e1)
+  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :+: e2)
+  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e1 :-: e3)
+  
   e :≥: EIntA n -> abstract x b $ e :=: EIntA (AInt.add n (AInt.ge 0))
   e :>: EIntA n -> abstract x b $ e :=: EIntA (AInt.add n (AInt.ge 1))
   e :≤: EIntA n -> abstract x b $ e :=: EIntA (AInt.sub n (AInt.ge 0))
   e :<: EIntA n -> abstract x b $ e :=: EIntA (AInt.sub n (AInt.ge 1))
 
-  -- TODO: we currently treat ALL singleton strings as chars; this is wrong!
-  e :≠: EChar c _ -> abstract x b $ e :=: EStrA (lit (AChar.ne c))
+  e1 :≥: e2 -> abstract x b $ e1 :=: (e2 :+: EIntA (AInt.ge 0))
+  e1 :>: e2 -> abstract x b $ e1 :=: (e2 :+: EIntA (AInt.ge 1))
+  e1 :≤: e2 -> abstract x b $ e1 :=: (e2 :-: EIntA (AInt.ge 0))
+  e1 :<: e2 -> abstract x b $ e1 :=: (e2 :-: EIntA (AInt.ge 1))
 
-  EVar _ :≠: e | b == TString -> Right $ EFun "_StrComp" [e]  
+  EVar _x :≠: EBoolA a -> Right $ EBoolA (neg a)
+  EVar _x :≠: EIntA  n -> Right $ EIntA  (neg n)  
+  EVar _x :≠: ECharA c -> Right $ ECharA (neg c)
+  EVar _x :≠: EStrA  s -> Right $ EStrA  (neg s)
 
-  EVar _ :≥: e | b == TInt -> Right $ e :+: EIntA (AInt.ge 0)
-  EVar _ :>: e | b == TInt -> Right $ e :+: EIntA (AInt.ge 1)
-  EVar _ :≤: e | b == TInt -> Right $ e :-: EIntA (AInt.ge 0)
-  EVar _ :<: e | b == TInt -> Right $ e :-: EIntA (AInt.ge 1)
+  EVar _x :≠: EVar y | b == TBool   -> Right $ ENot (EVar y)
+  EVar _x :≠: EVar y | b == TString -> Right $ EFun "_StrComplement" [EVar y]
 
-  EVar _ :=: e -> Right e
+  EVar _x :∈: EReg ere -> Right $ EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere
+  EVar _x :∉: EReg ere -> Right $ EStrA $ neg $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere
 
-  EVar _ :∈: EReg ere -> Right $ EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere
-  EVar _ :∉: EReg ere -> Right $ EStrA $ neg $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere
+  EStrLen s :≠: EIntA n -> abstract x b $ EStrLen s :=: EIntA (diff (AInt.ge 0) n)
 
-  EStrLen (EVar _) :=: EInt  n _ -> Right $ EStrA $ absStrLen (AInt.eq n)
-  EStrLen (EVar _) :=: EIntA n   -> Right $ EStrA $ absStrLen n
+  EStrLen (EVar _x) :=: EIntA n -> Right $ EStrA $ absStrLen n
 
-  EStrAt (EVar _) (EInt  n _) :=: EChar c _                -> Right $ EStrA $ absStrAt (AInt.eq n) (AChar.eq c)
-  EStrAt (EVar _) (EIntA n)   :=: EChar c _                -> Right $ EStrA $ absStrAt n           (AChar.eq c)
-  EStrAt (EVar _) (EInt  n _) :=: EStrA (toChar -> Just c) -> Right $ EStrA $ absStrAt (AInt.eq n) c
-  EStrAt (EVar _) (EIntA n)   :=: EStrA (toChar -> Just c) -> Right $ EStrA $ absStrAt n           c
+  EStrAt e1 e2 :≠: ECharA c -> abstract x b $ EStrAt e1 e2 :=: ECharA (neg c)
 
-  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EInt  n _) :=: EStrA (toChar -> Just c) | x == s1, x == s2 -> Right $ EStrA $ absStrAtRev (AInt.sub (AInt.eq 0) (AInt.eq n)) c
-  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA n)   :=: EStrA (toChar -> Just c) | x == s1, x == s2 -> Right $ EStrA $ absStrAtRev (AInt.sub (AInt.eq 0) n)           c
-  EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  n _) :=: EStrA (toChar -> Just c) | x == s1, x == s2 -> Right $ EStrA $ absStrAtRev (AInt.eq n)                        c
-  EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA n)   :=: EStrA (toChar -> Just c) | x == s1, x == s2 -> Right $ EStrA $ absStrAtRev n                                  c  
+  EStrAt (EVar _x) (EIntA i) :=: ECharA c -> Right $ EStrA $ absStrAt i c
 
-  EStrAt s (EVar _)       :=: c | x ∉ s        -> Right $ EFun "_StrAt_index" [s,c]
-  EStrAt s (EVar _ :+: y) :=: c | x ∉ s, x ∉ y -> Right $ EFun "_StrAt_index" [s,c] :-: y
-  EStrAt s (EVar _ :-: y) :=: c | x ∉ s, x ∉ y -> Right $ EFun "_StrAt_index" [s,c] :+: y
+  EStrAt s (EVar _x      ) :=: c | x ∉ s        -> Right $ EFun "_StrAt_index" [s,c]
+  EStrAt s (EVar _x :+: y) :=: c | x ∉ s, x ∉ y -> Right $ EFun "_StrAt_index" [s,c] :-: y
+  EStrAt s (EVar _x :-: y) :=: c | x ∉ s, x ∉ y -> Right $ EFun "_StrAt_index" [s,c] :+: y
 
-  EStrSub s i (EVar _)       :=: t | x ∉ s, x ∉ i        -> Right $ EFun "_StrSub_index_end" [s,t,i]  
-  EStrSub s i (EVar _ :+: y) :=: t | x ∉ s, x ∉ i, x ∉ y -> Right $ EFun "_StrSub_index_end" [s,t,i] :-: y
-  EStrSub s i (EVar _ :-: y) :=: t | x ∉ s, x ∉ i, x ∉ y -> Right $ EFun "_StrSub_index_end" [s,t,i] :+: y
+  EStrAt s (EVar _x) :≠: ec | x ∉ s -> case ec of
+    EChar  c _ -> Right $ EFun "_StrAt_index" [s, ECharA (AChar.ne c)]
+    ECharA c   -> Right $ EFun "_StrAt_index" [s, ECharA (neg c)]
+    _          -> Left r
 
-  EStrSub s i (EVar _)       :≠: t | x ∉ s, x ∉ i        -> Right $ EFun "_StrSub_index_end" [s,EFun "_StrComp" [t],i]  
-  EStrSub s i (EVar _ :+: y) :≠: t | x ∉ s, x ∉ i, x ∉ y -> Right $ EFun "_StrSub_index_end" [s,EFun "_StrComp" [t],i] :-: y
-  EStrSub s i (EVar _ :-: y) :≠: t | x ∉ s, x ∉ i, x ∉ y -> Right $ EFun "_StrSub_index_end" [s,EFun "_StrComp" [t],i] :+: y
+  EStrSub s i (EVar _      ) :=: t | x ∉ s, x ∉ i -> Right $ EFun "_StrSub_index_end" [s,t,i]
+  EStrSub s i (EVar _ :-: y) :=: t | x ∉ s, x ∉ i -> Right $ EFun "_StrSub_index_end" [s,t,i] :+: y
 
-
-  EStrSub (EVar _) (EInt 0 _) (EIntA j) :≠: EStr t _
+  -- TODO: higher functions, e.g.: prefixof, prefixes etc?
+  EStrSub (EVar _) (EInt 0 _) (EIntA j) :=: EStrA t
     | (j ∧ AInt.ge 0) == AInt.ge 0 
-    -> Right $ EStrA $ neg $ AString.eq (Text.unpack t) <> star anyChar
+    -> Right $ EStrA $ t <> star anyChar
 
-  EStrSub (EVar _) (EInt 0 _) (EIntA j) :≠: EStrA t
-    | (j ∧ AInt.ge 0) == AInt.ge 0 
-    -> Right $ EStrA $ neg $ t <> star anyChar
+  EStrSub s i j :≠: EStrA t -> abstract x b $ EStrSub s i j :=: EStrA (neg t)
 
-  r' -> Left r'
+  EFun "_StrComplement" [s] :=: e -> abstract x b $ s :=: (norm $ EFun "_StrComplement" [e])
+  EFun "_StrComplement" [s] :≠: e -> abstract x b $ s :≠: (norm $ EFun "_StrComplement" [e])
+
+  _ -> Left r
 
 absStrLen :: AInt -> AString
 absStrLen (meet (AInt.ge 0) -> n)
@@ -164,24 +164,21 @@ absStrLen (meet (AInt.ge 0) -> n)
 absStrAt :: AInt -> AChar -> AString
 absStrAt (meet (AInt.ge 0) -> n) c
   | isBot n = bot
-  | isBot c = case AInt.minimum n of
-     Just (Fin a) -> joins $ map (rep anyChar) [0..a]
-     _            -> impossible
-  | otherwise = joins $ flip concatMap (AInt.intervals n) $ \case
-      AInt.In (Fin a) (Fin b) -> [rep anyChar i <> lit c <> star anyChar | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [rep anyChar a <> star anyChar <> lit c <> star anyChar]
-      _                       -> impossible
+  | isBot c = undefined -- TODO
+  | otherwise = go 0 (AInt.intervals n)
+  where
+    go i (AInt.In (Fin a) (Fin b) : xs) = rep anyChar (a - i) <> rep (lit c) (b - a + 1) <> go b xs
+    go i (AInt.In (Fin a) PosInf  : []) = rep anyChar (a - i) <> star (lit c)
+    go _ []                             = star anyChar
+    go _ _                              = impossible
 
 absStrAtRev :: AInt -> AChar -> AString
 absStrAtRev (meet (AInt.ge 1) -> n) c
   | isBot n   = bot
   | isBot c   = bot
-  | otherwise = joins $ flip concatMap (AInt.intervals n) $ \case
-      AInt.In (Fin a) (Fin b) -> [star anyChar <> lit c <> rep anyChar (i-1) | i <- [a..b]]
-      AInt.In (Fin _) PosInf  -> [star anyChar <> lit c <> star anyChar]
-      _                       -> impossible
-
-
--- | Independently normalize each side of a relation.
-normRel :: Rel -> Rel
-normRel (Rel op e1 e2) = Rel op (norm e1) (norm e2)
+  | otherwise = go 1 (AInt.intervals n)
+  where
+    go i (AInt.In (Fin a) (Fin b) : xs) = go b xs <> rep (lit c) (b - a + 1) <> rep anyChar (a - i)
+    go i (AInt.In (Fin a) PosInf  : []) = star (lit c) <> rep anyChar (a - i)
+    go _ []                             = star anyChar
+    go _ _                              = impossible
