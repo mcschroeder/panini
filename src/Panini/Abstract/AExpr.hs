@@ -129,6 +129,8 @@ norm = Uniplate.rewrite $ \case
   -- re-associate addition to get more rewriting opportunities
   (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)
 
+  (e :-: x1) :+: x2 | x1 == x2 -> Just e
+
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
   EIntA a   :-: EIntA b   -> Just $ EIntA $ AInt.sub a b
   e         :-: EInt  0 _ -> Just e
