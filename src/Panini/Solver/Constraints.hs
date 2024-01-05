@@ -56,6 +56,12 @@ instance Biplate Con Pred where
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
     CAll x b p c -> plate CAll |- x |- b |* p |+ c
 
+instance Biplate Con Expr where
+  biplate = \case
+    CHead p      -> plate CHead |+ p
+    CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
+    CAll x b p c -> plate CAll |- x |- b |+ p |+ c
+
 instance Pretty Con where
   pretty = \case
     CHead p -> pretty p
