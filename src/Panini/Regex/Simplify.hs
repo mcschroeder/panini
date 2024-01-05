@@ -30,6 +30,7 @@ simplify = goFree
     Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
              | r' <- pressSequence xs      , r' /= r -> goFree r'
+             | r' <- lookupSequence xs     , r' /= r -> goFree r'
              | r' <- Times (map goFree xs) , r' /= r -> goFree r'
     Star  x  | r' <- Star (goStar x)       , r' /= r -> goFree r'    
     Opt   x  | r' <- Opt (goOpt x)         , r' /= r -> goFree r'
@@ -332,6 +333,20 @@ pressSequence = Times . go []
 selfStarEq :: Regex -> Bool
 selfStarEq r = equivalence r (Star r)
 -- TODO: can we somehow exploit this special case of equivalence checking?
+
+-------------------------------------------------------------------------------
+
+-- | Apply known syntactic replacements of sequences.
+lookupSequence :: [Regex] -> Regex
+lookupSequence = Times . go
+ where
+  -- x* ⋅ y ⋅ (x* ⋅ y)* = (x + y)* ⋅ y
+  go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs) 
+    | x1 == x2, y1 == y2 
+    = go $ Star (Plus [x1,y1]) <> y1 : zs
+  
+  go (y:ys) = y : go ys
+  go [] = []
 
 -------------------------------------------------------------------------------
 
