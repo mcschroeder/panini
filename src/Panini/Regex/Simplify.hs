@@ -27,6 +27,7 @@ simplify = goFree
   goFree r = case r of
     Plus  xs | r' <- factorChoices xs      , r' /= r -> goFree r'
              | r' <- liftChoices xs        , r' /= r -> goFree r'
+             | r' <- lookupChoices xs      , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
     Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
@@ -354,16 +355,34 @@ selfStarEq r = equivalence r (Star r)
 -------------------------------------------------------------------------------
 
 -- | Apply known syntactic replacements of sequences.
+--
+--     (1)  x* ⋅ y ⋅ (x* ⋅ y)* = (x + y)* ⋅ y
+--
 lookupSequence :: [Regex] -> Regex
 lookupSequence = Times . go
  where
-  -- x* ⋅ y ⋅ (x* ⋅ y)* = (x + y)* ⋅ y
-  go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs) 
+  go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs)  -- (1)
     | x1 == x2, y1 == y2 
     = go $ Star (Plus [x1,y1]) <> y1 : zs
   
   go (y:ys) = y : go ys
   go [] = []
+
+-- | Apply known syntactic replacements of choices.
+-- 
+--     (1)  x⋅Σ* + x* = x⋅Σ*
+--
+lookupChoices :: [Regex] -> Regex
+lookupChoices = (Plus .) $ go $ \case
+  (Times [x1, All], Star x2) | x1 == x2 -> Just $ Times [x1, All]  -- (1)
+  _ -> Nothing 
+ where
+  go _ []     = []
+  go f (x:xs) = go1 xs []
+   where
+    go1 []     zs                      = x : go f zs
+    go1 (y:ys) zs | Just x' <- f (x,y) = go f (x' : ys ++ zs)
+    go1 (y:ys) zs                      = go1 ys (y:zs)
 
 -------------------------------------------------------------------------------
 
