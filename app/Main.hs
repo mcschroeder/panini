@@ -1,7 +1,6 @@
 module Main where
 
-import Panini.CLI.Main
-import Prelude
+import qualified Panini.CLI.Main
 
 main :: IO ()
 main = Panini.CLI.Main.main
