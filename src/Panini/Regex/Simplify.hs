@@ -26,7 +26,7 @@ simplify = goFree
  where
   goFree r = case r of
     Plus  xs | r' <- factorChoices xs      , r' /= r -> goFree r'
-             | r' <- subsumeChoices xs     , r' /= r -> goFree r'
+             | r' <- liftChoices xs        , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
     Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
@@ -279,16 +279,6 @@ unsnoc xs = (\(hd, tl) -> (reverse tl, hd)) <$> uncons (reverse xs)
 
 -------------------------------------------------------------------------------
 
--- TODO: add more general subsumption rules, based on language inclusion
-
--- | Apply very simple subsumption law: Σ* + a = Σ*.
-subsumeChoices :: [Regex] -> Regex
-subsumeChoices xs
-  | elem All xs = All
-  | otherwise   = Plus xs
-
--------------------------------------------------------------------------------
-
 -- | Apply the basic lifting law to a starred expression.
 --
 --    x* = α̂₁(x)*  if α(x) = α₁(x)
@@ -297,7 +287,7 @@ liftStar :: Regex -> Regex
 liftStar r | alpha r == a1 = Lit a1 where a1 = alpha1 r
 liftStar r                 = r
 
--- | Apply the the generalized lifting law on a starred list of choices.
+-- | Apply the generalized lifting law on a starred list of choices.
 --
 --     (x + y)* = (α̂₁(x) + y)*  if α(x) ⊆ α₁(x + y)
 --
@@ -319,6 +309,22 @@ liftSequence = Times . go
   go (Star x : Opt  y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
   go (x:xs) = x : go xs
   go [] = []
+
+
+-- | Apply lifting to subsume choices.
+--
+--    x* + y = x*  if α(y) ⊆ α₁(x)
+  --
+liftChoices :: [Regex] -> Regex
+liftChoices = Plus . go
+ where
+  go (x:xs) = go1 x xs []
+  go [] = []
+
+  go1 (Star x) (y:ys) zs | alpha y `CS.isSubsetOf` alpha1 x = go1 (Star x) ys zs
+  go1 x (Star y : ys) zs | alpha x `CS.isSubsetOf` alpha1 y = go (Star y : ys ++ zs)
+  go1 x (y:ys) zs = go1 x ys (y:zs)
+  go1 x [] zs = x : go zs
 
 -------------------------------------------------------------------------------
 
