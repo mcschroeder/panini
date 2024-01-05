@@ -26,6 +26,7 @@ simplify = goFree
  where
   goFree r = case r of
     Plus  xs | r' <- factorChoices xs      , r' /= r -> goFree r'
+             | r' <- subsumeChoices xs     , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
     Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
@@ -275,6 +276,16 @@ splitSuffix xs0 ys0 = go [] (reverse xs0) (reverse ys0)
 -- TODO: replace by Data.List.unsnoc once we depend on base-4.19
 unsnoc :: [a] -> Maybe ([a], a)
 unsnoc xs = (\(hd, tl) -> (reverse tl, hd)) <$> uncons (reverse xs)
+
+-------------------------------------------------------------------------------
+
+-- TODO: add more general subsumption rules, based on language inclusion
+
+-- | Apply very simple subsumption law: Σ* + a = Σ*.
+subsumeChoices :: [Regex] -> Regex
+subsumeChoices xs
+  | elem All xs = All
+  | otherwise   = Plus xs
 
 -------------------------------------------------------------------------------
 
