@@ -151,7 +151,12 @@ sub lhs rhs = case (lhs, rhs) of
   
   -- sub/base ---------------------------------------------
   (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
-    | b₁ == b₂ -> return $ CAll v₁ b₁ p₁ $ CHead $ subst (EVar v₁) v₂ p₂
+    | b₁ == b₂ -> return $ CAll v₁' b₁ p₁' (CHead p₂')
+      where
+        fvs = freeVars lhs <> freeVars rhs
+        v₁' = if v₁ `elem` fvs then freshName v₁ fvs else v₁
+        p₁' = subst (EVar v₁') v₁ p₁
+        p₂' = subst (EVar v₁') v₂ p₂
 
   -- sub/fun ----------------------------------------------
   (TFun x₁ s₁ t₁ _, TFun x₂ s₂ t₂ _) -> do
