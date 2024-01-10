@@ -71,7 +71,7 @@ solve ks_ex c0 = do
   let !c4 = apply s_grammar c2
   logData c4
 
-  let !c5 = c4 -- TODO: investigate simplification here
+  c5 <- simplify c4
 
   logMessage "Flatten constraint"
   let cs5 = flat c5
