@@ -68,7 +68,7 @@ solve ks_ex c0 = do
   s_grammar <- Grammar.solveAll gcs3
 
   logMessage "Apply grammar solution"
-  let !c4 = apply s_grammar c2
+  let !c4 = apply s_grammar c3
   logData c4
 
   c5 <- simplify c4
