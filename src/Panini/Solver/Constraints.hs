@@ -113,7 +113,7 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
         p' = if x' /= x then subst (EVar x') x p else p
         c' = if x' /= x then subst (EVar x') x c else c
 
-    simpl xs ps (CHead q)      = FAll (reverse xs) (PAnd $ reverse ps) q
+    simpl xs ps (CHead q)      = FAll (reverse xs) (meets $ reverse ps) q
     simpl _  _  (CAnd _ _)     = impossible
 
 
