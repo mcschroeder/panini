@@ -9,7 +9,6 @@ module Panini.Elab
   , envToContext -- TODO: weird place for this?
   ) where
 
-import Algebra.Lattice
 import Control.Monad.Extra
 import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
@@ -101,16 +100,10 @@ define x e = do
   logData g
 
   logMessage $ "Infer type of" <+> pretty x
-  (t1,c1) <- infer g e
+  (t1,vc) <- case t0m of
+    Nothing -> infer g e
+    Just t0 -> infer g $ Rec x t0 e (Val (Var x)) NoPV  
   logData t1
-
-  logMessage $ "Ensure inferred type is subtype of" <+> pretty t0m
-  vc <- case t0m of
-    Nothing -> return c1
-    Just t̃ -> do      
-      t̂ <- fresh t̃  -- note that we don't apply shape!
-      c2 <- sub t1 t̂
-      return (c1 ∧ c2)
 
   let ks_ex = kvars t1
   logMessage $ "Top-level type holes:" <+> pretty ks_ex
@@ -134,6 +127,7 @@ define x e = do
     Nothing -> do
       throwError $ InvalidVC x vc
 
+-- TODO: rename inferred vars to match provided sig?
 -- | Match an inferred type signature against a user-provided annotation.
 matchTypeSig :: Type -> Type -> Pan Type
 matchTypeSig inferred user = do

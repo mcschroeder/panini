@@ -79,11 +79,13 @@ infer g = \case
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv -> do
     t̂₁ <- fresh (shape t̃₁)
-    (t₁, c₁) <- infer (Map.insert x t̂₁ g) e₁
-    (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
+    (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
+    t̄₁ <- fresh t̃₁  -- no shape!
+    c̄₁ <- sub t₁ t̄₁
+    (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
-    let c = (cImpl x t̂₁ c₁) ∧ (cImpl x t₁ c₂) ∧ ĉ₂
+    let c = (cImpl x t̂₁ (c₁ ∧ c̄₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t₂, c) `withPV` pv
 
   -- inf/if -----------------------------------------------
