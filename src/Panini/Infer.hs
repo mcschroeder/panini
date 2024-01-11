@@ -61,7 +61,7 @@ infer g = \case
   
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv -> do
-    t̂₁ <- fresh (shape t̃₁)
+    t̂₁ <- fresh g (shape t̃₁)
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ pv
     let c = cImpl x t̂₁ c₂
@@ -71,19 +71,19 @@ infer g = \case
   Let x e₁ e₂ pv -> do
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂ <- fresh (shape t₂)
+    t̂₂ <- fresh g (shape t₂)    
     ĉ₂ <- sub t₂ t̂₂
     let c = c₁ ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁ <- fresh (shape t̃₁)
+    t̂₁ <- fresh g (shape t̃₁)
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
-    t̄₁ <- fresh t̃₁  -- no shape!
+    t̄₁ <- fresh g t̃₁  -- no shape!
     c̄₁ <- sub t₁ t̄₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂ <- fresh (shape t₂)
+    t̂₂ <- fresh g (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = (cImpl x t̂₁ (c₁ ∧ c̄₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t₂, c) `withPV` pv
@@ -116,8 +116,8 @@ self x = \case
   t -> t
 
 -- | Hole instantiation (▷).
-fresh :: Type -> Pan Type  -- TODO: replace Infer monad with source constraint?
-fresh = go []
+fresh :: Context -> Type -> Pan Type
+fresh = go . Map.toList
   where
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
