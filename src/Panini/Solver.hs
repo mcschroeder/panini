@@ -92,6 +92,7 @@ solve ks_ex c0 = do
     Nothing -> return Nothing
     Just s_liquid -> do
       logMessage "Found a valid solution!"
-      let s_final = Map.unions [s_grammar, s_liquid]
+      let s_rest = Map.fromList [(k, PTrue) | k <- Set.toList $ kvars c0]
+      let s_final = Map.unions [s_grammar, s_liquid, s_rest]
       logData s_final
       return $ Just s_final
