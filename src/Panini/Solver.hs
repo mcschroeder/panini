@@ -29,22 +29,26 @@ import Prelude
 
 -- TODO: expand set of extracted qualifiers
 -- TODO: we assume kparams are always named z0,...,zn
+-- TODO: we assume the first type is for z0 aka the value variable v
 extractQualifiers :: Con -> [Base] -> [Pred]
 extractQualifiers con = List.nub . \case
-  [TUnit] -> [PTrue]
-  [TBool] -> [ PRel $ EVar "z0" :=: EBool True NoPV
-             , PRel $ EVar "z0" :=: EBool False NoPV 
-             ]
-  [TInt] -> [ PRel (Rel op (EVar "z0") e2) 
-            | PRel (Rel op (EVar _) e2@(EInt _ _)) <- universeBi con
-            ]
-  [TInt, TInt] -> 
-    [ PRel $ substN [EVar "z0", EVar "z1"] xs r
-    | PRel r <- universeBi con 
-    , let fvs = freeVars r, Set.size fvs == 2
-    , xs <- List.permutations $ Set.toList fvs
-    ]
+  TUnit:_ -> qU
+  [TBool] -> qB
+  [TInt]  -> qZ
+  [TInt, TInt] -> qZZ ++ qZ -- ++ map (subst (EVar "z1") "z0") qZ  
   ts -> panic $ "extractQualifiers" <+> pretty ts <+> "not implemented"
+ where
+  qU    = [ PTrue ]
+  qB    = [ PRel $ EVar "z0" :=: EBool True NoPV
+          , PRel $ EVar "z0" :=: EBool False NoPV ]
+  qZ    = [ PRel $ Rel op (EVar "z0") e2   
+          | PRel (Rel op (EVar _) e2@(EInt _ _)) <- universeBi con ]
+  qZZ   = [ PRel $ substN [EVar "z0", EVar "z1"] xs r
+          | PRel r <- universeBi con 
+          , let fvs = freeVars r, Set.size fvs == 2
+          , xs <- List.permutations $ Set.toList fvs
+          ]
+    
 
 
 solve :: Set KVar -> Con -> Pan (Maybe Assignment)
