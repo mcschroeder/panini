@@ -52,17 +52,10 @@ testMain globalOpts = assert globalOpts.testMode $ do
   runTest :: FilePath -> IO Bool
   runTest inFile = do
     putDoc $ testName inFile
-    outFileExists <- doesFileExist (outFileFor inFile)
-    errFileExists <- doesFileExist (errFileFor inFile)
-    if outFileExists && errFileExists then do
-      putDocLn $ ann Error "ambiguous golden files" <+>
-        pretty [outFileFor inFile, errFileFor inFile]
-      return False
-    else
-      execPan inFile >>= compareResult inFile
+    execPan inFile >>= compareResult inFile
 
   -- TODO: read local options from inFile header comment
-  execPan :: FilePath -> IO (Bool, Seconds, Text)
+  execPan :: FilePath -> IO (Seconds, Text)
   execPan inFile = do
     src <- Text.readFile inFile
 
@@ -87,16 +80,14 @@ testMain globalOpts = assert globalOpts.testMode $ do
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
 
-    let success = either (const False) isRight result
     let output = either viaShow (either pretty (vsep . map pretty . fst)) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
-    return (success, time, actual)
+    return (time, actual)
   
-  compareResult :: FilePath -> (Bool, Seconds, Text) -> IO Bool
-  compareResult inFile (success, time, actual) = do
+  compareResult :: FilePath -> (Seconds, Text) -> IO Bool
+  compareResult inFile (time, actual) = do
     let prettyTime = ann Margin $ parens $ pretty $ showDuration time
-    let goldenFile | success   = outFileFor inFile
-                   | otherwise = errFileFor inFile
+    let goldenFile = outFileFor inFile
     goldenFileExists <- doesFileExist goldenFile
     if goldenFileExists then do
       expected <- Text.readFile goldenFile
@@ -108,35 +99,21 @@ testMain globalOpts = assert globalOpts.testMode $ do
       else do
         putDocLn $ ann Success "OK" <+> prettyTime
         return True
+    else if globalOpts.createGoldenFiles then do        
+      withFile goldenFile WriteMode $ \h -> Text.hPutStr h actual      
+      putDocLn $ 
+        ann Message "created golden file" <+> prettyTime <\>
+        ann Margin (divider symDivH (Just $ Right goldenFile)) <\>
+        pretty actual <\>
+        pretty (ann Margin $ divider symDivH Nothing) <> "\n"
+      return True
     else do
-      let otherFile | success   = errFileFor inFile
-                    | otherwise = outFileFor inFile
-      otherFileExists <- doesFileExist otherFile
-      if otherFileExists then do
-        expected <- Text.readFile otherFile
-        if actual /= expected then do
-          putDocLn $ 
-            ann Error "FAIL" <+> prettyTime <\> 
-            diff otherFile expected actual
-          return False
-        else do
-          putDocLn $ ann Error "FAIL" <+> "wrong exit code" <+> prettyTime
-          return False
-      else if globalOpts.createGoldenFiles then do        
-        withFile goldenFile WriteMode $ \h -> Text.hPutStr h actual      
-        putDocLn $ 
-          ann Message "created golden file" <+> prettyTime <\>
-          ann Margin (divider symDivH (Just $ Right goldenFile)) <\>
-          pretty actual <\>
-          pretty (ann Margin $ divider symDivH Nothing) <> "\n"
-        return True
-      else do
-        putDocLn $ 
-          ann Message "missing golden file" <+> prettyTime <\>
-          ann Margin (divider symDivH (Just $ Right "Output")) <\>
-          pretty actual <\>
-          pretty (ann Margin $ divider symDivH Nothing) <> "\n"
-        return True
+      putDocLn $ 
+        ann Message "missing golden file" <+> prettyTime <\>
+        ann Margin (divider symDivH (Just $ Right "Output")) <\>
+        pretty actual <\>
+        pretty (ann Margin $ divider symDivH Nothing) <> "\n"
+      return True
   
   diff :: FilePath -> Text -> Text -> Doc
   diff expectedFile expected actual = 
@@ -146,9 +123,8 @@ testMain globalOpts = assert globalOpts.testMode $ do
     pretty actual <\>    
     pretty (ann Margin $ divider symDivH Nothing) <> "\n"
 
-  outFileFor, errFileFor :: FilePath -> FilePath
+  outFileFor :: FilePath -> FilePath
   outFileFor = flip replaceExtension ".out"
-  errFileFor = flip replaceExtension ".err"
 
   putDoc :: Doc -> IO ()
   putDoc = putDocStdout globalOpts
