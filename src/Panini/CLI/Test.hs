@@ -11,6 +11,7 @@ import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Elab
+import Panini.Environment
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
@@ -81,7 +82,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       module_ <- liftIO $ getModule inFile
       prog <- parseSource (moduleLocation module_) src
       elaborate module_ prog
-      getVerifiedTypes
+      getVerifiedTypes <$> gets environment
 
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile

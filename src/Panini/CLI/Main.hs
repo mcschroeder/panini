@@ -11,6 +11,7 @@ import Panini.CLI.Options
 import Panini.CLI.REPL
 import Panini.CLI.Test
 import Panini.Elab
+import Panini.Environment
 import Panini.Events
 import Panini.Modules
 import Panini.Monad
@@ -19,10 +20,10 @@ import Panini.Pretty as PP
 import Panini.Provenance
 import Panini.SMT.Z3
 import Prelude
+import System.Console.ANSI
 import System.Environment
 import System.Exit
 import System.IO
-import System.Console.ANSI
 
 -------------------------------------------------------------------------------
 
@@ -71,8 +72,8 @@ batchMain panOpts = do
     prog <- parseSource (moduleLocation module_) src
     elaborate module_ prog
     if panOpts.outputGrammars 
-      then vsep . map pretty <$> getVerifiedGrammars
-      else vsep . map pretty <$> getVerifiedTypes
+      then vsep . map pretty . getVerifiedGrammars <$> gets environment
+      else vsep . map pretty . getVerifiedTypes <$> gets environment
   
   whenJust traceFile hClose
 
