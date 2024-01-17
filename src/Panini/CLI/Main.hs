@@ -78,7 +78,7 @@ batchMain panOpts = do
 
   case result of
     Left  _ -> exitFailure
-    Right doc
+    Right (doc,_)
       | Just outFile <- panOpts.outputFile -> do
           withFile outFile WriteMode $ putDocFile panOpts doc
           exitSuccess

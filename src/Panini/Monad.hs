@@ -46,9 +46,11 @@ import Prelude
 -- | /Panini/ monad.
 type Pan = StateT PanState (ExceptT Error IO)
 
--- TODO: return state as well
-runPan :: PanState -> Pan a -> IO (Either Error a)
-runPan s0 m = runExceptT $ evalStateT m' s0
+-- | Run an action in the /Panini/ monad with the given starting state. Returns
+-- either an unrecoverable error or the result of the computation and the final
+-- state (which might contain other kinds of errors and warnings).
+runPan :: PanState -> Pan a -> IO (Either Error (a, PanState))
+runPan s0 m = runExceptT $ runStateT m' s0
   where
     m' = m `catchError` \e -> logError e >> throwError e
 

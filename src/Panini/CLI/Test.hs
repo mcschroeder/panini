@@ -87,7 +87,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
     when globalOpts.trace $ putDoc $ testName inFile
 
     let success = either (const False) isRight result
-    let output = either viaShow (either pretty (vsep . map pretty)) result
+    let output = either viaShow (either pretty (vsep . map pretty . fst)) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
     return (success, time, actual)
   
