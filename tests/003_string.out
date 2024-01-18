@@ -1,0 +1,18 @@
+tests/003_string.pan:13:6-13: error:
+  {_:𝕊 | _ = "hello"} is not a subtype of {v:𝕊 | v = "goodbye"}
+tests/003_string.pan:16:6-13: error:
+  𝕊 is not a subtype of 𝟙
+tests/003_string.pan:19:6-13: error:
+  𝕊 is not a subtype of 𝟙
+tests/003_string.pan:22:6-13: error:
+  𝕊 is not a subtype of 𝔹
+tests/003_string.pan:25:6-13: error:
+  𝕊 is not a subtype of 𝔹
+tests/003_string.pan:28:6-13: error:
+  𝕊 is not a subtype of ℤ
+tests/003_string.pan:31:7-14: error:
+  𝕊 is not a subtype of ℤ
+f0 : 𝕊
+f1 : 𝕊
+f2 : {v:𝕊 | v = "hello"}
+f3 : {v:𝕊 | v = "hello"}

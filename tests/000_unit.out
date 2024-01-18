@@ -1,0 +1,18 @@
+tests/000_unit.pan:16:6-10: error:
+  𝟙 is not a subtype of ℤ
+tests/000_unit.pan:19:6-10: error:
+  𝟙 is not a subtype of 𝔹
+tests/000_unit.pan:22:6-10: error:
+  𝟙 is not a subtype of 𝕊
+tests/000_unit.pan:25:6-10: error:
+  𝟙 is not a subtype of ℤ
+tests/000_unit.pan:28:6-10: error:
+  𝟙 is not a subtype of 𝔹
+tests/000_unit.pan:31:7-11: error:
+  𝟙 is not a subtype of 𝕊
+f0 : 𝟙
+f1 : 𝟙
+f2 : {v:𝟙 | true}
+f3 : {v:𝟙 | false}
+f4 : {v:𝟙 | v = unit}
+f11 : {v:𝟙 | v = unit}

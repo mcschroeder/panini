@@ -1,0 +1,36 @@
+tests/001_bool.pan:24:7-11: error:
+  {_:𝔹 | _ = true} is not a subtype of {v:𝔹 | v = false}
+tests/001_bool.pan:27:7-12: error:
+  {_:𝔹 | _ = false} is not a subtype of {v:𝔹 | v = true}
+tests/001_bool.pan:30:7-11: error:
+  𝔹 is not a subtype of 𝟙
+tests/001_bool.pan:33:7-12: error:
+  𝔹 is not a subtype of 𝟙
+tests/001_bool.pan:36:7-11: error:
+  𝔹 is not a subtype of 𝟙
+tests/001_bool.pan:39:7-12: error:
+  𝔹 is not a subtype of 𝟙
+tests/001_bool.pan:42:7-11: error:
+  𝔹 is not a subtype of ℤ
+tests/001_bool.pan:45:7-12: error:
+  𝔹 is not a subtype of ℤ
+tests/001_bool.pan:48:7-11: error:
+  𝔹 is not a subtype of ℤ
+tests/001_bool.pan:51:7-12: error:
+  𝔹 is not a subtype of ℤ
+tests/001_bool.pan:54:7-12: error:
+  𝔹 is not a subtype of 𝕊
+tests/001_bool.pan:57:7-12: error:
+  𝔹 is not a subtype of 𝕊
+tests/001_bool.pan:60:7-12: error:
+  𝔹 is not a subtype of 𝕊
+tests/001_bool.pan:63:7-12: error:
+  𝔹 is not a subtype of 𝕊
+f0 : 𝔹
+f1 : 𝔹
+f2 : 𝔹
+f3 : 𝔹
+f4 : {v:𝔹 | v = true}
+f5 : {v:𝔹 | v = false}
+f6 : {v:𝔹 | v = true}
+f7 : {v:𝔹 | v = false}

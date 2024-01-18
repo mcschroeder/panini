@@ -1,0 +1,10 @@
+f0 : {v:𝟙 | true}
+f1 : {v:𝟙 | false}
+f2 : {v:𝟙 | true}
+f3 : {v:𝟙 | false}
+f4 : {n:ℤ | true} → {v:𝟙 | false}
+f5 : {n:ℤ | n = 1} → {v:𝟙 | true}
+f6 : {n:ℤ | n ≠ 1} → {v:𝟙 | false}
+f7 : {n:ℤ | n = 1} → {v:𝟙 | true}
+f8 : {n:ℤ | n = 1} → {v:𝟙 | true}
+f8 : {n:ℤ | n = 2} → {v:𝟙 | false}

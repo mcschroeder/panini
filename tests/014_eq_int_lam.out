@@ -1,0 +1,18 @@
+tests/014_eq_int_lam.pan:33:1-4: error:
+  • Unable to validate verification condition for f10
+tests/014_eq_int_lam.pan:36:1-4: error:
+  • Unable to validate verification condition for f11
+f0 : {x:ℤ | true} → {c:𝔹 | c = true ⇔ x = 1}
+f1 : ℤ → 𝔹
+f2 : {n:ℤ | true} → 𝔹
+f3 : ℤ → {v:𝔹 | true}
+f4 : {n:ℤ | true} → {v:𝔹 | v = true ⇔ n = 1}
+f5 : {n:ℤ | n = 1} → {v:𝔹 | v = true}
+f6 : {n:ℤ | n = 1} → {v:𝔹 | v = true}
+f7 : {n:ℤ | n ≠ 1} → {v:𝔹 | v = false}
+f8 : {n:ℤ | n = 2} → {v:𝔹 | v = false}
+f9 : {n:ℤ | n = 1} → {v:𝔹 | v = true}
+f12 : {n:ℤ | n = 2} → {v:𝔹 | v = false}
+f13 : {n:ℤ | n ≥ 1} → {v:𝔹 | v = true ⇔ n = 1}
+f14 : {n:ℤ | n > 1} → {v:𝔹 | v = false}
+f15 : {n:ℤ | n > 1} → {v:𝔹 | v = false}
