@@ -47,16 +47,18 @@ envExtend x d = modify' $ \s -> s
 -- | Convert an elaborator environment to a typechecking context by throwing
 -- away all non-final definitions.
 envToContext :: Environment -> Context 
-envToContext = Map.map go
-  where
-    go (Assumed {_type}) = _type
-    go (Verified {_solvedType}) = _solvedType
+envToContext = Map.mapMaybe $ \case
+  Assumed {_type} -> Just _type    
+  Verified {_solvedType} -> Just _solvedType
+  _ -> Nothing
 
 -------------------------------------------------------------------------------
 
 -- | Elaborate a program by elaborating all of its statments and updating the
--- environment accordingly. If elaboration fails at any point, an error is
--- thrown and any intermittent changes to the environment are rolled back.
+-- environment accordingly. If an unrecoverable error occurs, any intermittent
+-- changes to the environment are rolled back. Note that errors during type
+-- inference or VC solving usually merely result in a 'Rejected' or 'Invalid'
+-- definition to be stored in the environment and will *not* cause any rollback.
 elaborate :: Module -> Program -> Pan ()
 elaborate thisModule prog = do
   env0 <- get
@@ -93,40 +95,53 @@ define x e = do
   t0m <- envLookup x >>= \case
     Nothing                -> return Nothing
     Just (Assumed {_type}) -> return $ Just _type
-    Just (Verified {})     -> throwError $ AlreadyDefined x
+    Just _                 -> throwError $ AlreadyDefined x
 
   logMessage "Prepare typing context Γ"
   g <- envToContext <$> gets environment
   logData g
 
   logMessage $ "Infer type of" <+> pretty x
-  (t1,vc) <- case t0m of
-    Nothing -> infer g e
-    Just t0 -> infer g $ Rec x t0 e (Val (Var x)) NoPV  
-  logData t1
+  let e1 = maybe e (\t0 -> Rec x t0 e (Val (Var x)) NoPV) t0m
+  tryError (infer g e1) >>= \case
+    Left err -> do
+      logError err
+      envExtend x $ Rejected x t0m e err
 
-  let ks_ex = kvars t1
-  logMessage $ "Top-level type holes:" <+> pretty ks_ex
+    Right (t1,vc) -> do
+      logData t1
 
-  logMessage "Solve VC"
-  logData vc
-  solve ks_ex vc >>= \case
-    Just s -> do
-      logMessage "Apply solution to type"
-      let t2 = apply s t1
-      logData t2
+      envExtend x $ Inferred x t0m e t1 vc
+        
+      let ks_ex = kvars t1
+      logMessage $ "Top-level type holes:" <+> pretty ks_ex
+
+      logMessage "Solve VC"
+      logData vc
+      tryError (solve ks_ex vc) >>= \case
+        Left err2 -> do
+          logError err2
+          envExtend x $ Invalid x t0m e t1 vc err2
+
+        Right Nothing -> do
+          let err2 = InvalidVC x vc
+          logError err2
+          envExtend x $ Invalid x t0m e t1 vc err2
+
+        Right (Just s) -> do
+          logMessage "Apply solution to type"
+          let t2 = apply s t1
+          logData t2
       
-      logMessage $ "Match inferred type against" <+> pretty t0m
-      t3 <- case t0m of
-        Nothing -> return t2
-        Just t̃ -> matchTypeSig t2 t̃
-      logData t3
+          logMessage $ "Match inferred type against" <+> pretty t0m
+          t3 <- case t0m of
+            Nothing -> return t2
+            Just t̃ -> matchTypeSig t2 t̃
+          logData t3
       
-      envExtend x $ Verified x t0m e t1 vc s t3
-    
-    Nothing -> do
-      throwError $ InvalidVC x vc
+          envExtend x $ Verified x t0m e t1 vc s t3
 
+-- TODO: attach proper warning type to definition in environment
 -- TODO: rename inferred vars to match provided sig?
 -- | Match an inferred type signature against a user-provided annotation.
 matchTypeSig :: Type -> Type -> Pan Type

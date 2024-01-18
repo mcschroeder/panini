@@ -79,14 +79,14 @@ batchMain panOpts = do
 
   case result of
     Left  _ -> exitFailure
-    Right (doc,_)
-      | Just outFile <- panOpts.outputFile -> do
-          withFile outFile WriteMode $ putDocFile panOpts doc
-          exitSuccess
-
-      | otherwise -> do
-          putDocStdout panOpts $ doc <> "\n"
-          exitSuccess
+    Right (doc,panState1) -> do
+      case panOpts.outputFile of
+        Just outFile -> withFile outFile WriteMode $ putDocFile panOpts doc
+        Nothing -> putDocStdout panOpts $ doc <> "\n"
+      if null $ getTypeErrors panState1.environment
+        then exitSuccess
+        else exitFailure
+      
 
 -- TODO: duplicate of function in Panini.CLI.REPL
 addSourceLinesToError :: Pan a -> Pan a

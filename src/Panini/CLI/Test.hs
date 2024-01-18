@@ -75,12 +75,13 @@ testMain globalOpts = assert globalOpts.testMode $ do
       module_ <- liftIO $ getModule inFile
       prog <- parseSource (moduleLocation module_) src
       elaborate module_ prog
-      getVerifiedTypes <$> gets environment
+      (es,ts) <- liftM2 (,) getTypeErrors getVerifiedTypes <$> gets environment
+      return $ vsep $ (map pretty es) ++ (map pretty ts)
 
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
 
-    let output = either viaShow (either pretty (vsep . map pretty . fst)) result
+    let output = either viaShow (either pretty fst) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
     return (time, actual)
   

@@ -14,7 +14,6 @@ import Data.Char (isSpace, toLower)
 import Data.Function
 import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.List qualified as List
-import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.CLI.Options
@@ -148,12 +147,21 @@ showEnv panOpts "modules" = do
   env <- lift get
   liftIO $ putDocStdout panOpts $ prettyList env.loadedModules <> "\n"
 showEnv panOpts _ = do
-  env <- lift get
-  forM_ (Map.toAscList env.environment) $ \case
-    (_,Assumed{_name,_type}) -> liftIO $ putDocStdout panOpts $ 
-      pretty _name <+> ":" <+> pretty _type <> "\n"
-    (_,Verified{_name,_solvedType}) -> liftIO $ putDocStdout panOpts $ 
-      pretty _name <+> ":" <+> pretty _solvedType <> "\n"
+  env <- lift $ gets environment
+  let doc = vsep $ map prettyDef $ sortedDefinitions env
+  liftIO $ putDocStdout panOpts (doc <> "\n")
+ where
+  prettyDef = \case
+    Assumed{_name,_type} -> 
+      "⊢" <+> pretty _name <+> colon <+> pretty _type
+    Rejected{_name,_error} -> hang 2 $ 
+      "↯" <+> pretty _name <\> pretty _error
+    Inferred{_name,_inferredType} -> 
+      "⊢" <+> pretty _name <+> colon <+> pretty _inferredType
+    Invalid{_name,_inferredType,_error} -> hang 2 $ 
+      "↯" <+> pretty _name <+> colon <+> pretty _inferredType <\> pretty _error
+    Verified{_name,_solvedType} -> 
+      "⊨" <+> pretty _name <+> colon <+> pretty _solvedType
 
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do
