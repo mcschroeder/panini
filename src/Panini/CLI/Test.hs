@@ -125,7 +125,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
     pretty (ann Margin $ divider symDivH Nothing) <> "\n"
 
   outFileFor :: FilePath -> FilePath
-  outFileFor = flip replaceExtension ".out"
+  outFileFor = flip addExtension ".out"
 
   putDoc :: Doc -> IO ()
   putDoc = putDocStdout globalOpts

@@ -41,11 +41,11 @@ opts = info
         \ Panini launches into a REPL. If stdin is not interactive, or the\
         \ --no-input flag is passed, input is read from stdin."
       , "If the --test flag is passed, Panini runs in test mode: if INPUT is\
-        \ a file, any output is compared against a correspondingly named\
-        \ \"golden file\" with an extension of .out; if INPUT is a directory,\
-        \ all files matching INPUT/*.pan will be processed and their outputs\ 
-        \ compared against the corresponding golden files; if no INPUT is\
-        \ given, it is per default assumed to be a directory named \"tests\".\ 
+        \ a file, any output is compared against a corresponding \"golden\
+        \ file\" named INPUT.out; if INPUT is a directory, all files matching\
+        \ INPUT/*.pan will be processed and their outputs compared against the\
+        \ correspondingly named INPUT/*.pan.out golden files; if no INPUT is\
+        \ given, it is per default assumed to be a directory named \"tests\".\
         \ If any test input file has no matching golden file yet and the\
         \ --create-golden-files flag is passed, a corresponding golden file\
         \ will be automatically created from the current output. Both --trace\
