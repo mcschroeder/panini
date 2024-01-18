@@ -117,7 +117,7 @@ self x = \case
 
 -- | Hole instantiation (▷).
 fresh :: Context -> Type -> Pan Type
-fresh = go . Map.toList
+fresh = go . const [] --Map.toList
   where
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
