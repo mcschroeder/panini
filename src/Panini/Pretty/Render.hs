@@ -33,14 +33,17 @@ renderDoc o =
   go s (STLine i)    = suspend s $ LB.singleton '\n' <> spaces i
   go s (STConcat ds) = mconcat $ map (go s) ds
 
+  go s (STAnn (ASCII t) d) 
+    | not o.unicode = LB.fromText t
+    | otherwise     = go s d
+
   go s (STAnn a d)
-    | ASCII t <- a, not o.unicode = LB.fromText t
-    | Just f <- o.styling         = goColor (f a) s d
-    | otherwise                   = go s d
+    | Just f <- o.styling = goColor (f a) s d
+    | otherwise           = go s d
 
   goColor a s d = case s of
     []  -> sgr (s2sgr a)           <> go (a:s) d <> sgr [Reset]
-    b:_ -> sgr (s2sgr $ sDiff b a) <> go (a:s) d <> sgr (s2sgr $ sDiff a b)
+    b:_ -> sgr (s2sgr $ sDiff b a) <> go (a:s) d <> sgr [Reset] <> sgr (s2sgr b)
 
   sgr [] = mempty
   sgr cs = LB.fromString $ setSGRCode cs
