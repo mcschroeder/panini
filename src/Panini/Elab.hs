@@ -83,7 +83,7 @@ elaborate thisModule prog = do
 assume :: Name -> Type -> Pan ()
 assume x t = do
   logMessage $ "Assume" <+> pretty x <+> ":" <+> pretty t
-  whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x -- TODO: AlreadyAssumed
+  whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
   envExtend x (Assumed x t)
 
 -- | Add a definition to the environment. Infers and verifies the definition's
@@ -124,7 +124,7 @@ define x e = do
           envExtend x $ Invalid x t0m e t1 vc err2
 
         Right Nothing -> do
-          let err2 = InvalidVC x vc
+          let err2 = Unverifiable x vc
           logError err2
           envExtend x $ Invalid x t0m e t1 vc err2
 

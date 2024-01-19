@@ -1,7 +1,5 @@
-tests/014_eq_int_lam.pan:33:1-4: error:
-  • Unable to validate verification condition for f10
-tests/014_eq_int_lam.pan:36:1-4: error:
-  • Unable to validate verification condition for f11
+tests/014_eq_int_lam.pan:33:1-4: error: unable to verify type of f10
+tests/014_eq_int_lam.pan:36:1-4: error: unable to verify type of f11
 f0 : {x:ℤ | true} → {c:𝔹 | c = true ⇔ x = 1}
 f1 : ℤ → 𝔹
 f2 : {n:ℤ | true} → 𝔹

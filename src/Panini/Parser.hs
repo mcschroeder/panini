@@ -61,10 +61,11 @@ parseA :: Parser a -> FilePath -> Text -> Either Error a
 parseA p fp = first transformErrorBundle . parse (p <* eof) fp
 
 transformErrorBundle :: ParseErrorBundle Text Void -> Error
-transformErrorBundle b = ParserError (FromSource loc (Just offLine)) errMsg
+transformErrorBundle b = ParserError errorMessage provenance
   where
+    provenance    = FromSource loc (Just offLine)
     firstError    = NE.head $ b.bundleErrors
-    errMsg        = Text.pack $ parseErrorTextPretty firstError
+    errorMessage  = Text.pack $ parseErrorTextPretty firstError
     offLine       = Text.pack $ fromMaybe "" msline
     (msline, pst) = reachOffset (errorOffset firstError) b.bundlePosState
 

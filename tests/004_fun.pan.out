@@ -1,9 +1,6 @@
-tests/004_fun.pan:?: error:
-  TODO
-tests/004_fun.pan:?: error:
-  TODO
-tests/004_fun.pan:?: error:
-  TODO  
+tests/004_fun.pan:?: error: TODO
+tests/004_fun.pan:?: error: TODO
+tests/004_fun.pan:?: error: TODO
 f0 : ℤ → 𝟙
 f1 : ℤ → 𝟙
 f2 : {v:ℤ | true} → {w:𝟙 | true}

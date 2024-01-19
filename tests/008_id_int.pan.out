@@ -1,9 +1,6 @@
-tests/008_id_int.pan:21:1-3: error:
-  • Unable to validate verification condition for f6
-tests/008_id_int.pan:44:1-4: error:
-  • Unable to validate verification condition for f14
-tests/008_id_int.pan:53:1-4: error:
-  • Unable to validate verification condition for f17
+tests/008_id_int.pan:21:1-3: error: unable to verify type of f6
+tests/008_id_int.pan:44:1-4: error: unable to verify type of f14
+tests/008_id_int.pan:53:1-4: error: unable to verify type of f17
 f0 : ℤ
 f1 : ℤ
 f2 : {n:ℤ | n = 0}

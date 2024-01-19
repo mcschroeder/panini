@@ -32,7 +32,7 @@ infer g = \case
   -- inf/var ----------------------------------------------
   Val (Var x) -> do
     case Map.lookup x g of
-      Nothing -> throwError $ VarNotInScope x
+      Nothing -> throwError $ UnknownVar x
       Just t -> return $ (self x t, CTrue) `withPV` getPV x
   
   -- inf/con ----------------------------------------------

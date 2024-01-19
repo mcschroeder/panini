@@ -95,7 +95,7 @@ tryIO :: PV -> IO a -> Pan a
 tryIO pv m = do
   r <- liftIO $ try @IOException m
   case r of
-    Left err -> throwError $ IOError pv $ displayException err
+    Left err -> throwError $ IOError (displayException err) pv
     Right a -> return a
 
 -------------------------------------------------------------------------------

@@ -14,10 +14,13 @@ import Panini.Error
 import Panini.Events
 import Panini.Monad
 import Panini.Pretty
+import Panini.Provenance
 import Panini.SMT.SMTLIB
 import Prelude
 import System.Exit
 import System.Process
+
+-- TODO: add provenance to solver errors
 
 -------------------------------------------------------------------------------
 
@@ -26,9 +29,9 @@ smtInit = do
   r <- liftIO $ try @IOException $ readProcessWithExitCode "z3" ["-version"] ""
   let solverError e = SolverError $ "Unable to initialize Z3:\n" <> Text.pack e
   case r of
-    Left err -> throwError $ solverError $ show err
+    Left err -> throwError $ solverError (show err) NoPV
     Right (code, output, _) -> case code of
-      ExitFailure _ -> throwError $ solverError output
+      ExitFailure _ -> throwError $ solverError output NoPV
       ExitSuccess -> do
         logEvent $ SMTSolverInitialized $ dropWhileEnd isSpace output
         timeout <- gets smtTimeout
@@ -53,6 +56,6 @@ smtValid cs = do
     ExitSuccess -> case dropWhileEnd isSpace output of
       "sat"   -> return True
       "unsat" -> return False
-      x       -> throwError $ SolverError $ Text.pack x
-    ExitFailure _ -> throwError $ SolverError $ Text.pack output
+      x       -> throwError $ SolverError (Text.pack x) NoPV
+    ExitFailure _ -> throwError $ SolverError (Text.pack output) NoPV
 

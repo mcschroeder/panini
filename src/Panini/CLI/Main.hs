@@ -25,6 +25,8 @@ import System.Environment
 import System.Exit
 import System.IO
 
+-- TODO: add source lines to errors that are only logged (at point of printing?)
+
 -------------------------------------------------------------------------------
 
 main :: IO ()

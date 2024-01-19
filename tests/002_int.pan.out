@@ -1,23 +1,13 @@
-tests/002_int.pan:22:7-8: error:
-  {_:ℤ | _ = 1} is not a subtype of {v:ℤ | v = 2}
-tests/002_int.pan:25:7-8: error:
-  {_:ℤ | _ = 1} is not a subtype of {v:ℤ | v > 2}
-tests/002_int.pan:28:7-8: error:
-  {_:ℤ | _ = 1} is not a subtype of {v:ℤ | v < 1}
-tests/002_int.pan:31:7-8: error:
-  {_:ℤ | _ = 1} is not a subtype of {v:ℤ | v ≠ 1}
-tests/002_int.pan:34:7-8: error:
-  ℤ is not a subtype of 𝟙
-tests/002_int.pan:37:7-8: error:
-  ℤ is not a subtype of 𝟙
-tests/002_int.pan:40:7-8: error:
-  ℤ is not a subtype of 𝔹
-tests/002_int.pan:43:7-8: error:
-  ℤ is not a subtype of 𝔹
-tests/002_int.pan:46:7-8: error:
-  ℤ is not a subtype of 𝕊
-tests/002_int.pan:49:7-8: error:
-  ℤ is not a subtype of 𝕊
+tests/002_int.pan:22:7-8: error: invalid subtype: {_:ℤ | _ = 1} <: {v:ℤ | v = 2}
+tests/002_int.pan:25:7-8: error: invalid subtype: {_:ℤ | _ = 1} <: {v:ℤ | v > 2}
+tests/002_int.pan:28:7-8: error: invalid subtype: {_:ℤ | _ = 1} <: {v:ℤ | v < 1}
+tests/002_int.pan:31:7-8: error: invalid subtype: {_:ℤ | _ = 1} <: {v:ℤ | v ≠ 1}
+tests/002_int.pan:34:7-8: error: invalid subtype: ℤ <: 𝟙
+tests/002_int.pan:37:7-8: error: invalid subtype: ℤ <: 𝟙
+tests/002_int.pan:40:7-8: error: invalid subtype: ℤ <: 𝔹
+tests/002_int.pan:43:7-8: error: invalid subtype: ℤ <: 𝔹
+tests/002_int.pan:46:7-8: error: invalid subtype: ℤ <: 𝕊
+tests/002_int.pan:49:7-8: error: invalid subtype: ℤ <: 𝕊
 f0 : ℤ
 f1 : ℤ
 f2 : {v:ℤ | v = 1}

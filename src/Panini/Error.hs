@@ -1,6 +1,5 @@
 module Panini.Error where
 
-import Data.List qualified as List
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Pretty
@@ -8,129 +7,76 @@ import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Prettyprinter qualified as PP
 
 -------------------------------------------------------------------------------
 
 data Error
   = AlreadyDefined Name
-  | VarNotInScope Name
-  | MissingType Name
-  | InvalidSubtypeBase (Type,Base) (Type,Base)  -- TODO: do we need this?
+  | UnknownVar Name
   | InvalidSubtype Type Type
   | ExpectedFunType Term Type
-  | CantSynth Term
-  | ParserError PV Text
-  | SolverError Text
-  | InvalidVC Name Con
-  | IOError PV String
+  | ParserError Text PV
+  | SolverError Text PV
+  | Unverifiable Name Con
+  | IOError String PV
   | AbstractionImpossible Name Rel Rel
-  | ConcretizationImpossible Expr Name
-  | MeetImpossible Expr Expr PV
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
-  getPV (AlreadyDefined x) = getPV x
-  getPV (VarNotInScope x) = getPV x
-  getPV (MissingType x) = getPV x
-  getPV (InvalidSubtypeBase (t,_) _) = getPV t
-  getPV (InvalidSubtype t _) = getPV t
-  getPV (ExpectedFunType _e _) = NoPV --getPV e
-  getPV (CantSynth _e) = NoPV --getPV e
-  getPV (ParserError pv _) = pv
-  getPV (SolverError _) = NoPV
-  getPV (InvalidVC x _) = getPV x
-  getPV (IOError pv _) = pv
-  getPV (AbstractionImpossible x _ _) = getPV x -- TODO: ?
-  getPV (ConcretizationImpossible _ x) = getPV x -- TODO: ?
-  getPV (MeetImpossible _ _ pv) = pv
-
-  setPV pv (AlreadyDefined x) = AlreadyDefined (setPV pv x)
-  setPV pv (VarNotInScope x) = VarNotInScope (setPV pv x)
-  setPV pv (MissingType x) = MissingType (setPV pv x)
-  setPV pv (InvalidSubtypeBase (t1,b1) y) = InvalidSubtypeBase (setPV pv t1, b1) y
-  setPV pv (InvalidSubtype t1 t2) = InvalidSubtype (setPV pv t1) t2
-  setPV _ e@(ExpectedFunType _e _) = e -- TODO
-  setPV _ e@(CantSynth _e) = e -- TODO
-  setPV pv (ParserError _ e) = ParserError pv e
-  setPV _ e@(SolverError _) = e
-  setPV pv (InvalidVC x vc) = InvalidVC (setPV pv x) vc
-  setPV pv (IOError _ e) = IOError pv e
-  setPV pv (AbstractionImpossible x r1 r2) = AbstractionImpossible (setPV pv x) r1 r2
-  setPV pv (ConcretizationImpossible e x) = ConcretizationImpossible e (setPV pv x)
-  setPV pv (MeetImpossible e1 e2 _) = MeetImpossible e1 e2 pv
+  getPV = \case
+    AlreadyDefined x              -> getPV x
+    UnknownVar x                  -> getPV x
+    InvalidSubtype t _            -> getPV t
+    ExpectedFunType _e _          -> NoPV -- TODO: getPV e
+    ParserError _ pv              -> pv
+    SolverError _ pv              -> pv
+    Unverifiable x _              -> getPV x
+    IOError _ pv                  -> pv
+    AbstractionImpossible x _r1 _ -> getPV x -- TODO: getPV r1
+  
+  setPV pv = \case
+    AlreadyDefined x              -> AlreadyDefined (setPV pv x)
+    UnknownVar x                  -> UnknownVar (setPV pv x)
+    InvalidSubtype t1 t2          -> InvalidSubtype (setPV pv t1) t2
+    ExpectedFunType e t           -> ExpectedFunType e t -- TODO: setPV e
+    ParserError e _               -> ParserError e pv
+    SolverError e _               -> SolverError e pv
+    Unverifiable x vc             -> Unverifiable (setPV pv x) vc
+    IOError e _                   -> IOError e pv
+    AbstractionImpossible x r1 r2 -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
 
 -------------------------------------------------------------------------------
 
 instance Pretty Error where
-  pretty e = case prettyLoc $ getPV e of
-    (loc, Just src) -> message loc <\\> src
-    (loc, Nothing ) -> message loc
-    where
-      message o  = nest 2 (header o <\\> reason)
-      header o   = ann Message (o <> ":" <+> ann Error "error:")
-      reason     = prettyErrorMessage e
+  pretty = prettyError
+
+prettyError :: Error -> Doc
+prettyError err = nest 2 $ ann Message (header <+> group message) <> source
+ where
+  (loc,src) = prettyLoc $ getPV err
+  header    = loc <> ":" <+> ann Error "error" <> ":"
+  source    = (maybe mempty (PP.hardline <>) src)
+  message   = prettyErrorMessage err
+
+prettyErrorMessage :: Error -> Doc
+prettyErrorMessage = \case
+  AlreadyDefined x     -> "multiple definitions for" <\> pretty x    
+  UnknownVar x         -> "unknown variable" <\> pretty x        
+  InvalidSubtype t1 t2 -> "invalid subtype:" <\> pretty t1 <+> "<:" <+> pretty t2
+  ExpectedFunType _ t  -> "invalid function type:" <\> pretty t
+  ParserError e _      -> pretty $ Text.stripEnd e
+  SolverError e _      -> "unexpected SMT solver output:" <\> pretty e
+  Unverifiable x _     -> "unable to verify type of" <\> pretty x    
+  IOError e _          -> pretty $ Text.pack e  
+  AbstractionImpossible x _ r2 -> 
+    "abstraction impossible:" <\> "⟦" <> pretty r2 <> "⟧↑" <> pretty x
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
 prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))
 prettyLoc (FromSource l Nothing) = (pretty l, Nothing)
 prettyLoc (Derived pv _) = prettyLoc pv
 prettyLoc NoPV = ("<unknown location>", Nothing)
-
-prettyErrorMessage :: Error -> Doc
-prettyErrorMessage = \case
-  AlreadyDefined x -> pretty x <+> msg "is already defined"    
-  VarNotInScope n -> msg "Variable not in scope:" <+> pretty n  
-  MissingType n -> msg "Missing type definition for" <+> pretty n  
-  
-  InvalidSubtypeBase (t1,b1) (t2,b2) -> bullets
-    [ pretty b1 <+> msg "is not a subtype of" <+> pretty b2
-    , group $ nest 4 (msg "Therefore," <\> pretty t1) <\> 
-      nest 4 (msg "is not a subtype of" <\> pretty t2)
-    ]  
-  
-  InvalidSubtype t1 t2 -> 
-    pretty t1 <+> msg "is not a subtype of" <+> pretty t2  
-  
-  ExpectedFunType e t -> bullets
-    [ pretty t <+> msg "is not a function type"
-    , group $ nest 4 $ msg "Expected a function type for expression:" <\> 
-      pretty e
-    ]
-
-  CantSynth e -> 
-    group $ nest 4 $ msg "Can't synthesize type for expression:" <\> pretty e
-
-  ParserError _ e -> msg $ Text.stripEnd e
-
-  SolverError e -> bullets
-    [ msg "The SMT solver returned some unexpected output:" <\> pretty e ]
-  
-  InvalidVC x _ -> bullets
-    [ msg "Unable to validate verification condition for" <+> pretty x ]
-
-  IOError _ e -> msg $ Text.pack e
-
-  AbstractionImpossible x r1 r2 -> bullets
-    [ group $ nest 4 $ msg "Abstraction impossible:" <\> 
-        "⟦" <> pretty r2 <> "⟧↑" <> pretty x
-    , group $ nest 4 $ msg "Original expression:" <\>
-        "⟦" <> pretty r1 <> "⟧↑" <> pretty x
-    ]
-  
-  ConcretizationImpossible e x -> bullets
-    [ group $ nest 4 $ msg "Concretization impossible:" <\> 
-        "⟦" <> pretty e <> "⟧↓" <> pretty x 
-    ]
-
-  MeetImpossible e1 e2 _ -> bullets
-    [ group $ 
-        (nest 4 $ msg "Cannot meet" <\> pretty e1) <\> 
-        (nest 4 $ msg "with" <\> pretty e2)
-    ]
-
-  where
-    msg     = ann Message . pretty @Text
-    bullets = mconcat . List.intersperse "\n" . map (\d -> "•" <+> align d)
 
 wavyDiagnostic :: SrcLoc -> Text -> Doc
 wavyDiagnostic (SrcLoc _ (l1,c1) (l2,c2)) s =
