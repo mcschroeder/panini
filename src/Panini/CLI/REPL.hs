@@ -34,7 +34,7 @@ import System.Exit
 import System.FilePath
 import System.IO
 
--- TODO: add source lines to errors that are only logged (at point of printing?)
+-- TODO: add source lines to PV for <repl> module sources
 
 -------------------------------------------------------------------------------
 
@@ -50,7 +50,8 @@ replMain panOpts = do
 
   traceFile <- whenMaybe panOpts.traceToFile (openLogFileFor "repl")
 
-  let eventHandler ev = do
+  let eventHandler ev0 = do
+        ev <- updatePV addSourceLines ev0
         whenJust traceFile (putEventFile panOpts ev)
         when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
         -- TODO: consider logging with getExternalPrint instead of to stderr
@@ -137,7 +138,7 @@ loadFiles :: [String] -> InputT Pan ()
 loadFiles = mapM_ loadFile
 
 loadFile :: FilePath -> InputT Pan ()
-loadFile f = lift $ continueOnError $ addSourceLinesToError $ do
+loadFile f = lift $ continueOnError $ do
   module_ <- tryIO NoPV $ getModule f
   src <- tryIO NoPV $ Text.readFile $ moduleLocation module_
   prog <- parseSource (moduleLocation module_) src
@@ -166,7 +167,7 @@ showEnv panOpts _ = do
       "⊨" <+> pretty _name <+> colon <+> pretty _solvedType
 
 evaluateInput :: String -> InputT Pan ()
-evaluateInput input = lift $ continueOnError $ addREPLInputToError input $ do
+evaluateInput input = lift $ continueOnError $ do
   let src = Text.pack input
   prog <- parseSource "<repl>" src
   elaborate replModule prog
@@ -198,26 +199,3 @@ autocomplete = (sorted <$>) . fallbackCompletion completeCommands completeFiles
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace
 
     sorted (r,cs) = (r, List.sortBy (compare `on` display) cs)
-
--------------------------------------------------------------------------------
-
-addSourceLinesToError :: Pan a -> Pan a
-addSourceLinesToError m = m `catchError` \err ->
-  throwError =<< updatePV (liftIO . addSourceLines) err
-
-addREPLInputToError :: String -> Pan a -> Pan a
-addREPLInputToError input m = m `catchError` \err -> 
-  throwError =<< updatePV (liftIO . addSourceLinesREPL input) err
-
-addSourceLinesREPL :: String -> PV -> IO PV
-addSourceLinesREPL input (FromSource loc Nothing) | loc.file == "<repl>" = do
-  let src = head $ lines $ extractLines loc.begin loc.end input
-  pure $ FromSource loc (Just $ Text.pack src)
-addSourceLinesREPL input (Derived pv x) = do
-  pv' <- addSourceLinesREPL input pv
-  return $ Derived pv' x
-addSourceLinesREPL _ pv = addSourceLines pv
-
-extractLines :: (Int,Int) -> (Int,Int) -> String -> String
-extractLines (l1,_) (l2,_) = 
-  unlines . take (l2 + 1 - l1) . drop (l1 - 1) . lines
