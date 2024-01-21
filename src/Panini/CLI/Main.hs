@@ -25,8 +25,6 @@ import System.Environment
 import System.Exit
 import System.IO
 
--- TODO: add source lines to errors that are only logged (at point of printing?)
-
 -------------------------------------------------------------------------------
 
 main :: IO ()
@@ -53,7 +51,8 @@ batchMain panOpts = do
   traceFile <- whenMaybe panOpts.traceToFile 
                 (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)
       
-  let eventHandler ev = do
+  let eventHandler ev0 = do
+        ev <- updatePV addSourceLines ev0
         whenJust traceFile (putEventFile panOpts ev)
         when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
 
@@ -63,7 +62,7 @@ batchMain panOpts = do
         }
 
   -- TODO: add source lines for <stdin>
-  result <- runPan panState0 $ addSourceLinesToError $ do
+  result <- runPan panState0 $ do
     smtInit
     module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
     logMessage $ "Read" <+> pretty module_
@@ -88,9 +87,3 @@ batchMain panOpts = do
       if null $ getTypeErrors panState1.environment
         then exitSuccess
         else exitFailure
-      
-
--- TODO: duplicate of function in Panini.CLI.REPL
-addSourceLinesToError :: Pan a -> Pan a
-addSourceLinesToError m = m `catchError` \err ->
-  throwError =<< updatePV (liftIO . addSourceLines) err

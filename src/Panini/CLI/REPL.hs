@@ -34,6 +34,8 @@ import System.Exit
 import System.FilePath
 import System.IO
 
+-- TODO: add source lines to errors that are only logged (at point of printing?)
+
 -------------------------------------------------------------------------------
 
 replMain :: PanOptions -> IO ()

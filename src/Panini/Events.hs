@@ -2,6 +2,7 @@ module Panini.Events where
 
 import Panini.Error
 import Panini.Pretty
+import Panini.Provenance
 import Prelude
 
 -------------------------------------------------------------------------------
@@ -11,6 +12,15 @@ data Event
   | LogMessage String Doc
   | LogData String Doc
   | SMTSolverInitialized { _version :: String }
+
+instance HasProvenance Event where
+  getPV = \case
+    ErrorEvent e -> getPV e
+    _ -> NoPV
+  
+  setPV pv = \case
+    ErrorEvent e -> ErrorEvent (setPV pv e)
+    e -> e
 
 -- TODO: move this kind of formatting out of here
 prettyEvent :: Event -> Doc
