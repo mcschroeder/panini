@@ -21,16 +21,20 @@ data RenderOptions = RenderOptions
   }
 
 renderDoc :: RenderOptions -> Doc -> Text
-renderDoc o = 
-  LT.toStrict . LB.toLazyText . go [] . treeForm . PP.layoutSmart layoutOpt
+renderDoc o =
+  LT.toStrict . LB.toLazyText . go0 . treeForm . PP.layoutSmart layoutOpt
  where  
   layoutOpt = PP.defaultLayoutOptions { PP.layoutPageWidth = pw }
   pw = maybe PP.Unbounded (\w -> PP.AvailablePerLine w 1) o.fixedWidth
 
+  go0 t
+    | null o.styling = go mempty t
+    | otherwise      = sgr [Reset] <> go mempty t <> sgr [Reset]
+
   go _ STEmpty       = mempty
   go _ (STChar c)    = LB.singleton c
   go _ (STText _ t)  = LB.fromText t
-  go s (STLine i)    = suspend s $ LB.singleton '\n' <> spaces i
+  go s (STLine i)    = suspendStyle s $ LB.singleton '\n' <> spaces i
   go s (STConcat ds) = mconcat $ map (go s) ds
 
   go s (STAnn (ASCII t) d) 
@@ -38,41 +42,17 @@ renderDoc o =
     | otherwise     = go s d
 
   go s (STAnn a d)
-    | Just f <- o.styling = goColor (f a) s d
+    | Just f <- o.styling = goStyle s (s <> f a) d
     | otherwise           = go s d
 
-  goColor a s d = case s of
-    []  -> sgr (s2sgr a)           <> go (a:s) d <> sgr [Reset]
-    b:_ -> sgr (s2sgr $ sDiff b a) <> go (a:s) d <> sgr [Reset] <> sgr (s2sgr b)
+  goStyle s0 s1 d = 
+    sgr (toSGR $ delta s0 s1) <> go s1 d <> sgr (Reset : toSGR s0)
+
+  suspendStyle s t
+    | s /= mempty = sgr [Reset] <> t <> sgr (toSGR s)
+    | otherwise   = t
 
   sgr [] = mempty
   sgr cs = LB.fromString $ setSGRCode cs
 
   spaces i = LB.fromText $ Text.replicate i $ Text.singleton ' '
-
-  suspend s d
-    | null s         = d
-    | null o.styling = d
-    | otherwise      = sgr [Reset] <> d <> sgr (concatMap s2sgr s)
-
-sDiff :: Style -> Style -> Style
-sDiff old new = Style 
-  { bold      = diff old.bold new.bold
-  , underline = diff old.underline new.underline
-  , fgColor   = diff old.fgColor new.fgColor
-  , bgColor   = diff old.bgColor new.bgColor
-  }
-  where
-    diff o n = if o == n then Nothing else n
-
-s2sgr :: Style -> [SGR]
-s2sgr new = catMaybes
-  [ SetConsoleIntensity <$> (if' new.bold BoldIntensity NormalIntensity)
-  , SetUnderlining      <$> (if' new.underline SingleUnderline NoUnderline)
-  , uncurry (SetColor Foreground) <$> new.fgColor
-  , uncurry (SetColor Background) <$> new.bgColor
-  ]
-  where
-    if' (Just True ) a _ = Just a
-    if' (Just False) _ b = Just b
-    if' Nothing      _ _ = Nothing
