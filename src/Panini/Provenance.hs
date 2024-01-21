@@ -14,6 +14,7 @@ import Data.Text.Encoding qualified as Text
 import Panini.Pretty
 import Prelude
 import System.IO
+import System.IO.Error
 
 -------------------------------------------------------------------------------
 
@@ -67,12 +68,14 @@ updatePV f a = do
 
 -- | Adds source lines to provenance information, if possible.
 addSourceLines :: PV -> IO PV
-addSourceLines (FromSource loc Nothing) = 
-  FromSource loc . Just <$> readSrcLocLines loc
-addSourceLines (Derived pv x) = do
-  pv' <- addSourceLines pv
-  return $ Derived pv' x
-addSourceLines x = pure x
+addSourceLines = \case
+  FromSource loc Nothing -> do
+    src0 <- tryIOError $ readSrcLocLines loc
+    case src0 of
+      Right src -> return $ FromSource loc (Just src)
+      Left _    -> return $ FromSource loc Nothing
+  Derived pv x -> Derived <$> addSourceLines pv <*> pure x
+  x -> pure x
 
 -- | Returns the *lines* touched by the given `SrcLoc`.
 readSrcLocLines :: SrcLoc -> IO Text
