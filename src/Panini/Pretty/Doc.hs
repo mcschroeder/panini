@@ -29,6 +29,7 @@ data Ann
   | Success               -- ^ Something successful.
   | Margin                -- ^ Marginalia, like line numbers and such.
   | ASCII Text            -- ^ Alternative ASCII version of a Unicode symbol.
+  | NormalWeight          -- ^ Prevent bold styling from being applied.
   deriving stock (Eq, Show, Read)
 
 data IdentKind

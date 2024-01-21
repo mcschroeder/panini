@@ -20,6 +20,7 @@ defaultStyling = \case
   Success              -> bold True <> fgColor Vivid Green
   Margin               -> fgColor Dull Blue
   ASCII _              -> mempty 
+  NormalWeight         -> bold False
 
 -------------------------------------------------------------------------------
 

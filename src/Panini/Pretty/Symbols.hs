@@ -7,8 +7,8 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
-orASCII :: String -> String -> Doc
-orASCII d t = ann (ASCII (fromString t)) (fromString d)
+orASCII :: Doc -> String -> Doc
+orASCII d t = ann (ASCII (fromString t)) d
 
 -------------------------------------------------------------------------------
 
@@ -95,7 +95,7 @@ bigSigma = "Σ" `orASCII` "S"
 epsilon = "ε" `orASCII` "e"
 
 symTUnit, symTBool, symTNat, symTInt, symTString :: Doc
-symTUnit   = ann (Identifier TypeIdent) $ "𝟙" `orASCII` "unit"
+symTUnit   = ann (Identifier TypeIdent) $ ann NormalWeight "𝟙" `orASCII` "unit"
 symTBool   = ann (Identifier TypeIdent) $ "𝔹" `orASCII` "bool"
 symTNat    = ann (Identifier TypeIdent) $ "ℕ" `orASCII` "nat"
 symTInt    = ann (Identifier TypeIdent) $ "ℤ" `orASCII` "int"
