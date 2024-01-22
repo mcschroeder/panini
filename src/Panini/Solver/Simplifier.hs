@@ -41,7 +41,7 @@ simplifyCon = rewrite $ \case
       c                    -> (c, Nothing)
 
   CAll x b p c | p' <- simplifyPred p, p' /= p -> Just $ CAll x b p' c
-  CHead p      | p' <- simplifyPred p, p' /= p -> Just $ CHead p
+  CHead p      | p' <- simplifyPred p, p' /= p -> Just $ CHead p'
 
   _ -> Nothing
 
