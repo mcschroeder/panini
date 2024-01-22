@@ -9,5 +9,5 @@ f0 : 𝟙
 f1 : 𝟙
 f2 : {v:𝟙 | true}
 f3 : {v:𝟙 | false}
-f4 : {v:𝟙 | v = unit}
+f4 : {v:𝟙 | true}
 f11 : {v:𝟙 | v = unit}

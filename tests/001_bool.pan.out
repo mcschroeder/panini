@@ -12,8 +12,8 @@ tests/001_bool.pan:54:7-12: error: invalid subtype: 𝔹 <: 𝕊
 tests/001_bool.pan:57:7-12: error: invalid subtype: 𝔹 <: 𝕊
 tests/001_bool.pan:60:7-12: error: invalid subtype: 𝔹 <: 𝕊
 tests/001_bool.pan:63:7-12: error: invalid subtype: 𝔹 <: 𝕊
-f0 : 𝔹
-f1 : 𝔹
+f0 : {_:𝔹 | _ = true}
+f1 : {_:𝔹 | _ = false}
 f2 : 𝔹
 f3 : 𝔹
 f4 : {v:𝔹 | v = true}
