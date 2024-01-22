@@ -98,6 +98,13 @@ simplifyRel (Rel op e1 e2) = case Rel op (simplifyExpr e1) (simplifyExpr e2) of
   EVar x1 :≠: EVar x2 | x1 == x2 -> cont
   ECon c1 :=: ECon c2 -> if c1 == c2 then taut else cont
   ECon c1 :≠: ECon c2 -> if c1 == c2 then cont else taut
+  
+  -- TODO: we assume here that all Rel are typed correctly!
+  EVar _ :=: ECon (U _) -> taut
+  ECon (U _) :=: EVar _ -> taut
+  EVar _ :≠: ECon (U _) -> cont
+  ECon (U _) :≠: EVar _ -> cont
+  
   EVar x :≠: EBool b pv -> EVar x :=: EBool (not b) pv
   EBool b pv :≠: EVar x -> EBool (not b) pv :=: EVar x
   EInt a _ :>: EInt b _ -> if a >  b then taut else cont
