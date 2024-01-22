@@ -118,10 +118,10 @@ testMain globalOpts = assert globalOpts.testMode $ do
   
   diff :: FilePath -> Text -> Text -> Doc
   diff expectedFile expected actual = 
-    ann Margin (divider symDivH (Just $ Right expectedFile)) <\>
-    pretty expected <\>
     ann Margin (divider symDivH (Just $ Right "Actual Output")) <\>
     pretty actual <\>    
+    ann Margin (divider symDivH (Just $ Right expectedFile)) <\>
+    pretty expected <\>
     pretty (ann Margin $ divider symDivH Nothing) <> "\n"
 
   outFileFor :: FilePath -> FilePath
