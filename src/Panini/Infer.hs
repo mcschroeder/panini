@@ -86,7 +86,7 @@ infer g = \case
     t̂₂ <- fresh g (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
     let c = (cImpl x t̂₁ (c₁ ∧ c̄₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
-    return $ (t₂, c) `withPV` pv
+    return $ (t̂₂, c) `withPV` pv
 
   -- inf/if -----------------------------------------------
   If v e₁ e₂ pv -> do
