@@ -162,8 +162,13 @@ sub lhs rhs = case (lhs, rhs) of
     cₒ <- sub (subst (EVar x₂) x₁ t₁) t₂
     return $ cᵢ ∧ (cImpl x₂ s₂ cₒ)
 
-  _ -> throwError $ InvalidSubtype lhs rhs
+  _ -> throwError $ InvalidSubtype (unfresh lhs) (unfresh rhs)
 
+-- | Replace κ variables with holes again.
+unfresh :: Type -> Type
+unfresh (TBase v b (Known (PAppK _ _)) pv) = TBase v b Unknown pv
+unfresh (TFun x s t pv)                    = TFun x (unfresh s) (unfresh t) pv
+unfresh t                                  = t
 
 -- | Generalized implication that drops binders with non-basic types.
 cImpl :: Name -> Type -> Con -> Con

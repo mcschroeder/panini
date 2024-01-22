@@ -32,3 +32,6 @@ f10 = unit
 
 f11 : {v:unit|v=unit}
 f11 = unit
+
+f12 : {v:int|?}      -- expected error
+f12 = \x:unit. unit
