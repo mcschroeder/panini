@@ -4,6 +4,7 @@ tests/000_unit.pan:22:6-10: error: invalid subtype: 𝟙 <: 𝕊
 tests/000_unit.pan:25:6-10: error: invalid subtype: 𝟙 <: ℤ
 tests/000_unit.pan:28:6-10: error: invalid subtype: 𝟙 <: 𝔹
 tests/000_unit.pan:31:7-11: error: invalid subtype: 𝟙 <: 𝕊
+tests/000_unit.pan:37:7-20: error: invalid subtype: 𝟙 → 𝟙 <: ℤ
 f0 : 𝟙
 f1 : 𝟙
 f2 : {v:𝟙 | true}
