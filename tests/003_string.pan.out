@@ -1,4 +1,4 @@
-tests/003_string.pan:13:6-13: error: invalid subtype: {_:𝕊 | _ = "hello"} <: {v:𝕊 | v = "goodbye"}
+tests/003_string.pan:13:1-3: error: unable to verify type of f4
 tests/003_string.pan:16:6-13: error: invalid subtype: 𝕊 <: 𝟙
 tests/003_string.pan:19:6-13: error: invalid subtype: 𝕊 <: 𝟙
 tests/003_string.pan:22:6-13: error: invalid subtype: 𝕊 <: 𝔹

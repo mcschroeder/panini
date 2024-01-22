@@ -104,6 +104,7 @@ define x e = do
 
   logMessage $ "Infer type of" <+> pretty x
   let e1 = maybe e (\t0 -> Rec x t0 e (Val (Var x)) NoPV) t0m
+  logData e1
   tryError (infer g e1) >>= \case
     Left err -> do
       logError err

@@ -68,7 +68,8 @@ horny _                      = False
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given constraints is found.
 fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
-fixpoint cs s = do  
+fixpoint cs s = do
+  logMessage $ "Try candidate solution" <+> pretty s
   r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
   case r of
     [c] -> fixpoint cs =<< weaken s c

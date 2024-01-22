@@ -81,7 +81,7 @@ infer g = \case
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
     t̂₂ <- fresh g (shape t₂)
     ĉ₂ <- sub t₂ t̂₂
-    let c = (cImpl x t̂₁ (c₁ ∧ c̄₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
+    let c = (cImpl x t̂₁ c₁) ∧ (cImpl x t̄₁ c̄₁) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/if -----------------------------------------------
