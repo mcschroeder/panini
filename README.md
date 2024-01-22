@@ -36,8 +36,8 @@ Grammar Inference for Ad Hoc Parsers
   inferred type signatures:
 
   ```console
-  > panini tests/T1.in
-  f : {s:𝕊 | s ∈ (a | (Σ∖a)bΣ*)} → 𝟙
+  > panini tests/103_paper_example.pan
+  f : {s:𝕊 | s ∈ a|[^a]b.*} → 𝟙
   ```
 
 * If you run `panini` without any arguments on an interactive terminal, it
@@ -55,9 +55,9 @@ Grammar Inference for Ad Hoc Parsers
 
   ```console
   > panini --test
-  tests/T1.pan ... OK
-  tests/T2.pan ... OK
-  tests/T3.pan ... OK
+  tests/000_unit.pan            OK (0.24s)
+  tests/001_bool.pan            OK (0.25s)
+  tests/002_int.pan             OK (0.27s)
   ...
   ```
 
@@ -104,7 +104,7 @@ Grammar Inference for Ad Hoc Parsers
 
   * An *import statement* `import m` loads the module `m` which brings all of
     its assumptions and definitions into scope. As of now, there is only a
-    single global namespace. 
+    single global namespace.
   
     Also as of now, Panini modules are simply files: if the current working
     directory is `foo`, then `import base` loads the file `foo/base`.
@@ -124,7 +124,7 @@ extension is quite handy to easily input Unicode symbols.
 
 Alternatively, you can use the following ASCII equivalents for common symbols:
 
-| Unicode | ASCII    | LaTex     | Description
+| Unicode | ASCII    | LaTeX     | Description
 |---------|----------|-----------|-------------
 | `λ`     | `\`      | `\lambda` | lambda abstraction
 | `→`     | `->`     | `\to`     | function arrow
@@ -143,6 +143,5 @@ Alternatively, you can use the following ASCII equivalents for common symbols:
 | `⇔` or `⟺` | `<=>` | `\Leftrightarrow` or `\iff` | iff
 | `∈`     | `\in`    | `\in`     | included in
 | `∉`     | `\notin` | `\notin`  | not included in
-
 
 Panini also has a `--no-unicode` flag which outputs only ASCII (but still permits Unicode input).
