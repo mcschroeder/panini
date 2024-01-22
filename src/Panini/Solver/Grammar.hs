@@ -105,7 +105,9 @@ solve (GCon s k c) | not $ null $ kvars c = do
   logData c
   logMessage $ "Assume nested" <+> kappa <+> "variables to be" <+> pretty PTrue
   let c2 = apply (Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)]) c
-  c3 <- simplify c2
+  logMessage "Simplify constraint"
+  let c3 = simplifyCon c2
+  logData c3
   solve (GCon s k c3)
 
 solve (GCon s k c) = do

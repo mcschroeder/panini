@@ -1,17 +1,13 @@
-module Panini.Solver.Simplifier (simplify, simplifyCon, simplifyPred, simplifyType) where
+module Panini.Solver.Simplifier where
 
 import Data.Generics.Uniplate.Operations
+import Panini.Abstract.AExpr (norm)
+import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
-import Panini.Monad
 
-simplify :: Con -> Pan Con
-simplify c = do
-  logMessage "Simplify constraint"
-  let c' = simplifyCon c
-  logData c'
-  return c'
+-------------------------------------------------------------------------------
 
 simplifyCon :: Con -> Con
 simplifyCon = rewrite $ \case
@@ -49,6 +45,8 @@ simplifyCon = rewrite $ \case
 
   _ -> Nothing
 
+-------------------------------------------------------------------------------
+
 simplifyPred :: Pred -> Pred
 simplifyPred = rewrite $ \case
   POr xs
@@ -61,19 +59,15 @@ simplifyPred = rewrite $ \case
     | elem PFalse xs -> Just PFalse
     | elem PTrue xs  -> Just $ PAnd $ filter (/= PTrue) xs
 
-
-  PRel (EVar x1 :=: EVar x2) | x1 == x2 -> Just PTrue
-  PRel (EVar x1 :≠: EVar x2) | x1 == x2 -> Just PFalse
-
-  PRel (ECon c1 :=: ECon c2) -> Just $ if c1 == c2 then PTrue else PFalse
-  PRel (ECon c1 :≠: ECon c2) -> Just $ if c1 == c2 then PFalse else PTrue
-
   PNot PTrue -> Just PFalse
   PNot PFalse -> Just PTrue
-
   PNot (PRel r) -> Just $ PRel $ inverse r 
 
-  PRel (EVar x :≠: EBool b pv) -> Just $ PRel (EVar x :=: EBool (not b) pv)
+  PRel r -> case simplifyRel r of
+    EBool True _ :=: EBool True  _ -> Just PTrue
+    EBool True _ :=: EBool False _ -> Just PFalse
+    r' | r' /= r -> Just $ PRel r'
+    _ -> Nothing
 
   PIff p PTrue -> Just p
   PIff PTrue p -> Just p
@@ -88,8 +82,32 @@ simplifyPred = rewrite $ \case
 
   _ -> Nothing
 
+-------------------------------------------------------------------------------
+
 simplifyType :: Type -> Type
 simplifyType = \case
   TBase x b Unknown   pv -> TBase x b Unknown pv
   TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred p) pv
   TFun x s t pv          -> TFun x (simplifyType s) (simplifyType t) pv
+
+-------------------------------------------------------------------------------
+
+simplifyRel :: Rel -> Rel
+simplifyRel (Rel op e1 e2) = case Rel op (simplifyExpr e1) (simplifyExpr e2) of
+  EVar x1 :=: EVar x2 | x1 == x2 -> taut
+  EVar x1 :≠: EVar x2 | x1 == x2 -> cont
+  ECon c1 :=: ECon c2 -> if c1 == c2 then taut else cont
+  ECon c1 :≠: ECon c2 -> if c1 == c2 then cont else taut
+  EVar x :≠: EBool b pv -> EVar x :=: EBool (not b) pv
+  EBool b pv :≠: EVar x -> EBool (not b) pv :=: EVar x
+  EInt a _ :>: EInt b _ -> if a >  b then taut else cont
+  EInt a _ :≥: EInt b _ -> if a >= b then taut else cont
+  EInt a _ :<: EInt b _ -> if a <  b then taut else cont
+  EInt a _ :≤: EInt b _ -> if a <= b then taut else cont
+  r' -> r'
+ where
+  taut = EBool True NoPV :=: EBool True NoPV
+  cont = EBool True NoPV :=: EBool False NoPV
+
+simplifyExpr :: Expr -> Expr
+simplifyExpr = norm

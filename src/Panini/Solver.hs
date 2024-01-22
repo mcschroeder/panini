@@ -53,7 +53,9 @@ extractQualifiers con = List.nub . \case
 
 solve :: Set KVar -> Con -> Pan (Maybe Assignment)
 solve ks_ex c0 = do
-  c1 <- simplify c0
+  logMessage "Simplify constraint"
+  let c1 = simplifyCon c0
+  logData c1
 
   let gcs1 = Grammar.grammarConstraints c1  
   let ks_gram = Set.fromList $ map gconKVar $ HashSet.toList gcs1
@@ -62,7 +64,9 @@ solve ks_ex c0 = do
   logMessage $ "Eliminate local acyclic" <+> kappa <+> "variables"
   c2 <- Fusion.solve (ks_ex <> ks_gram) c1
   
-  c3 <- simplify c2
+  logMessage "Simplify constraint"
+  let c3 = simplifyCon c2
+  logData c3
 
   logMessage "Find remaining grammar constraints"
   let gcs3 = Grammar.grammarConstraints c3
@@ -75,7 +79,9 @@ solve ks_ex c0 = do
   let !c4 = apply s_grammar c3
   logData c4
 
-  c5 <- simplify c4
+  logMessage "Simplify constraint"
+  let c5 = simplifyCon c4
+  logData c5
 
   logMessage "Flatten constraint"
   let cs5 = flat c5

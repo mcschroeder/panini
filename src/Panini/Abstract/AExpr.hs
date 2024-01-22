@@ -108,7 +108,11 @@ instance PartialMeetSemilattice AExpr where
 
 ------------------------------------------------------------------------------
 
--- | Normalize an abstract expression by (partial) evaluation.
+-- TODO: move 'norm' to a more general place
+
+-- | Normalize an abstract expression by (partial) evaluation. Note that this
+-- operation will never introduce any abstract values; if the input expression
+-- did not contain anything abstract, then neither will the normalized output.
 norm :: AExpr -> AExpr
 norm = Uniplate.rewrite $ \case
   EVal _ -> Nothing
