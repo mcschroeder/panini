@@ -38,14 +38,10 @@ infer g = \case
   -- inf/con ----------------------------------------------
   Val (Con c) -> do
     let v = dummyName
-    let b = primType c
-    let t = TBase v b (Known (EVar v `pEq` ECon c)) (getPV c)
+    let b = typeOfConstant c
+    let p = EVar v `pEq` ECon c
+    let t = TBase v b (Known p) (getPV c)
     return (t, CTrue)
-    where
-      primType (U   _) = TUnit
-      primType (B _ _) = TBool
-      primType (I _ _) = TInt
-      primType (S _ _) = TString
   
   -- inf/app ----------------------------------------------
   App e x pv -> do
