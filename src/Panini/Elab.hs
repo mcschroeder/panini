@@ -136,16 +136,14 @@ define x e = do
         Right (Just s) -> do
           logMessage "Apply solution to type"
           let t3 = apply s t2
-          logData t2
-      
-          logMessage $ "Match inferred type against" <+> pretty t0m
-          t4 <- case t0m of
-            Nothing -> return t3
-            Just t̃ -> matchTypeSig t3 t̃
-          logData t4
+          logData t3
 
           logMessage "Simplify type"
-          let t5 = simplifyType t4
+          let t4 = simplifyType t3
+          logData t4
+
+          logMessage $ "Match inferred type against" <+> pretty t0m
+          t5 <- maybe (pure t4) (matchTypeSig t4) t0m
           logData t5
       
           envExtend x $ Verified x t0m e t2 vc s t5
