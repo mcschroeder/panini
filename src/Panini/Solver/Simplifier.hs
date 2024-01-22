@@ -1,4 +1,4 @@
-module Panini.Solver.Simplifier (simplify, simplifyCon, simplifyPred) where
+module Panini.Solver.Simplifier (simplify, simplifyCon, simplifyPred, simplifyType) where
 
 import Data.Generics.Uniplate.Operations
 import Panini.Solver.Constraints
@@ -61,8 +61,24 @@ simplifyPred = rewrite $ \case
     | elem PFalse xs -> Just PFalse
     | elem PTrue xs  -> Just $ PAnd $ filter (/= PTrue) xs
 
-  PRel (x1 :=: x2) | x1 == x2 -> Just PTrue
-  PRel (x1 :≠: x2) | x1 == x2 -> Just PFalse
+
+  PRel (EVar x1 :=: EVar x2) | x1 == x2 -> Just PTrue
+  PRel (EVar x1 :≠: EVar x2) | x1 == x2 -> Just PFalse
+
+  PRel (ECon c1 :=: ECon c2) -> Just $ if c1 == c2 then PTrue else PFalse
+  PRel (ECon c1 :≠: ECon c2) -> Just $ if c1 == c2 then PFalse else PTrue
+
+  PNot PTrue -> Just PFalse
+  PNot PFalse -> Just PTrue
+
+  PNot (PRel r) -> Just $ PRel $ inverse r 
+
+  PRel (EVar x :≠: EBool b pv) -> Just $ PRel (EVar x :=: EBool (not b) pv)
+
+  PIff p PTrue -> Just p
+  PIff PTrue p -> Just p
+  PIff p PFalse -> Just $ PNot p
+  PIff PFalse p -> Just $ PNot p
 
   PExists x _ (PAnd [PRel (a :=: b), PRel (c :=: d)])
     | a == EVar x, b /= EVar x, c /= EVar x, d == EVar x -> Just $ PRel $ b :=: c
@@ -71,3 +87,9 @@ simplifyPred = rewrite $ \case
     | a /= EVar x, b == EVar x, c == EVar x, d /= EVar x -> Just $ PRel $ a :=: d
 
   _ -> Nothing
+
+simplifyType :: Type -> Type
+simplifyType = \case
+  TBase x b Unknown   pv -> TBase x b Unknown pv
+  TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred p) pv
+  TFun x s t pv          -> TFun x (simplifyType s) (simplifyType t) pv

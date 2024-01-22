@@ -24,6 +24,7 @@ import Panini.Parser
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver
+import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
 
@@ -111,9 +112,13 @@ define x e = do
     Right (t1,vc) -> do
       logData t1
 
-      envExtend x $ Inferred x t0m e t1 vc
+      logMessage "Simplify type"
+      let t2 = simplifyType t1
+      logData t2
+
+      envExtend x $ Inferred x t0m e t2 vc
         
-      let ks_ex = kvars t1
+      let ks_ex = kvars t2
       logMessage $ "Top-level type holes:" <+> pretty ks_ex
 
       logMessage "Solve VC"
@@ -121,25 +126,29 @@ define x e = do
       tryError (solve ks_ex vc) >>= \case
         Left err2 -> do
           logError err2
-          envExtend x $ Invalid x t0m e t1 vc err2
+          envExtend x $ Invalid x t0m e t2 vc err2
 
         Right Nothing -> do
           let err2 = Unverifiable x vc
           logError err2
-          envExtend x $ Invalid x t0m e t1 vc err2
+          envExtend x $ Invalid x t0m e t2 vc err2
 
         Right (Just s) -> do
           logMessage "Apply solution to type"
-          let t2 = apply s t1
+          let t3 = apply s t2
           logData t2
       
           logMessage $ "Match inferred type against" <+> pretty t0m
-          t3 <- case t0m of
-            Nothing -> return t2
-            Just t̃ -> matchTypeSig t2 t̃
-          logData t3
+          t4 <- case t0m of
+            Nothing -> return t3
+            Just t̃ -> matchTypeSig t3 t̃
+          logData t4
+
+          logMessage "Simplify type"
+          let t5 = simplifyType t4
+          logData t5
       
-          envExtend x $ Verified x t0m e t1 vc s t3
+          envExtend x $ Verified x t0m e t2 vc s t5
 
 -- TODO: attach proper warning type to definition in environment
 -- TODO: rename inferred vars to match provided sig?
