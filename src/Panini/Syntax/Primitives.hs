@@ -93,6 +93,12 @@ instance Pretty Value where
 instance Uniplate Value where
   uniplate = plate
 
+instance HasProvenance Value where
+  getPV (Con c) = getPV c
+  getPV (Var x) = getPV x
+  setPV pv (Con c) = Con (setPV pv c)
+  setPV pv (Var x) = Var (setPV pv x)
+
 typeOfValue :: Value -> Maybe Base
 typeOfValue = \case
   Con c -> Just $ typeOfConstant c

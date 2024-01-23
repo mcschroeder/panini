@@ -70,6 +70,22 @@ instance Pretty Term where
       nest 2 (ann Keyword "else" <\> 
         pretty e2)
 
+instance HasProvenance Term where
+  getPV = \case
+    Val v          -> getPV v
+    App _ _     pv -> pv
+    Lam _ _ _   pv -> pv
+    Let _ _ _   pv -> pv
+    Rec _ _ _ _ pv -> pv
+    If _ _ _    pv -> pv
+  setPV pv = \case
+    Val v           -> Val (setPV pv v)
+    App e v       _ -> App e v pv
+    Lam x t e     _ -> Lam x t e pv
+    Let x e1 e2   _ -> Let x e1 e2 pv
+    Rec x t e1 e2 _ -> Rec x t e1 e2 pv
+    If v e1 e2    _ -> If v e1 e2 pv
+
 ------------------------------------------------------------------------------
 
 -- | A type is either a refined 'Base' type or a dependent function type.
