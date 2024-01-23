@@ -14,7 +14,6 @@ import Data.Set qualified as Set
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
-import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Solver.Fusion qualified as Fusion
@@ -39,8 +38,8 @@ extractQualifiers con = List.nub . \case
   ts -> panic $ "extractQualifiers" <+> pretty ts <+> "not implemented"
  where
   qU    = [ PTrue ]
-  qB    = [ PRel $ EVar "z0" :=: EBool True NoPV
-          , PRel $ EVar "z0" :=: EBool False NoPV ]
+  qB    = [ PRel $ Rel op (EVar "z0") e2
+          | PRel (Rel op (EVar _) e2@(EBool _ _)) <- universeBi con ]
   qZ    = [ PRel $ Rel op (EVar "z0") e2   
           | PRel (Rel op (EVar _) e2@(EInt _ _)) <- universeBi con ]
   qZZ   = [ PRel $ substN [EVar "z0", EVar "z1"] xs r
