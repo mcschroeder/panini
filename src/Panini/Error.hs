@@ -28,7 +28,7 @@ instance HasProvenance Error where
     AlreadyDefined x              -> getPV x
     UnknownVar x                  -> getPV x
     InvalidSubtype t _            -> getPV t
-    ExpectedFunType _e _          -> NoPV -- TODO: getPV e
+    ExpectedFunType e _           -> getPV e
     ParserError _ pv              -> pv
     SolverError _ pv              -> pv
     Unverifiable x _              -> getPV x
@@ -39,7 +39,7 @@ instance HasProvenance Error where
     AlreadyDefined x              -> AlreadyDefined (setPV pv x)
     UnknownVar x                  -> UnknownVar (setPV pv x)
     InvalidSubtype t1 t2          -> InvalidSubtype (setPV pv t1) t2
-    ExpectedFunType e t           -> ExpectedFunType e t -- TODO: setPV e
+    ExpectedFunType e t           -> ExpectedFunType (setPV pv e) t
     ParserError e _               -> ParserError e pv
     SolverError e _               -> SolverError e pv
     Unverifiable x vc             -> Unverifiable (setPV pv x) vc
