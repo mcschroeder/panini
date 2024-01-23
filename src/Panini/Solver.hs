@@ -5,14 +5,12 @@ module Panini.Solver
 
 import Control.Monad
 import Data.Function
-import Data.Generics.Uniplate.Operations
 import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Monad
-import Panini.Panic
 import Panini.Pretty
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
@@ -20,35 +18,12 @@ import Panini.Solver.Fusion qualified as Fusion
 import Panini.Solver.Grammar (gconKVar)
 import Panini.Solver.Grammar qualified as Grammar
 import Panini.Solver.Liquid qualified as Liquid
+import Panini.Solver.Qualifiers
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
 
 -------------------------------------------------------------------------------
-
--- TODO: expand set of extracted qualifiers
--- TODO: we assume kparams are always named z0,...,zn
--- TODO: we assume the first type is for z0 aka the value variable v
-extractQualifiers :: Con -> [Base] -> [Pred]
-extractQualifiers con = List.nub . \case
-  TUnit:_ -> qU
-  [TBool] -> qB
-  [TInt]  -> qZ
-  [TInt, TInt] -> qZZ ++ qZ -- ++ map (subst (EVar "z1") "z0") qZ  
-  ts -> panic $ "extractQualifiers" <+> pretty ts <+> "not implemented"
- where
-  qU    = [ PTrue ]
-  qB    = [ PRel $ Rel op (EVar "z0") e2
-          | PRel (Rel op (EVar _) e2@(EBool _ _)) <- universeBi con ]
-  qZ    = [ PRel $ Rel op (EVar "z0") e2   
-          | PRel (Rel op (EVar _) e2@(EInt _ _)) <- universeBi con ]
-  qZZ   = [ PRel $ substN [EVar "z0", EVar "z1"] xs r
-          | PRel r <- universeBi con 
-          , let fvs = freeVars r, Set.size fvs == 2
-          , xs <- List.permutations $ Set.toList fvs
-          ]
-    
-
 
 solve :: Set KVar -> Con -> Pan (Maybe Assignment)
 solve ks_ex c0 = do
