@@ -143,6 +143,12 @@ mkPV b e = FromSource (SrcLoc b.sourceName b' e') Nothing
     b' = (unPos b.sourceLine, unPos b.sourceColumn)
     e' = (unPos e.sourceLine, unPos e.sourceColumn)
 
+getEndSourcePosFromPV :: PV -> Maybe SourcePos
+getEndSourcePosFromPV = \case
+  FromSource (SrcLoc n _ (l,c)) _ -> Just $ SourcePos n (mkPos l) (mkPos c)
+  Derived pv _ -> getEndSourcePosFromPV pv
+  NoPV -> Nothing
+
 -- | Return the result of a parser together with a `PV` of the consumed input.
 withPV :: Parser a -> Parser (a, PV)
 withPV p = do
@@ -199,29 +205,29 @@ term1 = choice
   [ try $ parens term
 
   , try $ do
-      begin <- getSourcePos    
-      e <- If <$ keyword "if" <*> value 
-              <* keyword "then" <*> term 
-              <* keyword "else" <*> term    
-      end <- getSourcePos
-      return $ e $ mkPV begin end
+      begin <- getSourcePos
+      p <- keyword "if" *> value
+      e1 <- keyword "then" *> term
+      e2 <- keyword "else" *> term
+      end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e2
+      return $ If p e1 e2 $ mkPV begin end
   
   , try $ do
       begin <- getSourcePos
-      e <- Rec <$ keyword "rec" <*> name 
-               <* symbol ":" <*> type_ 
-               <* symbol "=" <*> term 
-               <* keyword "in" <*> term
-      end <- getSourcePos
-      return $ e $ mkPV begin end
+      x <- keyword "rec" *> name
+      t <- symbol ":" *> type_
+      e1 <- symbol "=" *> term
+      e2 <- keyword "in" *> term
+      end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e2
+      return $ Rec x t e1 e2 $ mkPV begin end
   
   , try $ do
       begin <- getSourcePos
-      e <- Let <$ keyword "let" <*> name 
-               <* symbol "=" <*> term 
-               <* keyword "in" <*> term
-      end <- getSourcePos
-      return $ e $ mkPV begin end
+      x <- keyword "let" *> name
+      e1 <- symbol "=" *> term
+      e2 <- keyword "in" *> term
+      end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e2
+      return $ Let x e1 e2 $ mkPV begin end
 
   , try $ do
       begin <- getSourcePos
@@ -233,7 +239,7 @@ term1 = choice
         Just x -> do
           symbol "."
           e <- term
-          end <- getSourcePos
+          end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e
           return $ Lam x t e $ mkPV begin end
 
   , Val <$> value
