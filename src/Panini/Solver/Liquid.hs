@@ -32,7 +32,7 @@ solve :: [FlatCon] -> Map [Base] [Pred] -> Pan (Maybe Assignment)
 solve cs qs = do
   logMessage $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
-  logData csk
+  logData $ sym_csk <+> symEq <+> pretty csk
 
   logMessage $ "Construct initial solution" <+> sigma <> subscript 0
   -- TODO: we still assume free vars in qs to match the k param names (z0,...,zn)
@@ -40,16 +40,17 @@ solve cs qs = do
          [ (k, q) | k@(KVar _ ts) <- Set.toList (kvars cs)
          , let q = maybe PTrue meets (Map.lookup ts qs)
          ]
-  logData s0
+  logData $ sigma <> subscript 0 <+> symEq <+> pretty s0
 
   logMessage $ "Iteratively weaken" <+> sigma <+> 
                "until all" <+> sym_csk <+> "are satisfied"
   s <- fixpoint csk s0
-  logData s
+  logMessage "Found fixpoint"
+  logData $ sigma <+> symEq <+> pretty s
 
   logMessage $ "Apply" <+> sigma <+> "to concrete constraints" <+> sym_csp
   let csp2 = map (apply s) csp
-  logData csp2
+  logData $ sigma <> parens sym_csp <+> symEq <+> pretty csp2
 
   logMessage $ "Validate" <+> sigma <> parens sym_csp
   smtValid csp2 >>= \case
@@ -69,7 +70,7 @@ horny _                      = False
 -- given constraints is found.
 fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
 fixpoint cs s = do
-  logMessage $ "Try candidate solution" <+> pretty s
+  logData $ sigma <+> symEq <+> pretty s
   r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
   case r of
     [c] -> fixpoint cs =<< weaken s c
