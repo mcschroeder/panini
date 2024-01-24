@@ -13,8 +13,14 @@ import Prelude
 -- TODO: we assume kparams are always named z0,...,zn
 -- TODO: we assume the first type is for z0 aka the value variable v
 extractQualifiers :: Con -> [Base] -> [Pred]
-extractQualifiers con = 
-  List.nub . concatMap (quals con) . List.nub . List.subsequences . zip [0..]
+extractQualifiers con 
+  = List.nub 
+  . concatMap (quals con)
+  . List.nub 
+  . filter ((0 ==) . fst . head)  -- only consider Qs involving v
+  . filter (not . null)
+  . List.subsequences 
+  . zip [0..]
 
 -- TODO: improve brittleness of renaming etc.
 
