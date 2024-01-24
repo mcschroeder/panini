@@ -1,12 +1,16 @@
 -- TODO: module documentation
+{-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.AST where
 
 import Data.Generics.Uniplate.Direct
+import Data.Set ((\\))
 import Panini.Pretty
 import Panini.Provenance
+import Panini.Syntax.Expressions
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
 import Panini.Syntax.Primitives
+import Panini.Syntax.Substitution
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -89,51 +93,61 @@ instance HasProvenance Term where
 ------------------------------------------------------------------------------
 
 -- | A type is either a refined 'Base' type or a dependent function type.
--- 
--- For convenience, we define the following equivalences:
---
--- >            b  ≡  {_:b|true}
--- >      t₁ → t₂  ≡  _:t₁ → t₂
--- > {x:b|r} → t₂  ≡  x:{x:b|r} → t₂
---
 data Type
   = TBase Name Base Reft PV  -- {v:b|r}
   | TFun Name Type Type PV   -- x:t₁ → t₂
   deriving stock (Show, Read)
 
+-- | Syntactic equality, ignoring provenance.
+instance Eq Type where
+  TBase x1 b1 r1 _ == TBase x2 b2 r2 _ = x1 == x2 && b1 == b2 && r1 == r2
+  TFun x1 s1 t1 _  == TFun x2 s2 t2 _  = x1 == x2 && s1 == s2 && t1 == t2
+  _                == _                = False
+
+-- | When pretty printing a type, we try to be as succinct as possible. 
+--
+-- We use the following notational equivalences, as long as this will not result
+-- in incorrect type signatures or loss of user-supplied information:
+--
+-- >            b  ≡  {_:b|true}
+-- >      t₁ → t₂  ≡  _:t₁ → t₂
+-- > {x:b|r} → t₂  ≡  x:{x:b|r} → t₂
+--
 instance Pretty Type where
   pretty = \case
-    TFun x t1@(TBase v t r _) t2 _
-      | x == v, isT r, isDummy x -> pretty t  `arr` pretty t2
-      | x == v                   -> pretty t1 `arr` pretty t2
-  
-    TFun x t1@(TFun _ _ _ _) t2 _
-      | isDummy x ->         parens (pretty t1) `arr` pretty t2
-      | otherwise -> x `col` parens (pretty t1) `arr` pretty t2
-  
-    TFun x t1 t2 _
-      | isDummy x ->         pretty t1 `arr` pretty t2
-      | otherwise -> x `col` pretty t1 `arr` pretty t2
+    -- {_:b|true}
+    TBase v b (Known PTrue) _ | isDummy v 
+      -> pretty b
 
-    TBase v t r _
-      | isT r, isDummy v ->                  pretty t
-      | otherwise        -> braces $ v `col` pretty t <+> mid <+> pretty r
-   
-   where    
-    isT (Known PTrue) = True
-    isT _             = False
+    -- {v:b|r}
+    TBase v b r _ 
+      -> ppBaseReft v b r
+
+    -- _:{_:b|true} → t₂
+    TFun x (TBase v b (Known PTrue) _) t2 _ 
+      | isDummy x, isDummy v, x `notElem` freeVars t2
+      -> pretty b `arr` pretty t2
+
+    -- x:{x:b|r} → t₂
+    TFun x (TBase v b r _) t2 _ | x == v 
+      -> ppBaseReft v b r `arr` pretty t2
     
+    -- x:{v:b|r} → t₂
+    TFun x t1@(TBase _ _ _ _) t2 _ 
+      -> x `col` pretty t1 `arr` pretty t2
+      
+    -- _:(s₁ → s₂) → t₁  ≡  (s₁ → s₂) → t₁
+    TFun x t1@(TFun _ _ _ _) t2 _ | isDummy x, x `notElem` freeVars t2
+      -> parens (pretty t1) `arr` pretty t2
+    
+    -- x:(s₁ → s₂) → t₁  ≡  x:(s₁ → s₂) → t₁
+    TFun x t1@(TFun _ _ _ _) t2 _ 
+      -> x `col` parens (pretty t1) `arr` pretty t2
+   
+   where
+    ppBaseReft v b r = braces $ v `col` pretty b <+> mid <+> pretty r    
     arr a b = a <+> arrow <+> b
     col x a = pretty x <> colon <> a
-
-data Reft
-  = Unknown     -- ?
-  | Known Pred  -- p
-  deriving stock (Eq, Show, Read)
-
-instance Pretty Reft where
-  pretty Unknown   = "?"
-  pretty (Known p) = pretty p
 
 instance HasProvenance Type where
   getPV (TBase _ _ _ pv) = pv
@@ -141,11 +155,32 @@ instance HasProvenance Type where
   setPV pv (TBase v b r _) = TBase v b r pv
   setPV pv (TFun x t1 t2 _) = TFun x t1 t2 pv
 
--- | Syntactic equality, ignoring provenance.
-instance Eq Type where
-  TBase x1 b1 r1 _ == TBase x2 b2 r2 _ = x1 == x2 && b1 == b2 && r1 == r2
-  TFun x1 s1 t1 _  == TFun x2 s2 t2 _  = x1 == x2 && s1 == s2 && t1 == t2
-  _                == _                = False
+-- see Panini.Syntax.Substitution
+instance Subable Type Expr where
+  subst x y = \case
+    -- In a refined base type {n:b|r}, the value variable n names the
+    -- value of type b that is being refined. Thus, we take n to be bound in r.    
+    TBase n b r pv
+      | y == n      -> TBase n b            r  pv  -- (1)
+      | x == EVar n -> TBase ṅ b (subst x y ṙ) pv  -- (2)
+      | otherwise   -> TBase n b (subst x y r) pv  -- (3)
+      where
+        ṙ = subst (EVar ṅ) n r
+        ṅ = freshName n ([y] <> freeVars r)
+
+    -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
+    -- Note that t₁ might itself contain (free) occurrences of n.
+    TFun n t₁ t₂ pv
+      | y == n      -> TFun n (subst x y t₁)            t₂  pv  -- (1)
+      | x == EVar n -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
+      | otherwise   -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
+      where
+        t₂̇ = subst (EVar ṅ) n t₂
+        ṅ = freshName n ([y] <> freeVars t₂)
+
+  freeVars = \case
+    TBase v _ r _ -> freeVars r \\ [v]
+    TFun x t₁ t₂ _ -> (freeVars t₁ <> freeVars t₂) \\ [x]
 
 instance Biplate Type Pred where
   biplate = \case
@@ -157,6 +192,25 @@ instance Biplate Type Reft where
     TBase x b r pv  -> plate TBase |- x |- b |* r |- pv
     TFun x t1 t2 pv -> plate TFun |- x |+ t1 |+ t2 |- pv
 
+isFun :: Type -> Bool
+isFun (TFun _ _ _ _) = True
+isFun _              = False
+
+------------------------------------------------------------------------------
+
+data Reft
+  = Unknown     -- ?
+  | Known Pred  -- p
+  deriving stock (Eq, Show, Read)
+
+instance Pretty Reft where
+  pretty Unknown   = "?"
+  pretty (Known p) = pretty p
+
+instance Subable Reft Expr where
+  subst x y = descendBi (subst @Pred x y)  
+  freeVars = mconcat . map (freeVars @Pred) . universeBi
+
 instance Uniplate Reft where
   uniplate = \case
     Unknown -> plate Unknown
@@ -166,7 +220,3 @@ instance Biplate Reft Pred where
   biplate = \case
     Unknown -> plate Unknown
     Known p -> plate Known |* p
-
-isFun :: Type -> Bool
-isFun (TFun _ _ _ _) = True
-isFun _              = False

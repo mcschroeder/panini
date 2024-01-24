@@ -4,7 +4,6 @@ module Panini.Syntax.Substitution where
 
 import Data.Generics.Uniplate.Operations
 import Data.Set (Set, (\\))
-import Panini.Syntax.AST
 import Panini.Syntax.Expressions
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
@@ -47,40 +46,6 @@ class Subable a v | a -> v where
 -- | @substN xs ys a@ substitutes each x for the corresponding y in a.
 substN :: Subable a v => [v] -> [Name] -> a -> a
 substN xs ys p = foldr (uncurry subst) p $ zip xs ys
-
-------------------------------------------------------------------------------
-
-instance Subable Type Expr where
-  subst x y = \case
-    -- In a refined base type {n:b|r}, the value variable n names the
-    -- value of type b that is being refined. Thus, we take n to be bound in r.    
-    TBase n b r pv
-      | y == n      -> TBase n b            r  pv  -- (1)
-      | x == EVar n -> TBase ṅ b (subst x y ṙ) pv  -- (2)
-      | otherwise   -> TBase n b (subst x y r) pv  -- (3)
-      where
-        ṙ = subst (EVar ṅ) n r
-        ṅ = freshName n ([y] <> freeVars r)
-
-    -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
-    -- Note that t₁ might itself contain (free) occurrences of n.
-    TFun n t₁ t₂ pv
-      | y == n      -> TFun n (subst x y t₁)            t₂  pv  -- (1)
-      | x == EVar n -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
-      | otherwise   -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
-      where
-        t₂̇ = subst (EVar ṅ) n t₂
-        ṅ = freshName n ([y] <> freeVars t₂)
-
-  freeVars = \case
-    TBase v _ r _ -> freeVars r \\ [v]
-    TFun x t₁ t₂ _ -> (freeVars t₁ <> freeVars t₂) \\ [x]
-
-------------------------------------------------------------------------------
-
-instance Subable Reft Expr where
-  subst x y = descendBi (subst @Pred x y)  
-  freeVars = mconcat . map (freeVars @Pred) . universeBi
 
 ------------------------------------------------------------------------------
 
