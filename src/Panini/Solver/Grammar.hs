@@ -12,6 +12,7 @@ import Control.Monad.Extra
 import Data.Foldable
 import Data.Function
 import Data.Generics.Uniplate.Operations qualified as Uniplate
+import Data.Graph qualified as Graph
 import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.HashSet qualified as HashSet
@@ -19,6 +20,7 @@ import Data.List (tails)
 import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
+import Data.Set qualified as Set
 import GHC.Generics
 import Panini.Abstract.AExpr
 import Panini.Abstract.AString qualified as AString
@@ -65,13 +67,13 @@ gconKVar (GCon _ k _) = k
 
 -- | Solve a set of grammar constraints, returning the combined solution.
 -- 
--- The current approach orders constraints by κ variable name and tries to solve
--- them sequentially, applying intermediate solutions on the way. Multiple
--- solutions to the same variable (i.e., if some κᵢ appears multiple times) are
--- meet-ed together.
+-- The current approach orders constraints by their κ variable dependencies and
+-- then tries to solve them sequentially, applying intermediate solutions on the
+-- way. Multiple solutions to the same variable (i.e., if some κᵢ appears
+-- multiple times) are meet-ed together.
 solveAll :: HashSet GCon -> Pan Assignment
 solveAll = foldM solve1 mempty
-         . List.sortBy (compare `on` gconKVar)
+         . topoSortGCons
          . HashSet.toList
   where
     solve1 s (GCon x k c) = do
@@ -84,6 +86,14 @@ solveAll = foldM solve1 mempty
     meet' (PRel (s1 :∈: EStrA a1)) (PRel (s2 :∈: EStrA a2))
       | s1 == s2 = PRel $ s1 :∈: EStrA (a1 ∧ a2)
     meet' p q = p ∧ q
+
+topoSortGCons :: [GCon] -> [GCon]
+topoSortGCons gcons = Graph.flattenSCCs $ Graph.stronglyConnComp $ map adj gcons
+ where    
+  adj g@(GCon _ k c) = (g, k2i k, map k2i $ Set.toList $ relevantKVars c)
+  relevantKVars c    = Set.intersection (kvars c) gvars
+  gvars              = Set.fromList $ map gconKVar gcons
+  k2i (KVar i _)     = i
 
 -------------------------------------------------------------------------------
 
