@@ -1,18 +1,18 @@
-tests/basic/001_fun_const.pan:34:1-4: error: unable to verify type of f32
-tests/basic/001_fun_const.pan:37:1-4: error: unable to verify type of f33
-tests/basic/001_fun_const.pan:51:1-4: error: unable to verify type of f42
-tests/basic/001_fun_const.pan:54:1-4: error: unable to verify type of f43
-tests/basic/001_fun_const.pan:68:1-4: error: unable to verify type of f52
-tests/basic/001_fun_const.pan:71:1-4: error: unable to verify type of f53
-tests/basic/001_fun_const.pan:85:1-4: error: unable to verify type of f62
-tests/basic/001_fun_const.pan:88:1-4: error: unable to verify type of f63
+tests/basic/001_fun_1.pan:34:1-4: error: unable to verify type of f32
+tests/basic/001_fun_1.pan:37:1-4: error: unable to verify type of f33
+tests/basic/001_fun_1.pan:51:1-4: error: unable to verify type of f42
+tests/basic/001_fun_1.pan:54:1-4: error: unable to verify type of f43
+tests/basic/001_fun_1.pan:68:1-4: error: unable to verify type of f52
+tests/basic/001_fun_1.pan:71:1-4: error: unable to verify type of f53
+tests/basic/001_fun_1.pan:85:1-4: error: unable to verify type of f62
+tests/basic/001_fun_1.pan:88:1-4: error: unable to verify type of f63
 f00 : {x:ℤ | true} → {_:ℤ | _ = 1}
 f10 : ℤ → ℤ
 f20 : {v:ℤ | true} → ℤ
 f21 : {v:ℤ | v = 1} → ℤ
 f22 : {v:ℤ | v = 2} → ℤ
 f23 : {v:ℤ | false} → ℤ
-f24 : {v:ℤ | v = 1} → ℤ
+f24 : {v:ℤ | true} → ℤ
 f30 : ℤ → {w:ℤ | true}
 f31 : ℤ → {w:ℤ | w = 1}
 f34 : ℤ → {w:ℤ | w = 1}

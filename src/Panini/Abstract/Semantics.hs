@@ -2,6 +2,7 @@ module Panini.Abstract.Semantics where
 
 import Algebra.Lattice
 import Control.Monad
+import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AExpr
 import Panini.Abstract.AInt as AInt
@@ -15,6 +16,7 @@ import Panini.Provenance
 import Panini.Regex.POSIX.ERE qualified as Regex.POSIX.ERE
 import Panini.Syntax
 import Prelude
+import Panini.Regex qualified as Regex
 
 -- local notation -------------------------------------------------------------
 
@@ -25,6 +27,35 @@ x ∈ e = x `elem` freeVars e
 x ∉ e = x `notElem` freeVars e
 
 -------------------------------------------------------------------------------
+
+concretizeVar :: Name -> Base -> AValue -> Pan Pred
+concretizeVar x TBool (ABool a) = case ABool.value a of
+  Just b  -> return $ PRel $ EVar x :=: EBool b NoPV
+  Nothing -> if isTop a then return PTrue else return PFalse
+
+-- TODO
+concretizeVar x TInt (AInt a) 
+  | AInt.continuous a = case (AInt.minimum a, AInt.maximum a) of
+      (Just NegInf, Just PosInf) -> return PTrue
+      (Just NegInf, Just (Fin n)) -> return $ PRel $ EVar x :≤: EInt n NoPV
+      (Just (Fin m), Just PosInf) -> return $ PRel $ EVar x :≥: EInt m NoPV
+      (Just (Fin m), Just (Fin n)) 
+        | m == n -> return $ PRel $ EVar x :=: EInt m NoPV
+        | otherwise -> return $ PAnd [ PRel $ EVar x :≥: EInt m NoPV
+                                     , PRel $ EVar x :≤: EInt n NoPV ]
+      (Nothing, Nothing) -> return PFalse
+      _ -> impossible
+
+
+concretizeVar x TString (AString a) = case AString.toRegex a of
+  Regex.Zero -> return PFalse
+  Regex.One  -> return $ PRel $ EVar x :=: EStr "" NoPV
+  Regex.All  -> return $ PTrue
+  r -> case Regex.POSIX.ERE.fromRegex r of
+    Just ere -> return $ PRel $ EVar x :∈: EReg ere
+    Nothing  -> panic $ "cannot convert Regex to ERE:" <+> pretty r
+
+concretizeVar _ _ _ = undefined -- TODO: throwError
 
 abstractVar :: Name -> Base -> Rel -> Pan AExpr
 abstractVar x b r = case abstract x b r of

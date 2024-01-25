@@ -92,6 +92,7 @@ library
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
     Panini.Solver
+    Panini.Solver.Abstract
     Panini.Solver.Assignment
     Panini.Solver.Constraints
     Panini.Solver.Fusion
