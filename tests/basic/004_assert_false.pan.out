@@ -1,0 +1,7 @@
+tests/basic/004_assert_false.pan:3:1-4: error: unable to verify type of f01
+tests/basic/004_assert_false.pan:6:1-4: error: unable to verify type of f11
+tests/basic/004_assert_false.pan:9:1-4: error: unable to verify type of f21
+tests/basic/004_assert_false.pan:12:1-4: error: unable to verify type of f31
+tests/basic/004_assert_false.pan:22:1-4: error: unable to verify type of f61
+f41 : {v:𝟙 | v ≠ unit}
+f51 : {v:𝟙 | false}

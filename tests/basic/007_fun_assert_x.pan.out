@@ -1,0 +1,28 @@
+tests/basic/007_fun_assert_x.pan:11:1-4: error: unable to verify type of f20
+tests/basic/007_fun_assert_x.pan:14:1-4: error: unable to verify type of f30
+tests/basic/007_fun_assert_x.pan:17:1-4: error: unable to verify type of f40
+tests/basic/007_fun_assert_x.pan:20:1-4: error: unable to verify type of f50
+tests/basic/007_fun_assert_x.pan:23:1-4: error: unable to verify type of f60
+tests/basic/007_fun_assert_x.pan:26:1-4: error: unable to verify type of f70
+tests/basic/007_fun_assert_x.pan:59:1-4: error: unable to verify type of f62
+tests/basic/007_fun_assert_x.pan:68:1-4: error: unable to verify type of f33
+tests/basic/007_fun_assert_x.pan:71:1-4: error: unable to verify type of f43
+tests/basic/007_fun_assert_x.pan:74:1-4: error: unable to verify type of f53
+tests/basic/007_fun_assert_x.pan:77:1-4: error: unable to verify type of f63
+tests/basic/007_fun_assert_x.pan:80:1-4: error: unable to verify type of f73
+f00 : {b:𝔹 | b = true} → 𝟙
+f10 : {x:𝔹 | x = true} → 𝟙
+f31 : {x:𝔹 | false} → 𝟙
+f41 : {x:𝔹 | false} → {v:𝟙 | true}
+f51 : {x:𝔹 | false} → {v:𝟙 | v = unit}
+f61 : {x:𝔹 | false} → {v:𝟙 | false}
+f71 : {x:𝔹 | false} → {v:𝟙 | true}
+f32 : {x:𝔹 | x = true} → 𝟙
+f42 : {x:𝔹 | x = true} → {v:𝟙 | true}
+f52 : {x:𝔹 | x = true} → {v:𝟙 | v = unit}
+f72 : {x:𝔹 | x = true} → {v:𝟙 | true}
+f34 : {x:𝔹 | x = true} → 𝟙
+f44 : {x:𝔹 | x = true} → {v:𝟙 | true}
+f54 : {x:𝔹 | x = true} → {v:𝟙 | v = unit}
+f64 : {x:𝔹 | x = true} → {v:𝟙 | false}
+f74 : {x:𝔹 | x = true} → {v:𝟙 | true}

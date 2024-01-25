@@ -1,0 +1,37 @@
+tests/basic/001_fun_const.pan:34:1-4: error: unable to verify type of f32
+tests/basic/001_fun_const.pan:37:1-4: error: unable to verify type of f33
+tests/basic/001_fun_const.pan:51:1-4: error: unable to verify type of f42
+tests/basic/001_fun_const.pan:54:1-4: error: unable to verify type of f43
+tests/basic/001_fun_const.pan:68:1-4: error: unable to verify type of f52
+tests/basic/001_fun_const.pan:71:1-4: error: unable to verify type of f53
+tests/basic/001_fun_const.pan:85:1-4: error: unable to verify type of f62
+tests/basic/001_fun_const.pan:88:1-4: error: unable to verify type of f63
+f00 : {x:ℤ | true} → {_:ℤ | _ = 1}
+f10 : ℤ → ℤ
+f20 : {v:ℤ | true} → ℤ
+f21 : {v:ℤ | v = 1} → ℤ
+f22 : {v:ℤ | v = 2} → ℤ
+f23 : {v:ℤ | false} → ℤ
+f24 : {v:ℤ | v = 1} → ℤ
+f30 : ℤ → {w:ℤ | true}
+f31 : ℤ → {w:ℤ | w = 1}
+f34 : ℤ → {w:ℤ | w = 1}
+f40 : {v:ℤ | true} → {w:ℤ | true}
+f41 : {v:ℤ | true} → {w:ℤ | w = 1}
+f44 : {v:ℤ | true} → {w:ℤ | w = 1}
+f50 : {v:ℤ | v = 1} → {w:ℤ | true}
+f51 : {v:ℤ | v = 1} → {w:ℤ | w = 1}
+f54 : {v:ℤ | v = 1} → {w:ℤ | w = 1}
+f60 : {v:ℤ | v = 2} → {w:ℤ | true}
+f61 : {v:ℤ | v = 2} → {w:ℤ | w = 1}
+f64 : {v:ℤ | v = 2} → {w:ℤ | w = 1}
+f70 : {v:ℤ | false} → {w:ℤ | true}
+f71 : {v:ℤ | false} → {w:ℤ | w = 1}
+f72 : {v:ℤ | false} → {w:ℤ | w = 2}
+f73 : {v:ℤ | false} → {w:ℤ | false}
+f74 : {v:ℤ | false} → {w:ℤ | w = 1}
+f80 : {v:ℤ | true} → {w:ℤ | true}
+f81 : {v:ℤ | true} → {w:ℤ | w = 1}
+f82 : {v:ℤ | false} → {w:ℤ | w = 2}
+f83 : {v:ℤ | false} → {w:ℤ | false}
+f90 : {v:ℤ | true} → {w:ℤ | w = 1}
