@@ -130,6 +130,8 @@ abstract x b r = case r of
 
   EVar _x :=: e -> Right e
 
+  Rel o (ENot e1) e2 -> abstract x b $ Rel o e1 (norm $ ENot e2)
+
   Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :-: e2)
   Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e3 :-: e1)
   Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :+: e2)
