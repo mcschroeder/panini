@@ -24,5 +24,5 @@ f72 : {x:𝔹 | x = true} → {v:𝟙 | true}
 f34 : {x:𝔹 | x = true} → 𝟙
 f44 : {x:𝔹 | x = true} → {v:𝟙 | true}
 f54 : {x:𝔹 | x = true} → {v:𝟙 | v = unit}
-f64 : {x:𝔹 | x = true} → {v:𝟙 | false}
+f64 : {x:𝔹 | false} → {v:𝟙 | false}
 f74 : {x:𝔹 | x = true} → {v:𝟙 | true}

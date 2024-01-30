@@ -90,6 +90,8 @@ f44 = \x:bool. assert x
 f54 : {x:bool|?} -> {v:unit|v=unit}
 f54 = \x:bool. assert x
 
+-- this should infer "false" for x (NOT "x = false") 
+-- because no possible input can lead to an impossible output
 f64 : {x:bool|?} -> {v:unit|false}
 f64 = \x:bool. assert x
 

@@ -15,9 +15,9 @@ f30 : ℤ → {v:𝟙 | v = unit}
 f32 : {x:ℤ | true} → {v:𝟙 | v = unit}
 f34 : {x:ℤ | false} → {v:𝟙 | v = unit}
 f36 : {x:ℤ | x = 1} → {v:𝟙 | v = unit}
-f42 : {x:ℤ | true} → {v:𝟙 | v ≠ unit}
+f42 : {x:ℤ | false} → {v:𝟙 | v ≠ unit}
 f44 : {x:ℤ | false} → {v:𝟙 | v ≠ unit}
-f52 : {x:ℤ | true} → {v:𝟙 | false}
+f52 : {x:ℤ | false} → {v:𝟙 | false}
 f54 : {x:ℤ | false} → {v:𝟙 | false}
 f60 : ℤ → {v:𝟙 | true}
 f62 : {x:ℤ | true} → {v:𝟙 | true}
