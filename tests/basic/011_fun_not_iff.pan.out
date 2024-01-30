@@ -1,0 +1,37 @@
+tests/basic/011_fun_not_iff.pan:33:1-4: error: unable to verify type of f31
+tests/basic/011_fun_not_iff.pan:36:1-4: error: unable to verify type of f32
+tests/basic/011_fun_not_iff.pan:42:1-4: error: unable to verify type of f34
+tests/basic/011_fun_not_iff.pan:67:1-4: error: unable to verify type of f51
+tests/basic/011_fun_not_iff.pan:76:1-4: error: unable to verify type of f54
+tests/basic/011_fun_not_iff.pan:87:1-4: error: unable to verify type of f62
+tests/basic/011_fun_not_iff.pan:93:1-4: error: unable to verify type of f64
+tests/basic/011_fun_not_iff.pan:101:1-4: error: unable to verify type of f71
+tests/basic/011_fun_not_iff.pan:104:1-4: error: unable to verify type of f72
+tests/basic/011_fun_not_iff.pan:110:1-4: error: unable to verify type of f74
+f00 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
+f10 : 𝔹 → 𝔹
+f20 : {x:𝔹 | true} → 𝔹
+f21 : {x:𝔹 | x = true} → 𝔹
+f22 : {x:𝔹 | x = false} → 𝔹
+f23 : {x:𝔹 | true} → 𝔹
+f24 : {x:𝔹 | false} → 𝔹
+f30 : 𝔹 → {y:𝔹 | true}
+f33 : 𝔹 → {y:𝔹 | true}
+f40 : {x:𝔹 | true} → {y:𝔹 | true}
+f41 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
+f42 : {x:𝔹 | x = true} → {y:𝔹 | y = false}
+f43 : {x:𝔹 | true} → {y:𝔹 | true}
+f44 : {x:𝔹 | false} → {y:𝔹 | false}
+f50 : {x:𝔹 | x = true} → {y:𝔹 | y = false}
+f52 : {x:𝔹 | x = true} → {y:𝔹 | y = false}
+f53 : {x:𝔹 | x = true} → {y:𝔹 | true}
+f60 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
+f61 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
+f63 : {x:𝔹 | x = false} → {y:𝔹 | true}
+f70 : {x:𝔹 | true} → {y:𝔹 | true}
+f73 : {x:𝔹 | true} → {y:𝔹 | true}
+f80 : {x:𝔹 | false} → {y:𝔹 | false}
+f81 : {x:𝔹 | false} → {y:𝔹 | y = true}
+f82 : {x:𝔹 | false} → {y:𝔹 | y = false}
+f83 : {x:𝔹 | false} → {y:𝔹 | true}
+f84 : {x:𝔹 | false} → {y:𝔹 | false}
