@@ -122,9 +122,15 @@ instance Pretty Expr where
     EStrAt p1 p2 -> pretty p1 <> "[" <> pretty p2 <> "]"
     EStrSub p1 p2 p3 -> 
       pretty p1 <> "[" <> pretty p2 <> ".." <> pretty p3 <> "]"
-    ENot e -> symNeg <> parens (pretty e)
+    ENot e -> symNeg <> parensIf (complex e) (pretty e)
     EAbs a -> pretty a
     EReg r -> pretty r
+   where
+    -- TODO: make use of fixity for this
+    complex (EMul _ _) = True
+    complex (EAdd _ _) = True
+    complex (ESub _ _) = True
+    complex _ = False
 
 instance HasFixity Expr where
   fixity (EMul _ _) = Infix LeftAss 6
