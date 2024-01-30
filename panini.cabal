@@ -96,7 +96,6 @@ library
     Panini.Solver.Assignment
     Panini.Solver.Constraints
     Panini.Solver.Fusion
-    Panini.Solver.Grammar
     Panini.Solver.Liquid
     Panini.Solver.Qualifiers
     Panini.Solver.Simplifier
