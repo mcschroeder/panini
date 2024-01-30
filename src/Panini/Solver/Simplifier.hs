@@ -1,6 +1,7 @@
 module Panini.Solver.Simplifier where
 
 import Data.Generics.Uniplate.Operations
+import Data.List qualified as List
 import Panini.Abstract.AExpr (norm)
 import Panini.Provenance
 import Panini.Solver.Constraints
@@ -58,6 +59,7 @@ simplifyPred = rewrite $ \case
     | [x] <- xs      -> Just x
     | elem PFalse xs -> Just PFalse
     | elem PTrue xs  -> Just $ PAnd $ filter (/= PTrue) xs
+    | xs' <- List.nubBy symRelEq xs, xs' /= xs -> Just $ PAnd xs'
 
   PNot PTrue -> Just PFalse
   PNot PFalse -> Just PTrue
@@ -82,13 +84,33 @@ simplifyPred = rewrite $ \case
 
   _ -> Nothing
 
+symRelEq :: Pred -> Pred -> Bool
+symRelEq (PRel r1) (PRel r2) | r1 == r2                           = True
+                             | Just r1' <- converse r1, r1' == r2 = True
+                             | otherwise                          = False
+symRelEq p1        p2                                             = p1 == p2
+
 -------------------------------------------------------------------------------
 
 simplifyType :: Type -> Type
 simplifyType = \case
   TBase x b Unknown   pv -> TBase x b Unknown pv
-  TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred p) pv
+  TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred $ normReft x p) pv
   TFun x s t pv          -> TFun x (simplifyType s) (simplifyType t) pv
+
+normReft :: Name -> Pred -> Pred
+normReft v = \case
+  PAnd xs   -> PAnd (map rearrangeRel xs)
+  POr xs    -> POr (map rearrangeRel xs)
+  PImpl p q -> PImpl (normReft v p) (normReft v q)
+  PIff p q  -> PIff (normReft v p) (normReft v q)
+  PNot p    -> PNot (normReft v p)
+  p         -> p
+ where
+  rearrangeRel (PRel r@(Rel _ e1 e2)) 
+    | v `notElem` freeVars e1, v `elem` freeVars e2
+    , Just r' <- converse r = PRel r'
+  rearrangeRel p = p
 
 -------------------------------------------------------------------------------
 
