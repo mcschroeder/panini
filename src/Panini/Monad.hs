@@ -15,6 +15,7 @@ module Panini.Monad
   , logMessage
   , logData
   , logEvent
+  , (§)
   ) where
 
 import Control.Exception
@@ -99,6 +100,10 @@ tryIO pv m = do
     Right a -> return a
 
 -------------------------------------------------------------------------------
+
+(§) :: HasCallStack => Pretty a => a -> Doc -> Pan a
+x § msg = withFrozenCallStack $ logMessage msg >> logData x >> return x
+infix 0 §
 
 logEvent :: Event -> Pan ()
 logEvent d = do

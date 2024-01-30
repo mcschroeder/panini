@@ -98,7 +98,7 @@ define x e = do
     Just (Assumed {_type}) -> return $ Just _type
     Just _                 -> throwError $ AlreadyDefined x
 
-  logMessage "Prepare typing context Γ"
+  logMessage "Prepare typing context"
   g <- envToContext <$> gets environment
   logData g
 
@@ -112,11 +112,7 @@ define x e = do
 
     Right (t1,vc) -> do
       logData t1
-
-      logMessage "Simplify type"
-      let t2 = simplifyType t1
-      logData t2
-
+      t2 <- simplifyType t1 § "Simplify type"      
       envExtend x $ Inferred x t0m e t2 vc
         
       let ks_ex = kvars t2
@@ -135,18 +131,10 @@ define x e = do
           envExtend x $ Invalid x t0m e t2 vc err2
 
         Right (Just s) -> do
-          logMessage "Apply solution to type"
-          let t3 = apply s t2
-          logData t3
-
-          logMessage "Simplify type"
-          let t4 = simplifyType t3
-          logData t4
-
-          logMessage $ "Match inferred type against" <+> pretty t0m
+          t3 <- apply s t2       § "Apply solution to type"
+          t4 <- simplifyType t3  § "Simplify type" 
+          logMessage "Match inferred type against signature"
           t5 <- maybe (pure t4) (matchTypeSig t4) t0m
-          logData t5
-      
           envExtend x $ Verified x t0m e t2 vc s t5
 
 -- TODO: attach proper warning type to definition in environment

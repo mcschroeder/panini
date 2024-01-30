@@ -23,36 +23,21 @@ import Panini.Syntax
 import Prelude
 import Panini.Pretty
 
--- TODO: return assignment also
-
 -- | Use refinement FUSION to eliminate all acyclic κ variables that are not in
 -- the given exclusion set, returning the (partially) solved constraint.
 solve :: Set KVar -> Con -> Pan Con
-solve ks_ex c0 = do
-  logMessage $ "Find set of cut variables" <+> "Κ̂" `orASCII` "\\Kappa^hat"
-  let ks_cut = cutVars c0
-  logData ks_cut
-  
-  logMessage $ "Excluded variables =" <+> pretty ks_ex  
-  
-  let ks = kvars c0 \\ ks_cut \\ ks_ex
-  logMessage $ "Non-excluded non-cut variables = " <\> pretty ks
-
-  logMessage "Compute exact solutions for non-excluded non-cut variables"
-  c1 <- elim (Set.toAscList ks) c0
-  logData c1
-  
+solve ksx c0 = do
+  logMessage $ "Use FUSION to eliminate local acyclic" <+> kappa <+> "variables."
+  ksc <- cutVars c0                  § "Compute cut variables"
+  ks  <- (kvars c0 \\ ksc \\ ksx)    § "Identify non-excluded non-cut variables"
+  c1  <- elim (Set.toAscList ks) c0  
   return c1
   
 -- | Eliminates a set of acyclic κ-variables iteratively via 'elim1'.
 elim :: [KVar] -> Con -> Pan Con
 elim ks c0 = foldM elimOne c0 ks
  where
-  elimOne c k = do
-    logMessage $ "Eliminate" <+> pretty k
-    let c' = elim1 k c
-    -- logData c'
-    return c'
+  elimOne c k = elim1 k c § "Eliminate" <+> pretty k
 
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
 -- scoped solution for κ in c.

@@ -1,4 +1,9 @@
-module Panini.Solver.Abstract (solve, allPreCons, PreCon(..)) where
+module Panini.Solver.Abstract 
+  ( PreCon(..)
+  , allPreCons
+  , preConKVar
+  , solve
+  ) where
 
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -48,12 +53,10 @@ allPreCons c0 = HashSet.fromList
   , null [k' | CHead (PAppK k' _) <- Uniplate.universe c, k' == k]
   ]
 
--------------------------------------------------------------------------------
+preConKVar :: PreCon -> KVar
+preConKVar (PreCon _ _ k _) = k
 
--- TODO: use this more generally
-(§) :: Pretty a => Pan a -> Doc -> Pan a
-act § msg = logMessage msg >> act >>= \x -> logData x >> return x
-infix 0 §
+-------------------------------------------------------------------------------
 
 -- | Solve all precondition variables in a constraint, returning the solutions.
 --
@@ -72,18 +75,19 @@ infix 0 §
 -- appears multiple times), we take their 'meet'.
 solve :: Con -> Pan Assignment
 solve c0 = do
-  let pcs0 = allPreCons c0
-  pcs1 <- pure (topoSortPreCons pcs0) § "Topologically sort precondition variables"
+  logMessage "Use abstract interpretation to infer weakest preconditions"
+  pcs1 <- topoSortPreCons (allPreCons c0) § "Sort precondition variables"
   Map.map snd <$> foldM solve' mempty pcs1
  where
   solve' s (PreCon _x TUnit k _c) = do
     return $ Map.insert k (AInt bot, PTrue) s -- TODO
 
   solve' s (PreCon x b k c) = do
-    c' <- pure (apply (Map.map snd s) c)         § "Apply partial solution"
-    a1 <- solve1 (PreCon x b k c')               § "Solve for" <+> pretty x
-    a2 <- pure (meet' a1 $ Map.lookup k s)       § "Meet with previous abstract solution"
-    p  <- concretizeVar (head $ kparams k) b a2  § "Concretize abstract solution"
+    logMessage $ "Solve" <+> pretty (PAppK k [EVar x])
+    c' <- apply (Map.map snd s) c   § "Apply partial solution"
+    a1 <- solve1 (PreCon x b k c')
+    a2 <- meet' a1 (Map.lookup k s) § "Meet with previous abstract solution"
+    p  <- concretizeVar (head $ kparams k) b a2
     return $ Map.insert k (a2,p) s
   
   meet' a1 = \case
@@ -113,25 +117,31 @@ solve1 = \case
   -- Otherwise, the recursion must have encoded some information that was lost
   -- by this simple elimination and the VC will be judged invalid.
   PreCon x b k c | not $ null $ kvars c -> do
-    st <- pure (Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)])
-    c1 <- pure (apply st c)      § "Set nested" <+> kappa <+> "variables true"
-    c2 <- pure (simplifyCon c1)  § "Simplify constraint"
+    let st = Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)]
+    c1 <- apply st c      § "Set nested" <+> kappa <+> "variables true"
+    c2 <- simplifyCon c1  § "Simplify constraint"
     solve1 $ PreCon x b k c2
 
   PreCon _ TUnit _ _ -> undefined -- TODO
 
   PreCon x TBool _ c -> do
-    c1 <- dnf <$> rewrite c § "Rewrite precondition constraint"
-    ABool <$> joins <$> mapM ((meets <$>) . mapM (abstractBool x)) c1
+    c1 <- rewrite c
+    rs <- dnf c1 § "Convert to DNF"
+    logMessage $ "Abstract bool variable" <+> pretty x
+    ABool <$> joins <$> mapM ((meets <$>) . mapM (abstractBool x)) rs
   
   PreCon x TInt _ c -> do
-    c1 <- dnf <$> rewrite c § "Rewrite precondition constraint"
-    AInt <$> joins <$> mapM ((meets <$>) . mapM (abstractInt  x)) c1
+    c1 <- rewrite c
+    rs <- dnf c1 § "Convert to DNF"
+    logMessage $ "Abstract integer variable" <+> pretty x
+    AInt <$> joins <$> mapM ((meets <$>) . mapM (abstractInt  x)) rs
   
   PreCon x TString _ c -> do
-    c1 <- dnf <$> rewrite c           § "Rewrite precondition constraint"
-    s0 <- joins <$> mapM ((meets <$>) . mapM (abstractStr  x)) c1
-    s1 <- pure (AString.simplify s0)  § "Simplify abstract string"
+    c1 <- rewrite c
+    rs <- dnf c1 § "Convert to DNF"
+    logMessage $ "Abstract string variable" <+> pretty x
+    s0 <- joins <$> mapM ((meets <$>) . mapM (abstractStr  x)) rs
+    s1 <- AString.simplify s0  § "Simplify abstract string"
     return $ AString s1
 
 
@@ -163,8 +173,10 @@ abstractStr x r = do
 
 rewrite :: Con -> Pan Pred
 rewrite c0 = do
-  c1 <- pure (elimAll c0) § "Eliminate ∀"
-  c2 <- elimExists c1     § "Eliminate ∃"
+  c1 <- elimAll c0 § "Eliminate ∀"
+  logMessage "Eliminate ∃"
+  c2 <- elimExists c1
+  logData c2
   return c2
  where
   elimAll :: Con -> Pred
