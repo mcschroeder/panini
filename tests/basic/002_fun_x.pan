@@ -120,4 +120,3 @@ f74 = \x:int. x
 
 f80 : {v:int|?} -> {w:int|?}
 f80 = \x:int. x
-

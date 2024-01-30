@@ -85,6 +85,10 @@ abstract x b r = case r of
 
   -- here, x may be on both sides ---------------------------------------------
 
+  EVar x1 :=: EVar x2 | x1 == x2 -> Right $ topExpr b
+
+  EFun "_IntComplement" [e1] :≠: e2 | e1 == e2 -> abstract x b $ e1 :=: e2
+
   EFun "_StrComplement" [e1] :≠: EFun "_StrComplement" [e2] -> abstract x b $ e1 :≠: e2
 
   (EFun "_StrAt_index" [s,c]      ) :=: i -> abstract x b $ EStrAt s         i        :=: c
@@ -147,6 +151,7 @@ abstract x b r = case r of
   EVar _x :≠: EStrA  s -> Right $ EStrA  (neg s)
 
   EVar _x :≠: EVar y | b == TBool   -> Right $ ENot (EVar y)
+  EVar _x :≠: EVar y | b == TInt    -> Right $ EFun "_IntComplement" [EVar y]
   EVar _x :≠: EVar y | b == TString -> Right $ EFun "_StrComplement" [EVar y]
 
   EVar _x :∈: EReg ere -> Right $ EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere

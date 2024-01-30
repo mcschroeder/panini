@@ -1,9 +1,9 @@
-tests/basic/002_fun_id.pan:31:1-4: error: unable to verify type of f32
-tests/basic/002_fun_id.pan:34:1-4: error: unable to verify type of f33
-tests/basic/002_fun_id.pan:48:1-4: error: unable to verify type of f42
-tests/basic/002_fun_id.pan:51:1-4: error: unable to verify type of f43
-tests/basic/002_fun_id.pan:54:1-4: error: unable to verify type of f44
-tests/basic/002_fun_id.pan:74:1-4: error: unable to verify type of f54
+tests/basic/002_fun_x.pan:31:1-4: error: unable to verify type of f32
+tests/basic/002_fun_x.pan:34:1-4: error: unable to verify type of f33
+tests/basic/002_fun_x.pan:48:1-4: error: unable to verify type of f42
+tests/basic/002_fun_x.pan:51:1-4: error: unable to verify type of f43
+tests/basic/002_fun_x.pan:54:1-4: error: unable to verify type of f44
+tests/basic/002_fun_x.pan:74:1-4: error: unable to verify type of f54
 f00 : {x:ℤ | true} → {x1:ℤ | x1 = x}
 f10 : ℤ → ℤ
 f20 : {v:ℤ | true} → ℤ
