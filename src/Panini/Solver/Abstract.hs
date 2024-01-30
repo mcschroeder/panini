@@ -80,10 +80,10 @@ solve c0 = do
     return $ Map.insert k (AInt bot, PTrue) s -- TODO
 
   solve' s (PreCon x b k c) = do
-    c' <- pure (apply (Map.map snd s) c)    § "Apply partial solution"
-    a1 <- solve1 (PreCon x b k c')          § "Solve for" <+> pretty x
-    a2 <- pure (meet' a1 $ Map.lookup k s)  § "Meet with previous abstract solution"
-    p  <- concretizeVar x b a2              § "Concretize abstract solution"
+    c' <- pure (apply (Map.map snd s) c)         § "Apply partial solution"
+    a1 <- solve1 (PreCon x b k c')               § "Solve for" <+> pretty x
+    a2 <- pure (meet' a1 $ Map.lookup k s)       § "Meet with previous abstract solution"
+    p  <- concretizeVar (head $ kparams k) b a2  § "Concretize abstract solution"
     return $ Map.insert k (a2,p) s
   
   meet' a1 = \case
