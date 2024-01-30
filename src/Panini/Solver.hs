@@ -78,7 +78,7 @@ solve ks_ex c0 = do
 
   logMessage $ "Extract candidate qualifiers" <+> "ℚ" `orASCII` "Q"
   let kts = List.nub [ts | KVar _ ts <- Set.toList $ kvars c5]
-  let qs = Map.fromList [(ts, extractQualifiers c5 ts) | ts <- kts]
+  let qs = Map.fromList [(ts, extractQualifiers c0 ts) | ts <- kts]
   logData qs
 
   logMessage $ "Find approximate solutions for residual" <+> kappa <+> "variables"
