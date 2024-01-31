@@ -4,6 +4,7 @@
 
 module Panini.Abstract.AExpr
   ( AExpr
+  , pattern EUnitA
   , pattern EBoolA
   , pattern EIntA
   , pattern EStrA
@@ -14,6 +15,7 @@ module Panini.Abstract.AExpr
 import Algebra.Lattice
 import Control.Applicative
 import Data.Generics.Uniplate.Operations qualified as Uniplate
+import Panini.Abstract.AUnit as AUnit
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AChar as AChar
@@ -28,6 +30,16 @@ import Data.Text qualified as Text
 
 -- | An abstract expression can contain abstract values and admits partial meets.
 type AExpr = Expr
+
+pattern EUnitA :: AUnit -> AExpr
+pattern EUnitA a <- (toAUnit -> Just a) where
+  EUnitA a = EAbs (AUnit a)
+
+toAUnit :: AExpr -> Maybe AUnit
+toAUnit = \case
+  EAbs (AUnit a) -> Just a
+  EUnit _        -> Just (AUnit.Unit)
+  _              -> Nothing
 
 pattern EBoolA :: ABool -> AExpr
 pattern EBoolA a <- (toABool -> Just a) where

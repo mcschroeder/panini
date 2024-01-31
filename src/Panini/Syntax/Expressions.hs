@@ -40,6 +40,9 @@ pattern EVar x = EVal (Var x)
 pattern ECon :: Constant -> Expr
 pattern ECon c = EVal (Con c)
 
+pattern EUnit :: PV -> Expr
+pattern EUnit pv = ECon (U pv)
+
 pattern EBool :: Bool -> PV -> Expr
 pattern EBool b pv = ECon (B b pv)
 

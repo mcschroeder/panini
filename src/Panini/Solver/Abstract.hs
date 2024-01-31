@@ -79,8 +79,8 @@ solve c0 = do
   pcs1 <- topoSortPreCons (allPreCons c0) § "Sort precondition variables"
   Map.map snd <$> foldM solve' mempty pcs1
  where
-  solve' s (PreCon _x TUnit k _c) = do
-    return $ Map.insert k (AInt bot, PTrue) s -- TODO
+  -- solve' s (PreCon _x TUnit k _c) = do
+  --   return $ Map.insert k (AInt bot, PTrue) s -- TODO
 
   solve' s (PreCon x b k c) = do
     logMessage $ "Solve" <+> pretty (PAppK k [EVar x])
@@ -122,7 +122,11 @@ solve1 = \case
     c2 <- simplifyCon c1  § "Simplify constraint"
     solve1 $ PreCon x b k c2
 
-  PreCon _ TUnit _ _ -> undefined -- TODO
+  PreCon x TUnit _ c -> do
+    c1 <- rewrite c
+    rs <- dnf c1 § "Convert to DNF"
+    logMessage $ "Abstract unit variable" <+> pretty x
+    AUnit <$> joins <$> mapM ((meets <$>) . mapM (abstractUnit x)) rs
 
   PreCon x TBool _ c -> do
     c1 <- rewrite c
@@ -146,6 +150,13 @@ solve1 = \case
 
 
 -- TODO: make this type wrangling stuff unnecessary
+
+abstractUnit :: Name -> Rel -> Pan AUnit
+abstractUnit x r = do
+  e <- abstractVar x TUnit r
+  case e of
+    EUnitA a -> return a
+    _        -> panic $ "abstractUnit: unexpected" <+> pretty e
 
 abstractBool :: Name -> Rel -> Pan ABool
 abstractBool x r = do

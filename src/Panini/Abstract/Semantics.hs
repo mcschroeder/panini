@@ -2,6 +2,7 @@ module Panini.Abstract.Semantics where
 
 import Algebra.Lattice
 import Control.Monad
+import Panini.Abstract.AUnit as AUnit
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AExpr
@@ -29,6 +30,10 @@ x ∉ e = x `notElem` freeVars e
 -------------------------------------------------------------------------------
 
 concretizeVar :: Name -> Base -> AValue -> Pan Pred
+concretizeVar x TUnit (AUnit a) = case a of
+  AUnit.Unit -> return $ PRel $ EVar x :=: EUnit NoPV
+  AUnit.Bottom -> return PFalse
+
 concretizeVar x TBool (ABool a) = case ABool.value a of
   Just b  -> return $ PRel $ EVar x :=: EBool b NoPV
   Nothing -> if isTop a then return PTrue else return PFalse

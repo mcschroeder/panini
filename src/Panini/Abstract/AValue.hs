@@ -3,6 +3,7 @@ module Panini.Abstract.AValue
   , ABool
   , AInt
   , AString
+  , AUnit
   , containsTop, containsBot
   , fillTop, fillBot
   , typeOfAValue
@@ -11,6 +12,7 @@ module Panini.Abstract.AValue
 import Algebra.Lattice
 import Data.Hashable
 import GHC.Generics (Generic)
+import Panini.Abstract.AUnit
 import Panini.Abstract.ABool
 import Panini.Abstract.AInt
 import Panini.Abstract.AString
@@ -21,7 +23,8 @@ import Prelude
 ------------------------------------------------------------------------------
 
 data AValue
-  = ABool !ABool
+  = AUnit !AUnit
+  | ABool !ABool
   | AInt !AInt
   | AString !AString
   deriving stock (Eq, Show, Read, Generic)
@@ -30,11 +33,13 @@ instance Hashable AValue
 
 instance Pretty AValue where
   pretty = \case
+    AUnit   a -> pretty a
     ABool   a -> pretty a
     AInt    a -> pretty a
     AString a -> pretty a
 
 instance PartialMeetSemilattice AValue where
+  AUnit   a ∧? AUnit   b = Just $ AUnit   (a ∧ b)
   ABool   a ∧? ABool   b = Just $ ABool   (a ∧ b)
   AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
@@ -42,30 +47,35 @@ instance PartialMeetSemilattice AValue where
 
 containsTop :: AValue -> Bool
 containsTop = \case
+  AUnit   a -> isTop a
   ABool   a -> isTop a
   AInt    a -> isTop a
   AString a -> isTop a
 
 containsBot :: AValue -> Bool
 containsBot = \case
+  AUnit   a -> isBot a
   ABool   a -> isBot a
   AInt    a -> isBot a
   AString a -> isBot a
 
 fillTop :: AValue -> AValue
 fillTop = \case
+  AUnit   _ -> AUnit top
   ABool   _ -> ABool top
   AInt    _ -> AInt top
   AString _ -> AString top
 
 fillBot :: AValue -> AValue
 fillBot = \case
+  AUnit   _ -> AUnit bot
   ABool   _ -> ABool bot
   AInt    _ -> AInt bot
   AString _ -> AString bot
 
 typeOfAValue :: AValue -> Base
 typeOfAValue = \case
+  AUnit   _ -> TUnit
   ABool   _ -> TBool
   AInt    _ -> TInt
   AString _ -> TString
