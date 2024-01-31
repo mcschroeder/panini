@@ -1,0 +1,7 @@
+tests/basic/not/lam_not_iff_05.pan:4:1-4: error: unable to verify type of f31
+tests/basic/not/lam_not_iff_05.pan:7:1-4: error: unable to verify type of f32
+tests/basic/not/lam_not_iff_05.pan:10:1-4: error: unable to verify type of f51
+tests/basic/not/lam_not_iff_05.pan:13:1-4: error: unable to verify type of f62
+tests/basic/not/lam_not_iff_05.pan:16:1-4: error: unable to verify type of f71
+tests/basic/not/lam_not_iff_05.pan:19:1-4: error: unable to verify type of f72
+tests/basic/not/lam_not_iff_05.pan:22:1-4: error: unable to verify type of f99

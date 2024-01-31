@@ -1,0 +1,7 @@
+tests/basic/prim/prim_05.pan:3:1-4: error: unable to verify type of b80
+tests/basic/prim/prim_05.pan:6:1-4: error: unable to verify type of c80
+tests/basic/prim/prim_05.pan:9:1-4: error: unable to verify type of d80
+tests/basic/prim/prim_05.pan:14:1-4: error: unable to verify type of b81
+tests/basic/prim/prim_05.pan:17:1-4: error: unable to verify type of c81
+tests/basic/prim/prim_05.pan:20:1-4: error: unable to verify type of d81
+tests/basic/prim/prim_05.pan:25:1-4: error: unable to verify type of c82

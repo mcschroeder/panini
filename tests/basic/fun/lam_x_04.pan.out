@@ -1,0 +1,6 @@
+tests/basic/fun/lam_x_04.pan:2:1-4: error: unable to verify type of f32
+tests/basic/fun/lam_x_04.pan:5:1-4: error: unable to verify type of f33
+tests/basic/fun/lam_x_04.pan:8:1-4: error: unable to verify type of f42
+tests/basic/fun/lam_x_04.pan:11:1-4: error: unable to verify type of f43
+tests/basic/fun/lam_x_04.pan:14:1-4: error: unable to verify type of f44
+tests/basic/fun/lam_x_04.pan:17:1-4: error: unable to verify type of f54
