@@ -47,7 +47,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
 
  where
   testName :: String -> Doc
-  testName inFile = pretty @String $ printf "%-40s " inFile
+  testName inFile = pretty @String $ printf "%-50s " inFile
 
   runTest :: FilePath -> IO Bool
   runTest inFile = do
