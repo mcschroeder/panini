@@ -92,6 +92,9 @@ abstract x b r = case r of
 
   EVar x1 :=: EVar x2 | x1 == x2 -> Right $ topExpr b
 
+  ENot e1 :≠: e2 -> abstract x b $ e1 :=: e2
+  e1 :≠: ENot e2 -> abstract x b $ e1 :=: e2
+
   EFun "_IntComplement" [e1] :≠: e2 | e1 == e2 -> abstract x b $ e1 :=: e2
 
   EFun "_StrComplement" [e1] :≠: EFun "_StrComplement" [e2] -> abstract x b $ e1 :≠: e2
