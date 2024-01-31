@@ -1,0 +1,12 @@
+tests/basic/prim_04.pan:3:7-11: error: invalid subtype: 𝔹 <: 𝟙
+tests/basic/prim_04.pan:6:7-8: error: invalid subtype: ℤ <: 𝟙
+tests/basic/prim_04.pan:9:7-14: error: invalid subtype: 𝕊 <: 𝟙
+tests/basic/prim_04.pan:14:7-11: error: invalid subtype: 𝟙 <: 𝔹
+tests/basic/prim_04.pan:17:7-8: error: invalid subtype: ℤ <: 𝔹
+tests/basic/prim_04.pan:20:7-14: error: invalid subtype: 𝕊 <: 𝔹
+tests/basic/prim_04.pan:25:7-11: error: invalid subtype: 𝟙 <: ℤ
+tests/basic/prim_04.pan:28:7-11: error: invalid subtype: 𝔹 <: ℤ
+tests/basic/prim_04.pan:31:7-14: error: invalid subtype: 𝕊 <: ℤ
+tests/basic/prim_04.pan:36:7-11: error: invalid subtype: 𝟙 <: 𝕊
+tests/basic/prim_04.pan:39:7-11: error: invalid subtype: 𝔹 <: 𝕊
+tests/basic/prim_04.pan:42:7-8: error: invalid subtype: ℤ <: 𝕊

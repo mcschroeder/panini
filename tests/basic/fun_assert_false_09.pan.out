@@ -1,0 +1,4 @@
+tests/basic/fun_assert_false_09.pan:4:1-4: error: unable to verify type of f20
+tests/basic/fun_assert_false_09.pan:7:1-4: error: unable to verify type of f21
+tests/basic/fun_assert_false_09.pan:10:1-4: error: unable to verify type of f22
+tests/basic/fun_assert_false_09.pan:13:1-4: error: unable to verify type of f23

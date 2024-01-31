@@ -1,0 +1,4 @@
+tests/basic/fun_not_neg_06.pan:4:1-4: error: unable to verify type of f34
+tests/basic/fun_not_neg_06.pan:7:1-4: error: unable to verify type of f54
+tests/basic/fun_not_neg_06.pan:10:1-4: error: unable to verify type of f64
+tests/basic/fun_not_neg_06.pan:13:1-4: error: unable to verify type of f74

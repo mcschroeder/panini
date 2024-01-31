@@ -1,6 +1,0 @@
-f0 : {y:𝔹 | y = false}
-f1 : {y:𝔹 | y = true}
-f2 : 𝔹
-f3 : 𝔹
-f4 : {b:𝔹 | b = false}
-f5 : {b:𝔹 | b = true}

@@ -1,0 +1,5 @@
+a4 : {v:𝟙 | false}
+b4 : {v:𝔹 | false}
+c4 : {v:ℤ | false}
+d4 : {v:𝕊 | false}
+a8 : {v:𝟙 | v ≠ unit}

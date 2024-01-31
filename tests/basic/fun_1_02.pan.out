@@ -1,0 +1,8 @@
+f23 : {v:ℤ | false} → ℤ
+f70 : {v:ℤ | false} → {w:ℤ | true}
+f71 : {v:ℤ | false} → {w:ℤ | w = 1}
+f73 : {v:ℤ | false} → {w:ℤ | false}
+f74 : {v:ℤ | false} → {w:ℤ | w = 1}
+f72 : {v:ℤ | false} → {w:ℤ | w = 2}
+f83 : {v:ℤ | false} → {w:ℤ | false}
+f82 : {v:ℤ | false} → {w:ℤ | w = 2}

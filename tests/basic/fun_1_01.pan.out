@@ -1,0 +1,6 @@
+f10 : ℤ → ℤ
+f20 : {v:ℤ | true} → ℤ
+f24 : {v:ℤ | true} → ℤ
+f30 : ℤ → {w:ℤ | true}
+f40 : {v:ℤ | true} → {w:ℤ | true}
+f80 : {v:ℤ | true} → {w:ℤ | true}
