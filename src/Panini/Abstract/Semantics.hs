@@ -50,6 +50,13 @@ concretizeVar x TInt (AInt a)
                                      , PRel $ EVar x :≤: EInt n NoPV ]
       (Nothing, Nothing) -> return PFalse
       _ -> impossible
+  
+  | [AInt.In NegInf (Fin m), AInt.In (Fin n) PosInf] <- AInt.intervals a =
+      if n - m == 2
+        then return $ PRel $ EVar x :≠: EInt (m + 1) NoPV
+        else return $ POr [ PRel $ EVar x :≤: EInt m NoPV
+                          , PRel $ EVar x :≥: EInt n NoPV ]
+
 
 
 concretizeVar x TString (AString a) = case AString.toRegex a of
