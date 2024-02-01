@@ -1,0 +1,4 @@
+tests/basic/id/lam_id_int_03.pan:4:1-4: error: unable to verify type of f14
+tests/basic/id/lam_id_int_03.pan:7:1-4: error: unable to verify type of f17
+tests/basic/id/lam_id_int_03.pan:10:1-4: error: unable to verify type of f18
+tests/basic/id/lam_id_int_03.pan:13:1-4: error: unable to verify type of f22

@@ -1,0 +1,5 @@
+f7 : {x:ℤ | true} → {j:ℤ | j = x}
+f11 : {a:ℤ | true} → {b:ℤ | b = a}
+f21 : {a:ℤ | true} → {b:ℤ | b = a}
+f31 : {a:ℤ | true} → {b:ℤ | b = a}
+f41 : {a:ℤ | true} → {b:ℤ | b = a}

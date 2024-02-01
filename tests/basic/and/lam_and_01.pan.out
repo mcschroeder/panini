@@ -1,0 +1,14 @@
+f122 : {x:𝔹 | x = true} → {y:𝔹 | true} → {z:𝔹 | z = y}
+f022 : {x:𝔹 | x = false} → {y:𝔹 | true} → {z:𝔹 | z = false}
+f212 : {x:𝔹 | true} → {y:𝔹 | y = true} → {z:𝔹 | z = x}
+f202 : {x:𝔹 | true} → {y:𝔹 | y = false} → {z:𝔹 | z = false}
+f221 : {x:𝔹 | x = true} → {y:𝔹 | y = true} → {z:𝔹 | z = true}
+f220 : {x:𝔹 | true} → {y:𝔹 | y ≠ x} → {z:𝔹 | z = false}
+f121 : {x:𝔹 | x = true} → {y:𝔹 | y = true} → {z:𝔹 | z = true}
+f120 : {x:𝔹 | x = true} → {y:𝔹 | y = false} → {z:𝔹 | z = false}
+f021 : {x:𝔹 | x = false} → {y:𝔹 | false} → {z:𝔹 | z = true}
+f020 : {x:𝔹 | x = false} → {y:𝔹 | true} → {z:𝔹 | z = false}
+f211 : {x:𝔹 | x = true} → {y:𝔹 | y = true} → {z:𝔹 | z = true}
+f210 : {x:𝔹 | x = false} → {y:𝔹 | y = true} → {z:𝔹 | z = false}
+f201 : {x:𝔹 | false} → {y:𝔹 | y = false} → {z:𝔹 | z = true}
+f201 : {x:𝔹 | true} → {y:𝔹 | y = false} → {z:𝔹 | z = false}

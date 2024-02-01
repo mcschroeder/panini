@@ -1,0 +1,6 @@
+f00 : {c:𝔹 | c = true}
+f01 : {v:𝔹 | c = true}
+f02 : {v:𝔹 | v = true}
+f10 : {c:𝔹 | c = true}
+f11 : {v:𝔹 | c = true}
+f12 : {v:𝔹 | v = true}

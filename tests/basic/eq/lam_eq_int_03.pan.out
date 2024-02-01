@@ -1,0 +1,8 @@
+tests/basic/eq/lam_eq_int_03.pan:4:1-4: error: unable to verify type of f01
+tests/basic/eq/lam_eq_int_03.pan:7:1-4: error: unable to verify type of f11
+tests/basic/eq/lam_eq_int_03.pan:11:1-4: error: unable to verify type of f02
+tests/basic/eq/lam_eq_int_03.pan:14:1-4: error: unable to verify type of f12
+tests/basic/eq/lam_eq_int_03.pan:18:1-4: error: unable to verify type of f03
+tests/basic/eq/lam_eq_int_03.pan:21:1-4: error: unable to verify type of f13
+tests/basic/eq/lam_eq_int_03.pan:25:1-4: error: unable to verify type of f04
+tests/basic/eq/lam_eq_int_03.pan:28:1-4: error: unable to verify type of f14

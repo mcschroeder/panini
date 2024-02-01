@@ -1,0 +1,4 @@
+tests/basic/eq/let_eq_int_01.pan:4:1-4: error: unable to verify type of f02
+tests/basic/eq/let_eq_int_01.pan:7:1-4: error: unable to verify type of f04
+tests/basic/eq/let_eq_int_01.pan:11:1-4: error: unable to verify type of f12
+tests/basic/eq/let_eq_int_01.pan:14:1-4: error: unable to verify type of f14
