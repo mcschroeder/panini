@@ -51,11 +51,13 @@ simplifyCon = rewrite $ \case
 simplifyPred :: Pred -> Pred
 simplifyPred = rewrite $ \case
   POr xs
+    | null xs        -> Just PFalse
     | [x] <- xs      -> Just x
     | elem PTrue xs  -> Just PTrue
     | elem PFalse xs -> Just $ POr $ filter (/= PFalse) xs
 
   PAnd xs
+    | null xs        -> Just PTrue
     | [x] <- xs      -> Just x
     | elem PFalse xs -> Just PFalse
     | elem PTrue xs  -> Just $ PAnd $ filter (/= PTrue) xs
