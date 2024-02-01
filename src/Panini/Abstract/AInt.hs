@@ -197,7 +197,7 @@ instance JoinSemilattice IntervalSequence where
   (x:xs) ∨ (y:ys)
     | x `precedes` y = x : (xs ∨ (y:ys))
     | y `precedes` x = y : ((x:xs) ∨ ys)
-    | otherwise      = ((x ∨ y) : xs) ∨ ys 
+    | otherwise      = ([x ∨ y] ∨ xs) ∨ ys
 
 instance BoundedJoinSemilattice IntervalSequence where
   bot = []
