@@ -6,3 +6,8 @@ f41 = assert false
 
 f51 : {v:unit|false}
 f51 = assert false
+
+-- NOTE: 
+-- these should fail because "assert false" does not typecheck.
+-- the type of "assert false" is not a subtype of "{v:unit|false}"
+-- the type of "assert false" does not exist!

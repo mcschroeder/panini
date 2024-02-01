@@ -1,5 +1,5 @@
-a4 : {v:𝟙 | false}
-b4 : {v:𝔹 | false}
-c4 : {v:ℤ | false}
-d4 : {v:𝕊 | false}
-a8 : {v:𝟙 | v ≠ unit}
+tests/basic/prim/prim_02.pan:3:1-3: error: unable to verify type of a4
+tests/basic/prim/prim_02.pan:6:1-3: error: unable to verify type of b4
+tests/basic/prim/prim_02.pan:9:1-3: error: unable to verify type of c4
+tests/basic/prim/prim_02.pan:12:1-3: error: unable to verify type of d4
+tests/basic/prim/prim_02.pan:18:1-3: error: unable to verify type of a8

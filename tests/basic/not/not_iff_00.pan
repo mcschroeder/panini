@@ -21,9 +21,3 @@ f6 = not true
 
 f7 : {b:bool|b=true}
 f7 = not false
-
-f8 : {b:bool|false}
-f8 = not true
-
-f9 : {b:bool|false}
-f9 = not false

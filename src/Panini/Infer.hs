@@ -23,9 +23,22 @@ withPV (t,c) pv = (setPV pv t, c)  -- TODO: Con provenance
 -- | Mappings of variables to types (Γ)
 type Context = Map Name Type
 
+-- | Check a term against a type in the given context, returning a verification
+-- condition that needs to be proven valid in order for the type check to be
+-- considered successful. The given type could be user-provided and may contain
+-- holes (?). The returned type may be more precise than the given type and will
+-- not contain any holes but may contain κ variables. Proving the VC valid
+-- should provide an assignment for any extant κ variable.
+check :: Context -> Term -> Type -> Pan (Type, Con)
+check g e t̃ = do
+  (t,c) <- infer g e
+  t̂ <- fresh g t̃
+  ĉ <- sub t t̂
+  return (t̂, c ∧ ĉ)
+
 -- | Infer the most precise type of a term in the given context, plus a
--- verification condition that needs to be proven valid. Proving the VC might
--- should provide an assignment for any extant κ variables present in the type.
+-- verification condition that needs to be proven valid. Proving the VC should
+-- provide an assignment for any extant κ variables present in the type.
 infer :: Context -> Term -> Pan (Type, Con)
 infer g = \case
   
@@ -73,15 +86,7 @@ infer g = \case
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
-  Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁ <- fresh g t̃₁  -- no shape!
-    (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
-    ĉ₁  <- sub t₁ t̂₁
-    (t₂,c₂) <- infer (Map.insert x t̂₁ g) e₂
-    t̂₂ <- fresh g (shape t₂)
-    ĉ₂ <- sub t₂ t̂₂
-    let c = cImpl x t̂₁ (c₁ ∧ ĉ₁ ∧ c₂ ∧ ĉ₂)
-    return $ (t̂₂, c) `withPV` pv
+  Rec _x _t̃₁ _e₁ _e₂ _pv -> panic "inf/rec not yet implemented"
 
   -- inf/if -----------------------------------------------
   If v e₁ e₂ pv -> do

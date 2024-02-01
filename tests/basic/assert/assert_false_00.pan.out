@@ -1,2 +1,2 @@
-f41 : {v:𝟙 | v ≠ unit}
-f51 : {v:𝟙 | false}
+tests/basic/assert/assert_false_00.pan:5:1-4: error: unable to verify type of f41
+tests/basic/assert/assert_false_00.pan:8:1-4: error: unable to verify type of f51

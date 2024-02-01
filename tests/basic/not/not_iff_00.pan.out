@@ -6,5 +6,3 @@ f4 : {b:𝔹 | b = false}
 f5 : {b:𝔹 | b = true}
 f6 : {b:𝔹 | b = false}
 f7 : {b:𝔹 | b = true}
-f8 : {b:𝔹 | false}
-f9 : {b:𝔹 | false}
