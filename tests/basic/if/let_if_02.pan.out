@@ -1,4 +1,4 @@
-tests/basic/if/if_02.pan:3:1-4: error: unable to verify type of f60
-tests/basic/if/if_02.pan:6:1-4: error: unable to verify type of f61
-tests/basic/if/if_02.pan:10:1-4: error: unable to verify type of f70
-tests/basic/if/if_02.pan:13:1-4: error: unable to verify type of f71
+tests/basic/if/let_if_02.pan:3:1-4: error: unable to verify type of f60
+tests/basic/if/let_if_02.pan:6:1-4: error: unable to verify type of f61
+tests/basic/if/let_if_02.pan:10:1-4: error: unable to verify type of f70
+tests/basic/if/let_if_02.pan:13:1-4: error: unable to verify type of f71
