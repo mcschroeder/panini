@@ -60,7 +60,7 @@ concretizeVar x TString (AString a) = case AString.toRegex a of
     Just ere -> return $ PRel $ EVar x :∈: EReg ere
     Nothing  -> panic $ "cannot convert Regex to ERE:" <+> pretty r
 
-concretizeVar _ _ _ = undefined -- TODO: throwError
+concretizeVar x b a = throwError $ ConcretizationImpossible x b a
 
 abstractVar :: Name -> Base -> Rel -> Pan AExpr
 abstractVar x b r = case abstract x b r of

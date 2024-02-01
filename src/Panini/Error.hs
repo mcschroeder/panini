@@ -2,6 +2,7 @@ module Panini.Error where
 
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Panini.Abstract.AValue
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Constraints
@@ -21,30 +22,33 @@ data Error
   | Unverifiable Name Con
   | IOError String PV
   | AbstractionImpossible Name Rel Rel
+  | ConcretizationImpossible Name Base AValue
   deriving stock (Show, Read)
 
 instance HasProvenance Error where
   getPV = \case
-    AlreadyDefined x              -> getPV x
-    UnknownVar x                  -> getPV x
-    InvalidSubtype t _            -> getPV t
-    ExpectedFunType e _           -> getPV e
-    ParserError _ pv              -> pv
-    SolverError _ pv              -> pv
-    Unverifiable x _              -> getPV x
-    IOError _ pv                  -> pv
-    AbstractionImpossible x _r1 _ -> getPV x -- TODO: getPV r1
+    AlreadyDefined x               -> getPV x
+    UnknownVar x                   -> getPV x
+    InvalidSubtype t _             -> getPV t
+    ExpectedFunType e _            -> getPV e
+    ParserError _ pv               -> pv
+    SolverError _ pv               -> pv
+    Unverifiable x _               -> getPV x
+    IOError _ pv                   -> pv
+    AbstractionImpossible x _r1 _  -> getPV x -- TODO: getPV r1
+    ConcretizationImpossible x _ _ -> getPV x -- TODO: getPV a
   
   setPV pv = \case
-    AlreadyDefined x              -> AlreadyDefined (setPV pv x)
-    UnknownVar x                  -> UnknownVar (setPV pv x)
-    InvalidSubtype t1 t2          -> InvalidSubtype (setPV pv t1) t2
-    ExpectedFunType e t           -> ExpectedFunType (setPV pv e) t
-    ParserError e _               -> ParserError e pv
-    SolverError e _               -> SolverError e pv
-    Unverifiable x vc             -> Unverifiable (setPV pv x) vc
-    IOError e _                   -> IOError e pv
-    AbstractionImpossible x r1 r2 -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
+    AlreadyDefined x               -> AlreadyDefined (setPV pv x)
+    UnknownVar x                   -> UnknownVar (setPV pv x)
+    InvalidSubtype t1 t2           -> InvalidSubtype (setPV pv t1) t2
+    ExpectedFunType e t            -> ExpectedFunType (setPV pv e) t
+    ParserError e _                -> ParserError e pv
+    SolverError e _                -> SolverError e pv
+    Unverifiable x vc              -> Unverifiable (setPV pv x) vc
+    IOError e _                    -> IOError e pv
+    AbstractionImpossible x r1 r2  -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
+    ConcretizationImpossible x b a -> ConcretizationImpossible (setPV pv x) b a -- TODO: setPV a
 
 -------------------------------------------------------------------------------
 
@@ -71,6 +75,9 @@ prettyErrorMessage = \case
   IOError e _          -> pretty $ Text.pack e  
   AbstractionImpossible x _ r2 -> 
     "abstraction impossible:" <\> "⟦" <> pretty r2 <> "⟧↑" <> pretty x
+  ConcretizationImpossible x b a ->
+    "concretization impossible for" <+> pretty b <> ":" <\> 
+    "⟦" <> pretty a <> "⟧↓" <> pretty x
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
 prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))
