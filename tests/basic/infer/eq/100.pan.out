@@ -1,0 +1,2 @@
+tests/basic/infer/eq/100.pan:5:1-5: error: unable to verify type of f100
+tests/basic/infer/eq/100.pan:10:1-5: error: unable to verify type of f101

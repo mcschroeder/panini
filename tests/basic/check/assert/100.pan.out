@@ -1,0 +1,4 @@
+tests/basic/check/assert/100.pan:4:1-5: error: unable to verify type of f100
+tests/basic/check/assert/100.pan:7:1-5: error: unable to verify type of f101
+tests/basic/check/assert/100.pan:10:1-5: error: unable to verify type of f102
+tests/basic/check/assert/100.pan:13:1-5: error: unable to verify type of f103

@@ -1,8 +1,0 @@
-f21 : {x:𝔹 | x = false} → 𝔹
-f63 : {x:𝔹 | x = false} → {y:𝔹 | true}
-f50 : {x:𝔹 | x = false} → {y:𝔹 | y = ¬x}
-f51 : {x:𝔹 | x = false} → {y:𝔹 | y = ¬x}
-f52 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
-f54 : {x:𝔹 | x = false} → {y:𝔹 | y = true ∧ y = ¬x}
-f41 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
-f44 : {x:𝔹 | x = false} → {y:𝔹 | y = true ∧ y = ¬x}

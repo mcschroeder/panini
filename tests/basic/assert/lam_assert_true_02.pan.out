@@ -1,4 +1,0 @@
-f20 : {x:𝟙 | true} → {v:𝟙 | true}
-f21 : {x:𝔹 | true} → {v:𝟙 | true}
-f22 : {x:ℤ | true} → {v:𝟙 | true}
-f23 : {x:𝕊 | true} → {v:𝟙 | true}

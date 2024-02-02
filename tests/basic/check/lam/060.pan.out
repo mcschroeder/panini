@@ -1,0 +1,4 @@
+tests/basic/check/lam/060.pan:2:1-4: error: unable to verify type of f60
+tests/basic/check/lam/060.pan:5:1-4: error: unable to verify type of f61
+tests/basic/check/lam/060.pan:8:1-4: error: unable to verify type of f62
+tests/basic/check/lam/060.pan:11:1-4: error: unable to verify type of f63

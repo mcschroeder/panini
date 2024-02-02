@@ -1,0 +1,4 @@
+f30 : {c:𝔹 | c = true}
+f31 : {c:𝔹 | c = false}
+f32 : {c:𝔹 | c = false}
+f33 : {c:𝔹 | c = false}

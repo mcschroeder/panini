@@ -1,6 +1,0 @@
-f00 : {a:𝔹 | true} → {b:𝔹 | true} → {c:𝔹 | c = true ⇔ a = true ∧ b = true}
-f01 : {x:𝔹 | true} → {y:𝔹 | true} → {c:𝔹 | c = true ⇔ x = true ∧ y = true}
-f10 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | z = true ⇔ x = true ∧ y = true}
-f11 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | z = true ⇔ x = true ∧ y = true}
-f20 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | z = true ⇔ x = true ∧ y = true}
-f21 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | z = true ⇔ x = true ∧ y = true}

@@ -1,0 +1,8 @@
+tests/basic/check/if/040.pan:3:1-4: error: unable to verify type of f40
+tests/basic/check/if/040.pan:6:1-4: error: unable to verify type of f41
+tests/basic/check/if/040.pan:9:1-4: error: unable to verify type of f42
+tests/basic/check/if/040.pan:12:1-4: error: unable to verify type of f43
+tests/basic/check/if/040.pan:15:1-4: error: unable to verify type of f44
+tests/basic/check/if/040.pan:18:1-4: error: unable to verify type of f45
+tests/basic/check/if/040.pan:21:1-4: error: unable to verify type of f46
+tests/basic/check/if/040.pan:24:1-4: error: unable to verify type of f47

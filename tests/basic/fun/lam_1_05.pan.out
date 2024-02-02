@@ -1,4 +1,0 @@
-tests/basic/fun/lam_1_05.pan:3:1-4: error: unable to verify type of f33
-tests/basic/fun/lam_1_05.pan:6:1-4: error: unable to verify type of f43
-tests/basic/fun/lam_1_05.pan:9:1-4: error: unable to verify type of f53
-tests/basic/fun/lam_1_05.pan:12:1-4: error: unable to verify type of f63

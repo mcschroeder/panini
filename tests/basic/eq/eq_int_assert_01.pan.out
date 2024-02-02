@@ -1,4 +1,0 @@
-tests/basic/eq/eq_int_assert_01.pan:4:1-4: error: unable to verify type of f00
-tests/basic/eq/eq_int_assert_01.pan:9:1-4: error: unable to verify type of f01
-tests/basic/eq/eq_int_assert_01.pan:13:1-4: error: unable to verify type of f10
-tests/basic/eq/eq_int_assert_01.pan:19:1-4: error: unable to verify type of f11

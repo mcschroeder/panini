@@ -1,6 +1,0 @@
-f00 : {x:ℤ | true} → {x1:ℤ | x1 = x}
-f80 : {v:ℤ | true} → {w:ℤ | w = v}
-f34 : {_:ℤ | true} → {w:ℤ | w = _}
-f41 : {v:ℤ | true} → {w:ℤ | w = v}
-f45 : {v:ℤ | true} → {w:ℤ | w = v}
-f71 : {v:ℤ | true} → {w:ℤ | w = v}

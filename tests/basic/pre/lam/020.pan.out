@@ -1,0 +1,2 @@
+f20 : {v:ℤ | true} → ℤ
+f21 : {v:ℤ | true} → {w:ℤ | true}

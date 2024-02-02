@@ -1,9 +1,0 @@
-f22 : {v:ℤ | false} → ℤ
-f60 : {v:ℤ | false} → {w:ℤ | true}
-f61 : {v:ℤ | false} → {w:ℤ | w = v}
-f62 : {v:ℤ | false} → {w:ℤ | w = 1}
-f63 : {v:ℤ | false} → {w:ℤ | w = v ∧ w = 1}
-f64 : {v:ℤ | false} → {w:ℤ | false}
-f65 : {v:ℤ | false} → {w:ℤ | w = v}
-f66 : {v:ℤ | false} → {w:ℤ | w ≠ v}
-f74 : {v:ℤ | false} → {w:ℤ | false}

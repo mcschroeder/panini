@@ -1,0 +1,4 @@
+f60 : {x:𝟙 | false} → {v:𝟙 | true}
+f61 : {x:𝔹 | false} → {v:𝟙 | true}
+f62 : {x:ℤ | false} → {v:𝟙 | true}
+f63 : {x:𝕊 | false} → {v:𝟙 | true}

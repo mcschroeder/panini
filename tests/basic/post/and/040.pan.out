@@ -1,0 +1,6 @@
+f40 : {x:𝔹 | false} → {y:𝔹 | y = true} → {z:𝔹 | true}
+f41 : {x:𝔹 | false} → {y:𝔹 | y = false} → {z:𝔹 | z = false}
+f42 : {x:𝔹 | false} → {y:𝔹 | y = x} → {z:𝔹 | true}
+f43 : {x:𝔹 | false} → {y:𝔹 | y ≠ x} → {z:𝔹 | z = false}
+f44 : {x:𝔹 | false} → {y:𝔹 | true} → {z:𝔹 | true}
+f45 : {x:𝔹 | false} → {y:𝔹 | false} → {z:𝔹 | true}

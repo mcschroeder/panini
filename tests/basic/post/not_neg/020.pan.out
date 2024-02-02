@@ -1,0 +1,2 @@
+f20 : {x:𝔹 | x = true} → {y:𝔹 | y = false}
+f21 : {x:𝔹 | x = false} → {y:𝔹 | y = true}

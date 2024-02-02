@@ -1,0 +1,5 @@
+f90 : {x:𝔹 | x = false} → 𝔹
+f91 : {x:𝔹 | x = false} → {y:𝔹 | true}
+f92 : {x:𝔹 | x = false} → {y:𝔹 | y = ¬x}
+f93 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
+f94 : {x:𝔹 | x = false} → {y:𝔹 | y = true ∧ y = ¬x}

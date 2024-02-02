@@ -1,0 +1,4 @@
+f50 : {x:𝟙 | true} → {v:𝟙 | true}
+f51 : {x:𝔹 | true} → {v:𝟙 | true}
+f52 : {x:ℤ | true} → {v:𝟙 | true}
+f53 : {x:𝕊 | true} → {v:𝟙 | true}

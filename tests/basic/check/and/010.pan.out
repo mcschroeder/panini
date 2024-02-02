@@ -1,0 +1,4 @@
+f10 : {z:𝔹 | z = true}
+f11 : {z:𝔹 | z = false}
+f12 : {z:𝔹 | z = false}
+f13 : {z:𝔹 | z = false}

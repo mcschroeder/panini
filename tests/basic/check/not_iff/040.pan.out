@@ -1,0 +1,2 @@
+tests/basic/check/not_iff/040.pan:4:1-4: error: unable to verify type of f40
+tests/basic/check/not_iff/040.pan:7:1-4: error: unable to verify type of f41

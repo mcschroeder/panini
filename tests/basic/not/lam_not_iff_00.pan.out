@@ -1,9 +1,0 @@
-f00 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
-f10 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
-f30 : {_:𝔹 | true} → {y:𝔹 | y = true ⇔ _ = false}
-f40 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
-f41 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
-f70 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
-f71 : {x:𝔹 | true} → {y:𝔹 | y = true ⇔ x = false}
-f41b : {x:𝔹 | true} → {y:𝔹 | y = ¬x}
-f71b : {x:𝔹 | true} → {y:𝔹 | y = ¬x}

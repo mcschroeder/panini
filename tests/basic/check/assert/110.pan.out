@@ -1,0 +1,4 @@
+tests/basic/check/assert/110.pan:4:1-5: error: unable to verify type of f110
+tests/basic/check/assert/110.pan:7:1-5: error: unable to verify type of f111
+tests/basic/check/assert/110.pan:10:1-5: error: unable to verify type of f112
+tests/basic/check/assert/110.pan:13:1-5: error: unable to verify type of f113

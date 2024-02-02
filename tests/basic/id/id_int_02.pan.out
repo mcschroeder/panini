@@ -1,7 +1,0 @@
-tests/basic/id/id_int_02.pan:4:1-4: error: unable to verify type of x00
-tests/basic/id/id_int_02.pan:7:1-4: error: unable to verify type of x01
-tests/basic/id/id_int_02.pan:10:1-4: error: unable to verify type of x02
-tests/basic/id/id_int_02.pan:13:1-4: error: unable to verify type of x11
-tests/basic/id/id_int_02.pan:16:1-4: error: unable to verify type of x12
-tests/basic/id/id_int_02.pan:19:1-4: error: unable to verify type of x21
-tests/basic/id/id_int_02.pan:22:1-4: error: unable to verify type of x22

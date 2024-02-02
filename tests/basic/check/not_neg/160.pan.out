@@ -1,0 +1,2 @@
+tests/basic/check/not_neg/160.pan:5:1-5: error: unable to verify type of f160
+tests/basic/check/not_neg/160.pan:8:1-5: error: unable to verify type of f161

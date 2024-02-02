@@ -1,0 +1,4 @@
+tests/basic/check/if/050.pan:3:1-4: error: unable to verify type of f50
+tests/basic/check/if/050.pan:6:1-4: error: unable to verify type of f51
+tests/basic/check/if/050.pan:9:1-4: error: unable to verify type of f52
+tests/basic/check/if/050.pan:12:1-4: error: unable to verify type of f53

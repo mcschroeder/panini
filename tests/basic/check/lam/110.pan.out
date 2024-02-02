@@ -1,0 +1,6 @@
+tests/basic/check/lam/110.pan:2:1-5: error: unable to verify type of f110
+tests/basic/check/lam/110.pan:5:1-5: error: unable to verify type of f111
+tests/basic/check/lam/110.pan:8:1-5: error: unable to verify type of f112
+tests/basic/check/lam/110.pan:11:1-5: error: unable to verify type of f113
+tests/basic/check/lam/110.pan:14:1-5: error: unable to verify type of f114
+tests/basic/check/lam/110.pan:17:1-5: error: unable to verify type of f115

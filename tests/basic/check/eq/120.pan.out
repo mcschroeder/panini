@@ -1,0 +1,2 @@
+tests/basic/check/eq/120.pan:5:1-5: error: unable to verify type of f120
+tests/basic/check/eq/120.pan:10:1-5: error: unable to verify type of f121

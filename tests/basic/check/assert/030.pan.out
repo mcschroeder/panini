@@ -1,0 +1,2 @@
+tests/basic/check/assert/030.pan:4:1-4: error: unable to verify type of f30
+tests/basic/check/assert/030.pan:8:1-4: error: unable to verify type of f31

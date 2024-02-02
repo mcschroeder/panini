@@ -1,0 +1,6 @@
+tests/basic/check/prim/050.pan:2:7-11: error: invalid subtype: 𝔹 <: 𝟙
+tests/basic/check/prim/050.pan:5:7-12: error: invalid subtype: 𝔹 <: 𝟙
+tests/basic/check/prim/050.pan:8:7-8: error: invalid subtype: ℤ <: 𝟙
+tests/basic/check/prim/050.pan:11:7-8: error: invalid subtype: ℤ <: 𝟙
+tests/basic/check/prim/050.pan:14:7-14: error: invalid subtype: 𝕊 <: 𝟙
+tests/basic/check/prim/050.pan:17:7-9: error: invalid subtype: 𝕊 <: 𝟙
