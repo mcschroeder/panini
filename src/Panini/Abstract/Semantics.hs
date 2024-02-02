@@ -56,8 +56,9 @@ concretizeVar x TInt (AInt a)
         then return $ PRel $ EVar x :≠: EInt (m + 1) NoPV
         else return $ POr [ PRel $ EVar x :≤: EInt m NoPV
                           , PRel $ EVar x :≥: EInt n NoPV ]
-
-
+  
+  | Just n <- AInt.count a, n < 5 =  -- TODO: arbitrary cutoff
+      return $ POr $ map (\i -> PRel $ EVar x :=: EInt i NoPV) $ AInt.values a
 
 concretizeVar x TString (AString a) = case AString.toRegex a of
   Regex.Zero -> return PFalse
