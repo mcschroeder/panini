@@ -91,14 +91,18 @@ infer g = \case
   -- inf/if -----------------------------------------------
   If v e₁ e₂ pv -> do
     checkBool g v
-    (t₁, c₁) <- infer g e₁
-    (t₂, c₂) <- infer g e₂
-    let y = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
-    let p₁ = EVal v `pEq` ECon (B True  NoPV)
-    let p₂ = EVal v `pEq` ECon (B False NoPV)
-    let c = (CAll y TUnit p₁ c₁) ∧ (CAll y TUnit p₂ c₂)
-    t <- mkJoin t₁ t₂
-    return $ (t, c) `withPV` pv
+    (t₁,c₁) <- infer g e₁
+    t̂₁      <- fresh g (shape t₁)
+    ĉ₁      <- sub t₁ t̂₁
+    (t₂,c₂) <- infer g e₂
+    t̂₂      <- fresh g (shape t₂)
+    ĉ₂      <- sub t₂ t̂₂
+    let p₁   = EVal v `pEq` ECon (B True  NoPV)
+    let p₂   = EVal v `pEq` ECon (B False NoPV)
+    let y    = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
+    let c    = (CAll y TUnit p₁ (c₁ ∧ ĉ₁)) ∧ (CAll y TUnit p₂ (c₂ ∧ ĉ₂))    
+    t       <- mkJoin t̂₁ t̂₂
+    return   $ (t,c) `withPV` pv
 
 checkBool :: Context -> Value -> Pan ()
 checkBool g v = do
