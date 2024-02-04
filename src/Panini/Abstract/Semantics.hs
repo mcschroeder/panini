@@ -163,6 +163,7 @@ abstract x b r = case r of
   e1 :≤: e2 -> abstract x b $ e1 :=: (e2 :-: EIntA (AInt.ge 0))
   e1 :<: e2 -> abstract x b $ e1 :=: (e2 :-: EIntA (AInt.ge 1))
 
+  EVar _x :≠: EUnitA a -> Right $ EUnitA (neg a)
   EVar _x :≠: EBoolA a -> Right $ EBoolA (neg a)
   EVar _x :≠: EIntA  n -> Right $ EIntA  (neg n)  
   EVar _x :≠: ECharA c -> Right $ ECharA (neg c)
