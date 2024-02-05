@@ -92,17 +92,15 @@ infer g = \case
   If v e₁ e₂ pv -> do
     checkBool g v
     (t₁,c₁) <- infer g e₁
-    t̂₁      <- fresh g (shape t₁)
-    ĉ₁      <- sub t₁ t̂₁
+    t̂       <- fresh g (shape t₁)
+    ĉ₁      <- sub t₁ t̂
     (t₂,c₂) <- infer g e₂
-    t̂₂      <- fresh g (shape t₂)
-    ĉ₂      <- sub t₂ t̂₂
+    ĉ₂      <- sub t₂ t̂
     let p₁   = EVal v `pEq` ECon (B True  NoPV)
     let p₂   = EVal v `pEq` ECon (B False NoPV)
     let y    = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
-    let c    = (CAll y TUnit p₁ (c₁ ∧ ĉ₁)) ∧ (CAll y TUnit p₂ (c₂ ∧ ĉ₂))    
-    t       <- mkJoin t̂₁ t̂₂
-    return   $ (t,c) `withPV` pv
+    let c    = (CAll y TUnit p₁ (c₁ ∧ ĉ₁)) ∧ (CAll y TUnit p₂ (c₂ ∧ ĉ₂))
+    return   $ (t̂,c) `withPV` pv
 
 checkBool :: Context -> Value -> Pan ()
 checkBool g v = do
@@ -183,14 +181,3 @@ cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
   TBase v b (Known p) _ -> CAll x b (subst (EVar x) v p) c
   _                     -> c
-
--- | The join (⊔) of two types.
-mkJoin :: Type -> Type -> Pan Type
-mkJoin t₁ t₂ = case (t₁, t₂) of
-  -- join/base --------------------------------------------
-  (TBase v₁ b₁ (Known p₁) _, TBase v₂ b₂ (Known p₂) _)
-    | b₁ == b₂ -> 
-        let p = p₁ ∨ subst (EVar v₁) v₂ p₂
-        in return $ TBase v₁ b₁ (Known p) NoPV -- TODO: join provenance
-  
-  _ -> panic "invalid join"  -- TODO: correct error
