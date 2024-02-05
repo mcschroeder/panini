@@ -21,6 +21,7 @@ import Prelude
 import System.Directory
 import System.Exit
 import System.FilePath
+import System.FilePattern.Directory
 import System.IO
 import System.Time.Extra
 import Text.Printf
@@ -135,20 +136,8 @@ testMain globalOpts = assert globalOpts.testMode $ do
 
 -------------------------------------------------------------------------------
 
-findTests :: FilePath -> IO [FilePath]
-findTests inPath = doesDirectoryExist inPath >>= \case
-    True -> findByExtension ".pan" inPath
-    False -> doesFileExist inPath >>= \case
-      True -> return [inPath]
-      False -> return []
-
-findByExtension :: String -> FilePath -> IO [FilePath]
-findByExtension ext dir = do
-  entries <- listDirectory dir    
-  concatForM entries $ \e -> do
-    let path = dir </> e
-    doesDirectoryExist path >>= \case
-      True -> findByExtension ext path
-      False 
-        | ext `isExtensionOf` path -> return [path]
-        | otherwise                -> return []
+findTests :: FilePattern -> IO [FilePath]
+findTests pat | not (hasExtension pat) = findTests $ pat </> "**/*.pan"
+findTests pat = do
+  cwd <- getCurrentDirectory
+  getDirectoryFiles cwd [pat]
