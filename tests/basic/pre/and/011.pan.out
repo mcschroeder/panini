@@ -1,1 +1,0 @@
-f11 : {x:𝔹 | x = false} → {y:𝔹 | true} → {z:𝔹 | z = false}
