@@ -14,5 +14,3 @@ f62 = \x:bool. \y:bool. and x y
 
 f64 : {x:bool|?} -> {y:bool|true} -> {z:bool|?}
 f64 = \x:bool. \y:bool. and x y
-
-
