@@ -1,0 +1,1 @@
+tests/basic/post/not_neg/080.pan:5:1-4: error: unable to verify type of f80

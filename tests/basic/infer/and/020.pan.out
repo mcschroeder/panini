@@ -1,4 +1,0 @@
-f20 : {z:𝔹 | z = true}
-f21 : {z:𝔹 | z = false}
-f22 : {z:𝔹 | z = false}
-f23 : {z:𝔹 | z = false}

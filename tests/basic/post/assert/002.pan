@@ -1,3 +1,4 @@
 assert : { b:𝔹 | b = true } → 𝟙
 
-f20 = assert false
+f02 : {v:unit|?}
+f02 = assert false
