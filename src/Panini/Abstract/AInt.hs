@@ -22,6 +22,7 @@ module Panini.Abstract.AInt
   , add
   , sub
   , IntervalSequence
+  , holes
   , Interval(..)
   , Inf(..)
   ) where
@@ -226,6 +227,11 @@ instance ComplementedLattice IntervalSequence where
       go (In _ b : y@(In c _) : zs) = In (succ <$> b) (pred <$> c) : go (y:zs)
       go [In _ b@(Fin _)] = [In (succ <$> b) PosInf]
       go _ = []  
+
+-- | Returns all "holes" inbetween intervals.
+holes :: IntervalSequence -> [Integer]
+holes (In _ (Fin b) : y@(In (Fin c) _) : ys) = [b + 1 .. c - 1] ++ holes (y:ys)
+holes _                                      = []
 
 -------------------------------------------------------------------------------
 

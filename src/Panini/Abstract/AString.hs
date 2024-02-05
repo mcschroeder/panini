@@ -49,6 +49,11 @@ instance BoundedMeetSemilattice AString where
 instance ComplementedLattice AString where
   neg (AString r) = AString $ complement r
 
+instance Pretty AString where
+  pretty (AString r) = pretty r
+
+------------------------------------------------------------------------------
+
 simplify :: AString -> AString
 simplify (AString r) = AString $ Panini.Regex.simplify r
 
@@ -71,6 +76,8 @@ star (AString r) = AString (Star r)
 opt :: AString -> AString
 opt (AString r) = AString (Opt r)
 
+------------------------------------------------------------------------------
+
 toChar :: AString -> Maybe AChar
 toChar (AString r) = case Panini.Regex.simplify r of
   Lit c    -> Just (AChar.fromCharSet c)
@@ -81,9 +88,6 @@ toRegex (AString r) = r
 
 fromRegex :: Regex -> AString
 fromRegex = AString
-
-instance Pretty AString where
-  pretty (AString r) = pretty r
 
 -- TODO: replace with SMTLIB instance
 toRegLan :: AString -> RegLan

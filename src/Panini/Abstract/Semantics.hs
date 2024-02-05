@@ -29,67 +29,12 @@ x ∉ e = x `notElem` freeVars e
 
 -------------------------------------------------------------------------------
 
-concretizeVar :: Name -> Base -> AValue -> Pan Pred
-concretizeVar x TUnit (AUnit a) = case a of
-  AUnit.Unit -> return $ PRel $ EVar x :=: EUnit NoPV
-  AUnit.Bottom -> return PFalse
-
-concretizeVar x TBool (ABool a) = case ABool.value a of
-  Just b  -> return $ PRel $ EVar x :=: EBool b NoPV
-  Nothing -> if isTop a then return PTrue else return PFalse
-
--- TODO
-concretizeVar x TInt (AInt a) 
-  | AInt.continuous a = case (AInt.minimum a, AInt.maximum a) of
-      (Just NegInf, Just PosInf) -> return PTrue
-      (Just NegInf, Just (Fin n)) -> return $ PRel $ EVar x :≤: EInt n NoPV
-      (Just (Fin m), Just PosInf) -> return $ PRel $ EVar x :≥: EInt m NoPV
-      (Just (Fin m), Just (Fin n)) 
-        | m == n -> return $ PRel $ EVar x :=: EInt m NoPV
-        | otherwise -> return $ PAnd [ PRel $ EVar x :≥: EInt m NoPV
-                                     , PRel $ EVar x :≤: EInt n NoPV ]
-      (Nothing, Nothing) -> return PFalse
-      _ -> impossible
-  
-  | [AInt.In NegInf (Fin m), AInt.In (Fin n) PosInf] <- AInt.intervals a =
-      if n - m == 2
-        then return $ PRel $ EVar x :≠: EInt (m + 1) NoPV
-        else return $ POr [ PRel $ EVar x :≤: EInt m NoPV
-                          , PRel $ EVar x :≥: EInt n NoPV ]
-  
-  | Just n <- AInt.count a, n < 5 =  -- TODO: arbitrary cutoff
-      return $ POr $ map (\i -> PRel $ EVar x :=: EInt i NoPV) $ AInt.values a
-
-concretizeVar x TString (AString a) = case AString.toRegex a of
-  Regex.Zero -> return PFalse
-  Regex.One  -> return $ PRel $ EVar x :=: EStr "" NoPV
-  Regex.All  -> return $ PTrue
-  r -> case Regex.POSIX.ERE.fromRegex r of
-    Just ere -> return $ PRel $ EVar x :∈: EReg ere
-    Nothing  -> panic $ "cannot convert Regex to ERE:" <+> pretty r
-
-concretizeVar x b a = throwError $ ConcretizationImpossible x b a
-
 abstractVar :: Name -> Base -> Rel -> Pan AExpr
 abstractVar x b r = case abstract x b r of
   Left r2 -> throwError $ AbstractionImpossible x r r2
   Right e -> do
     logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
     return e
-
-topExpr :: Base -> AExpr
-topExpr TBool   = EAbs $ ABool top
-topExpr TInt    = EAbs $ AInt top
-topExpr TString = EAbs $ AString top
-topExpr TUnit   = ECon (U NoPV)
-
-botExpr :: Base -> AExpr
-botExpr TBool   = EAbs $ ABool bot
-botExpr TInt    = EAbs $ AInt bot
-botExpr TString = EAbs $ AString bot
-botExpr b       = panic $ "no" <+> symBot <+> "for " <+> pretty b
-
--------------------------------------------------------------------------------
 
 abstract :: Name -> Base -> Rel -> Either Rel AExpr
 abstract x b r = case r of
@@ -235,14 +180,6 @@ absStrAtRev (meet (AInt.ge 1) -> n) c
     go _ []                             = star anyChar
     go _ _                              = impossible
 
-pattern (:⋈:) :: Expr -> Expr -> Rel
-pattern e1 :⋈: e2 <- Rel _ e1 e2
-
-isN :: Integer -> Expr -> Bool
-isN n (EInt  m _) = m == n
-isN n (EIntA a)   = AInt.values a == [n]
-isN _ _           = False
-
 pattern Int0 :: Expr
 pattern Int0 <- (isN 0 -> True) where
   Int0 = EInt 0 NoPV
@@ -250,6 +187,11 @@ pattern Int0 <- (isN 0 -> True) where
 pattern Int1 :: Expr
 pattern Int1 <- (isN 1 -> True) where
   Int1 = EInt 1 NoPV
+
+isN :: Integer -> Expr -> Bool
+isN n (EInt  m _) = m == n
+isN n (EIntA a)   = AInt.values a == [n]
+isN _ _           = False
 
 pattern StrAt_index :: Expr -> Expr -> Expr
 pattern StrAt_index s c = EFun "_StrAt_index" [s,c]
@@ -262,3 +204,60 @@ pattern StrComp e = EFun "_StrComplement" [e]
 
 pattern IntComp :: Expr -> Expr
 pattern IntComp e = EFun "_IntComplement" [e]
+
+-------------------------------------------------------------------------------
+
+concretizeVar :: Name -> Base -> AValue -> Pan Pred
+concretizeVar x b v = logAndReturn $ case (b,v) of
+  (TUnit  , AUnit   a) -> concretizeUnit   x a
+  (TBool  , ABool   a) -> concretizeBool   x a
+  (TInt   , AInt    a) -> concretizeInt    x a
+  (TString, AString a) -> concretizeString x a
+  _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
+ where
+  logAndReturn p = do
+    logMessage $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
+    return p
+
+concretizeUnit :: Name -> AUnit -> Pred
+concretizeUnit x a = case a of
+  AUnit.Unit   -> PRel $ EVar x :=: EUnit NoPV
+  AUnit.Bottom -> PFalse
+
+concretizeBool :: Name -> ABool -> Pred
+concretizeBool x a = case ABool.value a of
+  Just b  -> PRel $ EVar x :=: EBool b NoPV
+  Nothing -> if isTop a then PTrue else PFalse
+
+concretizeInt :: Name -> AInt -> Pred
+concretizeInt x a = case AInt.intervals a of
+  []                                        -> PFalse  
+  [NegInf :..: PosInf]                      -> PTrue
+  [NegInf :..: Fin n ]                      -> mk Le n
+  [Fin m  :..: PosInf]                      -> mk Ge m
+  [Fin m  :..: Fin n ] | m == n             -> mk Eq m
+                       | otherwise          -> mk Ge m ∧ mk Le n
+  [NegInf :..: Fin m, Fin n :..: PosInf]
+                               | n - m == 2 -> mk Ne (m + 1)
+                               | otherwise  -> mk Le m ∨ mk Ge n
+  (Fin m  :..: _) : (last -> _ :..: Fin n ) -> mk Ge m ∧ mk Le n ∧ mkHoles
+  (NegInf :..: _) : (last -> _ :..: Fin n ) -> mk Le n ∧ mkHoles
+  (Fin m  :..: _) : (last -> _ :..: PosInf) -> mk Ge m ∧ mkHoles
+  (NegInf :..: _) : (last -> _ :..: PosInf) -> mkHoles
+  _                                         -> impossible
+ where
+  mk op n  = PRel $ Rel op (EVar x) (EInt n NoPV)
+  mkHoles  = meets $ map (mk Ne) $ AInt.holes $ AInt.intervals a
+
+-- TODO: move to AInt module
+pattern (:..:) :: Inf Integer -> Inf Integer -> AInt.Interval
+pattern a :..: b = AInt.In a b
+
+concretizeString :: Name -> AString -> Pred
+concretizeString x a = case AString.toRegex a of
+  Regex.Zero -> PFalse
+  Regex.One  -> PRel $ EVar x :=: EStr "" NoPV
+  Regex.All  -> PTrue
+  r -> case Regex.POSIX.ERE.fromRegex r of
+    Just ere -> PRel $ EVar x :∈: EReg ere
+    Nothing  -> panic $ "cannot convert Regex to ERE:" <+> pretty r

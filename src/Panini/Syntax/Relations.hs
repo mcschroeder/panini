@@ -65,6 +65,10 @@ pattern (:∈:), (:∉:) :: Expr -> Expr -> Rel
 pattern e1 :∈: e2 = Rel In e1 e2
 pattern e1 :∉: e2 = Rel Ni e1 e2
 
+-- | Matches any relation, discarding the operator.
+pattern (:⋈:) :: Expr -> Expr -> Rel
+pattern e1 :⋈: e2 <- Rel _ e1 e2
+
 instance Hashable Rel
 
 instance Biplate Rel Expr where

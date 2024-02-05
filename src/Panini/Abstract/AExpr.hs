@@ -9,6 +9,8 @@ module Panini.Abstract.AExpr
   , pattern EIntA
   , pattern EStrA
   , pattern ECharA  
+  , topExpr
+  , botExpr
   , norm
   ) where
 
@@ -23,6 +25,7 @@ import Panini.Abstract.AString as AString
 import Panini.Abstract.AValue
 import Panini.Provenance
 import Panini.Syntax.Expressions
+import Panini.Syntax.Primitives
 import Prelude
 import Data.Text qualified as Text
 
@@ -80,6 +83,18 @@ toAChar = \case
   EAbs (AString s) -> AString.toChar s
   EChar c _        -> Just $ AChar.eq c
   _                -> Nothing
+
+topExpr :: Base -> AExpr
+topExpr TUnit   = EUnitA top
+topExpr TBool   = EBoolA top
+topExpr TInt    = EIntA top
+topExpr TString = EStrA top
+
+botExpr :: Base -> AExpr
+botExpr TUnit   = EUnitA bot
+botExpr TBool   = EBoolA bot
+botExpr TInt    = EIntA bot
+botExpr TString = EStrA bot
 
 ------------------------------------------------------------------------------
 
