@@ -232,9 +232,7 @@ dnf = \case
   PAppK _ _            -> impossible
   
 fromDNF :: [[Rel]] -> Pred
-fromDNF [[]] = PTrue
-fromDNF []   = PFalse
-fromDNF xs   = POr $ map (PAnd . map PRel) xs
+fromDNF = joins . map (meets . map PRel)
 
 nub' :: Hashable a => [a] -> [a]
 nub' = HashSet.toList . HashSet.fromList
