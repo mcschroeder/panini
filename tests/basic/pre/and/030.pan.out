@@ -1,3 +1,5 @@
 f30 : {x:𝔹 | true} → {y:𝔹 | y = true} → {z:𝔹 | true}
 f32 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | true}
 f33 : {x:𝔹 | true} → {y:𝔹 | false} → {z:𝔹 | true}
+f34 : {x:𝔹 | true} → {y:𝔹 | y = x} → {z:𝔹 | true}
+f35 : {x:𝔹 | true} → {y:𝔹 | y ≠ x} → {z:𝔹 | true}
