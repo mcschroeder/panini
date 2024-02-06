@@ -1,4 +1,6 @@
-module Panini.Solver.Abstract 
+{-# LANGUAGE OverloadedLists #-}
+
+module Panini.Solver.Abstract
   ( PreCon(..)
   , allPreCons
   , preConKVar
@@ -51,6 +53,7 @@ allPreCons c0 = HashSet.fromList
   [ PreCon x b k c 
   | CAll x b (PAppK k [EVar y]) c <- Uniplate.universe c0, y == x
   , null [k' | CHead (PAppK k' _) <- Uniplate.universe c, k' == k]
+  , freeVars c `Set.isSubsetOf` [x]
   ]
 
 preConKVar :: PreCon -> KVar
