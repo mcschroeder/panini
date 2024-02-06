@@ -42,7 +42,8 @@ quals con = \case
 
 q1 :: (Name,Base) -> Rel -> Maybe Rel
 q1 (z0,b0) = \case
-  Rel op (EVar _) e | typeOfExpr e == Just b0 -> Just $ Rel op (EVar z0) e
-  r | Just (Rel op (EVar _) e) <- converse r
-    , typeOfExpr e == Just b0 -> Just $ Rel op (EVar z0) e
-  _ -> Nothing
+  Rel op (EVar _) e | possible e -> Just $ Rel op (EVar z0) e
+  Rel op e (EVar _) | possible e -> converse $ Rel op e (EVar z0)
+  _                              -> Nothing
+ where
+  possible e = typeOfExpr e == Just b0 && null (freeVars e)
