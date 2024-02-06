@@ -1,0 +1,4 @@
+f30 : {x:𝔹 | true} → {y:𝔹 | y = true} → {z:𝔹 | true}
+f31 : {x:𝔹 | true} → {y:𝔹 | y = false} → {z:𝔹 | z = false}
+f32 : {x:𝔹 | true} → {y:𝔹 | y = x} → {z:𝔹 | true}
+f34 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | true}
