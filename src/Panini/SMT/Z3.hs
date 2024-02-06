@@ -54,8 +54,8 @@ smtValid cs = do
 
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of
-      "sat"   -> return True
-      "unsat" -> return False
-      x       -> throwError $ SolverError (Text.pack x) NoPV
+      "sat"     -> return True
+      "unsat"   -> return False
+      "timeout" -> throwError $ SolverTimeout NoPV
+      x         -> throwError $ SolverError (Text.pack x) NoPV
     ExitFailure _ -> throwError $ SolverError (Text.pack output) NoPV
-
