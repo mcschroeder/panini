@@ -1,4 +1,3 @@
 f70 : {x:𝔹 | x = true} → {y:𝔹 | true} → {z:𝔹 | true}
-f71 : {x:𝔹 | x = false} → {y:𝔹 | false} → {z:𝔹 | true}
 f72 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | true}
 f73 : {x:𝔹 | false} → {y:𝔹 | true} → {z:𝔹 | true}

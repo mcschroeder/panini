@@ -3,8 +3,8 @@ and : (a:bool) -> (b:bool) -> {c:bool| c = true <=> (a = true /\ b = true)}
 f30 : {x:bool|?} -> {y:bool|y=true} -> {z:bool|true}
 f30 = \x:bool. \y:bool. and x y
 
-f31 : {x:bool|?} -> {y:bool|y=false} -> {z:bool|true}
-f31 = \x:bool. \y:bool. and x y
+
+
 
 f32 : {x:bool|?} -> {y:bool|true} -> {z:bool|true}
 f32 = \x:bool. \y:bool. and x y
