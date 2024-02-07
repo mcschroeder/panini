@@ -136,6 +136,11 @@ abstract x b r = case r of
   EStrSub s i (EVar _ :+: y) :=: t | x ∉ s, x ∉ i -> Right $ StrSub_index2 s t i :-: y
   EStrSub s i (EVar _ :-: y) :=: t | x ∉ s, x ∉ i -> Right $ StrSub_index2 s t i :+: y
 
+  -- TODO: check that length t == (j - i) + 1
+  EStrSub (EVar _) (EIntA i0) (EIntA j0) :=: EStrA t
+    | [i] <- AInt.values i0, [j] <- AInt.values j0, j >= i
+    -> Right $ EStrA $ rep anyChar i <> t <> star anyChar
+
   EStrSub (EVar _) Int0 (EIntA j) :=: EStrA t
     | (j ∧ AInt.ge 0) == AInt.ge 0 
     -> Right $ EStrA $ t <> star anyChar
