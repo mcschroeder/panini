@@ -1,0 +1,30 @@
+import axioms
+
+f060 : {s:string|?} -> unit
+f060 = \s:string.
+  let n = length s in
+  let p = eq n 3 in
+  assert p
+
+f061 : {s:string|?} -> unit
+f061 = \s:string.
+  let n = length s in
+  let p = le n 3 in
+  let _ = assert p in
+  let _ = charAt s 0 in
+  let _ = charAt s 1 in
+  let _ = charAt s 2 in
+  unit
+
+f062 : {s:string|?} -> unit
+f062 = \s:string.
+  let n = length s in
+  let p = le n 3 in
+  let _ = assert p in
+  let i1 = sub n 1 in
+  let _ = charAt s i1 in
+  let i2 = sub i1 1 in
+  let _ = charAt s i2 in
+  let i3 = sub i2 1 in
+  let _ = charAt s i3 in
+  unit
