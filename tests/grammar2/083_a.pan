@@ -6,5 +6,5 @@ f083 = \s:string.
   let p1 = match t "a" in
   let _ = assert p1 in
   let n = length s in
-  let p2 = eq n 2 in 
+  let p2 = eq n 1 in 
   assert p2
