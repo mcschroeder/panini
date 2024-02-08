@@ -1,61 +1,24 @@
 import axioms
 
-
--- (Σ∖a)∗a
---f190 : {s:string|?} -> unit
---f190 = \s:string.
-  
-
--- a∗(Σ∖a)
---f200 : {s:string|?} -> unit
---f200 = \s:string.
+f : {s:𝕊 | s ∈ } → 𝟙
 
 
--- a∗b
---f220 : {s:string|?} -> unit
---f220 = \s:string.
-
-
--- ab∗
---f230 : {s:string|?} -> unit
---f230 = \s:string.
-
--- a∗b∗
---f240 : {s:string|?} -> unit
---f240 = \s:string.
-
-
--- (ab)∗
---f250 : {s:string|?} -> unit
---f250 = \s:string.
-
-
-
-
-
--- abΣ∗
---f300 : {s:string|?} -> unit
---f300 = \s:string.
-
--- Σ∗ab
--- aΣb
--- aΣb+ε
--- (aΣb)∗
--- a(Σ+ε)b
--- aΣ∗b
--- a+b
--- a∗+b
--- a+b∗
--- a∗+b∗
--- (a+b)∗
--- a+b+c
--- a+(Σ∖b)+c
--- ab+c
--- a+bc
--- (a(Σ∖{a,b})b)∗
 -- (a+b)∗aa(a+b)∗
+f460 : {s:string|?} -> unit
+f460 = \s:string.
+
 -- (b+ba)∗
+f470 : {s:string|?} -> unit
+f470 = \s:string.
+
 -- (a+ε)(b+ba)∗
+f480 : {s:string|?} -> unit
+f480 = \s:string.
+
 -- (a+b)∗abb
+f490 : {s:string|?} -> unit
+f490 = \s:string.
+
 -- a∗b∗c∗
--- (a+ε)(b+ε)(c+ε)
+f500 : {s:string|?} -> unit
+f500 = \s:string.
