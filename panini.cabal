@@ -58,6 +58,7 @@ library
     Panini.Abstract.AExpr
     Panini.Abstract.AInt
     Panini.Abstract.AString
+    Panini.Abstract.AUnit
     Panini.Abstract.AValue
     Panini.Abstract.Semantics
     Panini.CLI.Main
