@@ -52,7 +52,7 @@ infer g = \case
   Val (Con c) -> do
     let v = dummyName
     let b = typeOfConstant c
-    let p = EVar v `pEq` ECon c
+    let p = PRel $ EVar v :=: ECon c
     let t = TBase v b (Known p) (getPV c)
     return (t, CTrue)
   
@@ -96,8 +96,8 @@ infer g = \case
     ĉ₁      <- sub t₁ t̂
     (t₂,c₂) <- infer g e₂
     ĉ₂      <- sub t₂ t̂
-    let p₁   = EVal v `pEq` ECon (B True  NoPV)
-    let p₂   = EVal v `pEq` ECon (B False NoPV)
+    let p₁   = PRel $ EVal v :=: EBool True NoPV
+    let p₂   = PRel $ EVal v :=: EBool False NoPV
     let y    = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
     let c    = (CAll y TUnit p₁ (c₁ ∧ ĉ₁)) ∧ (CAll y TUnit p₂ (c₂ ∧ ĉ₂))
     return   $ (t̂,c) `withPV` pv
@@ -113,7 +113,7 @@ self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst (EVar v') x p) ∧ (EVar v' `pEq` EVar x)
+        p' = (subst (EVar v') x p) ∧ PRel (EVar v' :=: EVar x)
     in TBase v' b (Known p') pv  
   t -> t
 

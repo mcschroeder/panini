@@ -59,7 +59,7 @@ sol1 :: KVar -> Con -> Pred
 sol1 k (CAnd c1 c2)   = sol1 k c1 ∨ sol1 k c2
 sol1 k (CAll x b p c) = mkExists x b (p ∧ sol1 k c)
 sol1 k (CHead (PAppK k2 ys))
-  | k == k2           = PAnd $ map (\(x,y) -> EVar x `pEq` y)
+  | k == k2           = PAnd $ map (\(x,y) -> PRel $ EVar x :=: y)
                              $ zip (kparams k) ys
 sol1 _ _              = PFalse
 

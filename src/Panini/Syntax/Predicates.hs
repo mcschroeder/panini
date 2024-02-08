@@ -105,10 +105,3 @@ instance HasFixity Pred where
     PImpl _ _ -> Infix NoAss 1
     PIff _ _  -> Infix NoAss 1
     _         -> Infix LeftAss 9
-
-mkBoolPred :: Bool -> Pred
-mkBoolPred True = PTrue
-mkBoolPred False = PFalse
-
-pEq :: Expr -> Expr -> Pred
-pEq a b = PRel (Rel Eq a b)
