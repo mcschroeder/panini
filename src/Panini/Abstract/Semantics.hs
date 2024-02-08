@@ -145,7 +145,9 @@ abstract x b r = case r of
     | (j ∧ AInt.ge 0) == AInt.ge 0 
     -> Right $ EStrA $ t <> star anyChar
 
-  EStrSub s i j :≠: EStrA t -> abstract x b $ EStrSub s i j :=: EStrA (neg t)
+  EStrSub s ei@(EIntA i0) ej@(EIntA j0) :≠: EStrA t
+    | [n] <- AInt.values $ AInt.add (AInt.eq 1) $ AInt.sub j0 i0
+    -> abstract x b $ EStrSub s ei ej :=: EStrA (neg t ∧ rep anyChar n)
 
   StrComp s :=: e -> abstract x b $ s :=: (norm $ StrComp e)
   StrComp s :≠: e -> abstract x b $ s :≠: (norm $ StrComp e)
