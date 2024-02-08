@@ -229,8 +229,8 @@ dnf = \case
   PNot (PAppK _ _)     -> impossible
   PImpl a b            -> dnf $ POr [PNot a, b]
   PIff a b             -> dnf $ POr [PAnd [a,b], PAnd [PNot a, PNot b]]    
-  PAnd xs              -> map concat $ sequence $ nub' $ map dnf xs
-  POr xs               -> nub' $ concat $ map dnf xs
+  PAnd xs              -> nub' $ map nub' $ map concat $ sequence $ map dnf xs
+  POr xs               -> nub' $ map nub' $ concat $ map dnf xs
   PExists _ _ _        -> impossible
   PAppK _ _            -> impossible
   
