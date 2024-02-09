@@ -2,6 +2,7 @@ module Panini.Solver.Simplifier where
 
 import Data.Generics.Uniplate.Operations
 import Data.List.Extra qualified as List
+import Data.Maybe
 import Panini.Abstract.AExpr (norm)
 import Panini.Provenance
 import Panini.Solver.Constraints
@@ -35,16 +36,28 @@ simplifyCon = rewrite $ \case
       Just q 
         | x `notElem` freeVars q -> Just $ CAnd (CHead p1) q
         | otherwise              -> Just $ CAll x TBool p1 q
-   where
-    leftmostAnd = \case
-      CAnd (CAnd c1 c2) c3 -> leftmostAnd (CAnd c1 (CAnd c2 c3))
-      CAnd c c3            -> (c, Just c3)
-      c                    -> (c, Nothing)
+
+  -- The pattern
+  --       ∀x:b. P(x) ⇒ (∀y:b. P(x)[y/x] ∧ y = x ⇒ P(x)[y/x]) ∧ ψ
+  -- can be simplified to
+  --       ∀x:b. P(x) ⇒ ψ
+  CAll x b1 p (leftmostAnd -> (CAll y b2 (PAnd [q1,r]) (CHead q2), c2))
+    | b1 == b2
+    , let p' = subst (EVar y) x p
+    , p' == q1, p' == q2
+    , r == PRel (EVar y :=: EVar x)
+    -> Just $ CAll x b1 p (fromMaybe CTrue c2)
 
   CAll x b p c | p' <- simplifyPred p, p' /= p -> Just $ CAll x b p' c
   CHead p      | p' <- simplifyPred p, p' /= p -> Just $ CHead p'
 
   _ -> Nothing
+
+leftmostAnd :: Con -> (Con, Maybe Con)
+leftmostAnd = \case
+  CAnd (CAnd c1 c2) c3 -> leftmostAnd (CAnd c1 (CAnd c2 c3))
+  CAnd c c3            -> (c, Just c3)
+  c                    -> (c, Nothing)
 
 -------------------------------------------------------------------------------
 
