@@ -43,8 +43,8 @@ abstract x b r = case r of
 
   -- here, x occurs on LHS and MAY also occur on RHS --------------------------
 
-  EVar x1 :=: EVar x2 | x1 == x2 -> Right $ topExpr b
-  EVar x1 :≠: EVar x2 | x1 == x2 -> Right $ botExpr b
+  e1 :=: e2 | normA e1 == normA e2 -> Right $ topExpr b
+  e1 :≠: e2 | normA e1 == normA e2 -> Right $ botExpr b
 
   ENot e1 :≠: e2      -> abstract x b $ e1 :=: e2
   e1      :≠: ENot e2 -> abstract x b $ e1 :=: e2

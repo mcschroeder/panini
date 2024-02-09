@@ -12,6 +12,7 @@ module Panini.Abstract.AExpr
   , topExpr
   , botExpr
   , norm
+  , normA
   ) where
 
 import Algebra.Lattice
@@ -134,6 +135,19 @@ instance PartialMeetSemilattice AExpr where
          | otherwise = Nothing
 
 ------------------------------------------------------------------------------
+
+-- | Normalize an abstract expression by (partial) evaluation. Unlike 'norm',
+-- this function will replace all concrete values with abstract values.
+normA :: AExpr -> AExpr
+normA = norm . go
+ where 
+  go = Uniplate.rewrite $ \case
+    EUnit   _ -> Just $ EAbs $ AUnit $ AUnit.Unit
+    EBool a _ -> Just $ EAbs $ ABool $ ABool.eq a
+    EInt  a _ -> Just $ EAbs $ AInt $ AInt.eq a
+    EChar a _ -> Just $ EAbs $ AString $ AString.lit (AChar.eq a)
+    EStr  a _ -> Just $ EAbs $ AString $ AString.eq $ Text.unpack a
+    _         -> Nothing
 
 -- TODO: move 'norm' to a more general place
 
