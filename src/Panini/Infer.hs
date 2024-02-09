@@ -7,7 +7,6 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Panini.Error
 import Panini.Monad
-import Panini.Panic
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -86,7 +85,14 @@ infer g = \case
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
-  Rec _x _t̃₁ _e₁ _e₂ _pv -> panic "inf/rec not yet implemented"
+  Rec x t̃₁ e₁ e₂ pv -> do
+    t̂₁      <- fresh g (shape t̃₁)
+    (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
+    (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
+    t̂₂      <- fresh g (shape t₂)
+    ĉ₂      <- sub t₂ t̂₂
+    let c    = (cImpl x t̂₁ c₁) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
+    return   $ (t̂₂,c) `withPV` pv
 
   -- inf/if -----------------------------------------------
   If v e₁ e₂ pv -> do
