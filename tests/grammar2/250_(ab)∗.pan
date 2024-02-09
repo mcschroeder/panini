@@ -2,8 +2,9 @@ import axioms
 
 f250 : {s:string|?} -> unit
 f250 = \s:string.
+  let n = length s in
   rec w : int -> unit = \i0:int.
-    let p0 = ge i n in
+    let p0 = ge i0 n in
     if p0 then
       unit
     else

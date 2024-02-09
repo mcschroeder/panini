@@ -2,10 +2,11 @@ import axioms
 
 f220 : {s:string|?} -> unit
 f220 = \s:string.
+  let n = length s in
   rec w : int -> int = \i:int.
     let p1 = ge i n in
     if p1 then
-      assert false
+      let _ = assert false in 0
     else
       let c = charAt s i in
       let p = match c "a" in
@@ -15,7 +16,6 @@ f220 = \s:string.
       else
         i
   in
-    let n = length s in
     let i = w 0 in
     let m = sub n 1 in
     let p1 = eq i m in

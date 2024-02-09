@@ -16,7 +16,7 @@ f191 = \s:string.
   in
     let n = length s in
     let m = sub n 1 in
-    let y = charAt s i in
+    let y = charAt s m in
     let p1 = match y "a" in
     let _ = assert p1 in
     let i0 = sub m 1 in

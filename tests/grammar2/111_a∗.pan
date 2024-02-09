@@ -12,7 +12,7 @@ f111 = \s:string.
       let q2 = w i2 in
       and q1 q2
     else
-      unit
+      true
   in
     let q = w 0 in
     assert q
