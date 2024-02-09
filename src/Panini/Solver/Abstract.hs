@@ -125,63 +125,50 @@ solve1 = \case
     c2 <- simplifyCon c1  § "Simplify constraint"
     solve1 $ PreCon x b k c2
 
-  PreCon x TUnit _ c -> do
+  PreCon x b _ c -> do
     c1 <- rewrite c
-    rs <- dnf c1 § "Convert to DNF"
-    logMessage $ "Abstract unit variable" <+> pretty x
-    AUnit <$> joins <$> mapM ((meets <$>) . mapM (abstractUnit x)) rs
+    ds <- dnf c1 § "Convert to DNF"
+    logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
+    qs <- forM ds $ \rs -> do      
+      rs' <- mapM (abstractVar x b) rs
+      meets' b rs' § "Meet branch"
+    q <- joins' b qs § "Join all branches"
+    case q of
+      EUnitA a -> pure $ AUnit a
+      EBoolA a -> pure $ ABool a
+      EIntA a  -> pure $ AInt a
+      EStrA a  -> AString (AString.simplify a) § "Simplify abstract string"
+      _        -> impossible
 
-  PreCon x TBool _ c -> do
-    c1 <- rewrite c
-    rs <- dnf c1 § "Convert to DNF"
-    logMessage $ "Abstract bool variable" <+> pretty x
-    ABool <$> joins <$> mapM ((meets <$>) . mapM (abstractBool x)) rs
-  
-  PreCon x TInt _ c -> do
-    c1 <- rewrite c
-    rs <- dnf c1 § "Convert to DNF"
-    logMessage $ "Abstract integer variable" <+> pretty x
-    AInt <$> joins <$> mapM ((meets <$>) . mapM (abstractInt  x)) rs
-  
-  PreCon x TString _ c -> do
-    c1 <- rewrite c
-    rs <- dnf c1 § "Convert to DNF"
-    logMessage $ "Abstract string variable" <+> pretty x
-    s0 <- joins <$> mapM ((meets <$>) . mapM (abstractStr  x)) rs
-    s1 <- AString.simplify s0  § "Simplify abstract string"
-    return $ AString s1
+meets' :: Base -> [AExpr] -> AExpr
+meets' b xs = case b of
+  TUnit   -> EAbs $ AUnit   $ meets $ map aExprToUnit xs
+  TBool   -> EAbs $ ABool   $ meets $ map aExprToBool xs
+  TInt    -> EAbs $ AInt    $ meets $ map aExprToInt  xs
+  TString -> EAbs $ AString $ meets $ map aExprToStr  xs
 
+joins' :: Base -> [AExpr] -> AExpr
+joins' b xs = case b of
+  TUnit   -> EAbs $ AUnit   $ joins $ map aExprToUnit xs
+  TBool   -> EAbs $ ABool   $ joins $ map aExprToBool xs
+  TInt    -> EAbs $ AInt    $ joins $ map aExprToInt  xs
+  TString -> EAbs $ AString $ joins $ map aExprToStr  xs
 
--- TODO: make this type wrangling stuff unnecessary
+aExprToUnit :: AExpr -> AUnit
+aExprToUnit (EUnitA a) = a
+aExprToUnit e          = panic $ "aExprToUnit: unexpected" <+> pretty e
 
-abstractUnit :: Name -> Rel -> Pan AUnit
-abstractUnit x r = do
-  e <- abstractVar x TUnit r
-  case e of
-    EUnitA a -> return a
-    _        -> panic $ "abstractUnit: unexpected" <+> pretty e
+aExprToBool :: AExpr -> ABool
+aExprToBool (EBoolA a) = a
+aExprToBool e          = panic $ "aExprToBool: unexpected" <+> pretty e
 
-abstractBool :: Name -> Rel -> Pan ABool
-abstractBool x r = do
-  e <- abstractVar x TBool r
-  case e of
-    EBoolA a -> return a
-    _        -> panic $ "abstractBool: unexpected" <+> pretty e
+aExprToInt :: AExpr -> AInt
+aExprToInt (EIntA a) = a
+aExprToInt e         = panic $ "aExprToInt: unexpected" <+> pretty e
 
-abstractInt :: Name -> Rel -> Pan AInt
-abstractInt x r = do
-  e <- abstractVar x TInt r
-  case e of
-    EIntA a -> return a
-    _       -> panic $ "abstractInt: unexpected" <+> pretty e
-
-abstractStr :: Name -> Rel -> Pan AString
-abstractStr x r = do
-  e <- abstractVar x TString r
-  case e of
-    EStrA a -> return a
-    _       -> panic $ "abstractStr: unexpected" <+> pretty e
-
+aExprToStr :: AExpr -> AString
+aExprToStr (EStrA a) = a
+aExprToStr e         = panic $ "aExprToStr: unexpected" <+> pretty e
 
 -------------------------------------------------------------------------------
 
