@@ -1,7 +1,7 @@
 module Panini.Solver.Simplifier where
 
 import Data.Generics.Uniplate.Operations
-import Data.List qualified as List
+import Data.List.Extra qualified as List
 import Panini.Abstract.AExpr (norm)
 import Panini.Provenance
 import Panini.Solver.Constraints
@@ -77,12 +77,14 @@ simplifyPred = rewrite $ \case
   PIff PTrue p -> Just p
   PIff p PFalse -> Just $ PNot p
   PIff PFalse p -> Just $ PNot p
-
-  PExists x _ (PAnd [PRel (a :=: b), PRel (c :=: d)])
-    | a == EVar x, b /= EVar x, c /= EVar x, d == EVar x -> Just $ PRel $ b :=: c
-    | a == EVar x, b /= EVar x, c == EVar x, d /= EVar x -> Just $ PRel $ b :=: d
-    | a /= EVar x, b == EVar x, c /= EVar x, d == EVar x -> Just $ PRel $ a :=: c
-    | a /= EVar x, b == EVar x, c == EVar x, d /= EVar x -> Just $ PRel $ a :=: d
+  
+  PExists x _ (PAnd (List.unsnoc -> Just (xs, PRel (EVar y :=: EVar x1))))
+    | x1 == x, all ok xs -> Just $ PAnd $ map (subst (EVar y) x) xs
+    where
+      ok (PRel (Rel _ e1 e2))
+        | e1 == EVar x, x `notElem` freeVars e2 = True
+        | e2 == EVar x, x `notElem` freeVars e1 = True        
+      ok _                                      = False
 
   _ -> Nothing
 
