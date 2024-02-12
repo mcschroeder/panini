@@ -3,6 +3,7 @@ module Panini.Syntax.Relations where
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import GHC.Generics (Generic)
+import Panini.Abstract.AExpr
 import Panini.Pretty
 import Panini.Syntax.Expressions
 import Prelude
@@ -105,3 +106,26 @@ instance Pretty Rop where
     Gt -> symGt
     In -> symIn
     Ni -> symNi
+
+------------------------------------------------------------------------------
+
+-- | Normalize a relation and its expressions into a more common/simpler form.
+-- Note that this operation does not introduce any abstract values.
+normRel :: Rel -> Rel
+normRel (Rel op e1 e2) = case Rel op (norm e1) (norm e2) of
+  
+  (StrAt_index s c      ) :=: i -> EStrAt s         i        :=: c
+  (StrAt_index s c :+: y) :=: i -> EStrAt s (norm $ i :-: y) :=: c
+  (StrAt_index s c :-: y) :=: i -> EStrAt s (norm $ i :+: y) :=: c
+  i :=: (StrAt_index s c      ) -> EStrAt s         i        :=: c
+  i :=: (StrAt_index s c :+: y) -> EStrAt s (norm $ i :-: y) :=: c
+  i :=: (StrAt_index s c :-: y) -> EStrAt s (norm $ i :+: y) :=: c
+
+  (StrAt_index s c      ) :≠: i -> EStrAt s         i        :≠: c
+  (StrAt_index s c :+: y) :≠: i -> EStrAt s (norm $ i :-: y) :≠: c
+  (StrAt_index s c :-: y) :≠: i -> EStrAt s (norm $ i :+: y) :≠: c
+  i :≠: (StrAt_index s c      ) -> EStrAt s         i        :≠: c
+  i :≠: (StrAt_index s c :+: y) -> EStrAt s (norm $ i :-: y) :≠: c
+  i :≠: (StrAt_index s c :-: y) -> EStrAt s (norm $ i :+: y) :≠: c
+
+  r -> r

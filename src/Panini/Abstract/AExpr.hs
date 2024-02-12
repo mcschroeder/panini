@@ -195,6 +195,6 @@ norm = Uniplate.rewrite $ \case
     | let n = Text.length s, i < n, j < n, i <= j
     -> Just $ EStr (Text.take (j - i + 1) $ Text.drop i s) NoPV
 
-  EFun "_StrComplement" [EStrA s] -> Just $ EStrA $ neg s
+  StrComp (EStrA s) -> Just $ EStrA $ neg s
 
   _ -> Nothing

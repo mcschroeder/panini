@@ -64,6 +64,20 @@ pattern e1 :-: e2 = ESub e1 e2
 
 ------------------------------------------------------------------------------
 
+pattern StrAt_index :: Expr -> Expr -> Expr
+pattern StrAt_index s c = EFun "_StrAt_index" [s,c]
+
+pattern StrSub_index2 :: Expr -> Expr -> Expr -> Expr
+pattern StrSub_index2 s t i = EFun "_StrSub_index_end" [s,t,i]
+
+pattern StrComp :: Expr -> Expr
+pattern StrComp e = EFun "_StrComplement" [e]
+
+pattern IntComp :: Expr -> Expr
+pattern IntComp e = EFun "_IntComplement" [e]
+
+------------------------------------------------------------------------------
+
 typeOfExpr :: Expr -> Maybe Base
 typeOfExpr = \case
   EVal v        -> typeOfValue v

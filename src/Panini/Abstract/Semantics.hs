@@ -37,7 +37,7 @@ abstractVar x b r = case abstract x b r of
     return e
 
 abstract :: Name -> Base -> Rel -> Either Rel AExpr
-abstract x b r = case r of
+abstract x b r = case normRel r of
   e1 :⋈: e2 | x ∉ e1, x ∉ e2 -> Left r
   e1 :⋈: e2 | x ∉ e1, x ∈ e2 -> maybe (Left r) (abstract x b) (converse r)
 
@@ -58,20 +58,6 @@ abstract x b r = case r of
   e1         :≠: IntComp e2 | e1 == e2 -> abstract x b $ e1 :=: e2
 
   StrComp e1 :≠: StrComp e2 -> abstract x b $ e1 :≠: e2
-
-  (StrAt_index s c      ) :=: i -> abstract x b $ EStrAt s         i        :=: c
-  (StrAt_index s c :+: y) :=: i -> abstract x b $ EStrAt s (norm $ i :-: y) :=: c
-  (StrAt_index s c :-: y) :=: i -> abstract x b $ EStrAt s (norm $ i :+: y) :=: c
-  i :=: (StrAt_index s c      ) -> abstract x b $ EStrAt s         i        :=: c
-  i :=: (StrAt_index s c :+: y) -> abstract x b $ EStrAt s (norm $ i :-: y) :=: c
-  i :=: (StrAt_index s c :-: y) -> abstract x b $ EStrAt s (norm $ i :+: y) :=: c
-
-  (StrAt_index s c      ) :≠: i -> abstract x b $ EStrAt s         i        :≠: c
-  (StrAt_index s c :+: y) :≠: i -> abstract x b $ EStrAt s (norm $ i :-: y) :≠: c
-  (StrAt_index s c :-: y) :≠: i -> abstract x b $ EStrAt s (norm $ i :+: y) :≠: c
-  i :≠: (StrAt_index s c      ) -> abstract x b $ EStrAt s         i        :≠: c
-  i :≠: (StrAt_index s c :+: y) -> abstract x b $ EStrAt s (norm $ i :-: y) :≠: c
-  i :≠: (StrAt_index s c :-: y) -> abstract x b $ EStrAt s (norm $ i :+: y) :≠: c
 
   (StrSub_index2 s t i :+: y) :=: j 
     -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
@@ -201,18 +187,6 @@ isN :: Integer -> Expr -> Bool
 isN n (EInt  m _) = m == n
 isN n (EIntA a)   = AInt.values a == [n]
 isN _ _           = False
-
-pattern StrAt_index :: Expr -> Expr -> Expr
-pattern StrAt_index s c = EFun "_StrAt_index" [s,c]
-
-pattern StrSub_index2 :: Expr -> Expr -> Expr -> Expr
-pattern StrSub_index2 s t i = EFun "_StrSub_index_end" [s,t,i]
-
-pattern StrComp :: Expr -> Expr
-pattern StrComp e = EFun "_StrComplement" [e]
-
-pattern IntComp :: Expr -> Expr
-pattern IntComp e = EFun "_IntComplement" [e]
 
 -------------------------------------------------------------------------------
 

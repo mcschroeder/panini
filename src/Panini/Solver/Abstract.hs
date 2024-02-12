@@ -239,10 +239,6 @@ norm' r0 = case normRel r0 of
     | otherwise -> Just (e1 :=: e2)
   r1 -> Just r1
 
--- | Independently normalize each side of a relation.
-normRel :: Rel -> Rel
-normRel (Rel op e1 e2) = Rel op (norm e1) (norm e2)
-
 varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
 varElim x b φ = do
   logMessage $ divider symDivH Nothing
