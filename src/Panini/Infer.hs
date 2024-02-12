@@ -5,6 +5,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
+import Panini.Environment
 import Panini.Error
 import Panini.Monad
 import Panini.Provenance
@@ -43,9 +44,13 @@ infer g = \case
   
   -- inf/var ----------------------------------------------
   Val (Var x) -> do
-    case Map.lookup x g of
-      Nothing -> throwError $ UnknownVar x
-      Just t -> return $ (self x t, CTrue) `withPV` getPV x
+    t <- case Map.lookup x g of
+      Just t  -> return $ self x t
+      Nothing -> Map.lookup x <$> gets environment >>= \case
+        Just Assumed {_type}        -> return _type
+        Just Verified {_solvedType} -> return _solvedType
+        _                           -> throwError $ UnknownVar x    
+    return $ (t, CTrue) `withPV` getPV x
   
   -- inf/con ----------------------------------------------
   Val (Con c) -> do

@@ -6,7 +6,6 @@ module Panini.Elab
   , assume
   , define
   , import_
-  , envToContext -- TODO: weird place for this?
   ) where
 
 import Control.Monad.Extra
@@ -44,14 +43,6 @@ envExtend x d = modify' $ \s -> s
 -- -- | Remove a definition from the environment.
 -- envDelete :: Name -> Pan ()
 -- envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
-
--- | Convert an elaborator environment to a typechecking context by throwing
--- away all non-final definitions.
-envToContext :: Environment -> Context 
-envToContext = Map.mapMaybe $ \case
-  Assumed {_type} -> Just _type    
-  Verified {_solvedType} -> Just _solvedType
-  _ -> Nothing
 
 -------------------------------------------------------------------------------
 
@@ -98,12 +89,8 @@ define x e = do
     Just (Assumed {_type}) -> return $ Just _type
     Just _                 -> throwError $ AlreadyDefined x
 
-  logMessage "Prepare typing context"
-  g <- envToContext <$> gets environment
-  logData g
-
   logMessage $ "Infer type of" <+> pretty x
-  let syn = maybe (infer g e) (check g e) t0m
+  let syn = maybe (infer mempty e) (check mempty e) t0m
   tryError syn >>= \case
     Left err -> do
       logError err
