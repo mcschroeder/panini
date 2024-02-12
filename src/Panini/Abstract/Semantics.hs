@@ -46,6 +46,11 @@ abstract x b r = case r of
   e1 :=: e2 | normA e1 == normA e2 -> Right $ topExpr b
   e1 :≠: e2 | normA e1 == normA e2 -> Right $ botExpr b
 
+  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :-: e2)
+  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e3 :-: e1)
+  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :+: e2)
+  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e1 :-: e3)
+
   ENot e1 :≠: e2      -> abstract x b $ e1 :=: e2
   e1      :≠: ENot e2 -> abstract x b $ e1 :=: e2
 
@@ -71,6 +76,8 @@ abstract x b r = case r of
   (StrSub_index2 s t i :+: y) :=: j 
     -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
 
+  EStrLen _ :≠: (EStrLen _ :+: EIntA a) | not (AInt.member 0 a) -> Right $ topExpr b
+
   EStrAt (EVar x1) (EStrLen (EVar x2) :-: EIntA n) :=: ECharA c 
     | x == x1, x == x2 
     -> Right $ EStrA $ absStrAtRev n c
@@ -94,11 +101,6 @@ abstract x b r = case r of
   EVar _ :=: e -> Right e
 
   ENot e1 :=: e2 -> abstract x b $ e1 :=: (norm $ ENot e2)
-
-  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :-: e2)
-  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e3 :-: e1)
-  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :+: e2)
-  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e1 :-: e3)
   
   e1 :≥: e2 -> abstract x b $ e1 :=: (norm $ e2 :+: EIntA (AInt.ge 0))
   e1 :>: e2 -> abstract x b $ e1 :=: (norm $ e2 :+: EIntA (AInt.ge 1))
