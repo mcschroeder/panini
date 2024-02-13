@@ -127,7 +127,7 @@ factorChoices xs = smaller
     ([], Opt a1:x1, _)
       | (a,x,y) <- splitPrefix (flatTimes a1 ++ x1) ay
       , not (null a)
-      , size (Times a) >= size (Times x) + 1
+      , size (Times a) + 1 >= size (Times x)
       -> x : factorPrefixes (mkFacPre a x y : zs)
 
     ---------------------------------------------------
@@ -135,7 +135,7 @@ factorChoices xs = smaller
     ([], _, Opt a1:y1) 
       | (a,x,y) <- splitPrefix ax (flatTimes a1 ++ y1)
       , not (null a)
-      , size (Times a) >= size (Times y) + 1
+      , size (Times a) + 1 >= size (Times y)
       -> y : factorPrefixes (mkFacPre a x y : zs)    
 
     ---------------------------------------------------
@@ -191,7 +191,7 @@ factorChoices xs = smaller
     (unsnoc -> Just (x1, Opt b1), _, []) 
       | (x,y,b) <- splitSuffix (x1 ++ flatTimes b1) yb
       , not (null b)
-      , size (Times b) >= size (Times x) + 1
+      , size (Times b) + 1 >= size (Times x)
       -> x : factorSuffixes (mkFacSuf x y b : zs)
     
     ---------------------------------------------------
@@ -199,7 +199,7 @@ factorChoices xs = smaller
     (_, unsnoc -> Just (y1, Opt b1), []) 
       | (x,y,b) <- splitSuffix xb (y1 ++ flatTimes b1)
       , not (null b)
-      , size (Times b) >= size (Times y) + 1
+      , size (Times b) + 1 >= size (Times y)
       -> y : factorSuffixes (mkFacSuf x y b : zs)
     
     ---------------------------------------------------
