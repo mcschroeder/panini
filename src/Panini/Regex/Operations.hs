@@ -63,7 +63,7 @@ intersection = curry $ solve $ \(r1,r2) ->
            | p <- Set.toList $ next r1 ⋈ next r2
            , Just c <- [CS.choose p]
            ]
-  in (c0, Map.fromList cx)
+  in (c0, Map.fromListWith (\a b -> Plus [a,b]) cx)
 
 -- | Compute the complement of a regex.
 --
@@ -76,7 +76,7 @@ complement = solve $ \r ->
            | p <- Set.toList $ next r
            , Just c <- [CS.choose p]
            ]
-  in (Plus [c0,c1], Map.fromList cx)
+  in (Plus [c0,c1], Map.fromListWith (\a b -> Plus [a,b]) cx)
 
 -------------------------------------------------------------------------------
 
@@ -143,7 +143,8 @@ solve f x0 = evalState (go x0) mempty
   scale r (c0,xs) = (r <> c0, Map.map (r <>) xs)
 
   combine :: RHS x -> RHS x -> RHS x
-  combine (c01,xs1) (c02,xs2) = (Plus [c01,c02], Map.unionWith (\a b -> Plus [a,b]) xs1 xs2)
+  combine (c01,xs1) (c02,xs2) = 
+    (Plus [c01,c02], Map.unionWith (\a b -> Plus [a,b]) xs1 xs2)
 
 -------------------------------------------------------------------------------
 
