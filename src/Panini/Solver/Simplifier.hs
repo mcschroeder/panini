@@ -19,34 +19,25 @@ simplifyCon = rewrite $ \case
 
   CAll x _ PTrue c | x `notElem` freeVars c -> Just c
 
-  -- The common pattern
-  --       ∀x:𝔹. (x = true ⇔ φ) ⇒ (∀y:𝔹. (y = true ⇔ φ) ∧ y = x ⇒ y = true) ∧ ψ
-  -- can be simplified to
-  --       φ ∧ ψ
-  CAll x TBool (PIff (PRel (EVar x1 :=: EBool True _)) p1) cs
-    | x == x1, x `notElem` freeVars p1
-    , (c1,c2) <- leftmostAnd cs
-    , (CAll y TBool (PAnd [ PIff (PRel (EVar y1 :=: EBool True _)) p2
-                          , PRel (EVar y2 :=: EVar x2)])
-                    (CHead (PRel (EVar y3 :=: EBool True _)))) <- c1
-    , y == y1, y `notElem` freeVars p2
-    , p1 == p2, x == x2, y == y2, y == y3
-    -> case c2 of
-      Nothing                    -> Just $ CHead p1
-      Just q 
-        | x `notElem` freeVars q -> Just $ CAnd (CHead p1) q
-        | otherwise              -> Just $ CAll x TBool p1 q
+  -- ∀x:b. φ ⇒ φ ∧ ψ   ≡   ∀x:b. φ ⇒ ψ
+  CAll x b p (leftmostAnd -> (CHead q, c)) | p == q 
+    -> Just $ maybe CTrue (CAll x b p) c
 
-  -- The pattern
-  --       ∀x:b. P(x) ⇒ (∀y:b. P(x)[y/x] ∧ y = x ⇒ P(x)[y/x]) ∧ ψ
-  -- can be simplified to
-  --       ∀x:b. P(x) ⇒ ψ
-  CAll x b1 p (leftmostAnd -> (CAll y b2 (PAnd [q1,r]) (CHead q2), c2))
+  -- ∀x:b. P(x) ⇒ (∀y:b. P(y) ∧ y = x ⇒ Q(y)) ∧ ψ   ≡   ∀x:b. P(x) ⇒ Q(x) ∧ ψ
+  CAll x b1 p1 (leftmostAnd -> (CAll y b2 (PAnd [p2,r]) (CHead q2), c))
     | b1 == b2
-    , let p' = subst (EVar y) x p
-    , p' == q1, p' == q2
-    , r == PRel (EVar y :=: EVar x)
-    -> Just $ CAll x b1 p (fromMaybe CTrue c2)
+    , p1 == subst (EVar x) y p2
+    , r  == PRel (EVar y :=: EVar x)
+    , let q1 = subst (EVar x) y q2
+    -> Just $ CAll x b1 p1 $ CAnd (CHead q1) (fromMaybe CTrue c)
+
+  -- ∀x:𝔹. (x = true ⇔ φ) ⇒ x = true ∧ ψ   ≡   φ ∧ ψ
+  CAll x TBool (PIff p1 q) (leftmostAnd -> (CHead p2, c))
+    | PRel (EVar x1 :=: EBool True _) <- p1
+    , x1 == x, p1 == p2
+    , x `notElem` freeVars q
+    , x `notElem` maybe mempty freeVars c
+    -> Just $ CAnd (CHead q) (fromMaybe CTrue c)
 
   CAll x b p c | p' <- simplifyPred p, p' /= p -> Just $ CAll x b p' c
   CHead p      | p' <- simplifyPred p, p' /= p -> Just $ CHead p'
