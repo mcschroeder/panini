@@ -1,5 +1,6 @@
 module Panini.Solver.Simplifier where
 
+import Algebra.Lattice
 import Data.Generics.Uniplate.Operations
 import Data.List.Extra qualified as List
 import Data.Maybe
@@ -81,14 +82,11 @@ simplifyPred = rewrite $ \case
   PIff PTrue p -> Just p
   PIff p PFalse -> Just $ PNot p
   PIff PFalse p -> Just $ PNot p
-  
-  PExists x _ (PAnd (List.unsnoc -> Just (xs, PRel (EVar y :=: EVar x1))))
-    | x1 == x, all ok xs -> Just $ PAnd $ map (subst (EVar y) x) xs
-    where
-      ok (PRel (Rel _ e1 e2))
-        | e1 == EVar x, x `notElem` freeVars e2 = True
-        | e2 == EVar x, x `notElem` freeVars e1 = True        
-      ok _                                      = False
+
+  -- ∃x:b. P(x) ∧ y = x   ≡   P(y)
+  PExists x1 _ (PAnd (List.unsnoc -> Just (xs, PRel (y :=: EVar x2)))) 
+    | x1 == x2, x1 `notElem` freeVars y
+    -> Just $ meets $ map (subst y x1) xs
 
   _ -> Nothing
 
