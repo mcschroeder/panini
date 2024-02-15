@@ -114,6 +114,10 @@ class BoundedLattice a => ComplementedLattice a where
 class PartialMeetSemilattice a where
   (∧?) :: a -> a -> Maybe a
 
+-- | A synonym for '∧?'.
+partialMeet :: PartialMeetSemilattice a => a -> a -> Maybe a
+partialMeet = (∧?)
+
 partialMeets :: (Foldable t, PartialMeetSemilattice a) => t a -> [a]
 partialMeets = foldl' (flip go) [] . toList
   where
