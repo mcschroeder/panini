@@ -28,15 +28,7 @@ quals :: Con -> [(Int,Base)] -> [Pred]
 quals con = \case  
   [(_, TUnit)] -> [PTrue]
   [(i, b0)]    -> [PRel r | PRel (q1 (z i, b0) -> Just r) <- universeBi con]
-
-  -- TODO: make type safe
-  -- TODO: generalize
-  [(i,TInt),(j,TInt)] ->  [ PRel $ substN [EVar (z i), EVar (z j)] xs r
-                  | PRel r <- universeBi con 
-                  , let fvs = freeVars r, Set.size fvs == 2
-                  , xs <- List.permutations $ Set.toList fvs
-                  ]
-  _ -> []
+  _            -> []
  where
   z i = Name ("z" <> Text.pack (show i)) NoPV
 
