@@ -7,6 +7,7 @@ import Data.Function
 import Data.Maybe
 import Data.Text.IO qualified as Text
 import Options.Applicative
+import Panini.CLI.Common
 import Panini.CLI.Options
 import Panini.CLI.REPL
 import Panini.CLI.Test

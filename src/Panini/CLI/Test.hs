@@ -9,6 +9,7 @@ import Data.List qualified as List
 import Data.Maybe
 import Data.Text (Text)
 import Data.Text.IO qualified as Text
+import Panini.CLI.Common
 import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment

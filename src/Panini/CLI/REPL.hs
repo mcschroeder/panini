@@ -16,6 +16,7 @@ import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.List qualified as List
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
+import Panini.CLI.Common
 import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
