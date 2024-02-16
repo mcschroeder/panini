@@ -58,9 +58,10 @@ solve kst c0 = do
   c9  <- apply sa c8                     § "Apply abstract solution"
   c10 <- simplifyCon c9                  § "Simplify constraint"
   s   <- sa <> sl <> allTrue (kvars c0)  § "Construct final solution"
+  vc  <- apply s c10                     § "Apply final solution"
 
   logMessage "Phase 4: VERIFY — Validate final verification condition"
-  vcs <- flat c10                        § "Flatten constraint"
+  vcs <- flat vc                         § "Flatten constraint"
   res <- Z3.smtCheck vcs
   case res of
     Z3.Sat       -> return (Valid s)
