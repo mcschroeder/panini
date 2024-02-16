@@ -73,7 +73,7 @@ batchMain panOpts = do
     logData src
     prog <- parseSource (moduleLocation module_) src
     elaborate module_ prog
-    vsep . map pretty . getVerifiedTypes <$> gets environment
+    vsep . map pretty . getSolvedTypes <$> gets environment
   
   whenJust traceFile hClose
 

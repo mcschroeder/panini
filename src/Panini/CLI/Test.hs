@@ -77,7 +77,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       module_ <- liftIO $ getModule inFile
       prog <- parseSource (moduleLocation module_) src
       elaborate module_ prog
-      (es,ts) <- liftM2 (,) getTypeErrors getVerifiedTypes <$> gets environment
+      (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
       return $ vsep $ (map pretty es) ++ (map pretty ts)
 
     whenJust traceFile hClose

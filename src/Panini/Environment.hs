@@ -141,15 +141,23 @@ isFailed = \case
   Invalid{}  -> True
   _          -> False
 
+isSolved :: Definition -> Bool
+isSolved = \case
+  Verified{}   -> True
+  Unverified{} -> True
+  _            -> False
+
 -------------------------------------------------------------------------------
 
+-- | A type signature, with an optional comment.
 data TypeSig = TypeSig Name Type (Maybe String)
   deriving stock (Eq, Show, Read)
 
 instance Pretty TypeSig where
-  pretty (TypeSig x t Nothing) = pretty x <+> ":" <+> pretty t
-  pretty (TypeSig x t (Just c)) = 
-    pretty x <+> ":" <+> pretty t <> "  " <> ann Comment ("--" <+> pretty c)
+  pretty (TypeSig x t c) = pretty x <+> ":" <+> pretty t <> comment
+   where
+    comment | Just m <- c = "  " <> ann Comment ("--" <+> pretty m)
+            | otherwise   = mempty
 
 -------------------------------------------------------------------------------
 
@@ -163,11 +171,12 @@ sortedDefinitions =
 getTypeErrors :: Environment -> [Error]
 getTypeErrors = map _error . filter isFailed . sortedDefinitions
 
--- TODO: make this make sense
--- | Return type signatures for all verified definitions in the environment.
-getVerifiedTypes :: Environment -> [TypeSig]
-getVerifiedTypes = catMaybes . map go . sortedDefinitions
+-- | Return type signatures for all fully solved definitions in the environment,
+-- both verified and unverified.
+getSolvedTypes :: Environment -> [TypeSig]
+getSolvedTypes = catMaybes . map go . sortedDefinitions
  where
-  go Verified{..} = Just $ TypeSig _name _solvedType Nothing
-  go Unverified{..} = Just $ TypeSig _name _solvedType (Just $ "UNVERIFIED (" ++ _reason ++ ")")
-  go _            = Nothing
+  go Verified{..}   = Just $ TypeSig _name _solvedType Nothing
+  go Unverified{..} = Just $ TypeSig _name _solvedType (Just comment)
+                        where comment = "UNVERIFIED (" ++ _reason ++ ")"
+  go _ = Nothing
