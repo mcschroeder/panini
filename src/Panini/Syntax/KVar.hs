@@ -32,6 +32,9 @@ instance Hashable KVar
 kparams :: KVar -> [Name]
 kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts-1]]
 
+ktypes :: KVar -> [Base]
+ktypes (KVar _ ts) = ts
+
 instance Pretty KVar where
   pretty k@(KVar _ ts) = prettyKVarName k <> prettyTuple zs
     where

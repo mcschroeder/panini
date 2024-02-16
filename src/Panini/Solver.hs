@@ -3,14 +3,13 @@ module Panini.Solver
   , module Panini.Solver.Assignment
   ) where
 
-import Control.Monad.Extra
 import Data.Foldable
 import Data.Function
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Monad
-import Panini.Pretty
+import Panini.SMT.Z3
 import Panini.Solver.Abstract (allPreCons, preConKVar)
 import Panini.Solver.Abstract qualified as Abstract
 import Panini.Solver.Assignment
@@ -21,34 +20,48 @@ import Panini.Solver.Qualifiers
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import Algebra.Lattice
+
+
 
 -------------------------------------------------------------------------------
 
 solve :: Set KVar -> Con -> Pan (Maybe Assignment)
 solve kst c0 = do
-  c1  <- simplifyCon c0                   § "Simplify constraint"
-  ksp <- allPreConKVars c1                § "Identify precondition variables"
-  c2  <- Fusion.solve (kst <> ksp) c1  
-  c3  <- simplifyCon c2                   § "Simplify constraint"  
-  sp  <- Abstract.solve c3
-  c4  <- apply sp c3                      § "Apply precondition solution"
-  c5  <- simplifyCon c4                   § "Simplify constraint"  
-  kts <- qualifierTypes c5                § "Identify qualifier types"
-  qs  <- extractQualifiers' c0 kts        § "Extract candidate qualifiers"
-  cs5 <- flat c5                          § "Flatten constraint"
+  logMessage "Phase 1: FUSION — Eliminate local acyclic variables"
+  c1  <- simplifyCon c0                  § "Simplify constraint"
+  c2  <- Fusion.solve kst c1
+  c3  <- simplifyCon c2                  § "Simplify constraint"
 
-  logMessage $ "Find approximate solutions for residual" <+> kappa <+> "variables"  
-  Liquid.solve cs5 qs >>= \case
-    Nothing -> return Nothing
-    Just sl -> do
-      logMessage "Found a valid solution!"
-      let s0 = Map.fromList [(k, PTrue) | k <- toList $ kvars c0]
-      let s  = sp <> sl <> s0
-      logData s
-      return $ Just s
- 
+  logMessage "Phase 2: LIQUID — Solve residual non-precondition variables"
+  ksp <- allPreConKVars c3               § "Identify precondition variables"
+  c4  <- apply (allTrue ksp) c3          § "Temporarily eliminate preconditions"
+  c5  <- simplifyCon c4                  § "Simplify constraint"
+  qs  <- qualifiers c0 (kvars c5)        § "Extract candidate qualifiers"
+  cs5 <- flat c5                         § "Flatten constraint"
+  csk <- filter horny cs5                § "Gather Horn-headed constraints"
+  s0  <- solution0 qs (kvars csk)        § "Construct initial solution"
+  sl  <- Liquid.fixpoint csk s0
+  c6  <- c3                              § "Restore preconditions"
+  c7  <- apply sl c6                     § "Apply Liquid solution"
+  c8  <- simplifyCon c7                  § "Simplify constraint"
+
+  logMessage "Phase 3: ABSTRACT — Find weakest preconditions"
+  sa  <- Abstract.solve c8
+  c9  <- apply sa c8                     § "Apply abstract solution"
+  c10 <- simplifyCon c9                  § "Simplify constraint"
+  s   <- sa <> sl <> allTrue (kvars c0)  § "Construct final solution"
+
+  logMessage "Phase 4: VERIFY — Validate final verification condition"
+  vcs <- flat c10                        § "Flatten constraint"
+  res <- smtValid vcs
+  case res of
+    False -> Nothing                     § "Invalid solution"
+    True  -> Just s                      § "Found valid solution!"
+
+-- TODO: differentiate between invalid solution and unknown/timeout 
  where
-  -- TODO
-  qualifierTypes c = Set.fromList [ts | KVar _ ts <- toList $ kvars c]
-  extractQualifiers' c kts = Map.fromList [ (ts, extractQualifiers c ts) | ts <- toList $ kts]
-  allPreConKVars = Set.fromList . map preConKVar . toList . allPreCons
+  allTrue         = Map.fromSet (const PTrue)
+  allPreConKVars  = Set.fromList . map preConKVar . toList . allPreCons
+  qualifiers c ks = Map.fromSet (extractQualifiers c) (Set.map ktypes ks)
+  solution0 qs ks = Map.fromSet (maybe PTrue meets . flip Map.lookup qs . ktypes) ks

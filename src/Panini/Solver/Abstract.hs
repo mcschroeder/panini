@@ -78,7 +78,6 @@ preConKVar (PreCon _ _ k _) = k
 -- appears multiple times), we take their 'meet'.
 solve :: Con -> Pan Assignment
 solve c0 = do
-  logMessage "Use abstract interpretation to infer weakest preconditions"
   pcs1 <- topoSortPreCons (allPreCons c0) § "Sort precondition variables"
   Map.map snd <$> foldM solve' mempty pcs1
  where

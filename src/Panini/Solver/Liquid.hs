@@ -9,7 +9,7 @@
 --   * Patrick M. Rondon, Ming Kawaguci, Ranjit Jhala. 2008. Liquid Types.
 --     PLDI. https://doi.org/10.1145/1375581.1375602
 -------------------------------------------------------------------------------
-module Panini.Solver.Liquid (solve) where
+module Panini.Solver.Liquid (solve, fixpoint) where
 
 import Algebra.Lattice (meets)
 import Control.Monad
@@ -60,11 +60,6 @@ solve cs qs = do
  where
   sym_csk = "csₖ" `orASCII` "cs_k"
   sym_csp = "csₚ" `orASCII` "cs_p"
-
--- | Whether or not a flat constraint has a κ application in its head.
-horny :: FlatCon -> Bool
-horny (FAll _ _ (PAppK _ _)) = True
-horny _                      = False
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given constraints is found.

@@ -116,6 +116,10 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
     simpl xs ps (CHead q)      = FAll (reverse xs) (meets $ reverse ps) q
     simpl _  _  (CAnd _ _)     = impossible
 
+-- | Whether or not a flat constraint has a κ application in its head.
+horny :: FlatCon -> Bool
+horny (FAll _ _ (PAppK _ _)) = True
+horny _                      = False
 
 instance Pretty FlatCon where
   pretty (FAll xs p q) = hang 2 $ sep 

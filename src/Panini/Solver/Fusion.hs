@@ -27,7 +27,6 @@ import Panini.Pretty
 -- the given exclusion set, returning the (partially) solved constraint.
 solve :: Set KVar -> Con -> Pan Con
 solve ksx c0 = do
-  logMessage $ "Use FUSION to eliminate local acyclic" <+> kappa <+> "variables."
   ksc <- cutVars c0                  § "Compute cut variables"
   ks  <- (kvars c0 \\ ksc \\ ksx)    § "Identify non-excluded non-cut variables"
   c1  <- elim (Set.toAscList ks) c0  

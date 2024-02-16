@@ -2,7 +2,6 @@ module Panini.Solver.Qualifiers (extractQualifiers) where
 
 import Data.Generics.Uniplate.Operations
 import Data.List qualified as List
-import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Panini.Provenance
 import Panini.Solver.Constraints
