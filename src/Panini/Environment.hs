@@ -5,6 +5,7 @@ import Data.Function
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe
 import Panini.Error
 import Panini.Pretty
 import Panini.Provenance
@@ -134,11 +135,6 @@ data Definition
 
 -------------------------------------------------------------------------------
 
-isVerified :: Definition -> Bool
-isVerified = \case
-  Verified{} -> True
-  _          -> False
-
 isFailed :: Definition -> Bool
 isFailed = \case
   Rejected{} -> True
@@ -147,11 +143,12 @@ isFailed = \case
 
 -------------------------------------------------------------------------------
 
-data TypeSig = TypeSig Name Type
+data TypeSig = TypeSig Name Type (Maybe String)
   deriving stock (Eq, Show, Read)
 
 instance Pretty TypeSig where
-  pretty (TypeSig x t) = pretty x <+> ":" <+> pretty t
+  pretty (TypeSig x t Nothing) = pretty x <+> ":" <+> pretty t
+  pretty (TypeSig x t (Just c)) = pretty x <+> ":" <+> pretty t <+> " --" <+> pretty c
 
 -------------------------------------------------------------------------------
 
@@ -165,7 +162,11 @@ sortedDefinitions =
 getTypeErrors :: Environment -> [Error]
 getTypeErrors = map _error . filter isFailed . sortedDefinitions
 
+-- TODO: make this make sense
 -- | Return type signatures for all verified definitions in the environment.
 getVerifiedTypes :: Environment -> [TypeSig]
-getVerifiedTypes env = 
-  [ TypeSig _name _solvedType | Verified{..} <- sortedDefinitions env]
+getVerifiedTypes = catMaybes . map go . sortedDefinitions
+ where
+  go Verified{..} = Just $ TypeSig _name _solvedType Nothing
+  go Unverified{..} = Just $ TypeSig _name _solvedType (Just $ "UNVERIFIED (" ++ _reason ++ ")")
+  go _            = Nothing
