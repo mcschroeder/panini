@@ -1,1 +1,1 @@
-tests/basic/post/assert/002.pan:4:1-4: error: unable to verify type of f02
+tests/basic/post/assert/002.pan:4:1-4: error: cannot solve constraints of f02

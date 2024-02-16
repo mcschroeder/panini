@@ -1,3 +1,3 @@
-tests/basic/check/if/080.pan:3:1-4: error: unable to verify type of f80
-tests/basic/check/if/080.pan:6:1-4: error: unable to verify type of f81
-tests/basic/check/if/080.pan:9:1-4: error: unable to verify type of f82
+tests/basic/check/if/080.pan:3:1-4: error: cannot solve constraints of f80
+tests/basic/check/if/080.pan:6:1-4: error: cannot solve constraints of f81
+tests/basic/check/if/080.pan:9:1-4: error: cannot solve constraints of f82

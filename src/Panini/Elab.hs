@@ -112,7 +112,7 @@ define x e = do
           envExtend x $ Invalid x t0m e t2 vc err
 
         Right Solver.Invalid -> do
-          let err = Unverifiable x vc
+          let err = Unsolvable x vc
           logError err
           envExtend x $ Invalid x t0m e t2 vc err
         

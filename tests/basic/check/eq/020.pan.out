@@ -1,2 +1,2 @@
-tests/basic/check/eq/020.pan:4:1-4: error: unable to verify type of f20
-tests/basic/check/eq/020.pan:7:1-4: error: unable to verify type of f21
+tests/basic/check/eq/020.pan:4:1-4: error: cannot solve constraints of f20
+tests/basic/check/eq/020.pan:7:1-4: error: cannot solve constraints of f21

@@ -1,4 +1,4 @@
-tests/basic/check/eq/050.pan:4:1-4: error: unable to verify type of f50
-tests/basic/check/eq/050.pan:7:1-4: error: unable to verify type of f51
-tests/basic/check/eq/050.pan:10:1-4: error: unable to verify type of f52
-tests/basic/check/eq/050.pan:13:1-4: error: unable to verify type of f53
+tests/basic/check/eq/050.pan:4:1-4: error: cannot solve constraints of f50
+tests/basic/check/eq/050.pan:7:1-4: error: cannot solve constraints of f51
+tests/basic/check/eq/050.pan:10:1-4: error: cannot solve constraints of f52
+tests/basic/check/eq/050.pan:13:1-4: error: cannot solve constraints of f53

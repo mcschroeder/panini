@@ -1,7 +1,7 @@
-tests/basic/check/id/040.pan:4:1-4: error: unable to verify type of f40
-tests/basic/check/id/040.pan:7:1-4: error: unable to verify type of f41
-tests/basic/check/id/040.pan:10:1-4: error: unable to verify type of f42
-tests/basic/check/id/040.pan:13:1-4: error: unable to verify type of f43
-tests/basic/check/id/040.pan:16:1-4: error: unable to verify type of f44
-tests/basic/check/id/040.pan:19:1-4: error: unable to verify type of f45
-tests/basic/check/id/040.pan:22:1-4: error: unable to verify type of f46
+tests/basic/check/id/040.pan:4:1-4: error: cannot solve constraints of f40
+tests/basic/check/id/040.pan:7:1-4: error: cannot solve constraints of f41
+tests/basic/check/id/040.pan:10:1-4: error: cannot solve constraints of f42
+tests/basic/check/id/040.pan:13:1-4: error: cannot solve constraints of f43
+tests/basic/check/id/040.pan:16:1-4: error: cannot solve constraints of f44
+tests/basic/check/id/040.pan:19:1-4: error: cannot solve constraints of f45
+tests/basic/check/id/040.pan:22:1-4: error: cannot solve constraints of f46

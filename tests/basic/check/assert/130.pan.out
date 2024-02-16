@@ -1,6 +1,6 @@
-tests/basic/check/assert/130.pan:4:1-5: error: unable to verify type of f130
-tests/basic/check/assert/130.pan:7:1-5: error: unable to verify type of f131
-tests/basic/check/assert/130.pan:10:1-5: error: unable to verify type of f132
-tests/basic/check/assert/130.pan:13:1-5: error: unable to verify type of f133
-tests/basic/check/assert/130.pan:16:1-5: error: unable to verify type of f134
-tests/basic/check/assert/130.pan:19:1-5: error: unable to verify type of f135
+tests/basic/check/assert/130.pan:4:1-5: error: cannot solve constraints of f130
+tests/basic/check/assert/130.pan:7:1-5: error: cannot solve constraints of f131
+tests/basic/check/assert/130.pan:10:1-5: error: cannot solve constraints of f132
+tests/basic/check/assert/130.pan:13:1-5: error: cannot solve constraints of f133
+tests/basic/check/assert/130.pan:16:1-5: error: cannot solve constraints of f134
+tests/basic/check/assert/130.pan:19:1-5: error: cannot solve constraints of f135

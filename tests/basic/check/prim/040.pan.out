@@ -1,5 +1,5 @@
-tests/basic/check/prim/040.pan:2:1-4: error: unable to verify type of f40
-tests/basic/check/prim/040.pan:5:1-4: error: unable to verify type of f41
-tests/basic/check/prim/040.pan:8:1-4: error: unable to verify type of f42
-tests/basic/check/prim/040.pan:11:1-4: error: unable to verify type of f43
-tests/basic/check/prim/040.pan:15:1-4: error: unable to verify type of f44
+tests/basic/check/prim/040.pan:2:1-4: error: cannot solve constraints of f40
+tests/basic/check/prim/040.pan:5:1-4: error: cannot solve constraints of f41
+tests/basic/check/prim/040.pan:8:1-4: error: cannot solve constraints of f42
+tests/basic/check/prim/040.pan:11:1-4: error: cannot solve constraints of f43
+tests/basic/check/prim/040.pan:15:1-4: error: cannot solve constraints of f44

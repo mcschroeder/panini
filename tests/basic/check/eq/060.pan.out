@@ -1,4 +1,4 @@
-tests/basic/check/eq/060.pan:4:1-4: error: unable to verify type of f60
-tests/basic/check/eq/060.pan:7:1-4: error: unable to verify type of f61
-tests/basic/check/eq/060.pan:10:1-4: error: unable to verify type of f62
-tests/basic/check/eq/060.pan:13:1-4: error: unable to verify type of f63
+tests/basic/check/eq/060.pan:4:1-4: error: cannot solve constraints of f60
+tests/basic/check/eq/060.pan:7:1-4: error: cannot solve constraints of f61
+tests/basic/check/eq/060.pan:10:1-4: error: cannot solve constraints of f62
+tests/basic/check/eq/060.pan:13:1-4: error: cannot solve constraints of f63

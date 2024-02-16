@@ -19,7 +19,7 @@ data Error
   | ExpectedFunType Term Type
   | ParserError Text PV
   | SolverError Text PV
-  | Unverifiable Name Con
+  | Unsolvable Name Con
   | IOError String PV
   | AbstractionImpossible Name Rel Rel
   | ConcretizationImpossible Name Base AValue
@@ -33,7 +33,7 @@ instance HasProvenance Error where
     ExpectedFunType e _            -> getPV e
     ParserError _ pv               -> pv
     SolverError _ pv               -> pv
-    Unverifiable x _               -> getPV x
+    Unsolvable x _                 -> getPV x
     IOError _ pv                   -> pv
     AbstractionImpossible x _r1 _  -> getPV x -- TODO: getPV r1
     ConcretizationImpossible x _ _ -> getPV x -- TODO: getPV a
@@ -45,7 +45,7 @@ instance HasProvenance Error where
     ExpectedFunType e t            -> ExpectedFunType (setPV pv e) t
     ParserError e _                -> ParserError e pv
     SolverError e _                -> SolverError e pv
-    Unverifiable x vc              -> Unverifiable (setPV pv x) vc
+    Unsolvable x vc                -> Unsolvable (setPV pv x) vc
     IOError e _                    -> IOError e pv
     AbstractionImpossible x r1 r2  -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
     ConcretizationImpossible x b a -> ConcretizationImpossible (setPV pv x) b a -- TODO: setPV a
@@ -71,7 +71,7 @@ prettyErrorMessage = \case
   ExpectedFunType _ t  -> "invalid function type:" <\> pretty t
   ParserError e _      -> pretty $ Text.stripEnd e
   SolverError e _      -> "unexpected SMT solver output:" <\> pretty e
-  Unverifiable x _     -> "unable to verify type of" <\> pretty x    
+  Unsolvable x _       -> "cannot solve constraints of" <\> pretty x    
   IOError e _          -> pretty $ Text.pack e  
   AbstractionImpossible x _ r2 -> 
     "abstraction impossible:" <\> "⟦" <> pretty r2 <> "⟧↑" <> pretty x

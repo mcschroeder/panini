@@ -1,4 +1,4 @@
-tests/basic/check/eq/140.pan:5:1-5: error: unable to verify type of f140
-tests/basic/check/eq/140.pan:10:1-5: error: unable to verify type of f141
-tests/basic/check/eq/140.pan:15:1-5: error: unable to verify type of f142
-tests/basic/check/eq/140.pan:20:1-5: error: unable to verify type of f143
+tests/basic/check/eq/140.pan:5:1-5: error: cannot solve constraints of f140
+tests/basic/check/eq/140.pan:10:1-5: error: cannot solve constraints of f141
+tests/basic/check/eq/140.pan:15:1-5: error: cannot solve constraints of f142
+tests/basic/check/eq/140.pan:20:1-5: error: cannot solve constraints of f143

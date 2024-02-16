@@ -1,1 +1,1 @@
-tests/basic/infer/not_iff/070.pan:4:1-4: error: unable to verify type of f70
+tests/basic/infer/not_iff/070.pan:4:1-4: error: cannot solve constraints of f70

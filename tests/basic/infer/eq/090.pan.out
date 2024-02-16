@@ -1,2 +1,2 @@
-tests/basic/infer/eq/090.pan:4:1-4: error: unable to verify type of f90
-tests/basic/infer/eq/090.pan:8:1-4: error: unable to verify type of f91
+tests/basic/infer/eq/090.pan:4:1-4: error: cannot solve constraints of f90
+tests/basic/infer/eq/090.pan:8:1-4: error: cannot solve constraints of f91

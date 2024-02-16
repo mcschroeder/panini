@@ -1,2 +1,2 @@
-tests/basic/check/not_neg/030.pan:4:1-4: error: unable to verify type of f30
-tests/basic/check/not_neg/030.pan:7:1-4: error: unable to verify type of f31
+tests/basic/check/not_neg/030.pan:4:1-4: error: cannot solve constraints of f30
+tests/basic/check/not_neg/030.pan:7:1-4: error: cannot solve constraints of f31
