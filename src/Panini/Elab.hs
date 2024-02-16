@@ -117,8 +117,6 @@ define x e = do
           envExtend x $ Invalid x t0m e t2 vc err
         
         Right (Solver.Unverified s r) -> do
-          let err = Unverifiable x vc   -- TODO: differentiate errors
-          logError err
           t3 <- makeFinalType s t2 t0m
           envExtend x $ Unverified x t0m e t2 vc s t3 r
 
