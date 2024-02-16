@@ -23,6 +23,7 @@ data Ann
   | Literal LitKind       -- ^ Literals, e.g., integers or strings.
   | Bracket BraKind       -- ^ Matched nesting symbols, e.g., parentheses.
   | Separator             -- ^ Syntactic separators, e.g., commas.
+  | Comment               -- ^ Comments.
   | Highlight             -- ^ Highlighted piece of syntax, something notable.
   | Message               -- ^ Any kind of message from the compiler.
   | Error                 -- ^ Something erroneous.

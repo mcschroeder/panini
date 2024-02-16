@@ -148,7 +148,8 @@ data TypeSig = TypeSig Name Type (Maybe String)
 
 instance Pretty TypeSig where
   pretty (TypeSig x t Nothing) = pretty x <+> ":" <+> pretty t
-  pretty (TypeSig x t (Just c)) = pretty x <+> ":" <+> pretty t <+> " --" <+> pretty c
+  pretty (TypeSig x t (Just c)) = 
+    pretty x <+> ":" <+> pretty t <> "  " <> ann Comment ("--" <+> pretty c)
 
 -------------------------------------------------------------------------------
 

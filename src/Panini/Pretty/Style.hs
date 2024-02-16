@@ -14,6 +14,7 @@ defaultStyling = \case
   Literal _            -> fgColor Dull Red
   Bracket _            -> fgColor Vivid Black
   Separator            -> fgColor Vivid Black
+  Comment              -> fgColor Vivid Black
   Highlight            -> bgColor Vivid Yellow
   Message              -> bold True
   Error                -> bold True <> fgColor Vivid Red
