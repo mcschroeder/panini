@@ -53,9 +53,9 @@ solve cs qs = do
   logData $ sigma <> parens sym_csp <+> symEq <+> pretty csp2
 
   logMessage $ "Validate" <+> sigma <> parens sym_csp
-  smtValid csp2 >>= \case
-    True -> return $ Just s
-    False -> return Nothing
+  smtCheck csp2 >>= \case
+    Sat -> return $ Just s
+    _   -> return Nothing
  
  where
   sym_csk = "csₖ" `orASCII` "cs_k"
@@ -66,7 +66,7 @@ solve cs qs = do
 fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
 fixpoint cs s = do
   logData $ sigma <+> symEq <+> pretty s
-  r <- take 1 <$> filterM ((not <$>) . smtValid . pure . apply s) cs
+  r <- take 1 <$> filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
   case r of
     [c] -> fixpoint cs =<< weaken s c
     _   -> return s
@@ -78,7 +78,7 @@ weaken s (FAll xs p (PAppK k ys)) =
     Nothing -> panic $ "missing Horn assignment for" <+> pretty k
     Just q0 -> do
       let p' = apply s p
-      let keep q = smtValid [FAll xs p' (substN ys (kparams k) q)]
+      let keep q = isSat <$> smtCheck [FAll xs p' (substN ys (kparams k) q)]
       qs' <- meets <$> filterM keep (explode q0)
       return $ Map.insert k qs' s
 

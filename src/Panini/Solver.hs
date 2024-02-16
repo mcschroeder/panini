@@ -54,10 +54,10 @@ solve kst c0 = do
 
   logMessage "Phase 4: VERIFY — Validate final verification condition"
   vcs <- flat c10                        § "Flatten constraint"
-  res <- smtValid vcs
+  res <- smtCheck vcs
   case res of
-    False -> Nothing                     § "Invalid solution"
-    True  -> Just s                      § "Found valid solution!"
+    Sat -> Just s                        § "Found valid solution!"
+    _   -> Nothing                       § "Invalid solution"
 
 -- TODO: differentiate between invalid solution and unknown/timeout 
  where

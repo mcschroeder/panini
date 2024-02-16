@@ -19,7 +19,6 @@ data Error
   | ExpectedFunType Term Type
   | ParserError Text PV
   | SolverError Text PV
-  | SolverTimeout PV
   | Unverifiable Name Con
   | IOError String PV
   | AbstractionImpossible Name Rel Rel
@@ -34,7 +33,6 @@ instance HasProvenance Error where
     ExpectedFunType e _            -> getPV e
     ParserError _ pv               -> pv
     SolverError _ pv               -> pv
-    SolverTimeout pv               -> pv
     Unverifiable x _               -> getPV x
     IOError _ pv                   -> pv
     AbstractionImpossible x _r1 _  -> getPV x -- TODO: getPV r1
@@ -47,7 +45,6 @@ instance HasProvenance Error where
     ExpectedFunType e t            -> ExpectedFunType (setPV pv e) t
     ParserError e _                -> ParserError e pv
     SolverError e _                -> SolverError e pv
-    SolverTimeout _                -> SolverTimeout pv
     Unverifiable x vc              -> Unverifiable (setPV pv x) vc
     IOError e _                    -> IOError e pv
     AbstractionImpossible x r1 r2  -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
@@ -74,7 +71,6 @@ prettyErrorMessage = \case
   ExpectedFunType _ t  -> "invalid function type:" <\> pretty t
   ParserError e _      -> pretty $ Text.stripEnd e
   SolverError e _      -> "unexpected SMT solver output:" <\> pretty e
-  SolverTimeout _      -> "SMT solver timeout"
   Unverifiable x _     -> "unable to verify type of" <\> pretty x    
   IOError e _          -> pretty $ Text.pack e  
   AbstractionImpossible x _ r2 -> 

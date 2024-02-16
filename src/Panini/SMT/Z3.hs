@@ -1,7 +1,9 @@
 -- TODO: module documentation
 module Panini.SMT.Z3 
   ( smtInit
-  , smtValid
+  , smtCheck
+  , Result(..)
+  , isSat
   ) where
 
 import Control.Exception
@@ -37,8 +39,16 @@ smtInit = do
         timeout <- gets smtTimeout
         logMessage $ "Solver timeout:" <+> pretty timeout <+> "seconds"
 
-smtValid :: SMTLIB a => [a] -> Pan Bool
-smtValid cs = do
+-------------------------------------------------------------------------------
+
+data Result = Sat | Unsat | Unknown String
+
+isSat :: Result -> Bool
+isSat Sat = True
+isSat _   = False
+
+smtCheck :: SMTLIB a => [a] -> Pan Result
+smtCheck cs = do
   logMessage "Encode SMT-LIB query"
   let foralls = map (Text.unpack . toSMTLIB) cs
   let declares = []
@@ -54,8 +64,9 @@ smtValid cs = do
 
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of
-      "sat"     -> return True
-      "unsat"   -> return False
-      "timeout" -> throwError $ SolverTimeout NoPV
+      "sat"     -> return Sat
+      "unsat"   -> return Unsat
+      "unknown" -> return (Unknown "")
+      "timeout" -> return (Unknown "timeout")
       x         -> throwError $ SolverError (Text.pack x) NoPV
     ExitFailure _ -> throwError $ SolverError (Text.pack output) NoPV
