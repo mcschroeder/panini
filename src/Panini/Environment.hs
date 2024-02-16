@@ -54,15 +54,19 @@ There are two types of 'Statement' that are elaborated into 'Definition's:
     will contain κ variables, for which a satisfying assignment needs to be
     found before the VC can be discharged by an SMT solver. If this is not
     possible, or the VC is unsatisfiable for other reasons, then the definition
-    is 'Invalid'. If there is an κ variable assignment that validates the VC,
+    is 'Invalid'. If there is a κ variable assignment that validates the VC,
     then we have successfully 'Verified' the definition and are able to produce
-    a fully solved type signature without any holes.
+    a fully solved type signature without any holes. Occasionally, the SMT
+    solver is not able to make a decision one way or another (e.g., it might
+    time out), resulting in an 'Unverified' definition which contains a fully
+    solved yet unproven type signature.
 
-    > ╔════════╗  type inference  ╭──────────╮   VC solving   ╭──────────╮
-    > ║ define ╟─┬───────────────►│ Inferred ├─┬─────────────►│ Verified │
-    > ╚════════╝ │  ╭──────────╮  ╰──────────╯ │  ╭─────────╮ ╰──────────╯
-    >            ╰─►│ Rejected │               ╰─►│ Invalid │
-    >               ╰──────────╯                  ╰─────────╯
+    > ╔════════╗  type inference  ╭──────────╮   VC solving      ╭──────────╮
+    > ║ define ╟─┬───────────────►│ Inferred ├─┬──────────────┬─►│ Verified │
+    > ╚════════╝ │  ╭──────────╮  ╰──────────╯ │  ╭─────────╮ │  ╰──────────╯
+    >            ╰─►│ Rejected │               ╰─►│ Invalid │ │  ╭────────────╮
+    >               ╰──────────╯                  ╰─────────╯ ╰─►│ Unverified │
+    >                                                            ╰────────────╯
 
 -}
 data Definition
@@ -115,6 +119,19 @@ data Definition
         , _vc           :: Con
         , _solution     :: Assignment
         , _solvedType   :: Type
+        }
+    
+    -- An unverified definition appears if the SMT solver is unable to determine
+    -- the validity of an inferred solution (e.g., it timed out).
+    | Unverified
+        { _name         :: Name
+        , _assumedType  :: Maybe Type
+        , _term         :: Term
+        , _inferredType :: Type
+        , _vc           :: Con
+        , _solution     :: Assignment
+        , _solvedType   :: Type
+        , _reason       :: String
         }
 
     deriving stock (Show, Read)

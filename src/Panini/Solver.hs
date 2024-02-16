@@ -1,5 +1,6 @@
 module Panini.Solver
   ( solve
+  , Result(..)
   , module Panini.Solver.Assignment
   ) where
 
@@ -9,7 +10,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Monad
-import Panini.SMT.Z3
+import Panini.SMT.Z3 qualified as Z3
 import Panini.Solver.Abstract (allPreCons, preConKVar)
 import Panini.Solver.Abstract qualified as Abstract
 import Panini.Solver.Assignment
@@ -22,11 +23,17 @@ import Panini.Syntax
 import Prelude
 import Algebra.Lattice
 
-
-
 -------------------------------------------------------------------------------
 
-solve :: Set KVar -> Con -> Pan (Maybe Assignment)
+-- | The result of trying to solve a verification condition with κ variables.
+data Result 
+  = Valid Assignment  -- ^ the VC is valid under this assignment
+  | Invalid           -- ^ we could not find any valid assignment
+  | Unverified Assignment String  
+      -- ^ we found a possible assignment but could not finally verify it; 
+      --   the string gives the reason why (e.g., "timeout")
+
+solve :: Set KVar -> Con -> Pan Result
 solve kst c0 = do
   logMessage "Phase 1: FUSION — Eliminate local acyclic variables"
   c1  <- simplifyCon c0                  § "Simplify constraint"
@@ -54,12 +61,12 @@ solve kst c0 = do
 
   logMessage "Phase 4: VERIFY — Validate final verification condition"
   vcs <- flat c10                        § "Flatten constraint"
-  res <- smtCheck vcs
+  res <- Z3.smtCheck vcs
   case res of
-    Sat -> Just s                        § "Found valid solution!"
-    _   -> Nothing                       § "Invalid solution"
+    Z3.Sat       -> return (Valid s)
+    Z3.Unknown u -> return (Unverified s u)
+    Z3.Unsat     -> return Invalid
 
--- TODO: differentiate between invalid solution and unknown/timeout 
  where
   allTrue         = Map.fromSet (const PTrue)
   allPreConKVars  = Set.fromList . map preConKVar . toList . allPreCons

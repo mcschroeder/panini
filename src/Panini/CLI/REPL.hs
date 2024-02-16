@@ -165,6 +165,8 @@ showEnv panOpts _ = do
       "↯" <+> pretty _name <+> colon <+> pretty _inferredType <\> pretty _error
     Verified{_name,_solvedType} -> 
       "⊨" <+> pretty _name <+> colon <+> pretty _solvedType
+    Unverified{_name,_solvedType,_reason} -> hang 2 $
+      "?" <+> pretty _name <+> colon <+> pretty _solvedType <\> pretty _reason
 
 evaluateInput :: String -> InputT Pan ()
 evaluateInput input = lift $ continueOnError $ do

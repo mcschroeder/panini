@@ -22,7 +22,8 @@ import Panini.Panic
 import Panini.Parser
 import Panini.Pretty
 import Panini.Provenance
-import Panini.Solver
+import Panini.Solver.Assignment
+import Panini.Solver qualified as Solver
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
@@ -100,40 +101,54 @@ define x e = do
       logData t1
       t2 <- simplifyType t1 § "Simplify type"      
       envExtend x $ Inferred x t0m e t2 vc
-        
-      let ks_ex = kvars t2
-      logMessage $ "Top-level type holes:" <+> pretty ks_ex
+      
+      ks_ex <- kvars t2 § "Find top-level type holes"
 
       logMessage "Solve VC"
       logData vc
-      tryError (solve ks_ex vc) >>= \case
-        Left err2 -> do
-          logError err2
-          envExtend x $ Invalid x t0m e t2 vc err2
+      tryError (Solver.solve ks_ex vc) >>= \case
+        Left err -> do
+          logError err
+          envExtend x $ Invalid x t0m e t2 vc err
 
-        Right Nothing -> do
-          let err2 = Unverifiable x vc
-          logError err2
-          envExtend x $ Invalid x t0m e t2 vc err2
+        Right Solver.Invalid -> do
+          let err = Unverifiable x vc
+          logError err
+          envExtend x $ Invalid x t0m e t2 vc err
+        
+        Right (Solver.Unverified s r) -> do
+          let err = Unverifiable x vc   -- TODO: differentiate errors
+          logError err
+          t3 <- makeFinalType s t2 t0m
+          envExtend x $ Unverified x t0m e t2 vc s t3 r
 
-        Right (Just s) -> do
-          t3 <- apply s t2       § "Apply solution to type"
-          t4 <- simplifyType t3  § "Simplify type" 
-          logMessage "Match inferred type against signature"
-          t5 <- maybe (pure t4) (matchTypeSig t4) t0m
-          envExtend x $ Verified x t0m e t2 vc s t5
+        Right (Solver.Valid s) -> do
+          t3 <- makeFinalType s t2 t0m
+          envExtend x $ Verified x t0m e t2 vc s t3
 
--- TODO: attach proper warning type to definition in environment
--- TODO: rename inferred vars to match provided sig?
--- | Match an inferred type signature against a user-provided annotation.
-matchTypeSig :: Type -> Type -> Pan Type
-matchTypeSig inferred user = do
-  let (t,w) = go inferred user
-  when w $ logMessage $ nest 2 $ "Warning:" <\>
+makeFinalType :: Assignment -> Type -> Maybe Type -> Pan Type
+makeFinalType s t1 t0m = do
+  t2 <- apply s t1        § "Apply solution to type"
+  t3 <- simplifyType t2   § "Simplify type"
+  case t0m of
+    Nothing -> pure t3
+    Just t0 -> do
+      logMessage "Match inferred type against signature"
+      let (t4,w) = matchTypeSig t3 t0
+      logData t4
+      when w $ logMessage $ warning t0 t3 t4
+      return t4
+ where
+  -- TODO: attach proper warning type to definition in environment
+  warning user inferred final = nest 2 $ "Warning:" <\>
     hang 2 ("User-provided type annotation" <\> pretty user) <\>
     hang 2 ("overrides more precise inferred type" <\> pretty inferred) <\>
-    hang 2 ("resulting in less precise final type" <\> pretty t)
-  return t
+    hang 2 ("resulting in less precise final type" <\> pretty final)
+
+-- TODO: rename inferred vars to match provided sig?
+-- | Match an inferred type signature against a user-provided annotation.
+matchTypeSig :: Type -> Type -> (Type, Bool)
+matchTypeSig = go
  where
   go (TBase v1 b1 r1 pv1) (TBase v2 b2 r2 pv2) 
     | b1 == b2 = case (r1,r2) of
@@ -151,7 +166,6 @@ matchTypeSig inferred user = do
       t1'     = subst (EVar x2) x1 t1
 
   go _ _ = impossible
-
 
 -- | Import a module into the environment.
 import_ :: Module -> Pan ()
