@@ -36,9 +36,9 @@ envLookup x = Map.lookup x <$> gets environment
 
 -- | Extend the environment with a new definition.
 envExtend :: Name -> Definition -> Pan ()
-envExtend x d = modify' $ \s -> s 
-  { environment = Map.insert x d s.environment
-  }
+envExtend x d = do
+  when (isFailed d) $ logError d._error
+  modify' $ \s -> s { environment = Map.insert x d s.environment }
 
 -- TODO: do we need this?
 -- -- | Remove a definition from the environment.
@@ -94,7 +94,6 @@ define x e = do
   let syn = maybe (infer mempty e) (check mempty e) t0m
   tryError syn >>= \case
     Left err -> do
-      logError err
       envExtend x $ Rejected x t0m e err
 
     Right (t1,vc) -> do
@@ -108,13 +107,10 @@ define x e = do
       logData vc
       tryError (Solver.solve ks_ex vc) >>= \case
         Left err -> do
-          logError err
           envExtend x $ Invalid x t0m e t2 vc err
 
         Right Solver.Invalid -> do
-          let err = Unsolvable x vc
-          logError err
-          envExtend x $ Invalid x t0m e t2 vc err
+          envExtend x $ Invalid x t0m e t2 vc (Unsolvable x vc)
         
         Right (Solver.Unverified s r) -> do
           t3 <- makeFinalType s t2 t0m
