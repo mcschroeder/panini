@@ -20,7 +20,6 @@ data PanOptions = PanOptions
   { inputFile :: Maybe String
   , noInput :: Bool
   , outputFile :: Maybe FilePath
-  , outputGrammars :: Bool
   , trace :: Bool
   , traceToFile :: Bool
   , color :: Bool
@@ -68,11 +67,6 @@ opts = info
             short 'o' <> 
             metavar "FILE" <> 
             help "Write output to FILE (default: stdout)"
-          )
-      <*> (switch $
-            long "grammars" <>
-            short 'g' <>
-            help "Output only inferred grammars"
           )
       <*> (switch $ 
             long "trace" <> 

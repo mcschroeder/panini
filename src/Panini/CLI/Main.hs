@@ -72,9 +72,7 @@ batchMain panOpts = do
     logData src
     prog <- parseSource (moduleLocation module_) src
     elaborate module_ prog
-    if panOpts.outputGrammars 
-      then vsep . map pretty . getVerifiedGrammars <$> gets environment
-      else vsep . map pretty . getVerifiedTypes <$> gets environment
+    vsep . map pretty . getVerifiedTypes <$> gets environment
   
   whenJust traceFile hClose
 
@@ -87,3 +85,6 @@ batchMain panOpts = do
       if null $ getTypeErrors panState1.environment
         then exitSuccess
         else exitFailure
+
+
+

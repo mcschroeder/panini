@@ -2,14 +2,10 @@
 module Panini.Environment where
 
 import Data.Function
-import Data.Generics.Uniplate.Operations
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Panini.Abstract.AExpr
-import Panini.Abstract.AString (AString)
 import Panini.Error
-import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Assignment
@@ -173,19 +169,3 @@ getTypeErrors = map _error . filter isFailed . sortedDefinitions
 getVerifiedTypes :: Environment -> [TypeSig]
 getVerifiedTypes env = 
   [ TypeSig _name _solvedType | Verified{..} <- sortedDefinitions env]
-
--- | Return all verified grammars in the environment.
-getVerifiedGrammars :: Environment -> [AString]
-getVerifiedGrammars = concatMap extractGrammars 
-                    . map (\(TypeSig _ t) -> t)
-                    . getVerifiedTypes
-  where    
-    -- TODO: this is pretty hacky and limited
-    extractGrammars :: Type -> [AString]
-    extractGrammars (TFun _ t1 t2 _) = extractGrammars t1 ++ extractGrammars t2
-    extractGrammars t@(TBase x TString (Known p) _) = case p of
-      PRel (EVar y :∈: EStrA s) | x == y -> [s]
-      _ | not $ null [True | PRel (_ :∈: _) <- universe p ] -> 
-          panic $ "extractGrammars: irregular grammar:" <+> pretty t
-      _ -> []
-    extractGrammars _ = []
