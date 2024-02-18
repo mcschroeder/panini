@@ -18,6 +18,7 @@ import Data.Set qualified as Set
 import Data.Set ((\\))
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
+import Panini.Solver.Simplifier
 import Panini.Monad
 import Panini.Syntax
 import Prelude
@@ -36,7 +37,10 @@ solve ksx c0 = do
 elim :: [KVar] -> Con -> Pan Con
 elim ks c0 = foldM elimOne c0 ks
  where
-  elimOne c k = elim1 k c § "Eliminate" <+> pretty k
+  elimOne c1 k = do
+    c2 <- elim1 k c1     § "Eliminate" <+> pretty k
+    c3 <- simplifyCon c2 § "Simplify constraint"
+    return c3
 
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
 -- scoped solution for κ in c.
