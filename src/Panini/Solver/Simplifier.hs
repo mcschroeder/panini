@@ -97,6 +97,11 @@ simplifyPred = rewrite $ \case
   PExists x1 _ (PAnd (List.unsnoc -> Just (xs, PRel (y :=: EVar x2)))) 
     | x1 == x2, x1 `notElem` freeVars y
     -> Just $ meets $ map (subst y x1) xs
+  
+  -- ∃x:b. y = x   ≡   ⊤
+  PExists x1 _ (PRel (y :=: EVar x2))
+    | x1 == x2, x1 `notElem` freeVars y
+    -> Just PTrue
 
   _ -> Nothing
 
