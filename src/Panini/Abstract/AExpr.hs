@@ -171,8 +171,9 @@ norm = Uniplate.rewrite $ \case
   EIntA a   :+: _         | isBot a -> Just $ EIntA bot  
   _         :+: EIntA a   | isBot a -> Just $ EIntA bot
 
-  -- re-associate addition to get more rewriting opportunities
-  (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)
+  -- re-associate addition/subtraction to get more rewriting opportunities
+  (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)  
+  (e1 :-: e2) :-: e3 -> Just $ e1 :-: (e2 :+: e3)
 
   (e :-: x1) :+: x2 | x1 == x2 -> Just e
 
