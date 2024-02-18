@@ -4,7 +4,9 @@ import Algebra.Lattice
 import Data.Generics.Uniplate.Operations
 import Data.List.Extra qualified as List
 import Data.Maybe
-import Panini.Abstract.AExpr (norm)
+import Panini.Abstract.AExpr
+import Panini.Abstract.AInt (Inf(..))
+import Panini.Abstract.AInt qualified as AInt
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -17,6 +19,9 @@ simplifyCon = rewrite $ \case
   CAnd (CHead PTrue) c2 -> Just c2
   CAnd c1 (CHead PTrue) -> Just c1
   CAll _ _ _ (CHead PTrue) -> Just (CHead PTrue)
+
+  CAnd (CHead p1) (CAnd (CHead p2) c) -> Just $ CHead (p1 ∧ p2) ∧ c
+  CAnd (CHead p1) (CHead p2)          -> Just $ CHead (p1 ∧ p2)
 
   CAll x _ PTrue c | x `notElem` freeVars c -> Just c
 
@@ -65,8 +70,13 @@ simplifyPred = rewrite $ \case
     | null xs        -> Just PTrue
     | [x] <- xs      -> Just x
     | elem PFalse xs -> Just PFalse
-    | elem PTrue xs  -> Just $ PAnd $ filter (/= PTrue) xs
-    | xs' <- List.nubBy symRelEq xs, xs' /= xs -> Just $ PAnd xs'
+    | xs' /= xs      -> Just $ PAnd xs'
+   where
+    xs' = List.nubBy symRelEq $ concatMap flatAnd xs
+    flatAnd = \case
+      PAnd ys -> ys
+      PTrue   -> []
+      y       -> [y]
 
   PNot PTrue -> Just PFalse
   PNot PFalse -> Just PTrue
@@ -121,7 +131,7 @@ normReft v = \case
 -------------------------------------------------------------------------------
 
 simplifyRel :: Rel -> Rel
-simplifyRel (Rel op e1 e2) = case Rel op (simplifyExpr e1) (simplifyExpr e2) of
+simplifyRel r = case normRel r of
   EVar x1 :=: EVar x2 | x1 == x2 -> taut
   EVar x1 :≠: EVar x2 | x1 == x2 -> cont
   ECon c1 :=: ECon c2 -> if c1 == c2 then taut else cont
@@ -139,10 +149,13 @@ simplifyRel (Rel op e1 e2) = case Rel op (simplifyExpr e1) (simplifyExpr e2) of
   EInt a _ :≥: EInt b _ -> if a >= b then taut else cont
   EInt a _ :<: EInt b _ -> if a <  b then taut else cont
   EInt a _ :≤: EInt b _ -> if a <= b then taut else cont
+
+  (e1 :-: EIntA a) :<: e2 | e1 == e2, AInt.minimum a >  Just (Fin 0) -> taut
+  (e1 :-: EIntA a) :≤: e2 | e1 == e2, AInt.minimum a >= Just (Fin 0) -> taut
+  (e1 :-: EIntA a) :>: e2 | e1 == e2, AInt.minimum a >= Just (Fin 0) -> cont
+  (e1 :-: EIntA a) :≥: e2 | e1 == e2, AInt.minimum a >  Just (Fin 0) -> cont
+
   r' -> r'
  where
   taut = EBool True NoPV :=: EBool True NoPV
   cont = EBool True NoPV :=: EBool False NoPV
-
-simplifyExpr :: Expr -> Expr
-simplifyExpr = norm
