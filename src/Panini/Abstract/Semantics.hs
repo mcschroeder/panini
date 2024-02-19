@@ -43,14 +43,6 @@ abstract x b r = case normRel r of
 
   -- here, x occurs on LHS and MAY also occur on RHS --------------------------
 
-  e1 :=: e2 | normA e1 == normA e2 -> Right $ topExpr b
-  e1 :≠: e2 | normA e1 == normA e2 -> Right $ botExpr b
-
-  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :-: e2)
-  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e3 :-: e1)
-  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :+: e2)
-  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e1 :-: e3)
-
   (StrSub_index2 s t i :+: y) :=: j 
     -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
 
@@ -92,6 +84,14 @@ abstract x b r = case normRel r of
   StrComp e1 :≠: StrComp e2 -> abstract x b $ e1 :≠: e2    
   StrComp e1 :≠: e2         | e1 == e2 -> Right $ topExpr b
   e1         :≠: StrComp e2 | e1 == e2 -> Right $ topExpr b
+
+  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (normA $ e3 :-: e2)
+  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (normA $ e3 :-: e1)
+  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (normA $ e3 :+: e2)
+  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (normA $ e1 :-: e3)
+
+  e1 :=: e2 | normA e1 == normA e2 -> Right $ topExpr b
+  e1 :≠: e2 | normA e1 == normA e2 -> Right $ botExpr b
 
   e1 :⋈: e2 | x ∈ e1, x ∈ e2 -> Left r
 

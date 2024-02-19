@@ -171,19 +171,19 @@ norm = Uniplate.rewrite $ \case
   EIntA a   :+: _         | isBot a -> Just $ EIntA bot  
   _         :+: EIntA a   | isBot a -> Just $ EIntA bot
 
-  -- re-associate addition/subtraction to get more rewriting opportunities
-  (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)  
-  (e1 :-: e2) :-: e3 -> Just $ e1 :-: (e2 :+: e3)
-
-  (e :-: x1) :+: x2 | x1 == x2 -> Just e
-
   EInt  a _ :-: EInt  b _ -> Just $ EInt (a - b) NoPV
   EIntA a   :-: EIntA b   -> Just $ EIntA $ AInt.sub a b
   e         :-: EInt  0 _ -> Just e
   e         :-: EIntA a   | [0] <- AInt.values a -> Just e
   EIntA a   :-: _         | isBot a -> Just $ EIntA bot
   _         :-: EIntA a   | isBot a -> Just $ EIntA bot
-  
+
+  -- re-associate addition/subtraction to get more rewriting opportunities
+  (e1 :+: e2) :+: e3 -> Just $ e1 :+: (e2 :+: e3)
+  (e1 :+: e2) :-: e3 -> Just $ e1 :+: (e2 :-: e3)  
+  (e1 :-: e2) :+: e3 -> Just $ e1 :-: (e2 :-: e3)
+  (e1 :-: e2) :-: e3 -> Just $ e1 :-: (e2 :+: e3)
+
   EStrLen (EStr s _) -> Just $ EInt (fromIntegral $ Text.length s) NoPV
 
   EStrLen (EStrA a) | isTop a -> Just $ EIntA $ AInt.ge 0
