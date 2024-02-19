@@ -36,7 +36,7 @@ instance Pretty Statement where
 
 ------------------------------------------------------------------------------
 
--- | Terms are λ-calculus expressions in Administrative Normal Form (ANF).
+-- | Terms are λ-calculus expressions in A-Normal Form (ANF).
 data Term
   = Val Value                  -- v
   | App Term Value          PV -- e v
