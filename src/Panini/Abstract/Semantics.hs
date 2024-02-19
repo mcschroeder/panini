@@ -51,14 +51,6 @@ abstract x b r = case normRel r of
   Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (norm $ e3 :+: e2)
   Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (norm $ e1 :-: e3)
 
-  ENot e1 :≠: e2      -> abstract x b $ e1 :=: e2
-  e1      :≠: ENot e2 -> abstract x b $ e1 :=: e2
-
-  IntComp e1 :≠: e2         | e1 == e2 -> abstract x b $ e1 :=: e2
-  e1         :≠: IntComp e2 | e1 == e2 -> abstract x b $ e1 :=: e2
-
-  StrComp e1 :≠: StrComp e2 -> abstract x b $ e1 :≠: e2
-
   (StrSub_index2 s t i :+: y) :=: j 
     -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
 
@@ -80,13 +72,32 @@ abstract x b r = case normRel r of
     | x == x1, x == x2, not $ isBot $ j ∧ l
     -> Right $ EStrA bot
 
+  ENot e1 :=: ENot e2 -> abstract x b $ e1 :=: e2
+  ENot e1 :=: e2      -> abstract x b $ e1 :≠: e2
+  e1      :=: ENot e2 -> abstract x b $ e1 :≠: e2
+  ENot e1 :≠: ENot e2 -> abstract x b $ e1 :≠: e2
+  ENot e1 :≠: e2      -> abstract x b $ e1 :=: e2
+  e1      :≠: ENot e2 -> abstract x b $ e1 :=: e2
+
+  IntComp e1 :=: IntComp e2 -> abstract x b $ e1 :=: e2
+  IntComp e1 :=: e2         -> abstract x b $ e1 :≠: e2
+  e1         :=: IntComp e2 -> abstract x b $ e1 :≠: e2
+  IntComp e1 :≠: IntComp e2 -> abstract x b $ e1 :≠: e2
+  IntComp e1 :≠: e2         | e1 == e2 -> Right $ topExpr b
+  e1         :≠: IntComp e2 | e1 == e2 -> Right $ topExpr b
+
+  StrComp e1 :=: StrComp e2 -> abstract x b $ e1 :=: e2
+  StrComp e1 :=: e2         -> abstract x b $ e1 :≠: e2
+  e1         :=: StrComp e2 -> abstract x b $ e1 :≠: e2
+  StrComp e1 :≠: StrComp e2 -> abstract x b $ e1 :≠: e2    
+  StrComp e1 :≠: e2         | e1 == e2 -> Right $ topExpr b
+  e1         :≠: StrComp e2 | e1 == e2 -> Right $ topExpr b
+
   e1 :⋈: e2 | x ∈ e1, x ∈ e2 -> Left r
 
   -- below, x occurs only on LHS (but possibly more than once) ----------------
 
   EVar _ :=: e -> Right e
-
-  ENot e1 :=: e2 -> abstract x b $ e1 :=: (norm $ ENot e2)
   
   e1 :≥: e2 -> abstract x b $ e1 :=: (norm $ e2 :+: EIntA (AInt.ge 0))
   e1 :>: e2 -> abstract x b $ e1 :=: (norm $ e2 :+: EIntA (AInt.ge 1))
@@ -99,9 +110,9 @@ abstract x b r = case normRel r of
   EVar _ :≠: ECharA a -> Right $ ECharA (neg a)
   EVar _ :≠: EStrA  a -> Right $ EStrA  (neg a)
 
-  EVar _ :≠: EVar y | b == TBool   -> Right $ ENot    (EVar y)
-  EVar _ :≠: EVar y | b == TInt    -> Right $ IntComp (EVar y)
-  EVar _ :≠: EVar y | b == TString -> Right $ StrComp (EVar y)
+  EVar _ :≠: e | b == TBool   -> Right $ ENot    e
+  EVar _ :≠: e | b == TInt    -> Right $ IntComp e
+  EVar _ :≠: e | b == TString -> Right $ StrComp e
 
   EVar _ :∈: EReg ere -> Right $ EStrA $       absStrERE ere
   EVar _ :∉: EReg ere -> Right $ EStrA $ neg $ absStrERE ere
@@ -137,7 +148,6 @@ abstract x b r = case normRel r of
     | [n] <- AInt.values $ AInt.add (AInt.eq 1) $ AInt.sub j0 i0
     -> abstract x b $ EStrSub s ei ej :=: EStrA (neg t ∧ rep anyChar n)
 
-  StrComp s :=: e -> abstract x b $ s :=: (norm $ StrComp e)
   StrComp s :≠: e -> abstract x b $ s :≠: (norm $ StrComp e)
 
   _ -> Left r
