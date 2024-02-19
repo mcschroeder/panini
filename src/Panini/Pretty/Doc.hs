@@ -15,8 +15,6 @@ ann = PP.annotate
 
 -------------------------------------------------------------------------------
 
--- TODO: annotation for abstract values
-
 data Ann 
   = Keyword               -- ^ Keywords, e.g., @let@ or @assume@.
   | Identifier IdentKind  -- ^ Identifiers, like variables and types.
@@ -42,6 +40,7 @@ data LitKind
   = NumberLit  -- ^ integers, reals, etc.
   | StringLit  -- ^ strings and characters
   | OtherLit   -- ^ booleans, unit, etc.
+  | AbstractLit -- ^ abstract value
   deriving stock (Eq, Show, Read)
 
 data BraKind = OpenBra | CloseBra

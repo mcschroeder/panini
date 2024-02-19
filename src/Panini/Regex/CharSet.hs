@@ -55,15 +55,12 @@ instance Pretty CharSet where
   pretty = \case
     CharSet True s -> case intSetToCharList s of
       []  -> emptySet
-      [x] -> prettyCharLit x
-      xs  -> prettySetTight $ map prettyCharLit xs
+      [x] -> pretty x
+      xs  -> prettySetTight $ map pretty xs
     CharSet False s -> case intSetToCharList s of
       []  -> bigSigma
-      [x] -> parens $ bigSigma <> setMinus <> prettyCharLit x
-      xs  -> parens $ bigSigma <> setMinus <> prettySetTight (map prettyCharLit xs)
-   where
-    prettyCharLit :: Char -> Doc
-    prettyCharLit = ann (Literal StringLit) . pretty
+      [x] -> parens $ bigSigma <> setMinus <> pretty x
+      xs  -> parens $ bigSigma <> setMinus <> prettySetTight (map pretty xs)
 
 -------------------------------------------------------------------------------
 

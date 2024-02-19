@@ -50,7 +50,7 @@ instance ComplementedLattice AString where
   neg (AString r) = AString $ complement r
 
 instance Pretty AString where
-  pretty (AString r) = pretty r
+  pretty (AString r) = ann (Literal AbstractLit) $ pretty r
 
 ------------------------------------------------------------------------------
 

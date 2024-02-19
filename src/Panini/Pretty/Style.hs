@@ -11,7 +11,8 @@ defaultStyling = \case
   Keyword              -> bold True
   Identifier VarIdent  -> fgColor Dull Magenta
   Identifier TypeIdent -> fgColor Vivid Blue
-  Literal _            -> fgColor Dull Red
+  Literal AbstractLit  -> fgColor Dull Black
+  Literal _            -> fgColor Dull Red  
   Bracket _            -> fgColor Vivid Black
   Separator            -> fgColor Vivid Black
   Comment              -> fgColor Vivid Black

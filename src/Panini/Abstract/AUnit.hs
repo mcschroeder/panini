@@ -33,5 +33,6 @@ instance ComplementedLattice AUnit where
   neg Bottom = Unit
 
 instance Pretty AUnit where
-  pretty Unit   = symUnit
-  pretty Bottom = symBot
+  pretty = ann (Literal AbstractLit) . \case
+    Unit   -> symUnit
+    Bottom -> symBot

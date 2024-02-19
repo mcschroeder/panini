@@ -47,10 +47,11 @@ newtype AInt = AInt IntervalSequence
     , Hashable)
 
 instance Pretty AInt where
-  pretty (AInt [])  = emptySet
-  pretty (AInt [x]) = pretty x
-  pretty (AInt xs)  = PP.encloseSep lbracket rbracket mid 
-                    $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
+  pretty = ann (Literal AbstractLit) . \case
+    AInt []  -> emptySet
+    AInt [x] -> pretty x
+    AInt xs  -> PP.encloseSep lbracket rbracket mid 
+              $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
 
 -------------------------------------------------------------------------------
 

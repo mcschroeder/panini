@@ -66,7 +66,8 @@ eq True  = True_
 eq False = False_
 
 instance Pretty ABool where
-  pretty Top    = prettySet [symTrue,symFalse]
-  pretty True_  = symTrue
-  pretty False_ = symFalse
-  pretty Bottom = emptySet
+  pretty = ann (Literal AbstractLit) . \case
+    Top    -> prettySet [symTrue,symFalse]
+    True_  -> symTrue
+    False_ -> symFalse
+    Bottom -> emptySet
