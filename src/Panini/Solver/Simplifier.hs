@@ -83,10 +83,10 @@ simplifyPred = rewrite $ \case
   PNot (PRel r) -> Just $ PRel $ inverse r 
 
   PRel r -> case simplifyRel r of
-    EBool True _ :=: EBool True  _ -> Just PTrue
-    EBool True _ :=: EBool False _ -> Just PFalse
-    r' | r' /= r -> Just $ PRel r'
-    _ -> Nothing
+    r' | isTaut r' -> Just PTrue
+       | isCont r' -> Just PFalse
+       | r' /= r   -> Just $ PRel r'
+       | otherwise -> Nothing
 
   PIff p PTrue -> Just p
   PIff PTrue p -> Just p
@@ -163,4 +163,4 @@ simplifyRel r = case normRel r of
   r' -> r'
  where
   taut = EBool True NoPV :=: EBool True NoPV
-  cont = EBool True NoPV :=: EBool False NoPV
+  cont = EBool True NoPV :≠: EBool True NoPV

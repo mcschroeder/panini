@@ -50,6 +50,23 @@ converse = \case
   _ :∈: _ -> Nothing
   _ :∉: _ -> Nothing
 
+-- | Whether a relation is an obvious tautology. Note that if this returns
+-- 'False', the relation might still be a tautology (just not an obvious one).
+isTaut :: Rel -> Bool
+isTaut = \case
+  e1 :=: e2 -> e1 == e2
+  e1 :≤: e2 -> e1 == e2
+  e1 :≥: e2 -> e1 == e2
+  _         -> False
+
+-- | Whether a relation is an obvious contradiction; see 'isTaut'.
+isCont :: Rel -> Bool
+isCont = \case
+  e1 :≠: e2 -> e1 == e2
+  e1 :<: e2 -> e1 == e2
+  e1 :>: e2 -> e1 == e2
+  _         -> False
+
 {-# COMPLETE (:=:), (:≠:), (:≥:), (:>:), (:≤:), (:<:), (:∈:), (:∉:) #-}
 
 pattern (:=:), (:≠:) :: Expr -> Expr -> Rel

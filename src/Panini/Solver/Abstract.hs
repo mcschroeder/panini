@@ -229,15 +229,6 @@ nub' = HashSet.toList . HashSet.fromList
 
 -------------------------------------------------------------------------------
 
--- TODO: proper normalization
-norm' :: Rel -> Maybe Rel
-norm' r0 = case normRel r0 of
-  e1 :=: e2     
-    | e1 == e2 -> Nothing
-    | null (freeVars e1), not (null (freeVars e2)) -> norm' (e2 :=: e1)
-    | otherwise -> Just (e1 :=: e2)
-  r1 -> Just r1
-
 varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
 varElim x b φ = do
   logMessage $ divider symDivH Nothing
@@ -254,7 +245,7 @@ varElim x b φ = do
     logMessage $ "ψ₁ =" <+> pretty ψ₁
     let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
     logMessage $ "ψ₂ =" <+> pretty ψ₂
-    let ψ = catMaybes $ List.nub $ map norm' $ ψ₁ ++ ψ₂
+    let ψ = filter (not . isTaut) $ List.nub $ map normRel $ ψ₁ ++ ψ₂
     logMessage $ "ψ  =" <+> pretty ψ
     return $ Just ψ
 
