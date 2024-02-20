@@ -64,24 +64,9 @@ abstract x b r = case normRel r of
     | x == x1, x == x2, not $ isBot $ j ∧ l
     -> Right $ EStrA bot
 
-  ENot e1 :=: ENot e2 -> abstract x b $ e1 :=: e2
-  ENot e1 :=: e2      -> abstract x b $ e1 :≠: e2
-  e1      :=: ENot e2 -> abstract x b $ e1 :≠: e2
-  ENot e1 :≠: ENot e2 -> abstract x b $ e1 :≠: e2
-  ENot e1 :≠: e2      -> abstract x b $ e1 :=: e2
-  e1      :≠: ENot e2 -> abstract x b $ e1 :=: e2
-
-  IntComp e1 :=: IntComp e2 -> abstract x b $ e1 :=: e2
-  IntComp e1 :=: e2         -> abstract x b $ e1 :≠: e2
-  e1         :=: IntComp e2 -> abstract x b $ e1 :≠: e2
-  IntComp e1 :≠: IntComp e2 -> abstract x b $ e1 :≠: e2
   IntComp e1 :≠: e2         | e1 == e2 -> Right $ topExpr b
   e1         :≠: IntComp e2 | e1 == e2 -> Right $ topExpr b
 
-  StrComp e1 :=: StrComp e2 -> abstract x b $ e1 :=: e2
-  StrComp e1 :=: e2         -> abstract x b $ e1 :≠: e2
-  e1         :=: StrComp e2 -> abstract x b $ e1 :≠: e2
-  StrComp e1 :≠: StrComp e2 -> abstract x b $ e1 :≠: e2    
   StrComp e1 :≠: e2         | e1 == e2 -> Right $ topExpr b
   e1         :≠: StrComp e2 | e1 == e2 -> Right $ topExpr b
 
