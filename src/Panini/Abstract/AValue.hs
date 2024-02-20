@@ -79,8 +79,3 @@ typeOfAValue = \case
   ABool   _ -> TBool
   AInt    _ -> TInt
   AString _ -> TString
-
--- instance Complementable AValue where
---   neg (ABool   a) = ABool   (neg a)
---   neg (AInt    a) = AInt    (neg a)
---   neg (AString _) = undefined -- TODO: AString (neg a)

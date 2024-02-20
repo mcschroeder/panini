@@ -22,7 +22,6 @@ leftSide (Rel _ e1 _) = e1
 rightSide :: Rel -> Expr
 rightSide (Rel _ _ e2) = e2
 
--- TODO: replace with Complementable instance
 -- | The inverse of a relation, e.g., @a > b@ to @a ≤ b@.
 -- Note that this changes the semantics of the relation!
 inverse :: Rel -> Rel
