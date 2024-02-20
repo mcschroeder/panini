@@ -110,17 +110,29 @@ instance PartialMeetSemilattice AExpr where
   EAbs a ∧? ECon b = EAbs <$> fromValue b ∧? a
 
   (x :+: a) ∧? (y :+: b) | x == y = (x :+:) <$> a ∧? b
-  (a :+: x) ∧? (y :+: b) | x == y = (x :+:) <$> a ∧? b
   (x :+: a) ∧? (b :+: y) | x == y = (x :+:) <$> a ∧? b
+  (a :+: x) ∧? (y :+: b) | x == y = (x :+:) <$> a ∧? b
   (a :+: x) ∧? (b :+: y) | x == y = (x :+:) <$> a ∧? b
-  (x :-: a) ∧? (y :-: b) | x == y = (x :-:) <$> a ∧? b
-  
-  (x      ) ∧? (y :+: b) | x == y = (x :+:) <$> EIntA (AInt.eq 0) ∧? b
-  (x      ) ∧? (b :+: y) | x == y = (x :+:) <$> EIntA (AInt.eq 0) ∧? b
-  (x      ) ∧? (y :-: b) | x == y = (x :-:) <$> EIntA (AInt.eq 0) ∧? b
+  (x :+: a) ∧? (y :-: b) | x == y = (x :+:) <$> a ∧? (normExpr $ EIntA (AInt.eq 0) :-: b)
+  (x :+: _) ∧? (_ :-: y) | x == y = Nothing
+  (a :+: x) ∧? (y :-: b) | x == y = (x :+:) <$> a ∧? (normExpr $ EIntA (AInt.eq 0) :-: b)
+  (_ :+: x) ∧? (_ :-: y) | x == y = Nothing
   (x :+: a) ∧? (y      ) | x == y = (x :+:) <$> a ∧? EIntA (AInt.eq 0)
   (a :+: x) ∧? (y      ) | x == y = (x :+:) <$> a ∧? EIntA (AInt.eq 0)
+  (x :-: a) ∧? (y :+: b) | x == y = (x :+:) <$> (normExpr $ EIntA (AInt.eq 0) :-: a) ∧? b
+  (x :-: a) ∧? (b :+: y) | x == y = (x :+:) <$> (normExpr $ EIntA (AInt.eq 0) :-: a) ∧? b
+  (_ :-: x) ∧? (y :+: _) | x == y = Nothing
+  (_ :-: x) ∧? (_ :+: y) | x == y = Nothing
+  (x :-: a) ∧? (y :-: b) | x == y = (x :-:) <$> a ∧? b
+  (x :-: _) ∧? (_ :-: y) | x == y = Nothing  
+  (_ :-: x) ∧? (y :-: _) | x == y = Nothing
+  (_ :-: x) ∧? (_ :-: y) | x == y = Nothing
   (x :-: a) ∧? (y      ) | x == y = (x :-:) <$> a ∧? EIntA (AInt.eq 0)
+  (_ :-: x) ∧? (y      ) | x == y = Nothing
+  (x      ) ∧? (y :+: b) | x == y = (x :+:) <$> EIntA (AInt.eq 0) ∧? b
+  (x      ) ∧? (b :+: y) | x == y = (x :+:) <$> EIntA (AInt.eq 0) ∧? b
+  (x      ) ∧? (y :-: b) | x == y = (x :-:) <$> EIntA (AInt.eq 0) ∧? b  
+  (x      ) ∧? (_ :-: y) | x == y = Nothing
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
