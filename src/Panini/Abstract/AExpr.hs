@@ -156,8 +156,6 @@ normA = norm . go
 -- did not contain anything abstract, then neither will the normalized output.
 norm :: AExpr -> AExpr
 norm = Uniplate.rewrite $ \case
-  EVal _ -> Nothing
-  EAbs _ -> Nothing
 
   ENot (EBool  a pv) -> Just $ EBool  (not a) pv
   ENot (EBoolA a)    -> Just $ EBoolA (neg a)

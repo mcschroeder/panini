@@ -38,12 +38,18 @@ instance Pretty Statement where
 
 -- | Terms are λ-calculus expressions in A-Normal Form (ANF).
 data Term
-  = Val Value                  -- v
-  | App Term Value          PV -- e v
-  | Lam Name Type Term      PV -- \x:t. e   -- TODO: unrefined type only?
-  | Let Name Term Term      PV -- let x = e1 in e2
-  | Rec Name Type Term Term PV -- rec x : t = e1 in e2
-  | If Value Term Term      PV -- if v then e1 else e2
+  = Val Atom                    -- ^ value @v@
+  | App Term Atom           PV  -- ^ application @e v@
+  | Lam Name Type Term      PV  -- ^ abstraction @λx:t. e@
+  | Let Name Term Term      PV  -- ^ binding @let x = e1 in e2@
+  | Rec Name Type Term Term PV  -- ^ recursion @rec x : t = e1 in e2@
+  | If Atom Term Term       PV  -- ^ branch @if v then e1 else e2@
+  deriving stock (Show, Read)
+
+-- | Atomic values are either constants @c@ or variables @x@.
+data Atom
+  = Con Value  -- ^ constant value
+  | Var Name   -- ^ variable
   deriving stock (Show, Read)
 
 instance Pretty Term where
@@ -74,6 +80,11 @@ instance Pretty Term where
       nest 2 (ann Keyword "else" <\> 
         pretty e2)
 
+instance Pretty Atom where
+  pretty = \case
+    Con v -> pretty v
+    Var x -> pretty x
+
 instance HasProvenance Term where
   getPV = \case
     Val v          -> getPV v
@@ -89,6 +100,22 @@ instance HasProvenance Term where
     Let x e1 e2   _ -> Let x e1 e2 pv
     Rec x t e1 e2 _ -> Rec x t e1 e2 pv
     If v e1 e2    _ -> If v e1 e2 pv
+
+instance HasProvenance Atom where
+  getPV = \case
+    Con c -> getPV c
+    Var x -> getPV x
+  setPV pv = \case
+    Con c -> Con $ setPV pv c
+    Var x -> Var $ setPV pv x
+
+instance Subable Atom Atom where
+  subst x y = \case
+    Var n | y == n -> x
+    v              -> v
+  freeVars = \case
+    Var n -> [n]
+    Con _ -> []
 
 ------------------------------------------------------------------------------
 

@@ -19,7 +19,8 @@ import Prelude
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
 data Expr  
-  = EVal !Value                -- ^ constant @c@ or variable @x@
+  = EVar !Name                 -- ^ variable @x@
+  | ECon !Value                -- ^ concrete value @c@
   | EAbs !AValue               -- ^ abstract value @α@
   | EReg !ERE                  -- ^ regular expression @RE@
   | ENot !Expr                 -- ^ Boolean negation @¬e@
@@ -33,12 +34,6 @@ data Expr
   deriving stock (Eq, Show, Read, Generic)
 
 instance Hashable Expr
-
-pattern EVar :: Name -> Expr
-pattern EVar x = EVal (Var x)
-
-pattern ECon :: Constant -> Expr
-pattern ECon c = EVal (Con c)
 
 pattern EUnit :: PV -> Expr
 pattern EUnit pv = ECon (U pv)
@@ -80,7 +75,8 @@ pattern IntComp e = EFun "_IntComplement" [e]
 
 typeOfExpr :: Expr -> Maybe Base
 typeOfExpr = \case
-  EVal v        -> typeOfValue v
+  EVar _        -> Nothing
+  ECon v        -> Just $ typeOfValue v
   EAbs a        -> Just $ typeOfAValue a
   EReg _        -> Just TString
   ENot _        -> Just TBool
@@ -102,7 +98,8 @@ eqTypeAE a e =  maybe True (typeOfAValue a ==) (typeOfExpr e)
 
 instance Uniplate Expr where
   uniplate = \case
-    EVal v           -> plate EVal |- v
+    EVar x           -> plate EVar |- x
+    ECon c           -> plate ECon |- c
     EAbs a           -> plate EAbs |- a
     EReg r           -> plate EReg |- r
     ENot e           -> plate ENot |* e
@@ -116,7 +113,8 @@ instance Uniplate Expr where
 
 instance Biplate Expr Value where
   biplate = \case
-    EVal v           -> plate EVal |* v
+    EVar x           -> plate EVar |- x
+    ECon c           -> plate ECon |* c
     EAbs a           -> plate EAbs |- a
     EReg r           -> plate EReg |- r
     ENot e           -> plate ENot |+ e
@@ -130,7 +128,8 @@ instance Biplate Expr Value where
 
 instance Pretty Expr where
   pretty p0 = case p0 of
-    EVal v -> pretty v
+    EVar x -> pretty x
+    ECon c -> pretty c
     EFun f ps -> pretty f <> parens (mconcat $ List.intersperse ", " $ map pretty ps)
     EMul p1 p2 -> prettyL p0 p1 <+> "*" <+> prettyR p0 p2
     EAdd p1 p2 -> prettyL p0 p1 <+> "+" <+> prettyR p0 p2

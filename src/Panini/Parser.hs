@@ -187,9 +187,9 @@ import_ = do
 
 -------------------------------------------------------------------------------
 
-value :: Parser Value
-value = choice
-  [ Con <$> constant
+atom :: Parser Atom
+atom = choice
+  [ Con <$> value
   , Var <$> name 
   ]
 
@@ -197,7 +197,7 @@ term :: Parser Term
 term = do
   e1 <- term1
   let mkApp e x = App e x NoPV  -- TODO: figure out the provenance here
-  let appVal = value <* notFollowedBy (symbol ":" <|> symbol "=")
+  let appVal = atom <* notFollowedBy (symbol ":" <|> symbol "=")
   (foldl' mkApp e1 <$> some (try appVal)) <|> pure e1
 
 term1 :: Parser Term
@@ -206,7 +206,7 @@ term1 = choice
 
   , try $ do
       begin <- getSourcePos
-      p <- keyword "if" *> value
+      p <- keyword "if" *> atom
       e1 <- keyword "then" *> term
       e2 <- keyword "else" *> term
       end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e2
@@ -242,11 +242,11 @@ term1 = choice
           end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e
           return $ Lam x t e $ mkPV begin end
 
-  , Val <$> value
+  , Val <$> atom
   ]
 
-constant :: Parser Constant
-constant = label "constant" $ choice
+value :: Parser Value
+value = label "value" $ choice
   [ unitLit
   , boolLit
   , intLit
@@ -407,7 +407,7 @@ pexpr = makeExprParser pexprTerm pexprOps
 pexprTerm :: Parser Expr
 pexprTerm = choice
   [ try $ EStrLen <$ symbol "|" <*> pexpr <* symbol "|"
-  , try $ ECon <$> constant <* notFollowedBy "("
+  , try $ ECon <$> value <* notFollowedBy "("
   , try $ EVar <$> name <* notFollowedBy "("
   , EFun <$> name <*> parens (sepBy1 pexpr ",")
   ]

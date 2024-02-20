@@ -7,7 +7,6 @@ import Data.Set (Set, (\\))
 import Panini.Syntax.Expressions
 import Panini.Syntax.Names
 import Panini.Syntax.Predicates
-import Panini.Syntax.Primitives
 import Panini.Syntax.Relations
 import Prelude
 
@@ -85,12 +84,12 @@ instance Subable Rel Expr where
 
 instance Subable Expr Expr where
   subst x y = \case
-    EVal (Var n) | y == n -> x
-    e                     -> descend (subst x y) e
+    EVar n | y == n -> x
+    e               -> descend (subst x y) e
 
-  freeVars = \case
-    EVal (Var x)     -> [x]
-    EVal (Con _)     -> []
+  freeVars = \case    
+    EVar x           -> [x]
+    ECon _           -> []
     EAbs _           -> []
     EReg _           -> []
     ENot e           -> freeVars e
@@ -101,14 +100,3 @@ instance Subable Expr Expr where
     EStrAt e1 e2     -> freeVars e1 <> freeVars e2
     EStrSub e1 e2 e3 -> freeVars e1 <> freeVars e2 <> freeVars e3
     EFun _ es        -> mconcat (map freeVars es)
-
-------------------------------------------------------------------------------
-
-instance Subable Value Value where
-  subst x y = \case
-    Var n | y == n -> x
-    v              -> v
-
-  freeVars = \case
-    Var n -> [n]
-    Con _ -> []

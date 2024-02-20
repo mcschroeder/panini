@@ -6,7 +6,6 @@ import Data.Text (Text)
 import GHC.Generics
 import Panini.Pretty
 import Panini.Provenance
-import Panini.Syntax.Names
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -29,30 +28,30 @@ instance Pretty Base where
 
 ------------------------------------------------------------------------------
 
--- | Primitive constants.
-data Constant
+-- | Primitive values.
+data Value
   = U          !PV  -- unit
   | B !Bool    !PV  -- true, false
   | I !Integer !PV  -- 0, -1, 1, ...
   | S !Text    !PV  -- "lorem ipsum"
   deriving stock (Show, Read)
 
--- | Equality between constants ignores provenance.
-instance Eq Constant where
+-- | Equality between values ignores provenance.
+instance Eq Value where
   U   _ == U   _ = True
   B a _ == B b _ = a == b
   I a _ == I b _ = a == b
   S a _ == S b _ = a == b
   _     == _     = False
 
--- | Hashing constants ignores provenance.
-instance Hashable Constant where
+-- | Hashing values ignores provenance.
+instance Hashable Value where
   hashWithSalt s (U   _) = s `hashWithSalt` (0 :: Int)
   hashWithSalt s (B a _) = s `hashWithSalt` (1 :: Int) `hashWithSalt` a
   hashWithSalt s (I a _) = s `hashWithSalt` (2 :: Int) `hashWithSalt` a
   hashWithSalt s (S a _) = s `hashWithSalt` (3 :: Int) `hashWithSalt` a
 
-instance HasProvenance Constant where
+instance HasProvenance Value where
   getPV (U   pv) = pv
   getPV (B _ pv) = pv
   getPV (I _ pv) = pv
@@ -62,44 +61,19 @@ instance HasProvenance Constant where
   setPV pv (I x _) = I x pv
   setPV pv (S x _) = S x pv
 
-instance Pretty Constant where
+instance Uniplate Value where
+  uniplate = plate
+
+instance Pretty Value where
   pretty (U       _) = symUnit
   pretty (B True  _) = symTrue
   pretty (B False _) = symFalse
   pretty (I c     _) = ann (Literal NumberLit) $ pretty c
   pretty (S t     _) = ann (Literal StringLit) $ viaShow t
 
-typeOfConstant :: Constant -> Base
-typeOfConstant = \case
+typeOfValue :: Value -> Base
+typeOfValue = \case
   U _   -> TUnit 
   B _ _ -> TBool 
   I _ _ -> TInt
   S _ _ -> TString
-
-------------------------------------------------------------------------------
-
--- | A value is either a primitive constant or a variable.
-data Value
-  = Con !Constant 
-  | Var !Name
-  deriving stock (Eq, Show, Read, Generic)
-
-instance Hashable Value
-
-instance Pretty Value where
-  pretty (Con c) = pretty c
-  pretty (Var x) = pretty x
-
-instance Uniplate Value where
-  uniplate = plate
-
-instance HasProvenance Value where
-  getPV (Con c) = getPV c
-  getPV (Var x) = getPV x
-  setPV pv (Con c) = Con (setPV pv c)
-  setPV pv (Var x) = Var (setPV pv x)
-
-typeOfValue :: Value -> Maybe Base
-typeOfValue = \case
-  Con c -> Just $ typeOfConstant c
-  Var _ -> Nothing

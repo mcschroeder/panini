@@ -89,7 +89,8 @@ instance SMTLIB RegLan where
 
 instance SMTLIB Expr where
   encode = \case
-    EVal v           -> encode v
+    EVar x           -> encode x
+    ECon v           -> encode v
     EStrA a          -> encode a
     EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r
     ENot e           -> sexpr ["not", encode e]
@@ -120,14 +121,10 @@ instance SMTLIB AString where
 instance SMTLIB KVar where
   encode (KVar i _) = "k" <> LB.fromString (show i)
 
-instance SMTLIB Value where
-  encode (Var x) = encode x
-  encode (Con c) = encode c
-
 instance SMTLIB Name where
   encode (Name n _) = LB.fromText n
 
-instance SMTLIB Constant where
+instance SMTLIB Value where
   encode = \case
     U       _ -> "0"  -- TODO
     B True  _ -> "true"

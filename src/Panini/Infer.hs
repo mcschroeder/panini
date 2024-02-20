@@ -55,7 +55,7 @@ infer g = \case
   -- inf/con ----------------------------------------------
   Val (Con c) -> do
     let v = dummyName
-    let b = typeOfConstant c
+    let b = typeOfValue c
     let p = PRel $ EVar v :=: ECon c
     let t = TBase v b (Known p) (getPV c)
     return (t, CTrue)
@@ -68,7 +68,7 @@ infer g = \case
       TFun y t₁ t₂ _ -> do
         (tₓ, _) <- infer g (Val x)
         cₓ <- sub tₓ t₁
-        let t = subst (EVal x) y t₂
+        let t = subst (atomToExpr x) y t₂
         let c = cₑ ∧ cₓ
         return $ (t, c) `withPV` pv
   
@@ -108,13 +108,17 @@ infer g = \case
     ĉ₁      <- sub t₁ t̂
     (t₂,c₂) <- infer g e₂
     ĉ₂      <- sub t₂ t̂
-    let p₁   = PRel $ EVal v :=: EBool True NoPV
-    let p₂   = PRel $ EVal v :=: EBool False NoPV
+    let p₁   = PRel $ atomToExpr v :=: EBool True NoPV
+    let p₂   = PRel $ atomToExpr v :=: EBool False NoPV
     let y    = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
     let c    = (CAll y TUnit p₁ (c₁ ∧ ĉ₁)) ∧ (CAll y TUnit p₂ (c₂ ∧ ĉ₂))
     return   $ (t̂,c) `withPV` pv
 
-checkBool :: Context -> Value -> Pan ()
+atomToExpr :: Atom -> Expr
+atomToExpr (Con c) = ECon c
+atomToExpr (Var x) = EVar x
+
+checkBool :: Context -> Atom -> Pan ()
 checkBool g v = do
   (tb,_) <- infer g (Val v)
   _ <- sub tb (TBase dummyName TBool (Known PTrue) NoPV)
