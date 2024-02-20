@@ -7,15 +7,18 @@ module Panini.Abstract.AValue
   , containsTop, containsBot
   , fillTop, fillBot
   , typeOfAValue
+  , fromValue
   ) where
 
 import Algebra.Lattice
 import Data.Hashable
+import Data.Text qualified as Text
 import GHC.Generics (Generic)
+import Panini.Abstract.ABool as ABool
+import Panini.Abstract.AChar as AChar
+import Panini.Abstract.AInt as AInt
+import Panini.Abstract.AString as AString
 import Panini.Abstract.AUnit
-import Panini.Abstract.ABool
-import Panini.Abstract.AInt
-import Panini.Abstract.AString
 import Panini.Pretty
 import Panini.Syntax.Primitives
 import Prelude
@@ -79,3 +82,12 @@ typeOfAValue = \case
   ABool   _ -> TBool
   AInt    _ -> TInt
   AString _ -> TString
+
+fromValue :: Value -> AValue
+fromValue = \case
+  U   _ -> AUnit Unit
+  B b _ -> ABool $ ABool.eq b
+  I i _ -> AInt $ AInt.eq i
+  S t _ -> case Text.unpack t of
+    [c] -> AString $ lit (AChar.eq c)  -- TODO: assumes all singleton strings are chars
+    s   -> AString $ AString.eq s

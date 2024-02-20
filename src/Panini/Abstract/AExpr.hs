@@ -23,7 +23,7 @@ import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AString as AString
-import Panini.Abstract.AValue
+import Panini.Abstract.AValue as AValue
 import Panini.Provenance
 import Panini.Syntax.Expressions
 import Panini.Syntax.Primitives
@@ -105,31 +105,23 @@ instance PartialMeetSemilattice AExpr where
   EAbs a ∧? e      | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
   e      ∧? EAbs a | containsTop a, eqTypeAE a e = Just e
   e      ∧? EAbs a | containsBot a, eqTypeAE a e = Just $ EAbs $ fillBot a
-      
-  EBool  a _ ∧? EBool  b _ = Just $ EBoolA $ ABool.eq a ∧ ABool.eq b
-  EBool  a _ ∧? EBoolA b   = Just $ EBoolA $ ABool.eq a ∧ b
-  EBoolA b   ∧? EBool  a _ = Just $ EBoolA $ ABool.eq a ∧ b
-      
-  EInt  a _ ∧? EInt  b _ = Just $ EIntA $ AInt.eq a ∧ AInt.eq b
-  EInt  a _ ∧? EIntA b   = Just $ EIntA $ AInt.eq a ∧ b
-  EIntA b   ∧? EInt  a _ = Just $ EIntA $ AInt.eq a ∧ b
+  
+  ECon a ∧? ECon b = EAbs <$> fromValue a ∧? fromValue b
+  ECon a ∧? EAbs b = EAbs <$> fromValue a ∧? b
+  EAbs a ∧? ECon b = EAbs <$> fromValue b ∧? a
 
-  EStr a _ ∧? EStr  b _ = Just $ EStrA $ AString.eq (Text.unpack a) ∧ AString.eq (Text.unpack b)
-  EStr a _ ∧? EStrA b   = Just $ EStrA $ AString.eq (Text.unpack a) ∧ b
-  EStrA b  ∧? EStr  a _ = Just $ EStrA $ AString.eq (Text.unpack a) ∧ b
-
-  (e1 :+: EIntA a) ∧? (e2 :+: EIntA b) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
-  (e1 :+: EIntA a) ∧? (EIntA b :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
-  (e1 :+: EIntA a) ∧? e2               | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
-  (EIntA a :+: e1) ∧? (e2 :+: EIntA b) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
-  (EIntA a :+: e1) ∧? (EIntA b :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ b)
-  (EIntA a :+: e1) ∧? e2               | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
-  e1               ∧? (e2 :+: EIntA a) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
-  e1               ∧? (EIntA a :+: e2) | e1 == e2 = Just $ norm $ e1 :+: EIntA (a ∧ AInt.eq 0)
-
-  EStrSub s1 i1 j1 ∧? EStrSub s2 i2 j2 
-    | s1 == s2, Just i <- i1 ∧? i2, Just j <- j1 ∧? j2 = Just $ EStrSub s1 i j
-
+  (x :+: a) ∧? (y :+: b) | x == y = (x :+:) <$> a ∧? b
+  (a :+: x) ∧? (y :+: b) | x == y = (x :+:) <$> a ∧? b
+  (x :+: a) ∧? (b :+: y) | x == y = (x :+:) <$> a ∧? b
+  (a :+: x) ∧? (b :+: y) | x == y = (x :+:) <$> a ∧? b
+  (x :-: a) ∧? (y :-: b) | x == y = (x :-:) <$> a ∧? b
+  
+  (x      ) ∧? (y :+: b) | x == y = (x :+:) <$> EIntA (AInt.eq 0) ∧? b
+  (x      ) ∧? (b :+: y) | x == y = (x :+:) <$> EIntA (AInt.eq 0) ∧? b
+  (x      ) ∧? (y :-: b) | x == y = (x :-:) <$> EIntA (AInt.eq 0) ∧? b
+  (x :+: a) ∧? (y      ) | x == y = (x :+:) <$> a ∧? EIntA (AInt.eq 0)
+  (a :+: x) ∧? (y      ) | x == y = (x :+:) <$> a ∧? EIntA (AInt.eq 0)
+  (x :-: a) ∧? (y      ) | x == y = (x :-:) <$> a ∧? EIntA (AInt.eq 0)
 
   a ∧? b | a == b    = Just a
          | otherwise = Nothing
