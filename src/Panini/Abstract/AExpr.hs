@@ -11,8 +11,7 @@ module Panini.Abstract.AExpr
   , pattern ECharA  
   , topExpr
   , botExpr
-  , norm
-  , normA
+  , normExpr
   ) where
 
 import Algebra.Lattice
@@ -128,26 +127,11 @@ instance PartialMeetSemilattice AExpr where
 
 ------------------------------------------------------------------------------
 
--- | Normalize an abstract expression by (partial) evaluation. Unlike 'norm',
--- this function will replace all concrete values with abstract values.
-normA :: AExpr -> AExpr
-normA = norm . go
- where 
-  go = Uniplate.rewrite $ \case
-    EUnit   _ -> Just $ EAbs $ AUnit $ AUnit.Unit
-    EBool a _ -> Just $ EAbs $ ABool $ ABool.eq a
-    EInt  a _ -> Just $ EAbs $ AInt $ AInt.eq a
-    EChar a _ -> Just $ EAbs $ AString $ AString.lit (AChar.eq a)
-    EStr  a _ -> Just $ EAbs $ AString $ AString.eq $ Text.unpack a
-    _         -> Nothing
-
--- TODO: move 'norm' to a more general place
-
 -- | Normalize an abstract expression by (partial) evaluation. Note that this
 -- operation will never introduce any abstract values; if the input expression
 -- did not contain anything abstract, then neither will the normalized output.
-norm :: AExpr -> AExpr
-norm = Uniplate.rewrite $ \case
+normExpr :: AExpr -> AExpr
+normExpr = Uniplate.rewrite $ \case
 
   ENot (EBool  a pv) -> Just $ EBool  (not a) pv
   ENot (EBoolA a)    -> Just $ EBoolA (neg a)

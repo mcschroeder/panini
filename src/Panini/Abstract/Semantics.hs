@@ -44,7 +44,7 @@ abstract x b r = case normRel r of
   -- here, x occurs on LHS and MAY also occur on RHS --------------------------
 
   (StrSub_index2 s t i :+: y) :=: j 
-    -> abstract x b $ EStrSub s i (norm $ j :-: y) :=: t
+    -> abstract x b $ EStrSub s i (j :-: y) :=: t
 
   EStrLen _ :≠: (EStrLen _ :+: EIntA a) | not (AInt.member 0 a) -> Right $ topExpr b
 
@@ -85,13 +85,13 @@ abstract x b r = case normRel r of
   StrComp e1 :≠: e2         | e1 == e2 -> Right $ topExpr b
   e1         :≠: StrComp e2 | e1 == e2 -> Right $ topExpr b
 
-  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (normA $ e3 :-: e2)
-  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (normA $ e3 :-: e1)
-  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (normA $ e3 :+: e2)
-  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (normA $ e1 :-: e3)
+  Rel o (e1 :+: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (e3 :-: e2)
+  Rel o (e1 :+: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (e3 :-: e1)
+  Rel o (e1 :-: e2) e3 | x ∉ e2 -> abstract x b $ Rel o e1 (e3 :+: e2)
+  Rel o (e1 :-: e2) e3 | x ∉ e1 -> abstract x b $ Rel o e2 (e1 :-: e3)
 
-  e1 :=: e2 | normA e1 == normA e2 -> Right $ topExpr b
-  e1 :≠: e2 | normA e1 == normA e2 -> Right $ botExpr b
+  e1 :=: e2 | e1 == e2 -> Right $ topExpr b
+  e1 :≠: e2 | e1 == e2 -> Right $ botExpr b
 
   e1 :⋈: e2 | x ∈ e1, x ∈ e2 -> Left r
 
@@ -99,10 +99,10 @@ abstract x b r = case normRel r of
 
   EVar _ :=: e -> Right e
   
-  e1 :≥: e2 -> abstract x b $ e1 :=: (norm $ e2 :+: EIntA (AInt.ge 0))
-  e1 :>: e2 -> abstract x b $ e1 :=: (norm $ e2 :+: EIntA (AInt.ge 1))
-  e1 :≤: e2 -> abstract x b $ e1 :=: (norm $ e2 :-: EIntA (AInt.ge 0))
-  e1 :<: e2 -> abstract x b $ e1 :=: (norm $ e2 :-: EIntA (AInt.ge 1))
+  e1 :≥: e2 -> abstract x b $ e1 :=: (e2 :+: EIntA (AInt.ge 0))
+  e1 :>: e2 -> abstract x b $ e1 :=: (e2 :+: EIntA (AInt.ge 1))
+  e1 :≤: e2 -> abstract x b $ e1 :=: (e2 :-: EIntA (AInt.ge 0))
+  e1 :<: e2 -> abstract x b $ e1 :=: (e2 :-: EIntA (AInt.ge 1))
 
   EVar _ :≠: EUnitA a -> Right $ EUnitA (neg a)
   EVar _ :≠: EBoolA a -> Right $ EBoolA (neg a)
@@ -148,7 +148,7 @@ abstract x b r = case normRel r of
     | [n] <- AInt.values $ AInt.add (AInt.eq 1) $ AInt.sub j0 i0
     -> abstract x b $ EStrSub s ei ej :=: EStrA (neg t ∧ rep anyChar n)
 
-  StrComp s :≠: e -> abstract x b $ s :≠: (norm $ StrComp e)
+  StrComp s :≠: e -> abstract x b $ s :≠: StrComp e
 
   _ -> Left r
 

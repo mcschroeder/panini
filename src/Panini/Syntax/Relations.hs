@@ -1,6 +1,7 @@
 module Panini.Syntax.Relations where
 
 import Data.Generics.Uniplate.Direct
+import Data.Generics.Uniplate.Operations as Uniplate
 import Data.Hashable
 import GHC.Generics (Generic)
 import Panini.Abstract.AExpr
@@ -88,6 +89,9 @@ pattern e1 :⋈: e2 <- Rel _ e1 e2
 
 instance Hashable Rel
 
+instance Uniplate Rel where
+  uniplate = plate
+
 instance Biplate Rel Expr where
   biplate (Rel r e1 e2) = plate Rel |- r |* e1 |* e2
 
@@ -128,20 +132,39 @@ instance Pretty Rop where
 -- | Normalize a relation and its expressions into a more common/simpler form.
 -- Note that this operation does not introduce any abstract values.
 normRel :: Rel -> Rel
-normRel (Rel op e1 e2) = case Rel op (norm e1) (norm e2) of
+normRel = Uniplate.rewrite $ \case
   
-  (StrAt_index s c      ) :=: i -> EStrAt s         i        :=: c
-  (StrAt_index s c :+: y) :=: i -> EStrAt s (norm $ i :-: y) :=: c
-  (StrAt_index s c :-: y) :=: i -> EStrAt s (norm $ i :+: y) :=: c
-  i :=: (StrAt_index s c      ) -> EStrAt s         i        :=: c
-  i :=: (StrAt_index s c :+: y) -> EStrAt s (norm $ i :-: y) :=: c
-  i :=: (StrAt_index s c :-: y) -> EStrAt s (norm $ i :+: y) :=: c
+  ENot e1 :=: ENot e2 -> Just $ e1 :=: e2
+  ENot e1 :=: e2      -> Just $ e1 :≠: e2
+  e1      :=: ENot e2 -> Just $ e1 :≠: e2
+  ENot e1 :≠: ENot e2 -> Just $ e1 :≠: e2
+  ENot e1 :≠: e2      -> Just $ e1 :=: e2
+  e1      :≠: ENot e2 -> Just $ e1 :=: e2
 
-  (StrAt_index s c      ) :≠: i -> EStrAt s         i        :≠: c
-  (StrAt_index s c :+: y) :≠: i -> EStrAt s (norm $ i :-: y) :≠: c
-  (StrAt_index s c :-: y) :≠: i -> EStrAt s (norm $ i :+: y) :≠: c
-  i :≠: (StrAt_index s c      ) -> EStrAt s         i        :≠: c
-  i :≠: (StrAt_index s c :+: y) -> EStrAt s (norm $ i :-: y) :≠: c
-  i :≠: (StrAt_index s c :-: y) -> EStrAt s (norm $ i :+: y) :≠: c
+  IntComp e1 :=: IntComp e2 -> Just $ e1 :=: e2
+  IntComp e1 :=: e2         -> Just $ e1 :≠: e2
+  e1         :=: IntComp e2 -> Just $ e1 :≠: e2
+  IntComp e1 :≠: IntComp e2 -> Just $ e1 :≠: e2
 
-  r -> r
+  StrComp e1 :=: StrComp e2 -> Just $ e1 :=: e2
+  StrComp e1 :=: e2         -> Just $ e1 :≠: e2
+  e1         :=: StrComp e2 -> Just $ e1 :≠: e2
+  StrComp e1 :≠: StrComp e2 -> Just $ e1 :≠: e2    
+
+  (StrAt_index s c      ) :=: i -> Just $ EStrAt s (i      ) :=: c
+  (StrAt_index s c :+: y) :=: i -> Just $ EStrAt s (i :-: y) :=: c
+  (StrAt_index s c :-: y) :=: i -> Just $ EStrAt s (i :+: y) :=: c
+  i :=: (StrAt_index s c      ) -> Just $ EStrAt s (i      ) :=: c
+  i :=: (StrAt_index s c :+: y) -> Just $ EStrAt s (i :-: y) :=: c
+  i :=: (StrAt_index s c :-: y) -> Just $ EStrAt s (i :+: y) :=: c
+
+  (StrAt_index s c      ) :≠: i -> Just $ EStrAt s (i      ) :≠: c
+  (StrAt_index s c :+: y) :≠: i -> Just $ EStrAt s (i :-: y) :≠: c
+  (StrAt_index s c :-: y) :≠: i -> Just $ EStrAt s (i :+: y) :≠: c
+  i :≠: (StrAt_index s c      ) -> Just $ EStrAt s (i      ) :≠: c
+  i :≠: (StrAt_index s c :+: y) -> Just $ EStrAt s (i :-: y) :≠: c
+  i :≠: (StrAt_index s c :-: y) -> Just $ EStrAt s (i :+: y) :≠: c
+
+  Rel op l1 r1 -> case (normExpr l1, normExpr r1) of 
+    (l2,r2) | l1 /= l2 || r1 /= r2 -> Just $ Rel op l2 r2
+            | otherwise            -> Nothing
