@@ -1,16 +1,9 @@
-{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE FunctionalDependencies #-}
 module Panini.Syntax.Substitution where
 
-import Data.Generics.Uniplate.Operations
-import Data.Set (Set, (\\))
-import Panini.Syntax.Expressions
+import Data.Set (Set)
 import Panini.Syntax.Names
-import Panini.Syntax.Predicates
-import Panini.Syntax.Relations
 import Prelude
-
--- TODO: move instances into correpsonding modules?
 
 ------------------------------------------------------------------------------
 
@@ -45,58 +38,3 @@ class Subable a v | a -> v where
 -- | @substN xs ys a@ substitutes each x for the corresponding y in a.
 substN :: Subable a v => [v] -> [Name] -> a -> a
 substN xs ys p = foldr (uncurry subst) p $ zip xs ys
-
-------------------------------------------------------------------------------
-
-instance Subable Pred Expr where  
-  subst x y = \case
-    PExists n b p
-      | y == n      -> PExists n b            p   -- (1)
-      | x == EVar n -> PExists ṅ b (subst x y ṗ)  -- (2)
-      | otherwise   -> PExists n b (subst x y p)  -- (3)
-      where
-        ṗ = subst (EVar ṅ) n p
-        ṅ = freshName n ([y] <> freeVars p)
-
-    PAppK k xs -> PAppK k (map (subst x y) xs)
-    PRel r     -> PRel (subst x y r)
-    p          -> descend (subst x y) p
-
-  freeVars = \case
-    PTrue         -> []
-    PFalse        -> []
-    PAnd ps       -> mconcat $ map freeVars ps
-    POr ps        -> mconcat $ map freeVars ps
-    PImpl p1 p2   -> freeVars p1 <> freeVars p2
-    PIff p1 p2    -> freeVars p1 <> freeVars p2
-    PNot p        -> freeVars p
-    PRel r        -> freeVars r
-    PAppK _ xs    -> mconcat $ map freeVars xs
-    PExists x _ p -> freeVars p \\ [x]
-    
-------------------------------------------------------------------------------
-
-instance Subable Rel Expr where
-  subst x y = descendBi (subst @Expr x y)  
-  freeVars = mconcat . map (freeVars @Expr) . universeBi
-
-------------------------------------------------------------------------------
-
-instance Subable Expr Expr where
-  subst x y = \case
-    EVar n | y == n -> x
-    e               -> descend (subst x y) e
-
-  freeVars = \case    
-    EVar x           -> [x]
-    ECon _           -> []
-    EAbs _           -> []
-    EReg _           -> []
-    ENot e           -> freeVars e
-    EAdd e1 e2       -> freeVars e1 <> freeVars e2
-    ESub e1 e2       -> freeVars e1 <> freeVars e2
-    EMul e1 e2       -> freeVars e1 <> freeVars e2
-    EStrLen e        -> freeVars e
-    EStrAt e1 e2     -> freeVars e1 <> freeVars e2
-    EStrSub e1 e2 e3 -> freeVars e1 <> freeVars e2 <> freeVars e3
-    EFun _ es        -> mconcat (map freeVars es)

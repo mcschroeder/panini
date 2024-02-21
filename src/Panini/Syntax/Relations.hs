@@ -7,6 +7,7 @@ import GHC.Generics (Generic)
 import Panini.Abstract.AExpr
 import Panini.Pretty
 import Panini.Syntax.Expressions
+import Panini.Syntax.Substitution
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -101,6 +102,10 @@ instance Pretty Rel where
 
 instance HasFixity Rel where
   fixity _ = Infix NoAss 4
+
+instance Subable Rel Expr where
+  subst x y = descendBi (subst @Expr x y)  
+  freeVars = mconcat . map (freeVars @Expr) . universeBi
 
 -- | A relation between two expressions.
 data Rop 

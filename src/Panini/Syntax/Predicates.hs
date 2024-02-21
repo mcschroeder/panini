@@ -1,8 +1,10 @@
+{-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.Predicates where
 
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.Set ((\\))
 import GHC.Generics (Generic)
 import Panini.Pretty
 import Panini.Syntax.Expressions
@@ -10,6 +12,7 @@ import Panini.Syntax.KVar
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Relations
+import Panini.Syntax.Substitution
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -105,3 +108,30 @@ instance HasFixity Pred where
     PImpl _ _ -> Infix NoAss 1
     PIff _ _  -> Infix NoAss 1
     _         -> Infix LeftAss 9
+
+-- see Panini.Syntax.Substitution
+instance Subable Pred Expr where
+  subst x y = \case
+    PExists n b p
+      | y == n      -> PExists n b            p   -- (1)
+      | x == EVar n -> PExists ṅ b (subst x y ṗ)  -- (2)
+      | otherwise   -> PExists n b (subst x y p)  -- (3)
+      where
+        ṗ = subst (EVar ṅ) n p
+        ṅ = freshName n ([y] <> freeVars p)
+
+    PAppK k xs -> PAppK k (map (subst x y) xs)
+    PRel r     -> PRel (subst x y r)
+    p          -> descend (subst x y) p
+
+  freeVars = \case
+    PTrue         -> []
+    PFalse        -> []
+    PAnd ps       -> mconcat $ map freeVars ps
+    POr ps        -> mconcat $ map freeVars ps
+    PImpl p1 p2   -> freeVars p1 <> freeVars p2
+    PIff p1 p2    -> freeVars p1 <> freeVars p2
+    PNot p        -> freeVars p
+    PRel r        -> freeVars r
+    PAppK _ xs    -> mconcat $ map freeVars xs
+    PExists x _ p -> freeVars p \\ [x]

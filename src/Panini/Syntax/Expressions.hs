@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.Expressions where
 
 import Data.Generics.Uniplate.Direct
@@ -12,6 +13,7 @@ import Panini.Provenance
 import Panini.Regex.POSIX.ERE (ERE)
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
+import Panini.Syntax.Substitution
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -153,3 +155,22 @@ instance HasFixity Expr where
   fixity (EAdd _ _) = Infix LeftAss 5
   fixity (ESub _ _) = Infix LeftAss 5
   fixity _          = Infix LeftAss 9
+
+instance Subable Expr Expr where
+  subst x y = \case
+    EVar n | y == n -> x
+    e               -> descend (subst x y) e
+
+  freeVars = \case
+    EVar x           -> [x]
+    ECon _           -> []
+    EAbs _           -> []
+    EReg _           -> []
+    ENot e           -> freeVars e
+    EAdd e1 e2       -> freeVars e1 <> freeVars e2
+    ESub e1 e2       -> freeVars e1 <> freeVars e2
+    EMul e1 e2       -> freeVars e1 <> freeVars e2
+    EStrLen e        -> freeVars e
+    EStrAt e1 e2     -> freeVars e1 <> freeVars e2
+    EStrSub e1 e2 e3 -> freeVars e1 <> freeVars e2 <> freeVars e3
+    EFun _ es        -> mconcat (map freeVars es)
