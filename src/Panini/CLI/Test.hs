@@ -83,6 +83,10 @@ testMain globalOpts = assert globalOpts.testMode $ do
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
 
+    case result of
+      Left e | Just UserInterrupt <- asyncExceptionFromException e -> throw e
+      _ -> return ()
+
     let output = either viaShow (either pretty fst) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
     return (time, actual)
