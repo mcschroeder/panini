@@ -152,29 +152,29 @@ lt a = AInt [In NegInf (Fin (a - 1))]
 le :: Integer -> AInt
 le a = AInt [In NegInf (Fin a)]
 
--- | An abstract integer @> α@, i.e., @[(maximum α + 1)..+∞]@.
+-- | An abstract integer @> α@, i.e., @[(minimum α + 1)..+∞]@.
 gtA :: AInt -> AInt
 gtA (AInt xs) = case xs of
-  []               -> AInt []
-  (last -> In _ b) -> AInt [In (succ <$> b) PosInf]
+  []         -> AInt []
+  In a _ : _ -> AInt [In (succ <$> a) PosInf]
 
--- | An abstract integer @≥ α@, i.e., @[(maximum α)..+∞]@.
+-- | An abstract integer @≥ α@, i.e., @[(minimum α)..+∞]@.
 geA :: AInt -> AInt
 geA (AInt xs) = case xs of
-  []               -> AInt []
-  (last -> In _ b) -> AInt [In b PosInf]
+  []         -> AInt []
+  In a _ : _ -> AInt [In a PosInf]
 
--- | An abstract integer @< α@, i.e., @[-∞..(minimum α - 1)]@.
+-- | An abstract integer @< α@, i.e., @[-∞..(maximum α - 1)]@.
 ltA :: AInt -> AInt
 ltA (AInt xs) = case xs of
-  []         -> AInt []
-  In a _ : _ -> AInt [In NegInf (pred <$> a)]
+  []               -> AInt []
+  (last -> In _ a) -> AInt [In NegInf (pred <$> a)]
 
--- | An abstract integer @≤ α@, i.e., @[-∞..(minimum α)]@.
+-- | An abstract integer @≤ α@, i.e., @[-∞..(maximum α)]@.
 leA :: AInt -> AInt
 leA (AInt xs) = case xs of
-  []         -> AInt []
-  In a _ : _ -> AInt [In NegInf a]
+  []               -> AInt []
+  (last -> In _ a) -> AInt [In NegInf a]
 
 -- | Add two abstract integers together, i.e., form the union of adding every
 -- value represented by the first abstract integer to every value represented by
