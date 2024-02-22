@@ -4,7 +4,6 @@ import Algebra.Lattice
 import Data.Generics.Uniplate.Operations
 import Data.List.Extra qualified as List
 import Data.Maybe
-import Panini.Abstract.AExpr
 import Panini.Abstract.AInt (Inf(..))
 import Panini.Abstract.AInt qualified as AInt
 import Panini.Provenance

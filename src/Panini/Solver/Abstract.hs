@@ -17,7 +17,6 @@ import Data.HashSet qualified as HashSet
 import Data.Set qualified as Set
 import GHC.Generics
 import Data.Generics.Uniplate.Operations qualified as Uniplate
-import Panini.Abstract.AExpr
 import Panini.Abstract.AValue
 import Data.List qualified as List
 import Panini.Pretty
@@ -139,33 +138,33 @@ solve1 = \case
       EStrA a  -> AString (AString.simplify a) § "Simplify abstract string"
       _        -> impossible
 
-meets' :: Base -> [AExpr] -> AExpr
+meets' :: Base -> [Expr] -> Expr
 meets' b xs = case b of
   TUnit   -> EAbs $ AUnit   $ meets $ map aExprToUnit xs
   TBool   -> EAbs $ ABool   $ meets $ map aExprToBool xs
   TInt    -> EAbs $ AInt    $ meets $ map aExprToInt  xs
   TString -> EAbs $ AString $ meets $ map aExprToStr  xs
 
-joins' :: Base -> [AExpr] -> AExpr
+joins' :: Base -> [Expr] -> Expr
 joins' b xs = case b of
   TUnit   -> EAbs $ AUnit   $ joins $ map aExprToUnit xs
   TBool   -> EAbs $ ABool   $ joins $ map aExprToBool xs
   TInt    -> EAbs $ AInt    $ joins $ map aExprToInt  xs
   TString -> EAbs $ AString $ joins $ map aExprToStr  xs
 
-aExprToUnit :: AExpr -> AUnit
+aExprToUnit :: Expr -> AUnit
 aExprToUnit (EUnitA a) = a
 aExprToUnit e          = panic $ "aExprToUnit: unexpected" <+> pretty e
 
-aExprToBool :: AExpr -> ABool
+aExprToBool :: Expr -> ABool
 aExprToBool (EBoolA a) = a
 aExprToBool e          = panic $ "aExprToBool: unexpected" <+> pretty e
 
-aExprToInt :: AExpr -> AInt
+aExprToInt :: Expr -> AInt
 aExprToInt (EIntA a) = a
 aExprToInt e         = panic $ "aExprToInt: unexpected" <+> pretty e
 
-aExprToStr :: AExpr -> AString
+aExprToStr :: Expr -> AString
 aExprToStr (EStrA a) = a
 aExprToStr e         = panic $ "aExprToStr: unexpected" <+> pretty e
 
@@ -252,5 +251,5 @@ varElim x b φ = do
 converge :: Eq a => (a -> a) -> a -> a
 converge = until =<< ((==) =<<)
 
-containsBotAExpr :: AExpr -> Bool
+containsBotAExpr :: Expr -> Bool
 containsBotAExpr e = or [containsBot a | EAbs a <- Uniplate.universe e]

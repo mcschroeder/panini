@@ -4,7 +4,6 @@ import Data.Generics.Uniplate.Direct
 import Data.Generics.Uniplate.Operations as Uniplate
 import Data.Hashable
 import GHC.Generics (Generic)
-import Panini.Abstract.AExpr
 import Panini.Pretty
 import Panini.Syntax.Expressions
 import Panini.Syntax.Substitution

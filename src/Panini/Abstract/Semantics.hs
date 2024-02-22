@@ -5,7 +5,6 @@ import Control.Monad
 import Panini.Abstract.AUnit as AUnit
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AChar as AChar
-import Panini.Abstract.AExpr
 import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AValue
@@ -29,14 +28,14 @@ x ∉ e = x `notElem` freeVars e
 
 -------------------------------------------------------------------------------
 
-abstractVar :: Name -> Base -> Rel -> Pan AExpr
+abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r = case abstract x b r of
   Left r2 -> throwError $ AbstractionImpossible x r r2
   Right e -> do
     logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
     return e
 
-abstract :: Name -> Base -> Rel -> Either Rel AExpr
+abstract :: Name -> Base -> Rel -> Either Rel Expr
 abstract x b r = case normRel r of
   e1 :⋈: e2 | x ∉ e1, x ∉ e2 -> Left r
   e1 :⋈: e2 | x ∉ e1, x ∈ e2 -> maybe (Left r) (abstract x b) (converse r)
