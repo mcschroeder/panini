@@ -11,7 +11,6 @@ import Panini.Syntax.Expressions
 import Panini.Syntax.KVar
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
-import Panini.Syntax.Relations
 import Panini.Syntax.Substitution
 import Prelude
 

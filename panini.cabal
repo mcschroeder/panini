@@ -107,8 +107,7 @@ library
     Panini.Syntax.KVar
     Panini.Syntax.Names
     Panini.Syntax.Predicates
-    Panini.Syntax.Primitives    
-    Panini.Syntax.Relations
+    Panini.Syntax.Primitives
     Panini.Syntax.Substitution
     Panini.Version
 
