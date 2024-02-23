@@ -2,6 +2,8 @@
 
 module Panini.Abstract.AInt
   ( AInt
+  , pattern AInt0
+  , pattern AInt1
   , count
   , values
   , intervals
@@ -9,6 +11,7 @@ module Panini.Abstract.AInt
   , minimum
   , maximum
   , continuous
+  , finite
   , eq
   , ne
   , gt
@@ -35,6 +38,8 @@ import Panini.Pretty
 import Prelude hiding (minimum, maximum)
 import Prettyprinter qualified as PP
 
+-- TODO: investigate whether it's possible to have a Num instance
+
 -------------------------------------------------------------------------------
 
 -- | An abstract integer.
@@ -54,6 +59,14 @@ instance Pretty AInt where
     AInt [x] -> pretty x
     AInt xs  -> PP.encloseSep lbracket rbracket mid 
               $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
+
+pattern AInt0 :: AInt
+pattern AInt0 <- (values -> [0]) where
+  AInt0 = eq 0
+
+pattern AInt1 :: AInt
+pattern AInt1 <- (values -> [1]) where
+  AInt1 = eq 1
 
 -------------------------------------------------------------------------------
 
@@ -127,6 +140,13 @@ continuous (AInt xs) = case xs of
   []  -> True
   [_] -> True
   _   -> False
+
+-- | Whether the abstract integer represents a finite number of values.
+finite :: AInt -> Bool
+finite (AInt xs) = case xs of
+  (In NegInf _):_ -> False
+  (last -> In _ PosInf) -> False
+  _ -> True
 
 -------------------------------------------------------------------------------
 

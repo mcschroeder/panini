@@ -4,13 +4,14 @@ module Panini.Abstract.AValue
   , AInt
   , AString
   , AUnit
-  , containsTop, containsBot
+  , hasTop, hasBot
   , fillTop, fillBot
   , typeOfAValue
   , fromValue
   ) where
 
 import Algebra.Lattice
+import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
@@ -37,6 +38,9 @@ data AValue
 
 instance Hashable AValue
 
+instance Uniplate AValue where
+  uniplate = plate
+
 instance Pretty AValue where
   pretty = \case
     AUnit   a -> pretty a
@@ -58,15 +62,15 @@ instance PartialMeetSemilattice AValue where
   AString a ∧? AString b = Just $ AString (a ∧ b)
   _         ∧? _         = Nothing
 
-containsTop :: AValue -> Bool
-containsTop = \case
+hasTop :: AValue -> Bool
+hasTop = \case
   AUnit   a -> isTop a
   ABool   a -> isTop a
   AInt    a -> isTop a
   AString a -> isTop a
 
-containsBot :: AValue -> Bool
-containsBot = \case
+hasBot :: AValue -> Bool
+hasBot = \case
   AUnit   a -> isBot a
   ABool   a -> isBot a
   AInt    a -> isBot a

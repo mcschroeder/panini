@@ -88,6 +88,16 @@ symNotIn = "∉" `orASCII` "\\notin"
 symNi = "∋" `orASCII` "\\ni"
 symNotNi = "∌" `orASCII` "\\notni"
 
+-- NOTE: the symbol for the non-empty intersection relation should correctly be
+-- "≬" (U+226C "BETWEEN", LaTeX "\between"), but this renders rather badly in my
+-- terminal, so instead we're appropriating "ꘉ" (U+A609, "VAI SYLLABLE NE"), a
+-- character from a syllabic writing system for the language spoken by the Vai
+-- people of Liberia, which just so happens to look remarkably similar.
+symNei, symEi :: Doc
+symNei = "ꘉ" `orASCII` "\\nei"
+symEi = "⊘" `orASCII` "\\ei"  -- NOTE: LaTeX "\oslash" NOT "\emptyset"
+
+
 -- TODO: these replacements could cause massive confusion in string grammars
 lambda, kappa, sigma, bigSigma, epsilon :: Doc
 lambda = "λ" `orASCII` "\\"

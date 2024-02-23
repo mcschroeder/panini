@@ -83,6 +83,10 @@ class MeetSemilattice a => BoundedMeetSemilattice a where
 isTop :: (BoundedMeetSemilattice a, Eq a) => a -> Bool
 isTop = (top ==)
 
+pattern TOP :: (BoundedMeetSemilattice a, Eq a) => a
+pattern TOP <- (isTop -> True) where
+  TOP = top
+
 meets :: (Foldable t, BoundedMeetSemilattice a) => t a -> a
 meets = foldr (∧) top
 
@@ -97,6 +101,10 @@ class JoinSemilattice a => BoundedJoinSemilattice a where
 -- | Is the given element the least element ('bot')?
 isBot :: (BoundedJoinSemilattice a, Eq a) => a -> Bool
 isBot = (bot ==)
+
+pattern BOT :: (BoundedJoinSemilattice a, Eq a) => a
+pattern BOT <- (isBot -> True) where
+  BOT = bot
 
 joins :: (Foldable t, BoundedJoinSemilattice a) => t a -> a
 joins = foldr (∨) bot

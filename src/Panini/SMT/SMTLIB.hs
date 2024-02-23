@@ -64,12 +64,17 @@ instance SMTLIB Pred where
     PRel p        -> encode p
     PAppK k xs    -> sexpr (encode k : map encode xs)
     PExists x b p -> sexpr ["exists", sorts [(x,b)], encode p]
-    
 
 instance SMTLIB Rel where
   encode = \case
-    Rel In e1 e2 -> sexpr ["str.in.re", encode e1, encode e2]
-    Rel r e1 e2  -> sexpr [encode r, encode e1, encode e2]
+    e1 :=: e2 -> sexpr ["=", encode e1, encode e2]
+    e1 :≠: e2 -> sexpr ["distinct", encode e1, encode e2]
+    e1 :<: e2 -> sexpr ["<", encode e1, encode e2]
+    e1 :≤: e2 -> sexpr ["<=", encode e1, encode e2]
+    e1 :>: e2 -> sexpr [">", encode e1, encode e2]
+    e1 :≥: e2 -> sexpr [">=", encode e1, encode e2]
+    e1 :∈: e2@(EReg _) -> sexpr ["str.in.re", encode e1, encode e2]
+    r -> panic $ "SMTLIB: unencondable relation:" <+> pretty r
 
 instance SMTLIB RegLan where
   encode = \case
@@ -90,19 +95,11 @@ instance SMTLIB RegLan where
 instance SMTLIB Expr where
   encode = \case
     EVar x           -> encode x
-    ECon v           -> encode v
-    EStrA a          -> encode a
+    EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
+    EFun f es        -> sexpr (encode f : map encode es)
+    ECon c           -> encode c
     EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r
-    ENot e           -> sexpr ["not", encode e]
-    EAdd e1 e2       -> sexpr ["+", encode e1, encode e2]
-    ESub e1 e2       -> sexpr ["-", encode e1, encode e2]
-    EMul e1 e2       -> sexpr ["*", encode e1, encode e2]
-    EFun "str_indexof" ps -> sexpr ("str.indexof" : map encode ps)
-    EFun x ps        -> sexpr (encode x : map encode ps)
-    EStrLen p        -> sexpr ["str.len", encode p]
-    EStrAt p1 p2     -> sexpr ["str.at", encode p1, encode p2]
-    EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3    
-    EAbs a -> error $ "SMTLIB: unencondable abstract value: " ++ showPretty a
+    e                -> panic $ "SMTLIB: unencodable expression:" <+> pretty e
 
 -- NB: we represent the substring operation using [start..end] ranges,
 -- but SMTLIB/Z3Str expects start plus length, so we have to convert
@@ -131,16 +128,6 @@ instance SMTLIB Value where
     B False _ -> "false"
     I x     _ -> fromShow x
     S x     _ -> fromShow x
-
-instance SMTLIB Rop where
-  encode = \case
-    Eq -> "="
-    Ne -> "distinct"
-    Ge -> ">="
-    Le -> "<="
-    Gt -> ">"
-    Lt -> "<"
-    op -> panic $ "SMTIB: unencodable operator:" <+> pretty op
 
 instance SMTLIB Base where
   encode = \case

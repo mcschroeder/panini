@@ -38,3 +38,12 @@ class Subable a v | a -> v where
 -- | @substN xs ys a@ substitutes each x for the corresponding y in a.
 substN :: Subable a v => [v] -> [Name] -> a -> a
 substN xs ys p = foldr (uncurry subst) p $ zip xs ys
+
+
+-- | Whether a particular name occurs free in a given term.
+freeIn :: Subable a v => Name -> a -> Bool
+freeIn x a = x `elem` freeVars a
+
+-- | Whether a particular name does not occur free in a given term.
+notFreeIn :: Subable a v => Name -> a -> Bool
+notFreeIn x = not . freeIn x

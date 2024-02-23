@@ -7,30 +7,30 @@ module Panini.Solver.Abstract
   , solve
   ) where
 
-import Panini.Solver.Constraints
-import Panini.Syntax
-import Panini.Solver.Assignment
-import Panini.Monad
+import Algebra.Lattice
+import Control.Monad.Extra
+import Data.Foldable
+import Data.Generics.Uniplate.Operations qualified as Uniplate
+import Data.Graph qualified as Graph
 import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.HashSet qualified as HashSet
+import Data.List qualified as List
+import Data.Map.Strict qualified as Map
+import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics
-import Data.Generics.Uniplate.Operations qualified as Uniplate
-import Panini.Abstract.AValue
-import Data.List qualified as List
-import Panini.Pretty
-import Panini.Panic
-import Panini.Abstract.Semantics
-import Data.Maybe
-import Algebra.Lattice
-import Control.Monad.Extra
-import Prelude
-import Data.Map.Strict qualified as Map
-import Data.Graph qualified as Graph
-import Data.Foldable
-import Panini.Solver.Simplifier
 import Panini.Abstract.AString qualified as AString
+import Panini.Abstract.AValue
+import Panini.Abstract.Semantics
+import Panini.Monad
+import Panini.Panic
+import Panini.Pretty
+import Panini.Solver.Assignment
+import Panini.Solver.Constraints
+import Panini.Solver.Simplifier
+import Panini.Syntax
+import Prelude
 
 -------------------------------------------------------------------------------
 
@@ -125,48 +125,46 @@ solve1 = \case
 
   PreCon x b _ c -> do
     c1 <- rewrite c
-    ds <- dnf c1 § "Convert to DNF"
+    ds0 <- dnf c1 § "Convert to DNF"
+    ds <- simplifyDNF ds0 § "Simplify DNF"
     logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
     qs <- forM ds $ \rs -> do      
-      rs' <- mapM (abstractVar x b) rs
+      rs' <- mapM (abstractVar' x b) rs
       meets' b rs' § "Meet branch"
     q <- joins' b qs § "Join all branches"
     case q of
-      EUnitA a -> pure $ AUnit a
-      EBoolA a -> pure $ ABool a
-      EIntA a  -> pure $ AInt a
-      EStrA a  -> AString (AString.simplify a) § "Simplify abstract string"
-      _        -> impossible
+      AString a  -> AString (AString.simplify a) § "Simplify abstract string"
+      a          -> pure a
 
-meets' :: Base -> [Expr] -> Expr
+meets' :: Base -> [AValue] -> AValue
 meets' b xs = case b of
-  TUnit   -> EAbs $ AUnit   $ meets $ map aExprToUnit xs
-  TBool   -> EAbs $ ABool   $ meets $ map aExprToBool xs
-  TInt    -> EAbs $ AInt    $ meets $ map aExprToInt  xs
-  TString -> EAbs $ AString $ meets $ map aExprToStr  xs
+  TUnit   -> AUnit   $ meets $ map unsafeUnwrapAUnit xs
+  TBool   -> ABool   $ meets $ map unsafeUnwrapABool xs
+  TInt    -> AInt    $ meets $ map unsafeUnwrapAInt xs  
+  TString -> AString $ meets $ map unsafeUnwrapAString xs
 
-joins' :: Base -> [Expr] -> Expr
+joins' :: Base -> [AValue] -> AValue
 joins' b xs = case b of
-  TUnit   -> EAbs $ AUnit   $ joins $ map aExprToUnit xs
-  TBool   -> EAbs $ ABool   $ joins $ map aExprToBool xs
-  TInt    -> EAbs $ AInt    $ joins $ map aExprToInt  xs
-  TString -> EAbs $ AString $ joins $ map aExprToStr  xs
+  TUnit   -> AUnit   $ joins $ map unsafeUnwrapAUnit xs
+  TBool   -> ABool   $ joins $ map unsafeUnwrapABool xs
+  TInt    -> AInt    $ joins $ map unsafeUnwrapAInt xs  
+  TString -> AString $ joins $ map unsafeUnwrapAString xs
 
-aExprToUnit :: Expr -> AUnit
-aExprToUnit (EUnitA a) = a
-aExprToUnit e          = panic $ "aExprToUnit: unexpected" <+> pretty e
+unsafeUnwrapAUnit :: AValue -> AUnit
+unsafeUnwrapAUnit (AUnit a) = a
+unsafeUnwrapAUnit a = panic $ "unsafeUnwrapAUnit: unexpected" <+> pretty a
 
-aExprToBool :: Expr -> ABool
-aExprToBool (EBoolA a) = a
-aExprToBool e          = panic $ "aExprToBool: unexpected" <+> pretty e
+unsafeUnwrapABool :: AValue -> ABool
+unsafeUnwrapABool (ABool a) = a
+unsafeUnwrapABool a = panic $ "unsafeUnwrapABool: unexpected" <+> pretty a
 
-aExprToInt :: Expr -> AInt
-aExprToInt (EIntA a) = a
-aExprToInt e         = panic $ "aExprToInt: unexpected" <+> pretty e
+unsafeUnwrapAInt :: AValue -> AInt
+unsafeUnwrapAInt (AInt a) = a
+unsafeUnwrapAInt a = panic $ "unsafeUnwrapAInt: unexpected" <+> pretty a
 
-aExprToStr :: Expr -> AString
-aExprToStr (EStrA a) = a
-aExprToStr e         = panic $ "aExprToStr: unexpected" <+> pretty e
+unsafeUnwrapAString :: AValue -> AString
+unsafeUnwrapAString (AString a) = a
+unsafeUnwrapAString a = panic $ "unsafeUnwrapAString: unexpected" <+> pretty a
 
 -------------------------------------------------------------------------------
 
@@ -194,13 +192,17 @@ rewrite c0 = do
     PIff a b      -> PIff  <$> elimExists a <*> elimExists b
     PAnd xs       -> PAnd  <$> mapM elimExists xs
     POr xs        -> POr   <$> mapM elimExists xs
-    PExists x t p -> fromDNF <$> (mapMaybeM (varElim x t) =<< dnf <$> elimExists p)
+    PExists x t p -> do
+      rs <- (mapMaybeM (varElim x t) =<< dnf <$> elimExists p)
+      let rs' = fromDNF rs
+      logData rs'
+      return rs'
     PAppK _ _     -> impossible
   
 dnf :: Pred -> [[Rel]]
 dnf = \case
   PTrue                -> [[]]
-  PFalse               -> []
+  PFalse               -> []  
   PRel r               -> [[r]]
   PNot PTrue           -> []
   PNot PFalse          -> [[]]
@@ -235,21 +237,35 @@ varElim x b φ = do
   logMessage $ "φ  =" <+> pretty φ  
   ξ <- mapM (abstractVar x b) [r | r <- φ, x `elem` freeVars r]
   logMessage $ "ξ  =" <+> pretty ξ  
-  let ξₘ = converge partialMeets (topExpr b : ξ)
-  logMessage $ "ξₘ =" <+> pretty ξₘ
-  if any containsBotAExpr ξₘ then do
-    return Nothing
-  else do
+  -- let ξₘ = converge partialMeets (topExpr b : ξ)
+  -- logMessage $ "ξₘ =" <+> pretty ξₘ
+  -- if any containsBotAExpr ξₘ then do
+  --   logMessage "↯"
+  --   return Nothing
+  -- else do
+  let ξₘ = ξ
+  do
     let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξₘ, e₂ <- es]    
     logMessage $ "ψ₁ =" <+> pretty ψ₁
     let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
     logMessage $ "ψ₂ =" <+> pretty ψ₂
-    let ψ = filter (not . isTaut) $ List.nub $ map normRel $ ψ₁ ++ ψ₂
+    let ψ = filter (taut /=) $ List.nub $ map normRel $ ψ₁ ++ ψ₂
     logMessage $ "ψ  =" <+> pretty ψ
-    return $ Just ψ
+    if any (== cont) ψ then do
+      logMessage "↯"
+      return Nothing
+    else
+      -- TODO: maybe?
+      -- if null ψ then return Nothing else
+      return $ Just ψ
 
-converge :: Eq a => (a -> a) -> a -> a
-converge = until =<< ((==) =<<)
+-- meet' (EVar x :=: EAbs a : EVar y :=: EAbs b : zs)
+--   | x == y, Just c <- a ∧? b = meet' (EVar x :=: EAbs c : zs)
+-- meet' (x:xs) = x : meet' xs
+-- meet' [] = []
 
-containsBotAExpr :: Expr -> Bool
-containsBotAExpr e = or [containsBot a | EAbs a <- Uniplate.universe e]
+-- converge :: Eq a => (a -> a) -> a -> a
+-- converge = until =<< ((==) =<<)
+
+-- containsBotAExpr :: Expr -> Bool
+-- containsBotAExpr e = or [hasBot a | EAbs a <- Uniplate.universe e]

@@ -4,9 +4,7 @@ import Algebra.Lattice
 import Data.Generics.Uniplate.Operations
 import Data.List.Extra qualified as List
 import Data.Maybe
-import Panini.Abstract.AInt (Inf(..))
-import Panini.Abstract.AInt qualified as AInt
-import Panini.Provenance
+import Panini.Abstract.Semantics
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
@@ -71,7 +69,7 @@ simplifyPred = rewrite $ \case
     | elem PFalse xs -> Just PFalse
     | xs' /= xs      -> Just $ PAnd xs'
    where
-    xs' = List.nubBy symRelEq $ concatMap flatAnd xs
+    xs' = List.nubBy (==) $ concatMap flatAnd xs
     flatAnd = \case
       PAnd ys -> ys
       PTrue   -> []
@@ -81,11 +79,11 @@ simplifyPred = rewrite $ \case
   PNot PFalse -> Just PTrue
   PNot (PRel r) -> Just $ PRel $ inverse r 
 
-  PRel r -> case simplifyRel r of
-    r' | isTaut r' -> Just PTrue
-       | isCont r' -> Just PFalse
-       | r' /= r   -> Just $ PRel r'
-       | otherwise -> Nothing
+  PRel r -> case normRel r of
+    r' | r' == taut -> Just PTrue
+       | r' == cont -> Just PFalse
+       | r' /= r, all isConcrete (universeBi r') -> Just $ PRel r'
+       | otherwise  -> Nothing
 
   PIff p PTrue -> Just p
   PIff PTrue p -> Just p
@@ -96,70 +94,41 @@ simplifyPred = rewrite $ \case
   PExists x1 _ (PAnd (List.unsnoc -> Just (xs, PRel (y :=: EVar x2)))) 
     | x1 == x2, x1 `notElem` freeVars y
     -> Just $ meets $ map (subst y x1) xs
-  
+
+  -- ∃x:b. P(x) ∧ x = y   ≡   P(y)
+  PExists x1 _ (PAnd (List.unsnoc -> Just (xs, PRel (EVar x2 :=: y)))) 
+    | x1 == x2, x1 `notElem` freeVars y
+    -> Just $ meets $ map (subst y x1) xs
+
+
   -- ∃x:b. y = x   ≡   ⊤
   PExists x1 _ (PRel (y :=: EVar x2))
     | x1 == x2, x1 `notElem` freeVars y
     -> Just PTrue
 
+  -- ∃x:b. x = y   ≡   ⊤
+  PExists x1 _ (PRel (EVar x2 :=: y))
+    | x1 == x2, x1 `notElem` freeVars y
+    -> Just PTrue
+
   _ -> Nothing
 
-symRelEq :: Pred -> Pred -> Bool
-symRelEq (PRel r1) (PRel r2) | r1 == r2          = True
-                             | converse r1 == r2 = True
-                             | otherwise         = False
-symRelEq p1        p2                            = p1 == p2
+-------------------------------------------------------------------------------
+
+simplifyDNF :: [[Rel]] -> [[Rel]]
+simplifyDNF = go []
+ where
+  go ys []     = ys
+  go ys (x:xs) = case filter (/= taut) $ List.nub $ map normRel x of
+    x' | null x'          -> [[]]
+       | any (== cont) x' -> go ys xs
+       | otherwise        -> go (x:ys) xs
+
 
 -------------------------------------------------------------------------------
 
 simplifyType :: Type -> Type
 simplifyType = \case
   TBase x b Unknown   pv -> TBase x b Unknown pv
-  TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred $ normReft x p) pv
+  TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred p) pv
   TFun x s t pv          -> TFun x (simplifyType s) (simplifyType t) pv
-
-normReft :: Name -> Pred -> Pred
-normReft v = \case
-  PAnd xs   -> PAnd (map rearrangeRel xs)
-  POr xs    -> POr (map rearrangeRel xs)
-  PImpl p q -> PImpl (normReft v p) (normReft v q)
-  PIff p q  -> PIff (normReft v p) (normReft v q)
-  PNot p    -> PNot (normReft v p)
-  p         -> p
- where
-  rearrangeRel (PRel r@(Rel _ e1 e2)) 
-    | v `notElem` freeVars e1, v `elem` freeVars e2
-    = PRel $ converse r
-  rearrangeRel p = p
-
--------------------------------------------------------------------------------
-
-simplifyRel :: Rel -> Rel
-simplifyRel r = case normRel r of
-  EVar x1 :=: EVar x2 | x1 == x2 -> taut
-  EVar x1 :≠: EVar x2 | x1 == x2 -> cont
-  ECon c1 :=: ECon c2 -> if c1 == c2 then taut else cont
-  ECon c1 :≠: ECon c2 -> if c1 == c2 then cont else taut
-  
-  -- TODO: we assume here that all Rel are typed correctly!
-  EVar _ :=: ECon (U _) -> taut
-  ECon (U _) :=: EVar _ -> taut
-  EVar _ :≠: ECon (U _) -> cont
-  ECon (U _) :≠: EVar _ -> cont
-  
-  EVar x :≠: EBool b pv -> EVar x :=: EBool (not b) pv
-  EBool b pv :≠: EVar x -> EBool (not b) pv :=: EVar x
-  EInt a _ :>: EInt b _ -> if a >  b then taut else cont
-  EInt a _ :≥: EInt b _ -> if a >= b then taut else cont
-  EInt a _ :<: EInt b _ -> if a <  b then taut else cont
-  EInt a _ :≤: EInt b _ -> if a <= b then taut else cont
-
-  (e1 :-: EIntA a) :<: e2 | e1 == e2, AInt.minimum a >  Just (Fin 0) -> taut
-  (e1 :-: EIntA a) :≤: e2 | e1 == e2, AInt.minimum a >= Just (Fin 0) -> taut
-  (e1 :-: EIntA a) :>: e2 | e1 == e2, AInt.minimum a >= Just (Fin 0) -> cont
-  (e1 :-: EIntA a) :≥: e2 | e1 == e2, AInt.minimum a >  Just (Fin 0) -> cont
-
-  r' -> r'
- where
-  taut = EBool True NoPV :=: EBool True NoPV
-  cont = EBool True NoPV :≠: EBool True NoPV

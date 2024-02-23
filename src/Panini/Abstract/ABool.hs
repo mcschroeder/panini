@@ -1,6 +1,7 @@
 module Panini.Abstract.ABool
   ( ABool
   , value
+  , member
   , eq
   ) where
 
@@ -66,6 +67,13 @@ value :: ABool -> Maybe Bool
 value True_  = Just True
 value False_ = Just False
 value _      = Nothing
+
+-- | Whether a particular value is represented by the abstract Boolean.
+member :: Bool -> ABool -> Bool
+member _     Top    = True
+member True  True_  = True
+member False False_ = True
+member _     _      = False
 
 -- | An abstract Boolean equal to this concrete value.
 eq :: Bool -> ABool

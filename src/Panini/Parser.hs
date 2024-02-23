@@ -385,22 +385,20 @@ mkOr p        q        = POr [p,q]
 predRel :: Parser Pred
 predRel = do
   e1 <- pexpr
-  r <- relation
+  ctor <- relation
   e2 <- pexpr
-  return (PRel (Rel r e1 e2))
+  return (PRel (ctor e1 e2))
 
-relation :: Parser Rop
+relation :: Parser (Expr -> Expr -> Rel)
 relation = choice
-  [ Ne <$ symNe
-  , Eq <$ op "="
-  , Le <$ symLe
-  , Lt <$ op "<"
-  , Ge <$ symGe
-  , Gt <$ op ">"
-  , In <$ symIn
-  , Ni <$ symNi
-  , NotIn <$ symNotIn
-  , NotNi <$ symNotNi
+  [ (:≠:) <$ symNe
+  , (:=:) <$ op "="
+  , (:≤:) <$ symLe
+  , (:<:) <$ op "<"
+  , (:≥:) <$ symGe
+  , (:>:) <$ op ">"
+  , (:∈:) <$ symIn
+  , (:∉:) <$ symNotIn
   ]
 
 pexpr :: Parser Expr
@@ -418,10 +416,10 @@ pexprOps :: [[Operator Parser Expr]]
 pexprOps =
   [ [ Postfix opSubStr ]
   , [ prefix symNot ENot ]
-  , [ infixL (op "*") (EMul)
+  , [ infixL (op "*") ((:*:))
     ]
-  , [ infixL (op "+") (EAdd)
-    , infixL (op "-") (ESub)
+  , [ infixL (op "+") ((:+:))
+    , infixL (op "-") ((:-:))
     ]
   ]
 
@@ -524,8 +522,8 @@ symIn = op "\\in" <|> symbol "∈"
 symNotIn :: Parser ()
 symNotIn = op "\\notin" <|> symbol "∉"
 
-symNi :: Parser ()
-symNi = op "\\ni" <|> symbol "∋"
+-- symNi :: Parser ()
+-- symNi = op "\\ni" <|> symbol "∋"
 
-symNotNi :: Parser ()
-symNotNi = op "\\notni" <|> symbol "∌"
+-- symNotNi :: Parser ()
+-- symNotNi = op "\\notni" <|> symbol "∌"
