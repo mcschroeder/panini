@@ -39,9 +39,10 @@ import Prettyprinter qualified as PP
 
 -- | An abstract integer.
 newtype AInt = AInt IntervalSequence
-  deriving stock (Eq, Show, Read)
+  deriving stock (Show, Read)
   deriving newtype 
-    ( MeetSemilattice, JoinSemilattice
+    ( Eq, Ord
+    , MeetSemilattice, JoinSemilattice
     , BoundedMeetSemilattice, BoundedJoinSemilattice
     , ComplementedLattice
     , Hashable)
@@ -192,6 +193,9 @@ sub (AInt xs) (AInt ys) = AInt $ joins $ [[subIn x y] | x <- xs, y <- ys]
 
 -- | An ordered list of non-overlapping integer intervals.
 type IntervalSequence = [Interval]
+
+instance {-# OVERLAPPING #-} Ord IntervalSequence where
+  (last -> In _ a) <= (last -> In _ b) = a <= b
 
 instance JoinSemilattice IntervalSequence where
   []     ∨ ys        = ys
