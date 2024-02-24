@@ -30,11 +30,14 @@ module Panini.Regex.Type
   , pattern Star
   , pattern Opt  
   , nullable
+  , minWordLength
+  , maxWordLength
   ) where
 
 import Algebra.Lattice
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.Maybe
 import Data.Semigroup hiding (All)
 import Data.Set qualified as Set
 import Data.String
@@ -204,3 +207,31 @@ nullable = \case
   Times rs -> and $ map nullable rs
   Star _   -> True
   Opt _    -> True
+
+-- | The length of the shortest word accepted by the regex, or 'Nothing' if the
+-- regex is 'Zero'.
+minWordLength :: Regex -> Maybe Int
+minWordLength Zero = Nothing
+minWordLength r0 = Just $ go r0
+ where 
+  go = \case
+    One      -> 0
+    Lit _    -> 1
+    Plus rs  -> minimum $ map go rs
+    Times rs -> sum $ map go rs
+    Star _   -> 0
+    Opt _    -> 0
+
+-- | The length of the longest word accepted by the regex, or -1 if the regex
+-- accepts an infinite language, or 'Nothing' if the regex is 'Zero'.
+maxWordLength :: Regex -> Maybe Int
+maxWordLength Zero = Nothing
+maxWordLength r0 = Just $ fromMaybe (-1) $ go r0
+ where
+  go = \case
+    One      -> Just 0
+    Lit _    -> Just 1
+    Plus rs  -> maximum <$> mapM go rs
+    Times rs -> sum <$> mapM go rs
+    Star _   -> Nothing
+    Opt r    -> go r
