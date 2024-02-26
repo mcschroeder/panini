@@ -13,7 +13,7 @@ module Panini.Abstract.AString
   , toRegex
   , fromRegex
   , toRegLan
-  , length
+  , lengthBounds
   , Panini.Abstract.AString.simplify  
   ) where
 
@@ -99,8 +99,13 @@ toRegLan (AString r) = Panini.Regex.SMT.toRegLan r
 
 ------------------------------------------------------------------------------
 
-length :: AString -> AInt
-length (AString r) = case (minWordLength r, maxWordLength r) of
+-- | Returns the lower and upper bounds on the abstract string's length. The
+-- length of any word represented by the string falls within this range. Note,
+-- however, that not every length within this range is necessarily represented
+-- by the string, e.g., the length bounds of "(ab)*" are [0,+∞], but the string
+-- does not contain any words of length 1 or 3 or 5, etc.
+lengthBounds :: AString -> AInt
+lengthBounds (AString r) = case (minWordLength r, maxWordLength r) of
   (Just m, Just (-1)) -> AInt.ge (fromIntegral m)
   (Just m, Just n   ) -> AInt.ge (fromIntegral m) ∧ AInt.le (fromIntegral n)
   _                   -> bot
