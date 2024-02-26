@@ -105,10 +105,10 @@ simplifyPred = rewrite $ \case
   _ -> Nothing
 
 symRelEq :: Pred -> Pred -> Bool
-symRelEq (PRel r1) (PRel r2) | r1 == r2                           = True
-                             | Just r1' <- converse r1, r1' == r2 = True
-                             | otherwise                          = False
-symRelEq p1        p2                                             = p1 == p2
+symRelEq (PRel r1) (PRel r2) | r1 == r2          = True
+                             | converse r1 == r2 = True
+                             | otherwise         = False
+symRelEq p1        p2                            = p1 == p2
 
 -------------------------------------------------------------------------------
 
@@ -129,7 +129,7 @@ normReft v = \case
  where
   rearrangeRel (PRel r@(Rel _ e1 e2)) 
     | v `notElem` freeVars e1, v `elem` freeVars e2
-    , Just r' <- converse r = PRel r'
+    = PRel $ converse r
   rearrangeRel p = p
 
 -------------------------------------------------------------------------------

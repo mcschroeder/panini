@@ -398,7 +398,9 @@ relation = choice
   , Ge <$ symGe
   , Gt <$ op ">"
   , In <$ symIn
-  , Ni <$ symNotIn
+  , Ni <$ symNi
+  , NotIn <$ symNotIn
+  , NotNi <$ symNotNi
   ]
 
 pexpr :: Parser Expr
@@ -521,3 +523,9 @@ symIn = op "\\in" <|> symbol "∈"
 
 symNotIn :: Parser ()
 symNotIn = op "\\notin" <|> symbol "∉"
+
+symNi :: Parser ()
+symNi = op "\\ni" <|> symbol "∋"
+
+symNotNi :: Parser ()
+symNotNi = op "\\notni" <|> symbol "∌"

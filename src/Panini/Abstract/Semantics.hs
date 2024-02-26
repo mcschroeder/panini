@@ -38,7 +38,7 @@ abstractVar x b r = case abstract x b r of
 abstract :: Name -> Base -> Rel -> Either Rel Expr
 abstract x b r = case normRel r of
   e1 :⋈: e2 | x ∉ e1, x ∉ e2 -> Left r
-  e1 :⋈: e2 | x ∉ e1, x ∈ e2 -> maybe (Left r) (abstract x b) (converse r)
+  e1 :⋈: e2 | x ∉ e1, x ∈ e2 -> abstract x b $ converse r
 
   -- here, x occurs on LHS and MAY also occur on RHS --------------------------
 

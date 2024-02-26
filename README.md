@@ -143,5 +143,7 @@ Alternatively, you can use the following ASCII equivalents for common symbols:
 | `⇔` or `⟺` | `<=>` | `\Leftrightarrow` or `\iff` | iff
 | `∈`     | `\in`    | `\in`     | included in
 | `∉`     | `\notin` | `\notin`  | not included in
+| `∋`     | `\ni`    | `\ni`     | includes
+| `∌`     | `\notni` | N/A       | does not include
 
 Panini also has a `--no-unicode` flag which outputs only ASCII (but still permits Unicode input).

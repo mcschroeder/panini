@@ -360,10 +360,12 @@ data Rop
   | Gt  -- ^ greater than @>@
   | Lt  -- ^ less than @<@
   | In  -- ^ included in @∈@
-  | Ni  -- ^ not included in @∉@
+  | Ni  -- ^ includes @∋@
+  | NotIn  -- ^ not included in @∉@
+  | NotNi  -- ^ does not include @∌@
   deriving stock (Eq, Ord, Generic, Show, Read)
 
-{-# COMPLETE (:=:), (:≠:), (:≥:), (:>:), (:≤:), (:<:), (:∈:), (:∉:) #-}
+{-# COMPLETE (:=:), (:≠:), (:≥:), (:>:), (:≤:), (:<:), (:∈:), (:∉:), (:∋:), (:∌:) #-}
 
 pattern (:=:), (:≠:) :: Expr -> Expr -> Rel
 pattern e1 :=: e2 = Rel Eq e1 e2
@@ -375,9 +377,11 @@ pattern e1 :>: e2 = Rel Gt e1 e2
 pattern e1 :≤: e2 = Rel Le e1 e2
 pattern e1 :<: e2 = Rel Lt e1 e2
 
-pattern (:∈:), (:∉:) :: Expr -> Expr -> Rel
+pattern (:∈:), (:∉:), (:∋:), (:∌:) :: Expr -> Expr -> Rel
 pattern e1 :∈: e2 = Rel In e1 e2
-pattern e1 :∉: e2 = Rel Ni e1 e2
+pattern e1 :∉: e2 = Rel NotIn e1 e2
+pattern e1 :∋: e2 = Rel Ni e1 e2
+pattern e1 :∌: e2 = Rel NotNi e1 e2
 
 -- | Matches any relation, discarding the operator.
 pattern (:⋈:) :: Expr -> Expr -> Rel
@@ -409,6 +413,8 @@ instance Pretty Rop where
     Gt -> symGt
     In -> symIn
     Ni -> symNi
+    NotIn -> symNotIn
+    NotNi -> symNotNi
 
 instance Subable Rel Expr where
   subst x y = descendBi (subst @Expr x y)  
@@ -436,20 +442,25 @@ inverse = \case
   e1 :<: e2 -> e1 :≥: e2
   e1 :∈: e2 -> e1 :∉: e2
   e1 :∉: e2 -> e1 :∈: e2
+  e1 :∋: e2 -> e1 :∌: e2
+  e1 :∌: e2 -> e1 :∋: e2
 
--- | The converse of a relation, e.g., @a > b@ to @b < a@, if it exists. This
--- transformation switches the left and right sides of the relation, while
--- keeping the truth value the same.
-converse :: Rel -> Maybe Rel
+-- | The converse of a relation, e.g., @a > b@ to @b < a@. This transformation
+-- switches the left and right sides of the relation, while keeping the truth
+-- value the same.
+converse :: Rel -> Rel
 converse = \case
-  e1 :=: e2 -> Just $ e2 :=: e1
-  e1 :≠: e2 -> Just $ e2 :≠: e1
-  e1 :≥: e2 -> Just $ e2 :≤: e1
-  e1 :≤: e2 -> Just $ e2 :≥: e1
-  e1 :>: e2 -> Just $ e2 :<: e1
-  e1 :<: e2 -> Just $ e2 :>: e1
-  _ :∈: _ -> Nothing
-  _ :∉: _ -> Nothing
+  e1 :=: e2 -> e2 :=: e1
+  e1 :≠: e2 -> e2 :≠: e1
+  e1 :≥: e2 -> e2 :≤: e1
+  e1 :≤: e2 -> e2 :≥: e1
+  e1 :>: e2 -> e2 :<: e1
+  e1 :<: e2 -> e2 :>: e1
+  e1 :∈: e2 -> e2 :∋: e1
+  e1 :∉: e2 -> e2 :∌: e1
+  e1 :∋: e2 -> e2 :∈: e1
+  e1 :∌: e2 -> e2 :∉: e1
+  
 
 -- | Whether a relation is an obvious tautology. Note that if this returns
 -- 'False', the relation might still be a tautology (just not an obvious one).

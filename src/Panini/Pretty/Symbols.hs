@@ -76,7 +76,7 @@ symIff     = "⇔" `orASCII` "<==>"
 symAll     = "∀" `orASCII` "forall "
 symExists  = "∃" `orASCII` "exists "
 
-symNe, symEq, symLe, symLt, symGe, symGt, symIn, symNi :: Doc
+symNe, symEq, symLe, symLt, symGe, symGt, symIn, symNotIn, symNi, symNotNi :: Doc
 symNe = "≠" `orASCII` "/="
 symEq = "="
 symLe = "≤" `orASCII` "<="
@@ -84,7 +84,9 @@ symLt = "<"
 symGe = "≥" `orASCII` ">="
 symGt = ">"
 symIn = "∈" `orASCII` "\\in"
-symNi = "∉" `orASCII` "\\notin"
+symNotIn = "∉" `orASCII` "\\notin"
+symNi = "∋" `orASCII` "\\ni"
+symNotNi = "∌" `orASCII` "\\notni"
 
 -- TODO: these replacements could cause massive confusion in string grammars
 lambda, kappa, sigma, bigSigma, epsilon :: Doc

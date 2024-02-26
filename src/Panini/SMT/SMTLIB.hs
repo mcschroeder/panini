@@ -7,6 +7,7 @@ import Data.Text.Lazy qualified as LT
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as LB
 import Panini.Abstract.AString (AString, toRegLan)
+import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Regex.POSIX.ERE qualified as ERE
@@ -139,8 +140,7 @@ instance SMTLIB Rop where
     Le -> "<="
     Gt -> ">"
     Lt -> "<"
-    In -> undefined -- TODO
-    Ni -> undefined -- TODO
+    op -> panic $ "SMTIB: unencodable operator:" <+> pretty op
 
 instance SMTLIB Base where
   encode = \case
