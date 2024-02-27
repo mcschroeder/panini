@@ -22,9 +22,11 @@ import Prelude
 
 -- | An abstract character.
 newtype AChar = AChar CharSet
-  deriving stock (Eq, Ord, Generic, Show, Read)
+  deriving stock (Generic, Show, Read)
   deriving newtype 
-    ( MeetSemilattice, JoinSemilattice
+    ( Eq, Ord
+    , PartialOrder
+    , MeetSemilattice, JoinSemilattice
     , BoundedMeetSemilattice, BoundedJoinSemilattice
     , ComplementedLattice
     )

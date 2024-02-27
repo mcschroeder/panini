@@ -35,8 +35,12 @@ import Prelude hiding (length)
 ------------------------------------------------------------------------------
 
 newtype AString = AString Regex
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic)
   deriving newtype (Semigroup, Monoid, Hashable)
+
+-- | Based on total structural ordering of 'Regex'.
+instance PartialOrder AString where
+  (⊑) = (<=)
 
 instance JoinSemilattice AString where
   AString r1 ∨ AString r2 = AString (Plus [r1,r2])

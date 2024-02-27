@@ -38,13 +38,23 @@ import Prelude hiding (null)
 
 -- | A set of Unicode characters.
 data CharSet = CharSet !Bool !IntSet
-  deriving stock (Eq, Ord, Generic, Show, Read)
+  deriving stock (Generic, Show, Read)
 
 instance Hashable CharSet
 
 instance Semigroup CharSet where (<>)   = union
 instance Monoid    CharSet where mempty = empty
 
+-- | Extensional equality; different internal representations of the same set of
+-- characters will be seen as equal.
+instance Eq CharSet where 
+  a == b = a ⊑ b && b ⊑ a
+
+-- | Same as 'PartialOrder', based on subset equality.
+instance Ord CharSet 
+  where  (<=) = (⊑)
+
+instance PartialOrder           CharSet where (⊑) = isSubsetOf
 instance MeetSemilattice        CharSet where (∧) = intersection
 instance JoinSemilattice        CharSet where (∨) = union
 instance BoundedMeetSemilattice CharSet where top = full  -- TODO: non-unique?

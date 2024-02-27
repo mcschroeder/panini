@@ -34,7 +34,10 @@ data Value
   | B !Bool    !PV  -- true, false
   | I !Integer !PV  -- 0, -1, 1, ...
   | S !Text    !PV  -- "lorem ipsum"
-  deriving stock (Show, Read)
+  deriving stock 
+    ( Ord -- ^ structural ordering
+    , Show, Read
+    )
 
 -- | Equality between values ignores provenance.
 instance Eq Value where

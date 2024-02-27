@@ -39,7 +39,11 @@ data Expr
   | EStrAt !Expr !Expr         -- ^ character at index @s[i]@
   | EStrSub !Expr !Expr !Expr  -- ^ substring @s[i..j]@ (inclusive bounds)
   | EFun !Name ![Expr]         -- ^ uninterpreted function @f(e₁,e₂,…,eₙ)@   
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock 
+    ( Eq
+    , Ord  -- ^ structural ordering
+    , Show, Read, Generic
+    )
 
 instance Hashable Expr
 
@@ -241,6 +245,14 @@ instance Subable Expr Expr where
     EStrSub e1 e2 e3 -> freeVars e1 <> freeVars e2 <> freeVars e3
     EFun _ es        -> mconcat (map freeVars es)
 
+instance PartialOrder Expr where
+  EAbs a ⊑ EAbs b = a ⊑ b
+  ECon a ⊑ EAbs b = fromValue a ⊑ b
+  _      ⊑ EAbs b = containsTop b
+  EAbs a ⊑ ECon b = a ⊑ fromValue b
+  EAbs a ⊑ _      = containsBot a
+  a      ⊑ b      = a <= b
+    
 instance PartialMeetSemilattice Expr where  
   EAbs a ∧? EAbs b = EAbs <$> a ∧? b  
   EAbs a ∧? e      | containsTop a, eqTypeAE a e = Just e
@@ -333,7 +345,11 @@ normExpr = rewrite $ \case
 
 -- | Relation between expressions.
 data Rel = Rel !Rop !Expr !Expr    -- ^ binary relation @e₁ ⋈ e₂@  
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock 
+    ( Eq
+    , Ord  -- ^ structural ordering
+    , Show, Read, Generic
+    )
 
 -- | A relation between two expressions.
 data Rop 

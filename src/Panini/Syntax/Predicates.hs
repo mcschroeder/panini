@@ -28,9 +28,22 @@ data Pred
   | PRel !Rel                  -- ^ relation @e₁ ⋈ e₂@
   | PAppK !KVar ![Expr]        -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
   | PExists !Name !Base !Pred  -- ^ existential quantification @∃x:b. p@
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock 
+    ( Eq
+    , Ord -- ^ structural ordering
+    , Show, Read, Generic
+    )
 
 instance Hashable Pred
+
+-- | Same as structural ordering, except that 'PTrue' and 'PFalse' are always
+-- the largest and smallest element, respectively.
+instance PartialOrder Pred where
+  _      ⊑ PTrue  = True
+  PTrue  ⊑ _      = False
+  PFalse ⊑ _      = True
+  _      ⊑ PFalse = False
+  a      ⊑ b      = a <= b
 
 instance MeetSemilattice Pred where
   PTrue   ∧ q       = q

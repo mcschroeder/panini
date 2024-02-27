@@ -26,7 +26,10 @@ data Con
   = CHead !Pred                  -- p
   | CAnd !Con !Con               -- c1 ∧ c2
   | CAll !Name !Base !Pred !Con  -- ∀(x:b). p ⟹ c  
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock 
+    ( Eq
+    , Ord  -- ^ structural ordering
+    , Show, Read, Generic)
 
 instance Hashable Con
 
@@ -35,6 +38,12 @@ pattern CTrue = CHead PTrue
 
 pattern CFalse :: Con
 pattern CFalse = CHead PFalse
+
+-- | Similar to structural ordering, except 'CTrue' is the largest element.
+instance PartialOrder Con where
+  _     ⊑ CTrue = True
+  CTrue ⊑ _     = False
+  a     ⊑ b     = a <= b
 
 instance MeetSemilattice Con where
   CTrue ∧ c2    = c2

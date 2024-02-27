@@ -30,7 +30,10 @@ data AValue
   | ABool !ABool
   | AInt !AInt
   | AString !AString
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock 
+    ( Eq
+    , Ord  -- ^ structural ordering
+    , Show, Read, Generic)
 
 instance Hashable AValue
 
@@ -40,6 +43,13 @@ instance Pretty AValue where
     ABool   a -> pretty a
     AInt    a -> pretty a
     AString a -> pretty a
+
+instance PartialOrder AValue where
+  AUnit   a ⊑ AUnit   b = a ⊑ b
+  ABool   a ⊑ ABool   b = a ⊑ b
+  AInt    a ⊑ AInt    b = a ⊑ b
+  AString a ⊑ AString b = a ⊑ b
+  _         ⊑ _         = False
 
 instance PartialMeetSemilattice AValue where
   AUnit   a ∧? AUnit   b = Just $ AUnit   (a ∧ b)

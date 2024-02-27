@@ -61,8 +61,9 @@ data Regex
   | Star_ Regex
   | Opt_ Regex
   deriving stock 
-    ( Eq -- ^ structural equivalence
-    , Ord, Show, Read, Generic
+    ( Eq   -- ^ structural equivalence
+    , Ord  -- ^ structural ordering
+    , Show, Read, Generic
     )
 
 -- | zero element (0), empty set (∅), bottom (⊥)

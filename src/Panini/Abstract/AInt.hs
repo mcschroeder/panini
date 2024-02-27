@@ -42,6 +42,7 @@ newtype AInt = AInt IntervalSequence
   deriving stock (Show, Read)
   deriving newtype 
     ( Eq, Ord
+    , PartialOrder
     , MeetSemilattice, JoinSemilattice
     , BoundedMeetSemilattice, BoundedJoinSemilattice
     , ComplementedLattice
@@ -197,6 +198,9 @@ type IntervalSequence = [Interval]
 instance {-# OVERLAPPING #-} Ord IntervalSequence where
   (last -> In _ a) <= (last -> In _ b) = a <= b
 
+instance PartialOrder IntervalSequence where
+  (⊑) = (<=)
+
 instance JoinSemilattice IntervalSequence where
   []     ∨ ys        = ys
   xs     ∨ []        = xs
@@ -242,9 +246,13 @@ holes _                                      = []
 
 -- | An integer interval @[a..b]@ where @a <= b@.
 data Interval = In !(Inf Integer) !(Inf Integer)
-  deriving stock (Ord, Eq, Generic, Show, Read)
+  deriving stock (Eq, Generic, Show, Read)
 
 instance Hashable Interval
+
+-- | Uses 'PartialOrder' instance.
+instance Ord Interval where
+  (<=) = (⊑)
 
 -- | Create a singleton interval @[a..a]@.
 singleton :: Integer -> Interval
@@ -302,6 +310,10 @@ contains (In a b) (In c d) = a <= c && d <= b
 -- This is the "overlaps" relation in Allen's interval algebra.
 overlaps :: Interval -> Interval -> Bool
 overlaps (In a b) (In c d) = a <= c && c <= b && b < d
+
+-- | Intervals are ordered by inclusion.
+instance PartialOrder Interval where
+  In a b ⊑ In c d = c <= a && b <= d
 
 instance JoinSemilattice Interval where
   In a b ∨ In c d = In (min a c) (max b d)

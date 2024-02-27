@@ -6,9 +6,21 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
--- TODO: should be super class of lattices
-class PartialOrd a where
-  (≤) :: a -> a -> Bool
+-- | A partially ordered set is defined by a binary relation '⊑' that satisfies
+-- the following laws:
+-- 
+-- [Reflexivity]  @a ⊑ a@ 
+-- [Antisymmetry] if @a ⊑ b@ and @b ⊑ a@, then @a = b@
+-- [Transitivity] if @a ⊑ b@ and @b ⊑ c@, then @a ⊑ c@
+--
+-- A definining characteristic of partial orders is that not every pair of
+-- elements is comparable. If a partial order does happen to be total, then it
+-- usually aligns with an 'Ord' instance on the same type, but not necessarily;
+-- 'Ord' instances are usually structural, and the partial order might need to
+-- capture certain semantic properties necessary for the soundness of any
+-- lattice operations.
+class PartialOrder a where
+  (⊑) :: a -> a -> Bool  
 
 -------------------------------------------------------------------------------
 
@@ -20,7 +32,7 @@ class PartialOrd a where
 -- [Idempotency]   @x '∧' x == x@ 
 -- [Commutativity] @x '∧' y == y '∧' x@
 -- [Associativity] @x '∧' (y '∧' z) = (x '∧' y) '∧' z@
-class MeetSemilattice a where
+class PartialOrder a => MeetSemilattice a where
   -- | The 'meet' (greatest lower bound) of two elements.
   (∧) :: a -> a -> a
 
@@ -39,7 +51,7 @@ meets1 = foldr1 (∧)
 -- [Idempotency]   @x '∨' x == x@ 
 -- [Commutativity] @x '∨' y == y '∨' x@
 -- [Associativity] @x '∨' (y '∨' z) = (x '∨' y) '∨' z@
-class JoinSemilattice a where
+class PartialOrder a => JoinSemilattice a where
   -- | The 'join' (least upper bound) of two elements.
   (∨) :: a -> a -> a
 
@@ -111,7 +123,7 @@ class BoundedLattice a => ComplementedLattice a where
 
 -- | A partial meet-semilattice does not have a defined 'meet' for every pair of
 -- elements. This is sometimes useful for composite objects.
-class PartialMeetSemilattice a where
+class PartialOrder a => PartialMeetSemilattice a where
   (∧?) :: a -> a -> Maybe a
 
 -- | A synonym for '∧?'.

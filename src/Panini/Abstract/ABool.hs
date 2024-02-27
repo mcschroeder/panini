@@ -13,14 +13,21 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- | An abstract Boolean value.
-data ABool
-  = Top
-  | True_
-  | False_
-  | Bottom
-  deriving stock (Eq, Generic, Show, Read)
+data ABool = Bottom | False_ | True_ | Top
+  deriving stock 
+    ( Eq
+    , Ord  -- ^ structural total ordering; different from 'PartialOrder'
+    , Generic, Show, Read
+    )
 
 instance Hashable ABool
+
+instance PartialOrder ABool where
+  _      ⊑ Top    = True
+  Bottom ⊑ _      = True
+  True_  ⊑ True_  = True
+  False_ ⊑ False_ = True
+  _      ⊑ _      = False
 
 instance JoinSemilattice ABool where
   Top    ∨ _      = Top
