@@ -195,11 +195,19 @@ sub (AInt xs) (AInt ys) = AInt $ joins $ [[subIn x y] | x <- xs, y <- ys]
 -- | An ordered list of non-overlapping integer intervals.
 type IntervalSequence = [Interval]
 
+-- | A linear extension of the 'PartialOrder'.
 instance {-# OVERLAPPING #-} Ord IntervalSequence where
-  (last -> In _ a) <= (last -> In _ b) = a <= b
+  a <= b = a ⊑ b || and [x <= y | x <- a, y <- b]
 
+-- | Interval sequences are partially ordered by inclusion.
 instance PartialOrder IntervalSequence where
-  (⊑) = (<=)
+  []     ⊑ _       = True
+  _      ⊑ []      = False
+  (x:xs) ⊑ (y:ys)
+    | x `before` y = False
+    | y `before` x = (x:xs) ⊑ ys
+    | x ⊑ y        = xs ⊑ (y:ys)
+    | otherwise    = False
 
 instance JoinSemilattice IntervalSequence where
   []     ∨ ys        = ys
@@ -250,9 +258,27 @@ data Interval = In !(Inf Integer) !(Inf Integer)
 
 instance Hashable Interval
 
--- | Uses 'PartialOrder' instance.
+-- | A linear extension of the 'PartialOrder'.
 instance Ord Interval where
-  (<=) = (⊑)
+  a <= b = a ⊑ b || a `before` b || a `overlaps` b
+
+-- | Intervals are partially ordered by inclusion.
+instance PartialOrder Interval where
+  In a b ⊑ In c d = c <= a && b <= d
+
+instance JoinSemilattice Interval where
+  In a b ∨ In c d = In (min a c) (max b d)
+
+instance MeetSemilattice Interval where
+  In a b ∧ In c d = In (max a c) (min b d)
+
+instance BoundedMeetSemilattice Interval where
+  top = In NegInf PosInf
+
+instance Pretty Interval where
+  pretty (In a b)
+    | a == b    = pretty a
+    | otherwise = brackets $ pretty a <> comma <> pretty b
 
 -- | Create a singleton interval @[a..a]@.
 singleton :: Integer -> Interval
@@ -310,24 +336,6 @@ contains (In a b) (In c d) = a <= c && d <= b
 -- This is the "overlaps" relation in Allen's interval algebra.
 overlaps :: Interval -> Interval -> Bool
 overlaps (In a b) (In c d) = a <= c && c <= b && b < d
-
--- | Intervals are ordered by inclusion.
-instance PartialOrder Interval where
-  In a b ⊑ In c d = c <= a && b <= d
-
-instance JoinSemilattice Interval where
-  In a b ∨ In c d = In (min a c) (max b d)
-
-instance MeetSemilattice Interval where
-  In a b ∧ In c d = In (max a c) (min b d)
-
-instance BoundedMeetSemilattice Interval where
-  top = In NegInf PosInf
-
-instance Pretty Interval where
-  pretty (In a b)
-    | a == b    = pretty a
-    | otherwise = brackets $ pretty a <> comma <> pretty b
 
 -------------------------------------------------------------------------------
 
