@@ -50,15 +50,16 @@ instance Monoid    CharSet where mempty = empty
 instance Eq CharSet where 
   a == b = a ⊑ b && b ⊑ a
 
--- | Same as 'PartialOrder', based on subset equality.
-instance Ord CharSet 
-  where  (<=) = (⊑)
+-- | A linear extension of the 'PartialOrder' using lexicographic ordering.
+instance Ord CharSet where
+  a <= b | a ⊑ b     = True
+         | otherwise = toList a <= toList b  
 
 instance PartialOrder           CharSet where (⊑) = isSubsetOf
 instance MeetSemilattice        CharSet where (∧) = intersection
 instance JoinSemilattice        CharSet where (∨) = union
-instance BoundedMeetSemilattice CharSet where top = full  -- TODO: non-unique?
-instance BoundedJoinSemilattice CharSet where bot = empty -- TODO: non-unique?
+instance BoundedMeetSemilattice CharSet where top = full
+instance BoundedJoinSemilattice CharSet where bot = empty
 instance ComplementedLattice    CharSet where neg = complement
 
 instance Pretty CharSet where 
@@ -127,7 +128,7 @@ size :: CharSet -> Int
 size (CharSet True  cs) = I.size cs
 size (CharSet False cs) = fromEnum @Char maxBound + 1 - I.size cs
 
--- | The characters in the set, in undefined order.
+-- | The characters in the set, in lexicographic order.
 toList :: CharSet -> [Char]
 toList (CharSet True  cs) = intSetToCharList cs
 toList (CharSet False cs) = 
