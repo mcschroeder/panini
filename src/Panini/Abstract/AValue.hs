@@ -7,6 +7,7 @@ module Panini.Abstract.AValue
   , AUnit
   , hasTop, hasBot
   , fillTop, fillBot
+  , topValue, botValue
   , typeOfAValue
   , fromValue
   ) where
@@ -84,20 +85,27 @@ hasBot = \case
   AString a -> isBot a
 
 fillTop :: AValue -> AValue
-fillTop = \case
-  AUnit   _ -> AUnit top
-  ABool   _ -> ABool top
-  AInt    _ -> AInt top
-  AChar   _ -> AChar top
-  AString _ -> AString top
+fillTop = topValue . typeOfAValue
 
 fillBot :: AValue -> AValue
-fillBot = \case
-  AUnit   _ -> AUnit bot
-  ABool   _ -> ABool bot
-  AInt    _ -> AInt bot
-  AChar   _ -> AChar bot
-  AString _ -> AString bot
+fillBot = botValue . typeOfAValue
+
+topValue :: Base -> AValue
+topValue = \case
+  TUnit   -> AUnit   top
+  TBool   -> ABool   top
+  TInt    -> AInt    top
+  TChar   -> AChar   top
+  TString -> AString top
+
+botValue :: Base -> AValue
+botValue = \case
+  TUnit   -> AUnit   bot
+  TBool   -> ABool   bot
+  TInt    -> AInt    bot
+  TChar   -> AChar   bot
+  TString -> AString bot
+
 
 typeOfAValue :: AValue -> Base
 typeOfAValue = \case

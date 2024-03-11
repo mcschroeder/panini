@@ -125,16 +125,23 @@ solve1 = \case
 
   PreCon x b _ c -> do
     c1 <- rewrite c
-    ds0 <- dnf c1 § "Convert to DNF"
-    ds <- simplifyDNF ds0 § "Simplify DNF"
+    c2 <- nnf c1 § "Convert to NNF"
+    c3 <- simplifyPred c2 § "Simplify predicate"
     logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
-    qs <- forM ds $ \rs -> do      
-      rs' <- mapM (abstractVar' x b) rs
-      meets' b rs' § "Meet branch"
-    q <- joins' b qs § "Join all branches"
+    q <- abstractNNF x b c3
+    logData q
     case q of
       AString a  -> AString (AString.simplify a) § "Simplify abstract string"
       a          -> pure a
+
+abstractNNF :: Name -> Base -> Pred -> Pan AValue
+abstractNNF x b = \case
+  PTrue   -> return $ topValue b
+  PFalse  -> return $ botValue b
+  PRel r  -> abstractVar' x b r
+  PAnd xs -> meets' b <$> mapM (abstractNNF x b) xs
+  POr xs  -> joins' b <$> mapM (abstractNNF x b) xs
+  p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
 meets' :: Base -> [AValue] -> AValue
 meets' b xs = case b of
@@ -204,28 +211,34 @@ rewrite c0 = do
       logData rs'
       return rs'
     PAppK _ _     -> impossible
-  
+
+nnf :: Pred -> Pred
+nnf = \case
+  PTrue            -> PTrue
+  PFalse           -> PFalse
+  PRel r           -> PRel r
+  PNot PTrue       -> PFalse
+  PNot PFalse      -> PTrue
+  PNot (PRel r)    -> PRel (inverse r)
+  PNot (PNot x)    -> x
+  PNot (PAnd xs)   -> nnf $ POr (map PNot xs)
+  PNot (POr xs)    -> nnf $ PAnd (map PNot xs)
+  PNot (PImpl a b) -> nnf $ PAnd [a, PNot b]
+  PNot (PIff a b)  -> nnf $ PIff a (PNot b)
+  PImpl a b        -> nnf $ POr [PNot a, b]
+  PIff a b         -> nnf $ POr [PAnd [a,b], PAnd [PNot a, PNot b]]
+  PAnd xs          -> PAnd (map nnf xs)
+  POr xs           -> POr (map nnf xs)
+  _                -> impossible
+
 dnf :: Pred -> [[Rel]]
-dnf = \case
-  PTrue                -> [[]]
-  PFalse               -> []  
-  PRel r               -> [[r]]
-  PNot PTrue           -> []
-  PNot PFalse          -> [[]]
-  PNot (PRel r)        -> [[inverse r]]
-  PNot (PNot x)        -> dnf x
-  PNot (PAnd xs)       -> dnf $ POr (map PNot xs)
-  PNot (POr xs)        -> dnf $ PAnd (map PNot xs)    
-  PNot (PImpl a b)     -> dnf $ PAnd [a, PNot b]    
-  PNot (PIff a b)      -> dnf $ PIff a (PNot b)  -- TODO: optimize arbitrary choice?
-  PNot (PExists _ _ _) -> impossible
-  PNot (PAppK _ _)     -> impossible
-  PImpl a b            -> dnf $ POr [PNot a, b]
-  PIff a b             -> dnf $ POr [PAnd [a,b], PAnd [PNot a, PNot b]]    
-  PAnd xs              -> nub' $ map nub' $ map concat $ sequence $ map dnf xs
-  POr xs               -> nub' $ map nub' $ concat $ map dnf xs
-  PExists _ _ _        -> impossible
-  PAppK _ _            -> impossible
+dnf p0 = case nnf p0 of
+  PTrue   -> [[]]
+  PFalse  -> []  
+  PRel r  -> [[r]]
+  PAnd xs -> nub' $ map nub' $ map concat $ sequence $ map dnf xs
+  POr xs  -> nub' $ map nub' $ concat $ map dnf xs
+  _       -> impossible
   
 fromDNF :: [[Rel]] -> Pred
 fromDNF = joins . map (meets . map PRel)
