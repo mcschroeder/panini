@@ -8,7 +8,6 @@ import Data.Hashable
 import Data.List qualified as List
 import Data.Set ((\\))
 import Data.Text (Text)
-import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AChar as AChar
@@ -25,7 +24,6 @@ import Prelude
 import Control.Applicative
 
 -- TODO: consider changing EStrSub to start,length encoding (like SMTLIB)?
--- TODO: dedicated Char type to avoid general confusion with singleton strings
 -- TODO: simplify EReg situation
 
 ------------------------------------------------------------------------------
@@ -89,8 +87,7 @@ pattern EInt i pv = ECon (I i pv)
 
 -- | character constant
 pattern EChar :: Char -> PV -> Expr
-pattern EChar c pv <- ECon (S (Text.unpack -> [c]) pv) where
-  EChar c pv = ECon (S (Text.pack [c]) pv)
+pattern EChar c pv = ECon (C c pv)
 
 -- | string constant
 pattern EStr :: Text -> PV -> Expr
@@ -112,8 +109,7 @@ pattern EIntA a = EAbs (AInt a)
 
 -- | abstract character constant
 pattern ECharA :: AChar -> Expr
-pattern ECharA a <- EAbs (AString (AString.toChar -> Just a)) where
-  ECharA a = EAbs (AString (lit a))
+pattern ECharA a = EAbs (AChar a)
 
 -- | abstract string constant
 pattern EStrA :: AString -> Expr
@@ -153,6 +149,7 @@ topExpr :: Base -> Expr
 topExpr TUnit   = EUnitA top
 topExpr TBool   = EBoolA top
 topExpr TInt    = EIntA top
+topExpr TChar   = ECharA top
 topExpr TString = EStrA top
 
 -- | The abstract minimum element for the given type.
@@ -160,6 +157,7 @@ botExpr :: Base -> Expr
 botExpr TUnit   = EUnitA bot
 botExpr TBool   = EBoolA bot
 botExpr TInt    = EIntA bot
+botExpr TChar   = ECharA bot
 botExpr TString = EStrA bot
 
 -- | The type of the given expression, if locally discernible.
@@ -171,7 +169,7 @@ typeOfExpr = \case
   _ :-: _       -> Just TInt
   _ :*: _       -> Just TInt
   EStrLen _     -> Just TInt
-  EStrAt _ _    -> Just TString -- TODO: TChar
+  EStrAt _ _    -> Just TChar
   EStrSub _ _ _ -> Just TString
   EFun _ es     -> asum $ map typeOfExpr es
   ECon c        -> Just $ typeOfValue c

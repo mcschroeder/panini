@@ -9,11 +9,11 @@ f250 = \s:string.
       unit
     else
       let c1 = charAt s i0 in
-      let p1 = match c1 "a" in
+      let p1 = eqChar c1 'a' in
       let _  = assert p1 in
       let i1 = add i0 1 in
       let c2 = charAt s i1 in
-      let p2 = match c2 "b" in
+      let p2 = eqChar c2 'b' in
       let _  = assert p2 in
       let i2 = add i1 1 in
       w i2

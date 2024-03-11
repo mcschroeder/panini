@@ -8,8 +8,8 @@ f350 = \s:string.
   else
     let c0 = charAt s 0 in
     let c2 = charAt s 2 in
-    let p0 = match c0 "a" in
-    let p2 = match c2 "b" in
+    let p0 = eqChar c0 'a' in
+    let p2 = eqChar c2 'b' in
     let _  = assert p0 in
     let _  = assert p2 in
     let n  = length s in

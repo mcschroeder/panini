@@ -106,11 +106,12 @@ sigma  = "σ" `orASCII` "s"
 bigSigma = "Σ" `orASCII` "S"
 epsilon = "ε" `orASCII` "e"
 
-symTUnit, symTBool, symTNat, symTInt, symTString :: Doc
+symTUnit, symTBool, symTNat, symTInt, symTChar, symTString :: Doc
 symTUnit   = ann (Identifier TypeIdent) $ ann NormalWeight "𝟙" `orASCII` "unit"
 symTBool   = ann (Identifier TypeIdent) $ "𝔹" `orASCII` "bool"
 symTNat    = ann (Identifier TypeIdent) $ "ℕ" `orASCII` "nat"
 symTInt    = ann (Identifier TypeIdent) $ "ℤ" `orASCII` "int"
+symTChar   = ann (Identifier TypeIdent) $ "ℂ𝕙" `orASCII` "char"
 symTString = ann (Identifier TypeIdent) $ "𝕊" `orASCII` "string"
 
 symUnit, symTrue, symFalse :: Doc

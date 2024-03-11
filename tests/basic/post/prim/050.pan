@@ -7,3 +7,5 @@ f51 = true
 f52 : {v:int|?}
 f52 = "hello"
 
+f53 : {v:int|?}
+f53 = 'a'

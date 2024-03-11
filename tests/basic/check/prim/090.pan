@@ -18,3 +18,6 @@ f95 = "goodbye"
 
 f96 : {v:int|v>1}
 f96 = 1
+
+f97 : {v:char|v='a'}
+f97 = 'b'

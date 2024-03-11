@@ -140,14 +140,16 @@ meets' :: Base -> [AValue] -> AValue
 meets' b xs = case b of
   TUnit   -> AUnit   $ meets $ map unsafeUnwrapAUnit xs
   TBool   -> ABool   $ meets $ map unsafeUnwrapABool xs
-  TInt    -> AInt    $ meets $ map unsafeUnwrapAInt xs  
+  TInt    -> AInt    $ meets $ map unsafeUnwrapAInt xs
+  TChar   -> AChar   $ meets $ map unsafeUnwrapAChar xs  
   TString -> AString $ meets $ map unsafeUnwrapAString xs
 
 joins' :: Base -> [AValue] -> AValue
 joins' b xs = case b of
   TUnit   -> AUnit   $ joins $ map unsafeUnwrapAUnit xs
   TBool   -> ABool   $ joins $ map unsafeUnwrapABool xs
-  TInt    -> AInt    $ joins $ map unsafeUnwrapAInt xs  
+  TInt    -> AInt    $ joins $ map unsafeUnwrapAInt xs
+  TChar   -> AChar   $ joins $ map unsafeUnwrapAChar xs
   TString -> AString $ joins $ map unsafeUnwrapAString xs
 
 unsafeUnwrapAUnit :: AValue -> AUnit
@@ -161,6 +163,10 @@ unsafeUnwrapABool a = panic $ "unsafeUnwrapABool: unexpected" <+> pretty a
 unsafeUnwrapAInt :: AValue -> AInt
 unsafeUnwrapAInt (AInt a) = a
 unsafeUnwrapAInt a = panic $ "unsafeUnwrapAInt: unexpected" <+> pretty a
+
+unsafeUnwrapAChar :: AValue -> AChar
+unsafeUnwrapAChar (AChar a) = a
+unsafeUnwrapAChar a = panic $ "unsafeUnwrapAChar: unexpected" <+> pretty a
 
 unsafeUnwrapAString :: AValue -> AString
 unsafeUnwrapAString (AString a) = a

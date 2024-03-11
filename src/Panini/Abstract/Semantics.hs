@@ -339,7 +339,8 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EVar _ :>: e                                -> Just $ normExpr $ e :+: EIntA (AInt.ge 1)
   EVar _ :≥: e                                -> Just $ normExpr $ e :+: EIntA (AInt.ge 0)
   -----------------------------------------------------------
-  EVar _ :≠: EChar c _                        -> Just $ EStrA (lit (AChar.ne c))
+  EVar _ :≠: EChar c _                        -> Just $ ECharA (AChar.ne c)
+  EVar _ :≠: ECharA c                         -> Just $ ECharA (neg c)
   EVar _ :≠: EStr s _                         -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
   EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)
   -----------------------------------------------------------

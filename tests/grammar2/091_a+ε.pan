@@ -11,5 +11,5 @@ f091 = \s:string.
     unit
   else
     let c = charAt s 0 in
-    let p4 = match c "a" in
+    let p4 = eqChar c 'a' in
     assert p4

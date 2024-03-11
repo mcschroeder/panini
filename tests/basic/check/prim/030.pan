@@ -9,3 +9,9 @@ f32 = 1
 
 f33 : {v:string|v="hello"}
 f33 = "hello"
+
+f34 : {v:char|v='a'}
+f34 = 'a'
+
+f35 : {v:string|v="a"}
+f35 = "a"

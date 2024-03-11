@@ -2,6 +2,7 @@ module Panini.Abstract.AValue
   ( AValue(..)
   , ABool
   , AInt
+  , AChar
   , AString
   , AUnit
   , hasTop, hasBot
@@ -30,6 +31,7 @@ data AValue
   = AUnit !AUnit
   | ABool !ABool
   | AInt !AInt
+  | AChar !AChar
   | AString !AString
   deriving stock 
     ( Eq
@@ -46,12 +48,14 @@ instance Pretty AValue where
     AUnit   a -> pretty a
     ABool   a -> pretty a
     AInt    a -> pretty a
+    AChar   a -> pretty a
     AString a -> pretty a
 
 instance PartialOrder AValue where
   AUnit   a ⊑ AUnit   b = a ⊑ b
   ABool   a ⊑ ABool   b = a ⊑ b
   AInt    a ⊑ AInt    b = a ⊑ b
+  AChar   a ⊑ AChar   b = a ⊑ b
   AString a ⊑ AString b = a ⊑ b
   _         ⊑ _         = False
 
@@ -59,6 +63,7 @@ instance PartialMeetSemilattice AValue where
   AUnit   a ∧? AUnit   b = Just $ AUnit   (a ∧ b)
   ABool   a ∧? ABool   b = Just $ ABool   (a ∧ b)
   AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
+  AChar   a ∧? AChar   b = Just $ AChar   (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
   _         ∧? _         = Nothing
 
@@ -67,6 +72,7 @@ hasTop = \case
   AUnit   a -> isTop a
   ABool   a -> isTop a
   AInt    a -> isTop a
+  AChar   a -> isTop a
   AString a -> isTop a
 
 hasBot :: AValue -> Bool
@@ -74,6 +80,7 @@ hasBot = \case
   AUnit   a -> isBot a
   ABool   a -> isBot a
   AInt    a -> isBot a
+  AChar   a -> isBot a
   AString a -> isBot a
 
 fillTop :: AValue -> AValue
@@ -81,6 +88,7 @@ fillTop = \case
   AUnit   _ -> AUnit top
   ABool   _ -> ABool top
   AInt    _ -> AInt top
+  AChar   _ -> AChar top
   AString _ -> AString top
 
 fillBot :: AValue -> AValue
@@ -88,6 +96,7 @@ fillBot = \case
   AUnit   _ -> AUnit bot
   ABool   _ -> ABool bot
   AInt    _ -> AInt bot
+  AChar   _ -> AChar bot
   AString _ -> AString bot
 
 typeOfAValue :: AValue -> Base
@@ -95,6 +104,7 @@ typeOfAValue = \case
   AUnit   _ -> TUnit
   ABool   _ -> TBool
   AInt    _ -> TInt
+  AChar   _ -> TChar
   AString _ -> TString
 
 fromValue :: Value -> AValue
@@ -102,6 +112,5 @@ fromValue = \case
   U   _ -> AUnit Unit
   B b _ -> ABool $ ABool.eq b
   I i _ -> AInt $ AInt.eq i
-  S t _ -> case Text.unpack t of
-    [c] -> AString $ lit (AChar.eq c)  -- TODO: assumes all singleton strings are chars
-    s   -> AString $ AString.eq s
+  C c _ -> AChar $ AChar.eq c
+  S t _ -> AString $ AString.eq $ Text.unpack t

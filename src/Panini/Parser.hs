@@ -250,6 +250,7 @@ value = label "value" $ choice
   [ unitLit
   , boolLit
   , intLit
+  , charLit
   , stringLit
   ]
   where
@@ -267,6 +268,11 @@ value = label "value" $ choice
       (x, pv) <- withPV $ L.signed whitespace L.decimal
       whitespace
       return $ I x pv
+    
+    charLit = label "character" $ do
+      (x,pv) <- withPV $ char '\'' *> L.charLiteral <* char '\''
+      whitespace
+      return $ C x pv
     
     stringLit = label "string" $ do
       begin <- getSourcePos
@@ -337,6 +343,7 @@ baseType = choice
   [ TUnit <$ (keyword "unit" <|> keyword "𝟙")
   , TBool <$ (keyword "bool" <|> keyword "𝔹")
   , TInt <$ (keyword "int" <|> keyword "ℤ")
+  , TChar <$ (keyword "char" <|> keyword "ℂ𝕙")
   , TString <$ (keyword "string" <|> keyword "𝕊")
   ] <?> "base type"
 

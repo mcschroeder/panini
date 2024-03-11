@@ -38,7 +38,8 @@ data IdentKind
 
 data LitKind 
   = NumberLit  -- ^ integers, reals, etc.
-  | StringLit  -- ^ strings and characters
+  | StringLit  -- ^ strings
+  | CharLit    -- ^ characters
   | OtherLit   -- ^ booleans, unit, etc.
   | AbstractLit -- ^ abstract value
   deriving stock (Eq, Show, Read)

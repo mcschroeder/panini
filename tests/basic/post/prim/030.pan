@@ -7,3 +7,5 @@ f31 = 1
 f32 : {v:unit|?}
 f32 = "hello"
 
+f33 : {v:unit|?}
+f33 = 'a'

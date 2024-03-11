@@ -11,3 +11,8 @@ f22 = 1
 f23 : {v:string|?}
 f23 = "hello"
 
+f24 : {v:char|?}
+f24 = 'a'
+
+f25 : {v:string|?}
+f25 = "a"

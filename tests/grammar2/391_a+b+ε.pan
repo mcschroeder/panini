@@ -10,11 +10,11 @@ f391 = \s:string.
     let p1 = eq n 1 in
     let _ = assert p1 in
     let c0 = charAt s 0 in
-    let pa = match c0 "a" in
+    let pa = eqChar c0 'a' in
     if pa then
       unit
     else
-      let pb = match c0 "b" in
+      let pb = eqChar c0 'b' in
       if pb then
         unit
       else

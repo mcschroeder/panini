@@ -11,7 +11,7 @@ f081 = \s:string.
   let p = eq n 1 in
   let _ = assert p in
   let c = charAt s 0 in
-  let p = match c "a" in
+  let p = eqChar c 'a' in
   assert p
 
 f082 : {s:string|?} -> unit
@@ -20,5 +20,5 @@ f082 = \s:string.
   let p = le n 1 in
   let _ = assert p in
   let c = charAt s 0 in
-  let p = match c "a" in
+  let p = eqChar c 'a' in
   assert p

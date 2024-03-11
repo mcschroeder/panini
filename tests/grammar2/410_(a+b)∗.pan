@@ -7,8 +7,8 @@ f410 = \s:string.
     let q = lt i n in
     if q then
       let c = charAt s i in
-      let pa = match c "a" in
-      let pb = match c "b" in
+      let pa = eqChar c 'a' in
+      let pb = eqChar c 'b' in
       let p = or pa pb in
       let _ = assert p in
       let i2 = add i 1 in

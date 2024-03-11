@@ -9,7 +9,7 @@ f220 = \s:string.
       let _ = assert false in 0
     else
       let c = charAt s i in
-      let p = match c "a" in
+      let p = eqChar c 'a' in
       if p then
         let i2 = add i 1 in
         w i2
@@ -20,5 +20,5 @@ f220 = \s:string.
     let m = sub n 1 in
     let p1 = eq i m in
     let c = charAt s i in
-    let p2 = match c "b" in
+    let p2 = eqChar c 'b' in
     assert p2

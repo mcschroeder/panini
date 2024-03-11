@@ -13,3 +13,6 @@ f43 = "hello"
 -- NOTE: "v≠unit" reduces to "false"
 f44 : {v:unit|v≠unit}
 f44 = unit
+
+f45 : {v:char|false}
+f45 = 'a'

@@ -15,6 +15,7 @@ data Base
   = TUnit
   | TBool
   | TInt
+  | TChar
   | TString
   deriving stock (Ord, Eq, Show, Read, Generic)
 
@@ -24,6 +25,7 @@ instance Pretty Base where
   pretty TUnit   = symTUnit
   pretty TBool   = symTBool
   pretty TInt    = symTInt
+  pretty TChar   = symTChar
   pretty TString = symTString
 
 ------------------------------------------------------------------------------
@@ -33,6 +35,7 @@ data Value
   = U          !PV  -- unit
   | B !Bool    !PV  -- true, false
   | I !Integer !PV  -- 0, -1, 1, ...
+  | C !Char    !PV  -- 'a'
   | S !Text    !PV  -- "lorem ipsum"
   deriving stock 
     ( Ord -- ^ structural ordering
@@ -44,6 +47,7 @@ instance Eq Value where
   U   _ == U   _ = True
   B a _ == B b _ = a == b
   I a _ == I b _ = a == b
+  C a _ == C b _ = a == b
   S a _ == S b _ = a == b
   _     == _     = False
 
@@ -52,16 +56,19 @@ instance Hashable Value where
   hashWithSalt s (U   _) = s `hashWithSalt` (0 :: Int)
   hashWithSalt s (B a _) = s `hashWithSalt` (1 :: Int) `hashWithSalt` a
   hashWithSalt s (I a _) = s `hashWithSalt` (2 :: Int) `hashWithSalt` a
-  hashWithSalt s (S a _) = s `hashWithSalt` (3 :: Int) `hashWithSalt` a
+  hashWithSalt s (C a _) = s `hashWithSalt` (3 :: Int) `hashWithSalt` a
+  hashWithSalt s (S a _) = s `hashWithSalt` (4 :: Int) `hashWithSalt` a
 
 instance HasProvenance Value where
   getPV (U   pv) = pv
   getPV (B _ pv) = pv
   getPV (I _ pv) = pv
+  getPV (C _ pv) = pv
   getPV (S _ pv) = pv
   setPV pv (U   _) = U pv
   setPV pv (B x _) = B x pv
   setPV pv (I x _) = I x pv
+  setPV pv (C x _) = C x pv
   setPV pv (S x _) = S x pv
 
 instance Uniplate Value where
@@ -72,6 +79,7 @@ instance Pretty Value where
   pretty (B True  _) = symTrue
   pretty (B False _) = symFalse
   pretty (I c     _) = ann (Literal NumberLit) $ pretty c
+  pretty (C c     _) = ann (Literal CharLit) $ viaShow c
   pretty (S t     _) = ann (Literal StringLit) $ viaShow t
 
 typeOfValue :: Value -> Base
@@ -79,4 +87,5 @@ typeOfValue = \case
   U _   -> TUnit 
   B _ _ -> TBool 
   I _ _ -> TInt
+  C _ _ -> TChar
   S _ _ -> TString

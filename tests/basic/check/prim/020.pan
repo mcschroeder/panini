@@ -9,3 +9,9 @@ f22 = 1
 
 f23 : {v:string|true}
 f23 = "hello"
+
+f24 : {v:char|true}
+f24 = 'a'
+
+f25 : {v:string|true}
+f25 = "a"

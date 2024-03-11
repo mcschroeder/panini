@@ -1,12 +1,12 @@
 import axioms
 
-g = \s:string. \t:string. \i0:int.
+g = \s:string. \t:char. \i0:int.
   let n = length s in
   rec g' : int -> int = \i:int.  
     let p1 = le i n in
     if p1 then
       let c = charAt s i in
-      let p2 = match c t in
+      let p2 = eqChar c t in
       if p2 then
         let i2 = add i 1 in
         g' i2
@@ -19,8 +19,8 @@ g = \s:string. \t:string. \i0:int.
 
 f241 : {s:string|?} -> unit
 f241 = \s:string.
-  let i = g s "a" 0 in
-  let j = g s "b" j in
+  let i = g s 'a' 0 in
+  let j = g s 'b' j in
   let n = length s in
   let p = eq j n in
   assert p

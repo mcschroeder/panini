@@ -7,7 +7,7 @@ f114 = \s0:string.
     let p = lt i n in
     if p then
       let x = charAt s i in
-      let p2 = match x "a" in
+      let p2 = eqChar x 'a' in
       let _ = assert p2 in
       let i2 = add i 1 in
       w i2 s

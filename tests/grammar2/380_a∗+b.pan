@@ -13,7 +13,7 @@ f380 = \s:string.
       let q = lt i n in
       if q then
         let c = charAt s i in
-        let p = match c "a" in
+        let p = eqChar c 'a' in
         let _ = assert p in
         let i2 = add i 1 in
         w i2

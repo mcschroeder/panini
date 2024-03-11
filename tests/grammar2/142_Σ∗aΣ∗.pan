@@ -7,7 +7,7 @@ f142 = \s:string.
     let p = lt i n in
     if p then
       let x = charAt s i in
-      let p2 = match x "a" in
+      let p2 = eqChar x 'a' in
       if p2 then
         true
       else

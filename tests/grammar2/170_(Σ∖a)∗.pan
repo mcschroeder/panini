@@ -7,7 +7,7 @@ f170 = \s:string.
     let p = lt i n in
     if p then
       let x = charAt s i in
-      let p2 = match x "a" in
+      let p2 = eqChar x 'a' in
       let p3 = not p2 in
       let _ = assert p3 in
       let i2 = add i 1 in

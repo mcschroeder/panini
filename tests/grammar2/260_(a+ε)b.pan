@@ -13,13 +13,13 @@ f261 = \s:string.
   let p0 = le n 2 in
   if p0 then    
     let c1 = charAt s 0 in
-    let p1 = match c1 "a" in
+    let p1 = eqChar c1 'a' in
     if p1 then
       let c2 = charAt s 1 in
-      let p2 = match c2 "b" in
+      let p2 = eqChar c2 'b' in
       assert p2
     else
-      let p3 = match c1 "b" in
+      let p3 = eqChar c1 'b' in
       let _ = assert p3 in
       let p4 = eq n 1 in
       assert p4

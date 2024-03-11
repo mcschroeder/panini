@@ -133,6 +133,7 @@ Alternatively, you can use the following ASCII equivalents for common symbols:
 | `ℤ`     | `int`    | `\bbZ`    | integer type
 | `ℕ`     | `nat`    | `\bbN`    | natural number type (unused)
 | `𝕊`     | `string` | `\bbS`    | string type
+| `ℂ𝕙`    | `char`   | `\bbC\bbh` | character type
 | `∧`     | `/\`     | `\wedge`  | conjunction
 | `∨`     | `\/`     | `\vee`    | disjunction
 | `¬`     | `~`      | `\neg`    | negation

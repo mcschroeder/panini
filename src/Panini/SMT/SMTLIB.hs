@@ -127,6 +127,7 @@ instance SMTLIB Value where
     B True  _ -> "true"
     B False _ -> "false"
     I x     _ -> fromShow x
+    C x     _ -> fromShow [x]
     S x     _ -> fromShow x
 
 instance SMTLIB Base where
@@ -134,4 +135,5 @@ instance SMTLIB Base where
     TUnit   -> "Int"  -- TODO
     TBool   -> "Bool"
     TInt    -> "Int"
+    TChar   -> "String" -- NOTE: in SMT-LIB, characters are just singleton strings
     TString -> "String"

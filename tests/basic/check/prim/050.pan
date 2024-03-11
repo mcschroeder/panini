@@ -15,3 +15,6 @@ f54 = "hello"
 
 f55 : unit
 f55 = ""
+
+f56 : unit
+f56 = 'a'

@@ -10,11 +10,11 @@ f103 = \s:string.
   let i1 = 0 in
   let c1 = charAt t i1 in
   let d1 = charAt s i1 in
-  let p1 = match c1 d1 in
+  let p1 = eqChar c1 d1 in
   let _ = assert p1 in
   let i2 = add i1 1 in
   let c2 = charAt t i2 in
   let d2 = charAt s i2 in
-  let p2 = match c2 d2 in
+  let p2 = eqChar c2 d2 in
   let _ = assert p2 in
   unit

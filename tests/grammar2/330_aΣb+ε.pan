@@ -11,8 +11,8 @@ f330 = \s:string.
     if p3 then
       let c0 = charAt s 0 in
       let c2 = charAt s 2 in
-      let pa = match c0 "a" in
-      let pb = match c2 "b" in
+      let pa = eqChar c0 'a' in
+      let pb = eqChar c2 'b' in
       let _  = assert pa in
       let _  = assert pb in
       unit
@@ -29,8 +29,8 @@ f331 = \s:string.
   if p3 then
     let c0 = charAt s 0 in
     let c2 = charAt s 2 in
-    let pa = match c0 "a" in
-    let pb = match c2 "b" in
+    let pa = eqChar c0 'a' in
+    let pb = eqChar c2 'b' in
     let ps = and pa pb in
     assert ps
   else

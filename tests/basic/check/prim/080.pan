@@ -7,3 +7,5 @@ f81 = true
 f82 : string
 f82 = 1
 
+f83 : string
+f83 = 'a'

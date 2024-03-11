@@ -7,9 +7,9 @@ f442 = \s:string.
     unit
   else
     let c0 = charAt s 0 in
-    let p0 = match c0 "a" in
+    let p0 = eqChar c0 'a' in
     let c1 = charAt s 1 in
-    let p1 = match c1 "b" in
+    let p1 = eqChar c1 'b' in
     let q1 = and p0 p1 in
     let n = length s in
     let q2 = eq n 2 in

@@ -2,10 +2,10 @@ import axioms
 
 f400 : {s:string|?} -> unit
 f400 = \s:string.
-  let go = \t:string.    
+  let go = \t:char.    
     rec w : int -> bool = \i:int.
       let c = charAt s i in
-      let pc = match c t in
+      let pc = eqChar c t in
       let p0 = eq i 0 in
       if p0 then
         pc
@@ -20,7 +20,7 @@ f400 = \s:string.
       let m = sub n 1 in
       w m
   in
-    let pa = go "a" in
-    let pb = go "b" in
+    let pa = go 'a' in
+    let pb = go 'b' in
     let p = or pa pb in
     assert p

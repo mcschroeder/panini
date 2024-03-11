@@ -8,7 +8,7 @@ f090 = \s:string.
     unit 
   else
     let c = charAt s 0 in
-    let p2 = match c "a" in
+    let p2 = eqChar c 'a' in
     let _ = assert p2 in
     let p3 = eq n 1 in
     assert p3
