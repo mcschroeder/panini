@@ -53,6 +53,7 @@ instance Eq CharSet where
 -- | A linear extension of the 'PartialOrder' using lexicographic ordering.
 instance Ord CharSet where
   a <= b | a ⊑ b     = True
+         | b ⊑ a     = False
          | otherwise = toList a <= toList b  
 
 instance PartialOrder           CharSet where (⊑) = isSubsetOf
