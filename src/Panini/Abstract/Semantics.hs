@@ -64,7 +64,7 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   a         :+: EInt  b pv | b <= 0           -> normExpr $ a :-: EInt (negate b) pv
   a         :+: b          | a > b            -> normExpr $ b :+: a
   (a :+: b) :+: c          | (b ⏚), (c ⏚)    -> normExpr $ a :+: (normExpr $ b :+: c)
-  (a :-: b) :+: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ c :-: b)
+  (a :-: b) :+: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ b :-: c)
   -----------------------------------------------------------
   EIntA BOT :-: _                             -> EIntA BOT
   _         :-: EIntA BOT                     -> EIntA BOT
