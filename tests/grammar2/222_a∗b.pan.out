@@ -1,1 +1,1 @@
-f222 : {s:𝕊 | s ∈ a*b} → 𝟙
+f222 : {s:𝕊 | s ∈ a*b} → 𝟙  -- UNVERIFIED (timeout)

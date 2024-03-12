@@ -1,1 +1,1 @@
-f170 : {s:𝕊 | s ∈ [^a]*} → 𝟙
+f170 : {s:𝕊 | s ∈ [^a]*} → 𝟙  -- UNVERIFIED (timeout)
