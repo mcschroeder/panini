@@ -6,20 +6,20 @@ module Panini.Abstract.AString where
 import Algebra.Lattice
 import Data.Hashable
 import Data.String
+import Data.Text (Text)
+import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
 import Panini.Abstract.AInt (AInt)
 import Panini.Abstract.AInt qualified as AInt
 import Panini.Pretty
-import Panini.Regex
 import Panini.Regex.Operations qualified as Regex
-import Panini.Regex.Type (minWordLength, maxWordLength)
-import Panini.Regex.SMT qualified
+import Panini.Regex.Simplify qualified as Regex
+import Panini.Regex.SMT qualified as Regex
+import Panini.Regex.Type
 import Panini.SMT.RegLan (RegLan)
 import Prelude hiding (length)
-import Data.Text (Text)
-import Data.Text qualified as Text
 
 ------------------------------------------------------------------------------
 
@@ -32,19 +32,19 @@ instance PartialOrder AString where
   (⊑) = (<=)
 
 instance JoinSemilattice AString where
-  MkAString r1 ∨ MkAString r2 = MkAString (Plus [r1,r2])
+  MkAString r1 ∨ MkAString r2 = simplify $ MkAString $ Plus [r1,r2]
 
 instance BoundedJoinSemilattice AString where
   bot = MkAString Zero
 
 instance MeetSemilattice AString where
-  MkAString r1 ∧ MkAString r2 = MkAString $ intersection r1 r2
+  MkAString r1 ∧ MkAString r2 = simplify $ MkAString $ Regex.intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
   top = MkAString All
 
 instance ComplementedLattice AString where
-  neg (MkAString r) = MkAString $ complement r
+  neg (MkAString r) = simplify $ MkAString $ Regex.simplify $ Regex.complement r
 
 instance Pretty AString where
   pretty (MkAString r) = ann (Literal AbstractLit) $ pretty r
@@ -52,7 +52,7 @@ instance Pretty AString where
 ------------------------------------------------------------------------------
 
 simplify :: AString -> AString
-simplify (MkAString r) = MkAString $ Panini.Regex.simplify r
+simplify (MkAString r) = MkAString $ Regex.simplify r
 
 eq :: String -> AString
 eq = MkAString . fromString
@@ -81,7 +81,7 @@ member :: String -> AString -> Bool
 member s (MkAString r) = Regex.membership s r
 
 toChar :: AString -> Maybe AChar
-toChar (MkAString r) = case Panini.Regex.simplify r of
+toChar (MkAString r) = case Regex.simplify r of
   Lit c    -> Just (AChar.fromCharSet c)
   _        -> Nothing
 
@@ -93,7 +93,7 @@ fromRegex = MkAString
 
 -- TODO: replace with SMTLIB instance
 toRegLan :: AString -> RegLan
-toRegLan (MkAString r) = Panini.Regex.SMT.toRegLan r
+toRegLan (MkAString r) = Regex.toRegLan r
 
 ------------------------------------------------------------------------------
 

@@ -20,7 +20,6 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics
-import Panini.Abstract.AString qualified as AString
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
@@ -130,9 +129,7 @@ solve1 = \case
     logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
     q <- abstractNNF x b c3
     logData q
-    case q of
-      AString a  -> AString (AString.simplify a) § "Simplify abstract string"
-      a          -> pure a
+    return q
 
 abstractNNF :: Name -> Base -> Pred -> Pan AValue
 abstractNNF x b = \case
