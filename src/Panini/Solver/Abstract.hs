@@ -193,9 +193,11 @@ rewrite c0 = do
  where
   elimAll :: Con -> Pred
   elimAll = \case
-    CHead p      -> p
-    CAnd c1 c2   -> elimAll c1 ∧ elimAll c2
-    CAll x t p c -> PNot $ PExists x t $ PNot $ PImpl p $ elimAll c
+    CHead p       -> p
+    CAnd c1 c2    -> elimAll c1 ∧ elimAll c2
+    CAll x t p c
+      | x `notFreeIn` p, x `notFreeIn` c      -> PImpl p $ elimAll c
+      | otherwise -> PNot $ PExists x t $ PNot $ PImpl p $ elimAll c
 
   elimExists :: Pred -> Pan Pred
   elimExists = \case
