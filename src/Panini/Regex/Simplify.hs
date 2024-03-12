@@ -39,7 +39,8 @@ simplify = goFree
     _                                                -> r  
   
   goOpt r = case r of
-    Times xs | r' <- fuseOptSequence xs    , r' /= r -> goOpt r'
+    Plus xs  | r' <- fuseOptChoices xs     , r' /= r -> goOpt r'
+    Times xs | r' <- fuseOptSequence xs    , r' /= r -> goOpt r'             
     x                                                -> goFree x
   
   goStar r = case r of
@@ -81,6 +82,12 @@ fuseStarSequence xs
 fuseStarChoices :: [Regex] -> Regex
 fuseStarChoices = Plus . map flatNullable
 
+flatNullable :: Regex -> Regex
+flatNullable = \case
+    Star r -> r
+    Opt  r -> r
+    r      -> r
+
 -- | Apply fusion rules on an optional sequence of expression.
 --
 --    (xx*)? = (x*)?
@@ -92,11 +99,16 @@ fuseOptSequence = \case
   [Star x1, x2] | x1 == x2 -> Star x1
   xs -> Times xs
 
-flatNullable :: Regex -> Regex
-flatNullable = \case
-    Star r -> r
-    Opt  r -> r
-    r      -> r
+-- | Apply fusion rules within an optional list of choices.
+--
+--    (x + yy*)? = (x + y*)?
+--    (x + y*y)? = (x + y*)?
+--
+fuseOptChoices :: [Regex] -> Regex
+fuseOptChoices xs = Plus $ map go xs
+ where
+  go (Times ys) = fuseOptSequence ys
+  go y          = y
 
 -------------------------------------------------------------------------------
 
