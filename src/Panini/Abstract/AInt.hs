@@ -217,7 +217,9 @@ type IntervalSequence = [Interval]
 
 -- | A linear extension of the 'PartialOrder'.
 instance {-# OVERLAPPING #-} Ord IntervalSequence where
-  a <= b = a ⊑ b || and [x <= y | x <- a, y <- b]
+  a <= b | a ⊑ b     = True
+         | b ⊑ a     = False
+         | otherwise = head a <= head b
 
 -- | Interval sequences are partially ordered by inclusion.
 instance PartialOrder IntervalSequence where
