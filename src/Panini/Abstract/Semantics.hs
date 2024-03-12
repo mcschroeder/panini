@@ -238,40 +238,20 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   Rel op (a :-: b) c@(_ :+: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   Rel op (a :-: b) c@(_ :-: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   -----------------------------------------------------------
-  -- a :=: EIntA (Range (Fin m) PosInf) | m >= 0  -> normRel $ a :≥: EInt m NoPV
-  -- a :=: EIntA (Range NegInf (Fin n)) | n <= 0  -> normRel $ a :≤: EInt n NoPV
-  -- a :=: EIntA (AInt.values . neg -> [c])       -> normRel $ a :≠: EInt c NoPV
-
-  -- a :=: (e :+: EIntA (Range (Fin m) PosInf)) | m >= 0  -> normRel $ a :≥: (e :+: EInt m NoPV)
-  -- a :=: (e :-: EIntA (Range (Fin m) PosInf)) | m >= 0  -> normRel $ a :≤: (e :-: EInt m NoPV)
-  -- (e :+: EIntA (Range (Fin m) PosInf)) :=: a | m >= 0  -> normRel $ a :≥: (e :+: EInt m NoPV)
-  -- (e :-: EIntA (Range (Fin m) PosInf)) :=: a | m >= 0  -> normRel $ a :≤: (e :-: EInt m NoPV)
-
-  -- a :=: EIntA b
-  --   | [AInt.In (Fin m) PosInf] <- AInt.intervals b -> normRel $ a :≥: EInt m NoPV
-  --   | [AInt.In NegInf (Fin n)] <- AInt.intervals b -> normRel $ a :≤: EInt n NoPV
-  --   | [c] <- AInt.values (neg b)                   -> normRel $ a :≠: EInt c NoPV
-  -- a :=: (b :+: EIntA c)
-  --   | [AInt.In (Fin m) PosInf] <- AInt.intervals c -> normRel $ a :≥: (b :+: EInt m NoPV)
-  -- a :=: (b :-: EIntA c)
-  --   | [AInt.In (Fin m) PosInf] <- AInt.intervals c -> normRel $ a :≥: (b :-: EInt m NoPV)
-  -----------------------------------------------------------
-  -- ESol x _ (EStrAt (EVar s1) (EVar i1) :=: ECharA ĉ1) :=: ESol y _ (EStrAt (EVar s2) (EVar i2) :=: ECharA ĉ2)
-  --   | x /= s1, x == i1, y /= s2, y == i2, s1 == s2
-  --   -> EVar s1 :=: EStrA (strWithCharAt (AInt.ge 0) (ĉ1 ∧ ĉ2))
-
-  a@(ESol _ _ _) :=: b@(ESol _ _ _)           -> a :=: b
-  a              :=: ESol x _ r               -> normRel $ subst a x r  
+  a :=: ESol x _ r | not (isSol a)            -> normRel $ subst a x r  
   -----------------------------------------------------------
   r | [x] <- freeVars r
     , Just b <- typeOfRel r
     , Just e <- abstract x b r
     , let r' = EVar x :=: e
-    , r' < r                                    -> normRel r'
+    , r' < r                                  -> normRel r'
   -----------------------------------------------------------
-  r | r' <- descendBi normExpr r, r' /= r       -> normRel r'
-    | otherwise                                 -> r
+  r | r' <- descendBi normExpr r, r' /= r     -> normRel r'
+    | otherwise                               -> r
 
+isSol :: Expr -> Bool
+isSol (ESol _ _ _) = True
+isSol _            = False
 
 pattern Range :: Inf Integer -> Inf Integer -> AInt
 pattern Range a b <- (AInt.intervals -> [AInt.In a b])
