@@ -77,6 +77,9 @@ opt (MkAString r) = MkAString (Opt r)
 
 ------------------------------------------------------------------------------
 
+member :: String -> AString -> Bool
+member s (MkAString r) = Regex.membership s r
+
 toChar :: AString -> Maybe AChar
 toChar (MkAString r) = case Panini.Regex.simplify r of
   Lit c    -> Just (AChar.fromCharSet c)

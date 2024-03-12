@@ -131,13 +131,11 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   EChar a _ :=: EChar  b _                    -> toRel (a == b)
   EStr  a _ :=: EStr   b _                    -> toRel (a == b)
   EUnit   _ :=: EUnitA b                      -> toRel (b == Unit)
-  EBool a _ :=: EBoolA b                      -> toRel (ABool.member   a b)
-  EInt  a _ :=: EIntA  b                      -> toRel (AInt.member    a b)
-  EChar a _ :=: ECharA b                      -> toRel (AChar.member   a b)
---EStr  a _ :=: EStrA  b                      -> toRel (AString.member a b)
+  EBool a _ :=: EBoolA b                      -> toRel (ABool.member a b)
+  EInt  a _ :=: EIntA  b                      -> toRel (AInt.member a b)
+  EChar a _ :=: ECharA b                      -> toRel (AChar.member a b)
+  EStr  a _ :=: EStrA  b                      -> toRel (AString.member (Text.unpack a) b)
   EAbs  a   :=: EAbs   b   | Just m <- a ∧? b -> toRel (not $ hasBot m)
-  -- _         :=: EAbs   b   | hasTop b         -> taut
-  -- _         :=: EAbs   b   | hasBot b         -> cont
   a         :=: b          | a == b           -> taut
   -----------------------------------------------------------
   EUnit   _ :≠: EUnit    _                    -> cont
@@ -145,12 +143,11 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   EInt  a _ :≠: EInt   b _                    -> toRel (a /= b)
   EChar a _ :≠: EChar  b _                    -> toRel (a /= b)
   EStr  a _ :≠: EStr   b _                    -> toRel (a /= b)
-  -- a         :≠: EBool  b pv                   -> normRel $ a :=: EBool  (not b) pv
-  -- a         :≠: EUnitA b                      -> normRel $ a :=: EUnitA (neg b)  
-  -- a         :≠: EBoolA b                      -> normRel $ a :=: EBoolA (neg b)
-  -- a         :≠: EIntA  b                      -> normRel $ a :=: EIntA  (neg b)
-  -- a         :≠: ECharA b                      -> normRel $ a :=: ECharA (neg b)
-  -- a         :≠: EStrA  b                      -> normRel $ a :=: EStrA  (neg b)
+  EUnit   _ :≠: EUnitA b                      -> toRel (b /= Unit)
+  EBool a _ :≠: EBoolA b                      -> toRel (not $ ABool.member a b)
+  EInt  a _ :≠: EIntA  b                      -> toRel (not $ AInt.member a b)
+  EChar a _ :≠: ECharA b                      -> toRel (not $ AChar.member a b)
+  EStr  a _ :≠: EStrA  b                      -> toRel (not $ AString.member (Text.unpack a) b)
   EAbs  a   :≠: EAbs   b   | Just m <- a ∧? b -> toRel (hasBot m)
   a         :≠: b          | a == b           -> cont
   -----------------------------------------------------------
