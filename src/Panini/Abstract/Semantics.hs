@@ -410,7 +410,7 @@ strOfLen (meet (AInt.ge 0) -> n̂)
 
 strNotOfLen :: AInt -> AString
 strNotOfLen (meet (AInt.ge 0) -> n̂)
-  | isBot n̂ = undefined -- TODO
+  | isBot n̂ = top
   | otherwise = meets $ AInt.intervals n̂ >>= \case
       AInt.In (Fin a) (Fin b) -> [ joins $ [rep anyChar i | i <- [0..n-1]] 
                                         ++ [rep anyChar (n + 1) <> star anyChar]
@@ -420,8 +420,7 @@ strNotOfLen (meet (AInt.ge 0) -> n̂)
 
 strWithCharAt :: AInt -> AChar -> AString
 strWithCharAt (meet (AInt.ge 0) -> î) ĉ
-  | isBot î = bot
-  | isBot ĉ = undefined -- TODO
+  | isBot ĉ = strOfLen î
   | otherwise = joins $ AInt.intervals î >>= \case
       AInt.In (Fin a) (Fin b) -> [rep anyChar i <> lit ĉ <> star anyChar | i <- [a..b]]
       AInt.In (Fin a) PosInf  -> [rep anyChar a <> star anyChar <> lit ĉ <> star anyChar]
@@ -429,8 +428,7 @@ strWithCharAt (meet (AInt.ge 0) -> î) ĉ
 
 strWithoutCharAt :: AInt -> AChar -> AString
 strWithoutCharAt (meet (AInt.ge 0) -> î) ĉ
-  | isBot î = undefined -- TODO
-  | isBot ĉ = undefined -- TODO
+  | isBot ĉ = strOfLen (AInt.geA î)
   | otherwise = meets $ AInt.intervals î >>= \case
       AInt.In (Fin a) (Fin b) -> [ joins $ [rep anyChar n | n <- [0..i]]
                                         ++ [rep anyChar i <> c̄ <> star anyChar] 
@@ -442,8 +440,7 @@ strWithoutCharAt (meet (AInt.ge 0) -> î) ĉ
 
 strWithCharAtRev :: AInt -> AChar -> AString
 strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
-  | isBot î = undefined -- TODO
-  | isBot ĉ = undefined -- TODO
+  | isBot ĉ = bot
   | otherwise = joins $ AInt.intervals î >>= \case
       AInt.In (Fin a) (Fin b) -> [star anyChar <> lit ĉ <> rep anyChar (i - 1) | i <- [a..b]]
       AInt.In (Fin a) PosInf  -> [star anyChar <> lit ĉ <> star anyChar <> rep anyChar (a - 1)]
@@ -451,8 +448,7 @@ strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
 
 strWithoutCharAtRev :: AInt -> AChar -> AString
 strWithoutCharAtRev (meet (AInt.ge 1) -> î) ĉ
-  | isBot î = undefined -- TODO
-  | isBot ĉ = undefined -- TODO
+  | isBot ĉ = top
   | otherwise = meets $ AInt.intervals î >>= \case
       AInt.In (Fin a) (Fin b) -> [star anyChar <> c̄ <> rep anyChar (i - 1) | i <- [a..b]]
       AInt.In (Fin a) PosInf  -> [star c̄ <> rep anyChar (a - 1)]
