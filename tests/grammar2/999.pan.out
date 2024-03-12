@@ -1,4 +1,0 @@
-tests/grammar2/999.pan:3:16-21: error: unexpected "} → 𝟙" expecting refinement
-    │
-  3 │ f : {s:𝕊 | s ∈ } → 𝟙
-    │                ^^^^^
