@@ -139,8 +139,14 @@ abstractNNF x b = \case
   PTrue   -> return $ topValue b
   PFalse  -> return $ botValue b
   PRel r  -> abstractVar' x b r
-  PAnd xs -> meets' b <$> mapM (abstractNNF x b) xs
-  POr xs  -> joins' b <$> mapM (abstractNNF x b) xs
+  PAnd xs -> do vs <- mapM (abstractNNF x b) xs
+                let v = meets' b vs
+                logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
+                return v    
+  POr xs  -> do vs <- mapM (abstractNNF x b) xs
+                let v = joins' b vs
+                logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
+                return v
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
 meets' :: Base -> [AValue] -> AValue
@@ -184,7 +190,6 @@ unsafeUnwrapAString a = panic $ "unsafeUnwrapAString: unexpected" <+> pretty a
 rewrite :: Con -> Pan Pred
 rewrite c0 = do
   c1 <- elimAll c0 § "Eliminate ∀"
-  logMessage "Eliminate ∃"
   c2 <- elimExists c1
   logData c2
   return c2
@@ -205,12 +210,13 @@ rewrite c0 = do
     PIff a b      -> PIff  <$> elimExists a <*> elimExists b
     PAnd xs       -> PAnd  <$> mapM elimExists xs
     POr xs        -> POr   <$> mapM elimExists xs
-    PExists x t p -> do
-      rs <- (mapMaybeM (varElim x t) =<< dnf <$> elimExists p)
-      let rs' = fromDNF rs
-      logData rs'
-      return rs'
     PAppK _ _     -> impossible
+    PExists x t p -> do p' <- elimExists p
+                        logMessage $ "Eliminate ∃" <> pretty x
+                        logData $ PExists x t p'
+                        q <- fromDNF <$> mapMaybeM (varElim x t) (dnf p')
+                        logData q
+                        return q
 
 nnf :: Pred -> Pred
 nnf = \case
