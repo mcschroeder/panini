@@ -420,14 +420,23 @@ strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
 strWithoutCharAtRev :: AInt -> AChar -> AString
 strWithoutCharAtRev î ĉ = neg $ strWithCharAt î ĉ
 
-
 strWithSubstr :: AInt -> AInt -> AString -> AString
-strWithSubstr î ĵ t̂
-  | AInt.finite î, AInt.finite ĵ = 
-      joins $ [ rep anyChar i <> (rep anyChar (j - i + 1) ∧ t̂) <> star anyChar 
-              | i <- AInt.values î, j <- AInt.values ĵ, 0 <= i, i <= j ]
-  | otherwise = undefined -- TODO
-
+strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
+  | isBot î = bot
+  | isBot ĵ = strOfLen î
+  | otherwise = joins $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> AInt.intervals ĵ >>= \case
+        AInt.In (Fin c) (Fin d) -> [str  i j | i <- [a..b], j <- [c..d]]
+        AInt.In (Fin c) PosInf  -> [str' i c | i <- [a..b]]
+        _                       -> impossible
+      AInt.In (Fin a) PosInf  -> AInt.intervals ĵ >>= \case
+        AInt.In (Fin c) (Fin d) -> [str  a j | j <- [c..d], a <= j]
+        AInt.In (Fin c) PosInf  -> [str' a c]
+        _                       -> impossible
+      _                       -> impossible
+ where
+  str  i j = rep anyChar i <>  (rep anyChar (j - i + 1)                  ∧ t̂) <> star anyChar
+  str' i j = rep anyChar i <> ((rep anyChar (j - i + 1) <> star anyChar) ∧ t̂) <> star anyChar
 
 strWithoutSubstr :: AInt -> AInt -> AString -> AString
 strWithoutSubstr î ĵ t̂ = neg $ strWithSubstr î ĵ t̂
