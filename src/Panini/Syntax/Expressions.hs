@@ -59,6 +59,10 @@ pattern a :-: b = EFun "-" [a,b]
 pattern (:*:) :: Expr -> Expr -> Expr
 pattern a :*: b = EFun "*" [a,b]
 
+-- | integer modulus
+pattern EMod :: Expr -> Expr -> Expr
+pattern EMod a b = EFun "mod" [a,b]
+
 -- | string length @|s|@
 pattern EStrLen :: Expr -> Expr
 pattern EStrLen s = EFun "str.len" [s]

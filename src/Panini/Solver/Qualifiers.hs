@@ -25,7 +25,9 @@ extractQualifiers con
 
 quals :: Con -> [(Int,Base)] -> [Pred]
 quals con = \case  
-  [(_, TUnit)] -> [PTrue]
+  [(_, TUnit)] -> [PTrue]  
+  [(i, TInt)]  -> [PRel r | PRel (q1 (z i, TInt) -> Just r) <- universeBi con]
+                  ++ [PRel $ EMod (EVar (z i)) (EInt 2 NoPV) :=: EInt 0 NoPV]
   [(i, b0)]    -> [PRel r | PRel (q1 (z i, b0) -> Just r) <- universeBi con]
   _            -> []
  where

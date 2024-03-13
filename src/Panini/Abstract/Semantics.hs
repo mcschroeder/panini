@@ -78,6 +78,8 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   (a :-: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ b :+: c)
   (a :+: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :+: (normExpr $ b :-: c)
   -----------------------------------------------------------
+  EMod (EInt a _) (EInt b _)                  -> EInt (a `mod` b) NoPV
+  -----------------------------------------------------------
   EStrLen (EStr s _)                          -> EInt (fromIntegral $ Text.length s) NoPV
   EStrLen (EStrA a) | isTop a                 -> EIntA (AInt.ge 0)
   EStrLen (EStrA a) | Just n <- strLen1 a     -> EInt n NoPV
@@ -238,7 +240,12 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   Rel op (a :-: b) c@(_ :+: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   Rel op (a :-: b) c@(_ :-: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   -----------------------------------------------------------
-  a :=: ESol x _ r | not (isSol a)            -> normRel $ subst a x r  
+  EMod (EIntA a) (EInt b _) :=: EInt c _
+    | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> taut
+  -----------------------------------------------------------
+  a :=: ESol x _ r 
+    | not (isSol a)            -> normRel $ subst a x r
+--  | null (freeVars a)        -> normRel $ subst a x r
   -----------------------------------------------------------
   r | [x] <- freeVars r
     , Just b <- typeOfRel r
