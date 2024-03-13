@@ -94,6 +94,10 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrSub (EStr s _) (EIntA i  ) (EInt  j _)  -> normExpr $ EStrA $ strSub s i (AInt.eq j)
   EStrSub (EStr s _) (EInt  i _) (EIntA j  )  -> normExpr $ EStrA $ strSub s (AInt.eq i) j
   -----------------------------------------------------------
+  EStrComp (EStr s _)                         -> normExpr $ EStrA (neg $ AString.eq $ Text.unpack s)
+  EStrComp (EStrA s)                          -> normExpr $ EStrA $ neg s
+  EStrComp (EStrComp e)                       -> normExpr $ e
+  -----------------------------------------------------------
   e | e' <- descend normExpr e, e' /= e       -> normExpr e'
     | otherwise                               -> e
 
@@ -243,6 +247,13 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   EMod (EIntA a) (EInt b _) :=: EInt c _
     | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> taut
   -----------------------------------------------------------
+  EStrComp a :=: EStrComp b                   -> normRel $ a :=: b
+  EStrComp a :≠: EStrComp b                   -> normRel $ a :≠: b
+  EStrComp a :=: b                            -> normRel $ a :≠: b
+  EStrComp a :≠: b                            -> normRel $ a :=: b
+  a          :=: EStrComp b                   -> normRel $ a :≠: b
+  a          :≠: EStrComp b                   -> normRel $ a :=: b
+  -----------------------------------------------------------
   a :=: ESol x _ r 
     | not (isSol a)            -> normRel $ subst a x r
 --  | null (freeVars a)        -> normRel $ subst a x r
@@ -325,8 +336,10 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -----------------------------------------------------------
   EVar _ :≠: EChar c _                        -> Just $ ECharA (AChar.ne c)
   EVar _ :≠: ECharA c                         -> Just $ ECharA (neg c)
+  -----------------------------------------------------------
   EVar _ :≠: EStr s _                         -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
   EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)
+  EVar _ :≠: e | b == TString                 -> Just $ EStrComp e
   -----------------------------------------------------------
   e :∈: EReg ere                              -> abstract x b $ e :=: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   -----------------------------------------------------------

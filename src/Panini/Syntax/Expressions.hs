@@ -75,6 +75,10 @@ pattern EStrAt s i = EFun "str.at" [s,i]
 pattern EStrSub :: Expr -> Expr -> Expr -> Expr
 pattern EStrSub s i j = EFun "str.sub" [s,i,j]
 
+-- | string complement
+pattern EStrComp :: Expr -> Expr
+pattern EStrComp s = EFun "str.comp" [s]
+
 ------------------------------------------------------------------------------
 
 -- | unit constant
