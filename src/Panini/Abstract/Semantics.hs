@@ -409,7 +409,14 @@ strOfLen (meet (AInt.ge 0) -> n̂)
       _                       -> impossible
 
 strNotOfLen :: AInt -> AString
-strNotOfLen n̂ = neg $ strOfLen n̂
+strNotOfLen (meet (AInt.ge 0) -> n̂)
+  | isBot n̂ = top
+  | otherwise = meets $ AInt.intervals n̂ >>= \case
+      AInt.In (Fin a) (Fin b) -> [ joins $ [rep anyChar i | i <- [0..n-1]] 
+                                        ++ [rep anyChar (n + 1) <> star anyChar]
+                                 | n <- [a..b] ]
+      AInt.In (Fin a) PosInf  -> [ joins $ [rep anyChar i | i <- [0..a-1]] ]
+      _                       -> impossible
 
 strWithCharAt :: AInt -> AChar -> AString
 strWithCharAt (meet (AInt.ge 0) -> î) ĉ
@@ -420,7 +427,16 @@ strWithCharAt (meet (AInt.ge 0) -> î) ĉ
       _                       -> impossible
 
 strWithoutCharAt :: AInt -> AChar -> AString
-strWithoutCharAt î ĉ = neg $ strWithCharAt î ĉ
+strWithoutCharAt (meet (AInt.ge 0) -> î) ĉ
+  | isBot ĉ = strOfLen (AInt.geA î)
+  | otherwise = meets $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> [ joins $ [rep anyChar n | n <- [0..i]]
+                                        ++ [rep anyChar i <> c̄ <> star anyChar] 
+                                 | i <- [a..b] ]
+      AInt.In (Fin a) PosInf  -> [rep anyChar a <> star c̄]
+      _                       -> impossible
+ where
+  c̄ = lit (neg ĉ)
 
 strWithCharAtRev :: AInt -> AChar -> AString
 strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
@@ -431,7 +447,14 @@ strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
       _                       -> impossible
 
 strWithoutCharAtRev :: AInt -> AChar -> AString
-strWithoutCharAtRev î ĉ = neg $ strWithCharAt î ĉ
+strWithoutCharAtRev (meet (AInt.ge 1) -> î) ĉ
+  | isBot ĉ = top
+  | otherwise = meets $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> [star anyChar <> rep c̄ (b - a + 1) <> rep anyChar (a - 1)]
+      AInt.In (Fin a) PosInf  -> [star c̄ <> rep anyChar (a - 1)]
+      _                       -> impossible
+ where
+  c̄ = lit (neg ĉ)
 
 strWithSubstr :: AInt -> AInt -> AString -> AString
 strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
