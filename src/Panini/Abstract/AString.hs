@@ -44,7 +44,7 @@ instance BoundedMeetSemilattice AString where
   top = MkAString All
 
 instance ComplementedLattice AString where
-  neg (MkAString r) = simplify $ MkAString $ Regex.simplify $ Regex.complement r
+  neg (MkAString r) = simplify $ MkAString $ Regex.complement r
 
 instance Pretty AString where
   pretty (MkAString r) = ann (Literal AbstractLit) $ pretty r
