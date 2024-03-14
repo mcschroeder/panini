@@ -32,11 +32,11 @@ module Panini.Abstract.AInt
 
 import Algebra.Lattice
 import Data.Hashable
+import Data.List qualified as List
 import GHC.Generics
 import Panini.Panic
 import Panini.Pretty
 import Prelude hiding (minimum, maximum)
-import Prettyprinter qualified as PP
 
 -- TODO: investigate whether it's possible to have a Num instance
 
@@ -57,8 +57,8 @@ instance Pretty AInt where
   pretty = ann (Literal AbstractLit) . \case
     AInt []  -> emptySet
     AInt [x] -> pretty x
-    AInt xs  -> PP.encloseSep lbracket rbracket mid 
-              $ map (\(In a b) -> pretty a <> comma <> pretty b) xs
+    AInt xs  -> brackets $ mconcat $ List.intersperse mid 
+              $ [pretty a <> comma <> pretty b | In a b <- xs]
 
 pattern AInt0 :: AInt
 pattern AInt0 <- (values -> [0]) where
