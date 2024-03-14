@@ -67,7 +67,7 @@ rep a n
 
 rep2 :: AString -> Integer -> Integer -> AString
 rep2 a m n
-  | 0 <= m, m <= n = rep a m <> (joins $ map (rep a) [0 .. m - n])
+  | 0 <= m, m <= n = rep a m <> mconcat (replicate (fromIntegral $ n - m) (opt anyChar))
   | otherwise      = bot
 
 anyChar :: AString
