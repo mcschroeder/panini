@@ -185,6 +185,32 @@ typeOfExpr = \case
   EAbs a        -> Just $ typeOfAValue a
   ESol _ b _    -> Just b
 
+-- | The type of a variable in a given expression, if locally discernible.
+typeOfVarInExpr :: Name -> Expr -> Maybe Base
+typeOfVarInExpr x = \case
+  ENot (EVar y)         | x == y -> Just TBool
+  EVar y :+: _          | x == y -> Just TInt
+  _ :+: EVar y          | x == y -> Just TInt
+  EVar y :-: _          | x == y -> Just TInt
+  _ :-: EVar y          | x == y -> Just TInt
+  EVar y :*: _          | x == y -> Just TInt
+  _ :*: EVar y          | x == y -> Just TInt
+  EMod (EVar y) _       | x == y -> Just TInt
+  EMod _ (EVar y)       | x == y -> Just TInt
+  EStrLen (EVar y)      | x == y -> Just TInt
+  EStrAt (EVar y) _     | x == y -> Just TString
+  EStrAt _ (EVar y)     | x == y -> Just TInt
+  EStrSub (EVar y) _ _  | x == y -> Just TString
+  EStrSub _ (EVar y) _  | x == y -> Just TInt
+  EStrSub _ _ (EVar y)  | x == y -> Just TInt
+  ESol y _ _            | x == y -> Nothing
+  ESol _ _ r                     -> typeOfVarInRel x r
+  EFun _ es                      -> asum $ map (typeOfVarInExpr x) es
+  EVar _                         -> Nothing
+  ECon _                         -> Nothing
+  EReg _                         -> Nothing
+  EAbs _                         -> Nothing
+
 ------------------------------------------------------------------------------
 
 instance Uniplate Expr where
@@ -340,13 +366,19 @@ inverse = \case
   e1 :∈: e2 -> e1 :∉: e2
   e1 :∉: e2 -> e1 :∈: e2
 
-typeOfRel :: Rel -> Maybe Base
-typeOfRel = \case
-  a :=: b -> typeOfExpr a <|> typeOfExpr b
-  a :≠: b -> typeOfExpr a <|> typeOfExpr b
-  _ :<: _ -> Just TInt
-  _ :≤: _ -> Just TInt
-  _ :>: _ -> Just TInt
-  _ :≥: _ -> Just TInt
-  _ :∈: _ -> Just TString
-  _ :∉: _ -> Just TString
+-- | The type of a variable in a given relation, if locally discernible.
+typeOfVarInRel :: Name -> Rel -> Maybe Base
+typeOfVarInRel x = \case
+  EVar y :<: _      | x == y -> Just TInt
+  _      :<: EVar y | x == y -> Just TInt
+  EVar y :≤: _      | x == y -> Just TInt
+  _      :≤: EVar y | x == y -> Just TInt  
+  EVar y :>: _      | x == y -> Just TInt
+  _      :>: EVar y | x == y -> Just TInt
+  EVar y :≥: _      | x == y -> Just TInt
+  _      :≥: EVar y | x == y -> Just TInt  
+  EVar y :∈: _      | x == y -> Just TString
+  _      :∈: EVar y | x == y -> Just TString
+  EVar y :∉: _      | x == y -> Just TString
+  _      :∉: EVar y | x == y -> Just TString
+  Rel _ e1 e2 -> typeOfVarInExpr x e1 <|> typeOfVarInExpr x e2

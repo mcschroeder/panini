@@ -259,7 +259,7 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
 --  | null (freeVars a)        -> normRel $ subst a x r
   -----------------------------------------------------------
   r | [x] <- freeVars r
-    , Just b <- typeOfRel r
+    , Just b <- typeOfVarInRel x r
     , Just e <- abstract x b r
     , let r' = EVar x :=: e
     , r' < r                                  -> normRel r'
