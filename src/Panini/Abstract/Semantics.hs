@@ -426,8 +426,8 @@ strWithCharAtRev :: AInt -> AChar -> AString
 strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = bot
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star anyChar <> lit ĉ <> rep anyChar (i - 1) | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [star anyChar <> lit ĉ <> star anyChar <> rep anyChar (a - 1)]
+      AInt.In (Fin a) (Fin b) -> [star anyChar <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
+      AInt.In (Fin a) PosInf  -> [star anyChar <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
       _                       -> impossible
 
 strWithoutCharAtRev :: AInt -> AChar -> AString

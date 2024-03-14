@@ -65,6 +65,11 @@ rep a n
   | n < 0     = bot
   | otherwise = mconcat $ replicate (fromIntegral n) a
 
+rep2 :: AString -> Integer -> Integer -> AString
+rep2 a m n
+  | 0 <= m, m <= n = rep a m <> (joins $ map (rep a) [1 .. m - n])
+  | otherwise      = bot
+
 anyChar :: AString
 anyChar = MkAString AnyChar
 
