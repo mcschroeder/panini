@@ -484,6 +484,7 @@ concretizeVar x b v = logAndReturn $ case (b,v) of
   (TUnit  , AUnit   a) -> concretizeUnit   x a
   (TBool  , ABool   a) -> concretizeBool   x a
   (TInt   , AInt    a) -> concretizeInt    x a
+  (TChar  , AChar   a) -> concretizeChar   x a
   (TString, AString a) -> concretizeString x a
   _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
  where
@@ -524,6 +525,13 @@ concretizeInt x a = case AInt.intervals a of
 -- TODO: move to AInt module
 pattern (:..:) :: Inf Integer -> Inf Integer -> AInt.Interval
 pattern a :..: b = AInt.In a b
+
+concretizeChar :: Name -> AChar -> Pred
+concretizeChar x ĉ
+  | [c] <- AChar.values (neg ĉ) = PRel $ EVar x :≠: EChar c NoPV
+  | isBot ĉ   = PFalse
+  | isTop ĉ   = PTrue
+  | otherwise = joins $ [PRel $ EVar x :=: EChar c NoPV | c <- AChar.values ĉ]
 
 concretizeString :: Name -> AString -> Pred
 concretizeString x a = case AString.toRegex a of
