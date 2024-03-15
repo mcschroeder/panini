@@ -450,11 +450,15 @@ strWithoutCharAtRev :: AInt -> AChar -> AString
 strWithoutCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = top
   | otherwise = meets $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star anyChar <> rep c̄ (b - a + 1) <> rep anyChar (a - 1)]
-      AInt.In (Fin a) PosInf  -> [star c̄ <> rep anyChar (a - 1)]
+      AInt.In (Fin a) (Fin b) -> [go a b]
+      AInt.In (Fin a) PosInf  -> [(star c̄ <> rep anyChar (a - 1)) ∨ rep2 anyChar 0 (a - 1)]
       _                       -> impossible
  where
   c̄ = lit (neg ĉ)
+  go a b
+    | a >  b    = impossible
+    | a == b    = (star anyChar <> c̄ <> rep anyChar (a - 1)) ∨ rep2 anyChar 0 (a - 1)    
+    | otherwise = opt $ go a (b - 1) <> anyChar    
 
 strWithSubstr :: AInt -> AInt -> AString -> AString
 strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
