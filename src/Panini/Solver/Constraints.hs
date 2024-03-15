@@ -84,13 +84,13 @@ instance Pretty Con where
 instance Subable Con Expr where
   subst x y = \case
     CAll n b p c
-      | y == n      -> CAll n b            p             c   -- (1)
-      | x == EVar n -> CAll ṅ b (subst x y ṗ) (subst x y ċ)  -- (2)
-      | otherwise   -> CAll n b (subst x y p) (subst x y c)  -- (3)
+      | n == y       -> CAll n b            p             c   -- (1)
+      | n `freeIn` x -> CAll ṅ b (subst x y ṗ) (subst x y ċ)  -- (2)
+      | otherwise    -> CAll n b (subst x y p) (subst x y c)  -- (3)
       where
         ṗ = subst (EVar ṅ) n p
         ċ = subst (EVar ṅ) n c
-        ṅ = freshName n ([y] <> freeVars p <> freeVars c)
+        ṅ = freshName n ([y] <> freeVars p <> freeVars c <> freeVars x)
 
     CHead p    -> CHead (subst x y p)
     CAnd c₁ c₂ -> CAnd  (subst x y c₁) (subst x y c₂)

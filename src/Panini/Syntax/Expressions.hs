@@ -282,9 +282,9 @@ instance Subable Expr Expr where
   subst x y = \case
     EVar n | y == n -> x
     ESol n b r
-      | y == n      -> ESol n  b            r   -- (1)
-      | x == EVar n -> ESol n' b (subst x y r') -- (2)
-      | otherwise   -> ESol n  b (subst x y r ) -- (3)
+      | y == n       -> ESol n  b            r   -- (1)
+      | n `freeIn` x -> ESol n' b (subst x y r') -- (2)
+      | otherwise    -> ESol n  b (subst x y r ) -- (3)
       where
         r' = subst (EVar n') n r
         n' = freshName n ([y] <> freeVars r)

@@ -125,12 +125,12 @@ instance HasFixity Pred where
 instance Subable Pred Expr where
   subst x y = \case
     PExists n b p
-      | y == n      -> PExists n b            p   -- (1)
-      | x == EVar n -> PExists ṅ b (subst x y ṗ)  -- (2)
-      | otherwise   -> PExists n b (subst x y p)  -- (3)
+      | n == y       -> PExists n b            p   -- (1)
+      | n `freeIn` x -> PExists ṅ b (subst x y ṗ)  -- (2)
+      | otherwise    -> PExists n b (subst x y p)  -- (3)
       where
         ṗ = subst (EVar ṅ) n p
-        ṅ = freshName n ([y] <> freeVars p)
+        ṅ = freshName n ([y] <> freeVars p <> freeVars x)
 
     PAppK k xs -> PAppK k (map (subst x y) xs)
     PRel r     -> PRel (subst x y r)
