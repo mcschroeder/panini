@@ -78,6 +78,8 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   (a :-: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ b :+: c)
   (a :+: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :+: (normExpr $ b :-: c)
   -----------------------------------------------------------
+  EMod (EInt a _) (EInt b _)                  -> EInt (a `mod` b) NoPV
+  -----------------------------------------------------------
   EStrLen (EStr s _)                          -> EInt (fromIntegral $ Text.length s) NoPV
   EStrLen (EStrA a) | isTop a                 -> EIntA (AInt.ge 0)
   EStrLen (EStrA a) | Just n <- strLen1 a     -> EInt n NoPV
@@ -91,6 +93,10 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrSub (EStr s _) (EIntA i  ) (EIntA j  )  -> normExpr $ EStrA $ strSub s i j
   EStrSub (EStr s _) (EIntA i  ) (EInt  j _)  -> normExpr $ EStrA $ strSub s i (AInt.eq j)
   EStrSub (EStr s _) (EInt  i _) (EIntA j  )  -> normExpr $ EStrA $ strSub s (AInt.eq i) j
+  -----------------------------------------------------------
+  EStrComp (EStr s _)                         -> normExpr $ EStrA (neg $ AString.eq $ Text.unpack s)
+  EStrComp (EStrA s)                          -> normExpr $ EStrA $ neg s
+  EStrComp (EStrComp e)                       -> normExpr $ e
   -----------------------------------------------------------
   e | e' <- descend normExpr e, e' /= e       -> normExpr e'
     | otherwise                               -> e
@@ -238,10 +244,22 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   Rel op (a :-: b) c@(_ :+: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   Rel op (a :-: b) c@(_ :-: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   -----------------------------------------------------------
-  a :=: ESol x _ r | not (isSol a)            -> normRel $ subst a x r  
+  EMod (EIntA a) (EInt b _) :=: EInt c _
+    | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> taut
+  -----------------------------------------------------------
+  EStrComp a :=: EStrComp b                   -> normRel $ a :=: b
+  EStrComp a :≠: EStrComp b                   -> normRel $ a :≠: b
+  EStrComp a :=: b                            -> normRel $ a :≠: b
+  EStrComp a :≠: b                            -> normRel $ a :=: b
+  a          :=: EStrComp b                   -> normRel $ a :≠: b
+  a          :≠: EStrComp b                   -> normRel $ a :=: b
+  -----------------------------------------------------------
+  a :=: ESol x _ r 
+    | not (isSol a)            -> normRel $ subst a x r
+--  | null (freeVars a)        -> normRel $ subst a x r
   -----------------------------------------------------------
   r | [x] <- freeVars r
-    , Just b <- typeOfRel r
+    , Just b <- typeOfVarInRel x r
     , Just e <- abstract x b r
     , let r' = EVar x :=: e
     , r' < r                                  -> normRel r'
@@ -318,8 +336,10 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -----------------------------------------------------------
   EVar _ :≠: EChar c _                        -> Just $ ECharA (AChar.ne c)
   EVar _ :≠: ECharA c                         -> Just $ ECharA (neg c)
+  -----------------------------------------------------------
   EVar _ :≠: EStr s _                         -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
   EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)
+  EVar _ :≠: e | b == TString                 -> Just $ EStrComp e
   -----------------------------------------------------------
   e :∈: EReg ere                              -> abstract x b $ e :=: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   -----------------------------------------------------------
@@ -422,36 +442,44 @@ strWithCharAtRev :: AInt -> AChar -> AString
 strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = bot
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star anyChar <> lit ĉ <> rep anyChar (i - 1) | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [star anyChar <> lit ĉ <> star anyChar <> rep anyChar (a - 1)]
+      AInt.In (Fin a) (Fin b) -> [star anyChar <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
+      AInt.In (Fin a) PosInf  -> [star anyChar <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
       _                       -> impossible
 
 strWithoutCharAtRev :: AInt -> AChar -> AString
 strWithoutCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = top
   | otherwise = meets $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star anyChar <> c̄ <> rep anyChar (i - 1) | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [star c̄ <> rep anyChar (a - 1)]
+      AInt.In (Fin a) (Fin b) -> [go a b]
+      AInt.In (Fin a) PosInf  -> [(star c̄ <> rep anyChar (a - 1)) ∨ rep2 anyChar 0 (a - 1)]
       _                       -> impossible
  where
   c̄ = lit (neg ĉ)
-
+  go a b
+    | a >  b    = impossible
+    | a == b    = (star anyChar <> c̄ <> rep anyChar (a - 1)) ∨ rep2 anyChar 0 (a - 1)    
+    | otherwise = opt $ go a (b - 1) <> anyChar    
 
 strWithSubstr :: AInt -> AInt -> AString -> AString
-strWithSubstr î ĵ t̂
-  | AInt.finite î, AInt.finite ĵ = 
-      joins $ [ rep anyChar i <> (rep anyChar (j - i + 1) ∧ t̂) <> star anyChar 
-              | i <- AInt.values î, j <- AInt.values ĵ, 0 <= i, i <= j ]
-  | otherwise = undefined -- TODO
-
+strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
+  | isBot î = bot
+  | isBot ĵ = strOfLen î
+  | otherwise = joins $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> AInt.intervals ĵ >>= \case
+        AInt.In (Fin c) (Fin d) -> [str  i j | i <- [a..b], j <- [c..d]]
+        AInt.In (Fin c) PosInf  -> [str' i c | i <- [a..b]]
+        _                       -> impossible
+      AInt.In (Fin a) PosInf  -> AInt.intervals ĵ >>= \case
+        AInt.In (Fin c) (Fin d) -> [str  a j | j <- [c..d], a <= j]
+        AInt.In (Fin c) PosInf  -> [str' a c]
+        _                       -> impossible
+      _                       -> impossible
+ where
+  str  i j = rep anyChar i <>  (rep anyChar (j - i + 1)                  ∧ t̂) <> star anyChar
+  str' i j = rep anyChar i <> ((rep anyChar (j - i + 1) <> star anyChar) ∧ t̂) <> star anyChar
 
 strWithoutSubstr :: AInt -> AInt -> AString -> AString
-strWithoutSubstr î ĵ t̂
-  | AInt.finite î, AInt.finite ĵ =
-      meets $ [ joins [rep anyChar n | n <- [0..i]]
-              ∨ (rep anyChar i <> (rep anyChar (j - i + 1) `diff` t̂) <> star anyChar)
-              | i <- AInt.values î, j <- AInt.values ĵ, 0 <= i, i <= j ]
-  | otherwise = undefined -- TODO
+strWithoutSubstr î ĵ t̂ = neg $ strWithSubstr î ĵ t̂
 
 -------------------------------------------------------------------------------
 
@@ -460,6 +488,7 @@ concretizeVar x b v = logAndReturn $ case (b,v) of
   (TUnit  , AUnit   a) -> concretizeUnit   x a
   (TBool  , ABool   a) -> concretizeBool   x a
   (TInt   , AInt    a) -> concretizeInt    x a
+  (TChar  , AChar   a) -> concretizeChar   x a
   (TString, AString a) -> concretizeString x a
   _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
  where
@@ -500,6 +529,13 @@ concretizeInt x a = case AInt.intervals a of
 -- TODO: move to AInt module
 pattern (:..:) :: Inf Integer -> Inf Integer -> AInt.Interval
 pattern a :..: b = AInt.In a b
+
+concretizeChar :: Name -> AChar -> Pred
+concretizeChar x ĉ
+  | [c] <- AChar.values (neg ĉ) = PRel $ EVar x :≠: EChar c NoPV
+  | isBot ĉ   = PFalse
+  | isTop ĉ   = PTrue
+  | otherwise = joins $ [PRel $ EVar x :=: EChar c NoPV | c <- AChar.values ĉ]
 
 concretizeString :: Name -> AString -> Pred
 concretizeString x a = case AString.toRegex a of

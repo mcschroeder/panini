@@ -13,7 +13,7 @@ f513 = \s:string.
     let c2 = charAt s 2 in
     let q0 = eqChar c0 'a' in
     let _  = assert q0 in 
-    let q1 = eqChar c2 'b' in
+    let q1 = eqChar c1 'b' in
     let _  = assert q1 in 
     let q2 = eqChar c2 'c' in
     let _  = assert q2 in 
@@ -27,12 +27,16 @@ f513 = \s:string.
       let r1 = eqChar c1 'b' in
       let r2 = eqChar c1 'c' in
       if q0 then        
-        if r1 then unit else 
-        assert r2
+        if r1 then 
+          unit 
+        else 
+          assert r2
       else
         if q1 then
-          if r2 then unit else
-          assert false
+          if r2 then 
+            unit 
+          else
+            assert false
         else
           assert false
     else
@@ -41,10 +45,18 @@ f513 = \s:string.
         let q0 = eqChar c0 'a' in
         let q1 = eqChar c0 'b' in
         let q2 = eqChar c0 'c' in
-        if q0 then unit else 
-        if q1 then unit else
-        if q2 then unit else
-        assert false
+        if q0 then 
+          unit 
+        else 
+          if q1 then 
+            unit 
+          else
+            if q2 then 
+              unit 
+            else
+              assert false
       else
-        if p0 then unit else
-        assert false
+        if p0 then 
+          unit 
+        else
+          assert false

@@ -16,8 +16,8 @@ f340 = \s:string.
       let q = lt i n in
       if q then
         let _ = go i in
-        let i' = add i 3 in
-        w i'
+        let i1 = add i 3 in
+        w i1
       else
         unit
     in

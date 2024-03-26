@@ -138,7 +138,7 @@ factorChoices xs = smaller
     -- a?⋅x + a⋅y = x + a⋅(x+y)
     ([], Opt a1:x1, _)
       | (a,x,y) <- splitPrefix (flatTimes a1 ++ x1) ay
-      , not (null a)
+      , all (not . null) [a,x]
       , size (Times a) + 1 >= size (Times x)
       -> x : factorPrefixes (mkFacPre a x y : zs)
 
@@ -146,7 +146,7 @@ factorChoices xs = smaller
     -- a⋅x + a?⋅y = y + a⋅(x+y)
     ([], _, Opt a1:y1) 
       | (a,x,y) <- splitPrefix ax (flatTimes a1 ++ y1)
-      , not (null a)
+      , all (not . null) [a,y]
       , size (Times a) + 1 >= size (Times y)
       -> y : factorPrefixes (mkFacPre a x y : zs)    
 
@@ -202,7 +202,7 @@ factorChoices xs = smaller
     -- x⋅b? + y⋅b = x + (x+y)⋅b
     (unsnoc -> Just (x1, Opt b1), _, []) 
       | (x,y,b) <- splitSuffix (x1 ++ flatTimes b1) yb
-      , not (null b)
+      , all (not . null) [x,b]
       , size (Times b) + 1 >= size (Times x)
       -> x : factorSuffixes (mkFacSuf x y b : zs)
     
@@ -210,7 +210,7 @@ factorChoices xs = smaller
     -- x⋅b + y⋅b? = y + (x+y)⋅b
     (_, unsnoc -> Just (y1, Opt b1), []) 
       | (x,y,b) <- splitSuffix xb (y1 ++ flatTimes b1)
-      , not (null b)
+      , all (not . null) [y,b]
       , size (Times b) + 1 >= size (Times y)
       -> y : factorSuffixes (mkFacSuf x y b : zs)
     
@@ -240,7 +240,7 @@ factorChoices xs = smaller
       | b1 == flatTimes b2
       , (x,y,b) <- splitSuffix (x1 ++ b1 ++ [Star b2]) yb
       , not (null b)
-      -> factorPrefixes (mkFacSuf x y b : zs)
+      -> factorSuffixes (mkFacSuf x y b : zs)
     
     ---------------------------------------------------
     -- x⋅b* + y⋅b*⋅b = (x + y⋅b)⋅b*
@@ -248,7 +248,7 @@ factorChoices xs = smaller
       | b1 == flatTimes b2
       , (x,y,b) <- splitSuffix xb (y1 ++ b1 ++ [Star b2])
       , not (null b)
-      -> factorPrefixes (mkFacSuf x y b : zs)
+      -> factorSuffixes (mkFacSuf x y b : zs)
     
     (_, _, []) -> xb : factorSuffixes (yb:zs)
     (x, y, b ) -> factorSuffixes (mkFacSuf x y b : zs)

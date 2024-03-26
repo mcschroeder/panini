@@ -188,22 +188,22 @@ instance Subable Type Expr where
     -- In a refined base type {n:b|r}, the value variable n names the
     -- value of type b that is being refined. Thus, we take n to be bound in r.    
     TBase n b r pv
-      | y == n      -> TBase n b            r  pv  -- (1)
-      | x == EVar n -> TBase ṅ b (subst x y ṙ) pv  -- (2)
-      | otherwise   -> TBase n b (subst x y r) pv  -- (3)
+      | n == y       -> TBase n b            r  pv  -- (1)
+      | n `freeIn` x -> TBase ṅ b (subst x y ṙ) pv  -- (2)
+      | otherwise    -> TBase n b (subst x y r) pv  -- (3)
       where
         ṙ = subst (EVar ṅ) n r
-        ṅ = freshName n ([y] <> freeVars r)
+        ṅ = freshName n ([y] <> freeVars r <> freeVars x)
 
     -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
     -- Note that t₁ might itself contain (free) occurrences of n.
     TFun n t₁ t₂ pv
-      | y == n      -> TFun n (subst x y t₁)            t₂  pv  -- (1)
-      | x == EVar n -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
-      | otherwise   -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
+      | n == y       -> TFun n (subst x y t₁)            t₂  pv  -- (1)
+      | n `freeIn` x -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
+      | otherwise    -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
       where
         t₂̇ = subst (EVar ṅ) n t₂
-        ṅ = freshName n ([y] <> freeVars t₂)
+        ṅ = freshName n ([y] <> freeVars t₂ <> freeVars x)
 
   freeVars = \case
     TBase v _ r _ -> freeVars r \\ [v]

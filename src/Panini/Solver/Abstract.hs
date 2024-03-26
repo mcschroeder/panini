@@ -258,9 +258,9 @@ varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
 varElim x b φ = do
   logMessage $ divider symDivH Nothing
   logMessage $ "varElim" <+> pretty x <+> pretty b
-  logMessage $ "φ  =" <+> pretty φ  
+  logMessage $ "φ ←" <+> pretty φ  
   ξ <- mapM (abstractVar x b) [r | r <- φ, x `elem` freeVars r]
-  logMessage $ "ξ  =" <+> pretty ξ  
+  logMessage $ "ξ ←" <+> pretty ξ  
   -- let ξₘ = converge partialMeets (topExpr b : ξ)
   -- logMessage $ "ξₘ =" <+> pretty ξₘ
   -- if any containsBotAExpr ξₘ then do
@@ -269,19 +269,21 @@ varElim x b φ = do
   -- else do
   let ξₘ = ξ
   do
-    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξₘ, e₂ <- es]    
-    logMessage $ "ψ₁ =" <+> pretty ψ₁
+    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξₘ, e₂ <- es]
     let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
-    logMessage $ "ψ₂ =" <+> pretty ψ₂
-    let ψ = filter (taut /=) $ List.nub $ map normRel $ ψ₁ ++ ψ₂
-    logMessage $ "ψ  =" <+> pretty ψ
+    ψ <- filter (taut /=) <$> List.nub <$> mapM normRelM (ψ₁ ++ ψ₂)
+    logMessage $ "ψ ←" <+> pretty ψ
     if any (== cont) ψ then do
       logMessage "↯"
       return Nothing
     else
-      -- TODO: maybe?
-      -- if null ψ then return Nothing else
       return $ Just ψ
+
+normRelM :: Rel -> Pan Rel
+normRelM r = do
+  let r' = normRel r
+  unless (r' == r) $ logMessage $ pretty r <+> " ⇝ " <+> pretty r'
+  return r'
 
 -- meet' (EVar x :=: EAbs a : EVar y :=: EAbs b : zs)
 --   | x == y, Just c <- a ∧? b = meet' (EVar x :=: EAbs c : zs)

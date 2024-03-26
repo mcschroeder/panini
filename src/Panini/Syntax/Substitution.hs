@@ -17,10 +17,10 @@ import Prelude
 --     then there can be no free occurrences of @y@ in @e@ and we can leave @e@
 --     as-is.
 --
--- (2) If the bound name @n@ is the same as the substitution @x@, then we need
---     to rename @n@ to something fresh that doesn't yet occur in @e@ (and also
---     isn't @y@) and update all occurrences of @n@ in @e@ accordingly. Don't
---     forget to continue substituting @x@ for @y@ in @e@!
+-- (2) If the bound name @n@ occurs free in the substitution @x@, then we need
+--     to rename @n@ to something fresh that doesn't yet occur in @x@ or @e@
+--     (and also isn't @y@) and update all occurrences of @n@ in @e@
+--     accordingly. Don't forget to continue substituting @x@ for @y@ in @e@!
 --
 -- (3) If the bound name @n@ is neither @x@ nor @y@, then we can just recurse
 --     into @e@.
