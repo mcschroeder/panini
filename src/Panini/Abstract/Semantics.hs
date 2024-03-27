@@ -254,9 +254,8 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   a          :=: EStrComp b                   -> normRel $ a :≠: b
   a          :≠: EStrComp b                   -> normRel $ a :=: b
   -----------------------------------------------------------
-  a :=: ESol x _ r 
-    | not (isSol a)            -> normRel $ subst a x r
---  | null (freeVars a)        -> normRel $ subst a x r
+  a :=: ESol x b r | Just r' <- tryEqARel a x b r -> normRel r'  
+  a :≠: ESol x b r | Just r' <- tryNeARel a x b r -> normRel r'
   -----------------------------------------------------------
   r | [x] <- freeVars r
     , Just b <- typeOfVarInRel x r
@@ -273,6 +272,27 @@ isSol _            = False
 
 pattern Range :: Inf Integer -> Inf Integer -> AInt
 pattern Range a b <- (AInt.intervals -> [AInt.In a b])
+
+-------------------------------------------------------------------------------
+
+-- | Try to resolve equality between an expression and an abstract relation.
+-- For example, @[1,∞] = {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] = Σ∖a@.
+tryEqARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
+tryEqARel a x _ = \case
+  _ | isSol a                       -> Nothing
+  r | isConcrete a, x `notFreeIn` a -> Just $ subst a x r
+  -----------------------------------------------------------
+  EStrAt (EVar s) i :=: EChar  c pv -> Just $ EStrAt (EVar s) (subst a x i) :=: EChar  c pv
+  EStrAt (EVar s) i :=: ECharA ĉ    -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA ĉ
+  EStrAt (EVar s) i :≠: EChar  c _  -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA (AChar.ne c)
+  EStrAt (EVar s) i :≠: ECharA ĉ    -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA (neg ĉ)
+  -----------------------------------------------------------
+  _                                 -> Nothing
+
+-- | Try to resolve inequality between an expressions and an abstract relation.
+-- For example, @[1,∞] || {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] ≠ Σ∖a@
+tryNeARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
+tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
 
 -------------------------------------------------------------------------------
 
