@@ -377,9 +377,6 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -----------------------------------------------------------
   e :∈: EReg ere                              -> abstract x b $ e :=: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   -----------------------------------------------------------
-
-  (EVar _ :+: EIntA c) :=: EStrLen s -> Just $ EStrLen s :-: EIntA c
-
   (EVar _ :+: EIntA c) :=: e                  -> Just $ normExpr $ e :-: EIntA c
   (EVar _ :-: EIntA c) :=: e                  -> Just $ normExpr $ e :+: EIntA c
   -----------------------------------------------------------
