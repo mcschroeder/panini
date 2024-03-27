@@ -237,12 +237,26 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   a :>: (b :-: EInt 1 _)                      -> normRel $ a :≥: b
   a :≥: (b :+: EInt 1 _)                      -> normRel $ a :>: b
   -----------------------------------------------------------
+  Rel op (a :+: b) c           | (a ⏚), (c ⏚) -> normRel $ Rel op b (normExpr $ c :-: a)
   Rel op (a :+: b) c           | (b ⏚), (c ⏚) -> normRel $ Rel op a (normExpr $ c :-: b)
+  Rel op (a :+: b) c@(_ :+: d) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ c :-: a)
   Rel op (a :+: b) c@(_ :+: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :-: b)
+  Rel op (a :+: b) c@(d :+: _) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ c :-: a)
+  Rel op (a :+: b) c@(d :+: _) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :-: b)
+  Rel op (a :+: b) c@(_ :-: d) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ c :-: a)
   Rel op (a :+: b) c@(_ :-: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :-: b)
+  Rel op (a :+: b) c@(d :-: _) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ c :-: a)
+  Rel op (a :+: b) c@(d :-: _) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :-: b)
+  Rel op (a :-: b) c           | (a ⏚), (c ⏚) -> normRel $ Rel op b (normExpr $ a :-: c)
   Rel op (a :-: b) c           | (b ⏚), (c ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
+  Rel op (a :-: b) c@(_ :+: d) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ a :-: c)
   Rel op (a :-: b) c@(_ :+: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
+  Rel op (a :-: b) c@(d :+: _) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ a :-: c)
+  Rel op (a :-: b) c@(d :+: _) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
+  Rel op (a :-: b) c@(_ :-: d) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ a :-: c)
   Rel op (a :-: b) c@(_ :-: d) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
+  Rel op (a :-: b) c@(d :-: _) | (a ⏚), (d ⏚) -> normRel $ Rel op b (normExpr $ a :-: c)
+  Rel op (a :-: b) c@(d :-: _) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   -----------------------------------------------------------
   EMod (EIntA a) (EInt b _) :=: EInt c _
     | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> taut
