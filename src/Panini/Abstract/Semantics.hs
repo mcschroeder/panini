@@ -428,8 +428,24 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EStrSub (EVar _) (EInt  i _) (EIntA ĵ  ) :≠: EStrA t̂   -> Just $ EStrA $ strWithoutSubstr (AInt.eq i) ĵ t̂
   EStrSub (EVar _) (EIntA î  ) (EIntA ĵ  ) :≠: EStrA t̂   -> Just $ EStrA $ strWithoutSubstr î ĵ t̂
   -----------------------------------------------------------
+  -- TODO: add all combinations
+  EFun "index" [EVar _, EChar c _] :=: EIntA î  -> Just $ EStrA $ strWithFirstCharAt (AChar.eq c) î
+  -----------------------------------------------------------
   _                                           -> Nothing
 
+-- TODO: add offset parameter (up to offset string can be anything)
+strWithFirstCharAt :: AChar -> AInt -> AString
+strWithFirstCharAt ĉ î0
+  | isBot ĉ = undefined -- TODO
+  | otherwise = optM $ joins $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> [rep c̄ i <> lit ĉ <> star anyChar | i <- [a..b]]
+      AInt.In (Fin a) PosInf  -> [rep c̄ a <> star c̄ <> lit ĉ <> star anyChar]
+      _                       -> impossible
+ where
+  c̄ = lit (neg ĉ)
+  î = î0 ∧ AInt.ge 0
+  optM r | Just m <- AInt.minimum î0, m < Fin 0 = Algebra.Lattice.join (star c̄) r
+         | otherwise = r
 
 strOfLen :: AInt -> AString
 strOfLen (meet (AInt.ge 0) -> n̂)

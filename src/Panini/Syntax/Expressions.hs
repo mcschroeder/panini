@@ -25,6 +25,7 @@ import Control.Applicative
 
 -- TODO: consider changing EStrSub to start,length encoding (like SMTLIB)?
 -- TODO: simplify EReg situation
+-- TODO: add index function as pattern
 
 ------------------------------------------------------------------------------
 
@@ -179,6 +180,7 @@ typeOfExpr = \case
   EStrLen _     -> Just TInt
   EStrAt _ _    -> Just TChar
   EStrSub _ _ _ -> Just TString
+  EFun "index" _ -> Just TInt -- TODO: replace with pattern
   EFun _ es     -> asum $ map typeOfExpr es
   ECon c        -> Just $ typeOfValue c
   EReg _        -> Just TString
@@ -203,6 +205,8 @@ typeOfVarInExpr x = \case
   EStrSub (EVar y) _ _  | x == y -> Just TString
   EStrSub _ (EVar y) _  | x == y -> Just TInt
   EStrSub _ _ (EVar y)  | x == y -> Just TInt
+  EFun "index" [EVar y,_] | x == y -> Just TString -- TODO: replace with pattern
+  EFun "index" [_,EVar y] | x == y -> Just TChar -- TODO: replace with pattern
   ESol y _ _            | x == y -> Nothing
   ESol _ _ r                     -> typeOfVarInRel x r
   EFun _ es                      -> asum $ map (typeOfVarInExpr x) es
