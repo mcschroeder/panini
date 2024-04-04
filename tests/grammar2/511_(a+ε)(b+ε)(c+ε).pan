@@ -18,3 +18,6 @@ f511 = \s:string.
   let q6 = or q5 p7 in
   let q7 = or q6 p8 in
   assert q7
+
+-- NOTE: regex simplifier cannot simplify this one yet, 
+-- but the grammar in the output file is equivalent to a?b?c?

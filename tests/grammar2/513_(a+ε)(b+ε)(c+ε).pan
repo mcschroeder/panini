@@ -60,3 +60,6 @@ f513 = \s:string.
           unit 
         else
           assert false
+
+-- NOTE: regex simplifier cannot simplify this one yet, 
+-- but the grammar in the output file is equivalent to a?b?c?

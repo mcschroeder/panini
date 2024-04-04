@@ -10,3 +10,6 @@ f290 = \s:string.
   let p6 = or p3 p4 in
   let p7 = or p5 p6 in
   assert p7
+
+-- NOTE: regex simplifier cannot simplify this one yet, 
+-- but the grammar in the output file is equivalent to a?b?

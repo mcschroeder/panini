@@ -24,3 +24,6 @@ f291 = \s:string.
       let _ = assert p5 in
       let p6 = eq n 1 in
       assert p6
+
+-- NOTE: regex simplifier cannot simplify this one yet, 
+-- but the grammar in the output file is equivalent to a?b?

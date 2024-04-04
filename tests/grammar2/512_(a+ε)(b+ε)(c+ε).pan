@@ -19,3 +19,6 @@ f512 = \s:string.
                 let p8 = match s "" in
                 if p8 then unit else
                   assert false
+
+-- NOTE: regex simplifier cannot simplify this one yet, 
+-- but the grammar in the output file is equivalent to a?b?c?
