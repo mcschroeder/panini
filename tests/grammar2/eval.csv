@@ -121,3 +121,4 @@ test,grammar,result,time,parser
 511,"a?b?c?",OK,310,straight
 512,"a?b?c?",OK,250,cond
 513,"a?b?c?",OK,1420,cond
+999,"0*1",OK,1530,loop
