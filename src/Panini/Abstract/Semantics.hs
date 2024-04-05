@@ -12,6 +12,7 @@ import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AUnit as AUnit
 import Panini.Abstract.AValue
+import Panini.Error
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
@@ -320,9 +321,7 @@ abstractVar' x b r0 = do
   case e of
     Just (ECon c) -> return (fromValue c)
     Just (EAbs a) -> return a
-    Just e1 -> panic $ "strict abstraction impossible:" <+> "⟦" <> pretty r0 <> "⟧↑↑" <> pretty x <+> "≐" <+> pretty e1
-    Nothing -> panic $ "strict abstraction impossible:" <+> "⟦" <> pretty r0 <> "⟧↑↑" <> pretty x
-    -- TODO: proper error
+    _             -> throwError $ AbstractionImpossible x r0 r
 
 abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r0 = do
