@@ -78,6 +78,7 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   a         :-: EInt  b pv | b <= 0           -> normExpr $ a :+: EInt (negate b) pv
   (a :-: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ b :+: c)
   (a :+: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :+: (normExpr $ b :-: c)
+  (a :+: b) :-: c          | (a ⏚), (c ⏚)    -> normExpr $ b :+: (normExpr $ a :-: c)
   -----------------------------------------------------------
   EMod (EInt a _) (EInt b _)                  -> EInt (a `mod` b) NoPV
   -----------------------------------------------------------
@@ -261,6 +262,9 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   -----------------------------------------------------------
   EMod (EIntA a) (EInt b _) :=: EInt c _
     | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> taut
+  -----------------------------------------------------------
+  EIntA î :=: ESol a1 TInt (EMod (EVar a2) (EInt n _) :=: EInt m _)
+    | a1 == a2, n >= 0, m >= 0, AInt.ge 0 == î ∧ AInt.ge 0 -> taut
   -----------------------------------------------------------
   EStrComp a :=: EStrComp b                   -> normRel $ a :=: b
   EStrComp a :≠: EStrComp b                   -> normRel $ a :≠: b
