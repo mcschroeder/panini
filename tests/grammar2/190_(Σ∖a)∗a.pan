@@ -6,4 +6,7 @@ f190 = \s:string.
   let m = sub n 1 in
   let i = index s 'a' in
   let p = eq i m in
-  assert p
+  let _ = assert p in
+  let q = ge i 0 in
+  let _ = assert q in
+  unit

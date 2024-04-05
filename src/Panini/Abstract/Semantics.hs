@@ -268,6 +268,8 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   a          :=: EStrComp b                   -> normRel $ a :≠: b
   a          :≠: EStrComp b                   -> normRel $ a :=: b
   -----------------------------------------------------------
+  (EStrFirstIndexOfChar s1 c :-: EIntA î) :=: EStrLen s2 -> normRel $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
+  -----------------------------------------------------------
   a :=: ESol x b r | Just r' <- tryEqARel a x b r -> normRel r'  
   a :≠: ESol x b r | Just r' <- tryNeARel a x b r -> normRel r'
   -----------------------------------------------------------
@@ -342,6 +344,11 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   e1 :>: e2 | x `notFreeIn` e1                -> abstract x b $ e2 :<: e1
   e1 :≥: e2 | x `notFreeIn` e1                -> abstract x b $ e2 :≤: e1
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
+  -----------------------------------------------------------
+  (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) (AInt.eq i)
+  (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ (AInt.eq i)
+  (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EIntA î  ) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) î
+  (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EIntA î  ) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ î
   -----------------------------------------------------------
   e1 :=: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
   e1 :≠: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
@@ -435,18 +442,6 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -----------------------------------------------------------
   _                                           -> Nothing
 
-strWithFirstIndexOfChar :: AChar -> AInt -> AString
-strWithFirstIndexOfChar ĉ î
-  | isBot ĉ = strOfLen î -- TODO: should this be min î ?
-  | Just m <- AInt.minimum î, m < Fin 0 
-      = (star c̄) ∨ strWithFirstIndexOfChar ĉ (î ∧ AInt.ge 0)
-  | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [rep c̄ i <> lit ĉ <> star anyChar | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [rep c̄ a <> star c̄ <> lit ĉ <> star anyChar]
-      _                       -> impossible
- where
-  c̄ = lit (neg ĉ)
-
 strOfLen :: AInt -> AString
 strOfLen (meet (AInt.ge 0) -> n̂)
   | isBot n̂ = bot
@@ -527,6 +522,28 @@ strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
 
 strWithoutSubstr :: AInt -> AInt -> AString -> AString
 strWithoutSubstr î ĵ t̂ = neg $ strWithSubstr î ĵ t̂
+
+strWithFirstIndexOfChar :: AChar -> AInt -> AString
+strWithFirstIndexOfChar ĉ î
+  | isBot ĉ = strOfLen î -- TODO: should this be min î ?
+  | Just m <- AInt.minimum î, m < Fin 0 
+      = (star c̄) ∨ strWithFirstIndexOfChar ĉ (î ∧ AInt.ge 0)
+  | otherwise = joins $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> [rep c̄ i <> lit ĉ <> star anyChar | i <- [a..b]]
+      AInt.In (Fin a) PosInf  -> [rep c̄ a <> star c̄ <> lit ĉ <> star anyChar]
+      _                       -> impossible
+ where
+  c̄ = lit (neg ĉ)
+
+strWithFirstIndexOfCharRev :: AChar -> AInt -> AString
+strWithFirstIndexOfCharRev ĉ (meet (AInt.ge 1) -> î)   -- TODO: prove edge cases
+  | isBot ĉ = undefined -- TODO
+  | otherwise = joins $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> [star c̄ <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
+      AInt.In (Fin a) PosInf  -> [star c̄ <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
+      _                       -> impossible
+ where
+  c̄ = lit (neg ĉ)
 
 -------------------------------------------------------------------------------
 
