@@ -20,7 +20,7 @@ g = \s:string. \t:char. \i0:int.
 f241 : {s:string|?} -> unit
 f241 = \s:string.
   let i = g s 'a' 0 in
-  let j = g s 'b' j in
+  let j = g s 'b' i in
   let n = length s in
   let p = eq j n in
   assert p
