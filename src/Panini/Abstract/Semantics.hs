@@ -344,10 +344,19 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   e1 :≥: e2 | x `notFreeIn` e1                -> abstract x b $ e2 :≤: e1
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
   -----------------------------------------------------------
+  -- TODO: this kind of reordering should happen during normRel, no?
+  (EStrLen s2 :+: EIntA î) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
+  (EStrLen s2 :-: EIntA î) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA î) :=: EStrLen s2
+  -----------------------------------------------------------
   (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) (AInt.eq i)
   (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ (AInt.eq i)
   (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EIntA î  ) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) î
   (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EIntA î  ) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ î
+  -----------------------------------------------------------
+  (EStrFirstIndexOfChar (EVar s1) (EChar c1 _) :-: EIntA î) :=: EStrFirstIndexOfChar (EVar s2) (EChar c2 _)
+    | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar (AChar.eq c1) (AChar.eq c2) (AInt.sub (AInt.eq 0) î)
+  (EStrFirstIndexOfChar (EVar s1) (EChar c1 _) :+: EIntA î) :=: EStrFirstIndexOfChar (EVar s2) (EChar c2 _)
+    | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar (AChar.eq c1) (AChar.eq c2) î
   -----------------------------------------------------------
   e1 :=: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
   e1 :≠: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
@@ -438,6 +447,12 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EStrFirstIndexOfChar (EVar _) (ECharA ĉ  ) :=: EInt  i _ -> Just $ EStrA $ strWithFirstIndexOfChar ĉ (AInt.eq i)
   EStrFirstIndexOfChar (EVar _) (EChar  c _) :=: EIntA î   -> Just $ EStrA $ strWithFirstIndexOfChar (AChar.eq c) î
   EStrFirstIndexOfChar (EVar _) (ECharA ĉ  ) :=: EIntA î   -> Just $ EStrA $ strWithFirstIndexOfChar ĉ î
+  -----------------------------------------------------------
+  EStrSub (EVar s1) (EInt i _) (EStrFirstIndexOfChar (EVar s2) (EChar c _) :-: EInt j _) :=: EStrA t̂ 
+    | x == s1, x == s2, i >= 0, j >= 0 -> Just $ EStrA $ rep c̄ i <> (t̂ ∧ star c̄) <> rep c̄ (j-1) <> lit ĉ <> star anyChar
+    where 
+      ĉ = AChar.eq c
+      c̄ = lit (neg ĉ)
   -----------------------------------------------------------
   _                                           -> Nothing
 
@@ -535,14 +550,27 @@ strWithFirstIndexOfChar ĉ î
   c̄ = lit (neg ĉ)
 
 strWithFirstIndexOfCharRev :: AChar -> AInt -> AString
-strWithFirstIndexOfCharRev ĉ (meet (AInt.ge 1) -> î)   -- TODO: prove edge cases
+strWithFirstIndexOfCharRev ĉ î
   | isBot ĉ = undefined -- TODO
+  | Just m <- AInt.minimum î, m < Fin 1
+      = (star c̄) ∨ strWithFirstIndexOfCharRev ĉ (î ∧ AInt.ge 1)
   | otherwise = joins $ AInt.intervals î >>= \case
       AInt.In (Fin a) (Fin b) -> [star c̄ <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
       AInt.In (Fin a) PosInf  -> [star c̄ <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
       _                       -> impossible
  where
   c̄ = lit (neg ĉ)
+
+strWithFirstIndexOfCharFollowedByFirstIndexOfChar :: AChar -> AChar -> AInt -> AString
+strWithFirstIndexOfCharFollowedByFirstIndexOfChar ĉ1 ĉ2 (meet (AInt.ge 1) -> î) -- TODO
+  | not (isBot (ĉ1 ∧ ĉ2)) = undefined -- TODO
+  | otherwise = joins $ AInt.intervals î >>= \case
+      AInt.In (Fin a) (Fin b) -> [star c̄12 <> lit ĉ1 <> rep2 c̄2 a b <> lit ĉ2 <> star anyChar]
+      AInt.In (Fin a) PosInf  -> [star c̄12 <> lit ĉ1 <> rep c̄2 a <> star c̄2 <> lit ĉ2 <> star anyChar]
+      _                       -> impossible
+ where
+  c̄12 = lit (neg ĉ1 ∧ neg ĉ2)
+  c̄2  = lit (neg ĉ2)
 
 -------------------------------------------------------------------------------
 
