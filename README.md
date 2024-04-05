@@ -1,10 +1,10 @@
 # Panini
 
-Grammar Inference for Ad Hoc Parsers
+Static Grammar Inference for Ad Hoc Parsers
 
 ## Installation / Development
 
-* Panini is written in Haskell. You need __GHC 9.6.2__ and __cabal 3.10.1.0__ to
+* Panini is written in Haskell. You need __GHC 9.6.4__ and __cabal 3.10.1.0__ to
   compile it. The recommended way to set up a Haskell environment is with
   [GHCup](https://www.haskell.org/ghcup/).
 
@@ -36,8 +36,8 @@ Grammar Inference for Ad Hoc Parsers
   inferred type signatures:
 
   ```console
-  > panini tests/103_paper_example.pan
-  f : {s:𝕊 | s ∈ a|[^a]b.*} → 𝟙
+  > panini tests/eval/980_paper_example.pan
+  parser : {s:𝕊 | s ∈ a|[^a]b.*} → 𝟙
   ```
 
 * If you run `panini` without any arguments on an interactive terminal, it
@@ -59,6 +59,12 @@ Grammar Inference for Ad Hoc Parsers
   tests/001_bool.pan            OK (0.25s)
   tests/002_int.pan             OK (0.27s)
   ...
+  ```
+
+* **To reproduce the evaluation from the OOPSLA paper:**
+
+  ```console
+  > panini tests/eval --test --smt-timeout 1
   ```
 
 * The `--trace` flag, available in all modes, outputs (very) detailed internal
