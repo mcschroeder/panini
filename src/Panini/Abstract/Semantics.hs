@@ -353,10 +353,13 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EIntA î  ) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) î
   (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EIntA î  ) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ î
   -----------------------------------------------------------
-  (EStrFirstIndexOfChar (EVar s1) (EChar c1 _) :-: EIntA î) :=: EStrFirstIndexOfChar (EVar s2) (EChar c2 _)
-    | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar (AChar.eq c1) (AChar.eq c2) (AInt.sub (AInt.eq 0) î)
+  -- TODO: generalize these special cases
   (EStrFirstIndexOfChar (EVar s1) (EChar c1 _) :+: EIntA î) :=: EStrFirstIndexOfChar (EVar s2) (EChar c2 _)
-    | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar (AChar.eq c1) (AChar.eq c2) î
+    | x == s1, x == s2, c1 /= c2, î == î ∧ AInt.ge 0
+    -> Just $ EStrA $ star (lit (AChar.ne c1 ∧ AChar.ne c2)) <> opt ((lit (AChar.eq c2) <> star (lit (AChar.ne c1))) ∨ (lit (AChar.eq c1) <> star anyChar))
+  (EStrFirstIndexOfChar (EVar s1) (EChar c1 _) :-: EIntA î) :=: EStrFirstIndexOfChar (EVar s2) (EChar c2 _)
+    | x == s1, x == s2, c1 /= c2, î == î ∧ AInt.le 1
+    -> Just $ EStrA $ star (lit (AChar.ne c1 ∧ AChar.ne c2)) <> opt ((lit (AChar.eq c2) <> star (lit (AChar.ne c1))) ∨ ((lit (AChar.eq c1)) <> star anyChar))
   -----------------------------------------------------------
   e1 :=: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
   e1 :≠: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
@@ -453,6 +456,9 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
     where 
       ĉ = AChar.eq c
       c̄ = lit (neg ĉ)
+  -----------------------------------------------------------
+  EStrSub (EVar s1) (EStrFirstIndexOfChar (EVar s2) (EChar c _) :+: EInt i _) (EStrLen (EVar s3) :-: EInt j _) :=: EStr  t _ | x == s1, x == s2, x == s3 -> Just $ EStrA $ strWithSubstrFromFirstIndexOfCharToEnd (AChar.eq c) i j (AString.eq $ Text.unpack t)
+  EStrSub (EVar s1) (EStrFirstIndexOfChar (EVar s2) (EChar c _) :+: EInt i _) (EStrLen (EVar s3) :-: EInt j _) :=: EStrA t̂   | x == s1, x == s2, x == s3 -> Just $ EStrA $ strWithSubstrFromFirstIndexOfCharToEnd (AChar.eq c) i j t̂
   -----------------------------------------------------------
   _                                           -> Nothing
 
@@ -571,6 +577,13 @@ strWithFirstIndexOfCharFollowedByFirstIndexOfChar ĉ1 ĉ2 (meet (AInt.ge 1) ->
  where
   c̄12 = lit (neg ĉ1 ∧ neg ĉ2)
   c̄2  = lit (neg ĉ2)
+
+strWithSubstrFromFirstIndexOfCharToEnd :: AChar -> Integer -> Integer -> AString -> AString
+strWithSubstrFromFirstIndexOfCharToEnd ĉ i j t̂
+  | i < 1 || j < 1 = undefined -- TODO
+  | otherwise = star c̄ <> lit ĉ <> rep anyChar (i-1) <> t̂ <> rep anyChar (j-1)
+ where
+  c̄ = lit (neg ĉ)
 
 -------------------------------------------------------------------------------
 
