@@ -492,10 +492,13 @@ lookupSequence = Times . go
 -- | Apply known syntactic replacements of choices.
 -- 
 --     (1)  x⋅Σ* + x* = (x⋅Σ*)?
+--     (2)  [ab] + ab = a?b?
 --
 lookupChoices :: [Regex] -> Regex
 lookupChoices = (Plus .) $ go $ \case
   (Times [x1, All], Star x2) | x1 == x2 -> Just $ Opt (Times [x1, All])  -- (1)
+  (Lit cs, Times [Lit a, Lit b]) 
+    | cs == CS.union a b -> Just $ Opt (Lit a) <> Opt (Lit b) -- (2)
   _ -> Nothing 
  where
   go _ []     = []
