@@ -36,7 +36,8 @@ simplify = goFree
              | r' <- lookupSequence xs     , r' /= r -> goFree r'
              | r' <- Times (map goFree xs) , r' /= r -> goFree r'
     Star  x  | r' <- Star (goStar x)       , r' /= r -> goFree r'    
-    Opt   x  | r' <- Opt (goOpt x)         , r' /= r -> goFree r'
+    Opt   x  | r' <- lookupOpt x           , r' /= r -> goFree r' 
+             | r' <- Opt (goOpt x)         , r' /= r -> goFree r'
     _                                                -> r  
   
   goOpt r = case r of
@@ -507,6 +508,17 @@ lookupChoices = (Plus .) $ go $ \case
     go1 []     zs                      = x : go f zs
     go1 (y:ys) zs | Just x' <- f (x,y) = go f (x' : ys ++ zs)
     go1 (y:ys) zs                      = go1 ys (y:zs)
+
+-- | Apply known syntactic replacements of optionals.
+--
+--    (1)  (x + x?y)? = x?y?
+--    (2)  (y + xy?)? = x?y?
+--
+lookupOpt :: Regex -> Regex
+lookupOpt = \case
+  Plus [x1, Times [Opt x2, y]] | x1 == x2 -> Opt x1 <> Opt y  -- (1)
+  Plus [y1, Times [x, Opt y2]] | y1 == y2 -> Opt x <> Opt y1  -- (2)
+  x                                       -> Opt x
 
 -------------------------------------------------------------------------------
 
