@@ -25,7 +25,8 @@ simplify :: Regex -> Regex
 simplify = goFree
  where
   goFree r = case r of
-    Plus  xs | r' <- factorChoices xs      , r' /= r -> goFree r'
+    Plus  xs | r' <- factorPrefixes xs     , r' /= r -> goFree r'
+             | r' <- factorSuffixes xs     , r' /= r -> goFree r'
              | r' <- liftChoices xs        , r' /= r -> goFree r'
              | r' <- lookupChoices xs      , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
@@ -113,147 +114,252 @@ fuseOptChoices xs = Plus $ map go xs
 -------------------------------------------------------------------------------
 
 -- | Factorize an ordered list of choices by pairwise application of the
--- distributive laws, choosing the smallest overall outcome.
---
---     a⋅x + a⋅y = a⋅(x+y)            x⋅b + y⋅b = (x+y)⋅b
---
--- Factorization might peel off or re-arrange sub-expressions, if this leads to
--- a size reduction, according to the following additional laws:
---
---      a?⋅x + a ⋅y = a ⋅(   x + y) + x    x⋅b?    + y⋅b  = (x    + y)⋅b + x
---   a ⋅a*⋅x + a*⋅y = a*⋅(a ⋅x + y)        x⋅b*⋅b  + y⋅b* = (x⋅b  + y)⋅b*
---   a*⋅a ⋅x + a ⋅y = a ⋅(a*⋅x + y)        x⋅b ⋅b* + y⋅b  = (x⋅b* + y)⋅b
---
-factorChoices :: [Regex] -> Regex
-factorChoices xs = smaller
-  (apply factorPrefixes xs)
-  (apply (factorSuffixes . sortBy (compare `on` reverse)) xs)
+-- left-distributive law and its special cases.
+factorPrefixes :: [Regex] -> Regex
+factorPrefixes xs = Plus $ go xs
  where
-  apply f = Plus . map Times . f . map flatTimes
+  go (x:y:zs) 
+    | z <- factorPrefix      x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | z <- factorPrefixOpt   x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | z <- factorPrefixStar1 x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | z <- factorPrefixStar2 x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | otherwise                                              = x : go (y:zs)
+  go [x]                                                     = [x]
+  go []                                                      = []
 
-  factorPrefixes []         = []
-  factorPrefixes [x]        = [x]
-  factorPrefixes (ax:ay:zs) = case splitPrefix ax ay of    
-    ---------------------------------------------------
-    -- a?⋅x + a⋅y = x + a⋅(x+y)
-    ([], Opt a1:x1, _)
-      | (a,x,y) <- splitPrefix (flatTimes a1 ++ x1) ay
-      , all (not . null) [a,x]
-      , size (Times a) + 1 >= size (Times x)
-      -> x : factorPrefixes (mkFacPre a x y : zs)
+-- | Factorize two choices using the left-distributive law.
+--
+--    a⋅x + a⋅y = a⋅(x+y)
+--
+factorPrefix :: Regex -> Regex -> Regex
+factorPrefix r1 r2
+  -----------------------------------------------------------------------
+  | ax      <- flatTimes r1
+  , ay      <- flatTimes r2
+  , axy     <- splitPrefix ax ay
+  , (a,x,y) <- map3 Times axy
+  , a /= One                                  = a <> Plus [x,y]
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
 
-    ---------------------------------------------------
-    -- a⋅x + a?⋅y = y + a⋅(x+y)
-    ([], _, Opt a1:y1) 
-      | (a,x,y) <- splitPrefix ax (flatTimes a1 ++ y1)
-      , all (not . null) [a,y]
-      , size (Times a) + 1 >= size (Times y)
-      -> y : factorPrefixes (mkFacPre a x y : zs)    
+-- | Factorize two choices using a special case of the left-distributive law.
+--
+--    a?⋅x + a⋅y = x + a⋅(x+y)
+--    a⋅x + a?⋅y = y + a⋅(x+y)
+--
+factorPrefixOpt :: Regex -> Regex -> Regex
+factorPrefixOpt r1 r2
+  -----------------------------------------------------------------------
+  | Opt a1 : x1 <- flatTimes r1
+  , ax          <- flatTimes a1 ++ x1
+  , ay          <- flatTimes r2
+  , axy         <- splitPrefix ax ay
+  , (a,x,y)     <- map3 Times axy
+  , a /= One
+  , x /= One
+  , size a + 1 >= size x                      = Plus [x, a <> Plus [x,y]]
+  -----------------------------------------------------------------------
+  | Opt a1 : y1 <- flatTimes r2
+  , ay          <- flatTimes a1 ++ y1
+  , ax          <- flatTimes r1
+  , axy         <- splitPrefix ax ay
+  , (a,x,y)     <- map3 Times axy
+  , a /= One
+  , y /= One
+  , size a + 1 >= size y                      = Plus [y, a <> Plus [x,y]]
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
 
-    ---------------------------------------------------
-    -- a*⋅a⋅x + a⋅y = a⋅(a*⋅x + y)
-    ([], Star a1:ax1, _)
-      | a1' <- flatTimes a1
-      , (a2,x1) <- splitAt (length a1') ax1
-      , a1' == a2
-      , (a,x,y) <- splitPrefix (a2 ++ Star a1:x1) ay
-      , not (null a)
-      -> factorPrefixes (mkFacPre a x y : zs)
-    
-    ---------------------------------------------------
-    -- a⋅x + a*⋅a⋅y = a⋅(x + a*⋅y)
-    ([], _, Star a1:ay1)
-      | a1' <- flatTimes a1
-      , (a2,y1) <- splitAt (length a1') ay1
-      , a1' == a2
-      , (a,x,y) <- splitPrefix ax (a2 ++ Star a1:y1)
-      , not (null a)
-      -> factorPrefixes (mkFacPre a x y : zs)
-    
-    ---------------------------------------------------
-    -- a⋅a*⋅x + a*⋅y = a*⋅(a⋅x + y)
-    ([], break isStar -> (a1, Star a2:x1), _)
-      | a1 == flatTimes a2
-      , (a,x,y) <- splitPrefix (Star a2:a1 ++ x1) ay
-      , not (null a)
-      -> factorPrefixes (mkFacPre a x y : zs)
-    
-    ---------------------------------------------------
-    -- a*⋅x + a⋅a*⋅y = a*⋅(x + a⋅y)
-    ([], _, break isStar -> (a1, Star a2:y1))
-      | a1 == flatTimes a2
-      , (a,x,y) <- splitPrefix ax (Star a2:a1 ++ y1)
-      , not (null a)
-      -> factorPrefixes (mkFacPre a x y : zs)
-    
-    ---------------------------------------------------
-    ([], _, _) -> ax : factorPrefixes (ay:zs)
+-- | Factorize two choices using a special case of the left-distributive law.
+--
+--    a*⋅a⋅x + a⋅y = a⋅(a*⋅x + y)
+--    a⋅x + a*⋅a⋅y = a⋅(x + a*⋅y)
+--
+factorPrefixStar1 :: Regex -> Regex -> Regex
+factorPrefixStar1 r1 r2
+  -----------------------------------------------------------------------
+  | Star a1 : ax1 <- flatTimes r1
+  , a2            <- flatTimes a1
+  , (a3,x1)       <- splitAt (length a2) ax1
+  , a2 == a3
+  , ax            <- a3 ++ Star a1 : x1
+  , ay            <- flatTimes r2
+  , axy           <- splitPrefix ax ay
+  , (a,x,y)       <- map3 Times axy
+  , a /= One                                  = a <> Plus [x,y]
+  -----------------------------------------------------------------------
+  | Star a1 : ay1 <- flatTimes r2
+  , a2            <- flatTimes a1
+  , (a3,y1)       <- splitAt (length a2) ay1
+  , a2 == a3
+  , ay            <- a3 ++ Star a1 : y1
+  , ax            <- flatTimes r1
+  , axy           <- splitPrefix ax ay
+  , (a,x,y)       <- map3 Times axy
+  , a /= One                                  = a <> Plus [x,y]
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
 
-    ---------------------------------------------------
-    -- a⋅x + a⋅y = a⋅(x+y)
-    (a, x, y) -> factorPrefixes (mkFacPre a x y : zs)
+-- | Factorize two choices using a special case of the left-distributive law.
+--
+--    a⋅a*⋅x + a*⋅y = a*⋅(a⋅x + y)
+--    a*⋅x + a⋅a*⋅y = a*⋅(x + a⋅y)
+--
+factorPrefixStar2 :: Regex -> Regex -> Regex
+factorPrefixStar2 r1 r2
+  -----------------------------------------------------------------------
+  | ax1                <- flatTimes r1
+  , (a1, Star a2 : x1) <- break isStar ax1
+  , a1 == flatTimes a2
+  , ax                 <- Star a2 : a1 ++ x1
+  , ay                 <- flatTimes r2
+  , axy                <- splitPrefix ax ay
+  , (a,x,y)            <- map3 Times axy
+  , a /= One                                  = a <> Plus [x,y]
+  -----------------------------------------------------------------------
+  | ay1                <- flatTimes r2
+  , (a1, Star a2 : y1) <- break isStar ay1
+  , a1 == flatTimes a2  
+  , ay                 <- Star a2 : a1 ++ y1
+  , ax                 <- flatTimes r2
+  , axy                <- splitPrefix ax ay
+  , (a,x,y)            <- map3 Times axy
+  , a /= One                                  = a <> Plus [x,y]
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
 
-  mkFacPre a x y = a ++ [Plus [Times x, Times y]]
+-------------------------------------------------------------------------------
 
-  factorSuffixes []         = []
-  factorSuffixes [x]        = [x]
-  factorSuffixes (xb:yb:zs) = case splitSuffix xb yb of
-    ---------------------------------------------------
-    -- x⋅b? + y⋅b = x + (x+y)⋅b
-    (unsnoc -> Just (x1, Opt b1), _, []) 
-      | (x,y,b) <- splitSuffix (x1 ++ flatTimes b1) yb
-      , all (not . null) [x,b]
-      , size (Times b) + 1 >= size (Times x)
-      -> x : factorSuffixes (mkFacSuf x y b : zs)
-    
-    ---------------------------------------------------
-    -- x⋅b + y⋅b? = y + (x+y)⋅b
-    (_, unsnoc -> Just (y1, Opt b1), []) 
-      | (x,y,b) <- splitSuffix xb (y1 ++ flatTimes b1)
-      , all (not . null) [y,b]
-      , size (Times b) + 1 >= size (Times y)
-      -> y : factorSuffixes (mkFacSuf x y b : zs)
-    
-    ---------------------------------------------------
-    -- x⋅b⋅b* + y⋅b = (x⋅b* + y)⋅b
-    (unsnoc -> Just (xb1, Star b1), _, [])
-      | b1' <- flatTimes b1
-      , (x1,b2) <- splitAtEnd (length b1') xb1
-      , b1' == b2
-      , (x,y,b) <- splitSuffix (x1 ++ Star b1 : b2) yb
-      , not (null b)
-      -> factorSuffixes (mkFacSuf x y b : zs)
-    
-    ---------------------------------------------------
-    -- x⋅b + y⋅b⋅b* = (x + y⋅b*)⋅b
-    (_, unsnoc -> Just (yb1, Star b1), [])
-      | b1' <- flatTimes b1
-      , (y1,b2) <- splitAtEnd (length b1') yb1
-      , b1' == b2
-      , (x,y,b) <- splitSuffix xb (y1 ++ Star b1 : b2)
-      , not (null b)
-      -> factorSuffixes (mkFacSuf x y b : zs)
-    
-    ---------------------------------------------------
-    -- x⋅b*⋅b + y⋅b* = (x⋅b + y)⋅b*
-    ([], breakEnd isStar -> (unsnoc -> Just (x1, Star b2), b1), _)
-      | b1 == flatTimes b2
-      , (x,y,b) <- splitSuffix (x1 ++ b1 ++ [Star b2]) yb
-      , not (null b)
-      -> factorSuffixes (mkFacSuf x y b : zs)
-    
-    ---------------------------------------------------
-    -- x⋅b* + y⋅b*⋅b = (x + y⋅b)⋅b*
-    ([], _, breakEnd isStar -> (unsnoc -> Just (y1, Star b2), b1))
-      | b1 == flatTimes b2
-      , (x,y,b) <- splitSuffix xb (y1 ++ b1 ++ [Star b2])
-      , not (null b)
-      -> factorSuffixes (mkFacSuf x y b : zs)
-    
-    (_, _, []) -> xb : factorSuffixes (yb:zs)
-    (x, y, b ) -> factorSuffixes (mkFacSuf x y b : zs)
+-- | Factorize an ordered list of choices by pairwise application of the
+-- right-distributive law and its special cases.
+factorSuffixes :: [Regex] -> Regex
+factorSuffixes xs = Plus $ go $ sortBy (compare `on` (reverse . flatTimes)) xs
+ where
+  go (x:y:zs)
+    | z <- factorSuffix      x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | z <- factorSuffixOpt   x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | z <- factorSuffixStar1 x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | z <- factorSuffixStar2 x y, size z < size (Plus [x,y]) =     go (z:zs)
+    | otherwise                                              = x : go (y:zs)
+  go [x]                                                     = [x]
+  go []                                                      = []
 
-  mkFacSuf x y b = Plus [Times x, Times y] : b
+-- | Factorize two choices using the right-distributive law.
+--
+--    x⋅b + y⋅b = (x+y)⋅b
+--
+factorSuffix :: Regex -> Regex -> Regex
+factorSuffix r1 r2
+  -----------------------------------------------------------------------
+  | xb      <- flatTimes r1
+  , yb      <- flatTimes r2
+  , xyb     <- splitSuffix xb yb
+  , (x,y,b) <- map3 Times xyb
+  , b /= One                                  = Plus [x,y] <> b
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
+
+-- | Factorize two choices using a special case of the right-distributive law.
+--
+--    x⋅b? + y⋅b = x + (x+y)⋅b
+--    x⋅b + y⋅b? = y + (x+y)⋅b
+--
+factorSuffixOpt :: Regex -> Regex -> Regex
+factorSuffixOpt r1 r2
+  -----------------------------------------------------------------------
+  | xb1               <- flatTimes r1
+  , Just (x1, Opt b1) <- unsnoc xb1
+  , xb                <- x1 ++ flatTimes b1
+  , yb                <- flatTimes r2
+  , xyb               <- splitSuffix xb yb
+  , (x,y,b)           <- map3 Times xyb
+  , b /= One
+  , x /= One  
+  , size b + 1 >= size x                      = Plus [x, Plus [x,y] <> b]
+  -----------------------------------------------------------------------
+  | yb1               <- flatTimes r2
+  , Just (y1, Opt b1) <- unsnoc yb1
+  , yb                <- y1 ++ flatTimes b1
+  , xb                <- flatTimes r1
+  , xyb               <- splitSuffix xb yb
+  , (x,y,b)           <- map3 Times xyb
+  , b /= One
+  , y /= One
+  , size b + 1 >= size y                      = Plus [y, Plus [x,y] <> b]
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
+
+-- | Factorize two choices using a special case of the right-distributive law.
+--
+--    x⋅b⋅b* + y⋅b = (x⋅b* + y)⋅b
+--    x⋅b + y⋅b⋅b* = (x + y⋅b*)⋅b
+--
+factorSuffixStar1 :: Regex -> Regex -> Regex
+factorSuffixStar1 r1 r2
+  -----------------------------------------------------------------------
+  | xb1                 <- flatTimes r1
+  , Just (xb2, Star b1) <- unsnoc xb1
+  , b2                  <- flatTimes b1
+  , (x1,b3)             <- splitAtEnd (length b2) xb2
+  , b2 == b3
+  , xb                  <- x1 ++ Star b1 : b3
+  , yb                  <- flatTimes r2
+  , xyb                 <- splitSuffix xb yb
+  , (x,y,b)             <- map3 Times xyb
+  , b /= One                                  = Plus [x,y] <> b
+  -----------------------------------------------------------------------
+  | yb1                 <- flatTimes r2
+  , Just (yb2, Star b1) <- unsnoc yb1
+  , b2                  <- flatTimes b1
+  , (y1,b3)             <- splitAtEnd (length b2) yb2
+  , b2 == b3
+  , yb                  <- y1 ++ Star b1 : b3
+  , xb                  <- flatTimes r1
+  , xyb                 <- splitSuffix xb yb
+  , (x,y,b)             <- map3 Times xyb
+  , b /= One                                  = Plus [x,y] <> b
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+  -----------------------------------------------------------------------
+
+
+-- | Factorize two choices using a special case of the right-distributive law.
+--
+--    x⋅b*⋅b + y⋅b* = (x⋅b + y)⋅b*
+--    x⋅b* + y⋅b*⋅b = (x + y⋅b)⋅b*
+--
+factorSuffixStar2 :: Regex -> Regex -> Regex
+factorSuffixStar2 r1 r2
+  -----------------------------------------------------------------------
+  | xb1                 <- flatTimes r1
+  , (xb2, b1)           <- breakEnd isStar xb1
+  , Just (x1, Star b2)  <- unsnoc xb2
+  , b1 == flatTimes b2
+  , xb                  <- x1 ++ b1 ++ [Star b2]
+  , yb                  <- flatTimes r2
+  , xyb                 <- splitSuffix xb yb
+  , (x,y,b)             <- map3 Times xyb
+  , b /= One                                  = Plus [x,y] <> b
+  -----------------------------------------------------------------------
+  | yb1                 <- flatTimes r2
+  , (yb2, b1)           <- breakEnd isStar yb1
+  , Just (y1, Star b2)  <- unsnoc yb2
+  , b1 == flatTimes b2
+  , yb                  <- y1 ++ b1 ++ [Star b2]
+  , xb                  <- flatTimes r1
+  , xyb                 <- splitSuffix xb yb
+  , (x,y,b)             <- map3 Times xyb
+  , b /= One                                  = Plus [x,y] <> b
+  -----------------------------------------------------------------------
+  | otherwise                                 = Plus [r1,r2]
+
+-------------------------------------------------------------------------------
 
 flatTimes :: Regex -> [Regex]
 flatTimes = \case
@@ -289,6 +395,9 @@ splitSuffix xs0 ys0 = go [] (reverse xs0) (reverse ys0)
 -- TODO: replace by Data.List.unsnoc once we depend on base-4.19
 unsnoc :: [a] -> Maybe ([a], a)
 unsnoc xs = (\(hd, tl) -> (reverse tl, hd)) <$> uncons (reverse xs)
+
+map3 :: (a -> b) -> (a,a,a) -> (b,b,b)
+map3 f (x,y,z) = (f x, f y, f z)
 
 -------------------------------------------------------------------------------
 
@@ -397,12 +506,6 @@ lookupChoices = (Plus .) $ go $ \case
     go1 (y:ys) zs                      = go1 ys (y:zs)
 
 -------------------------------------------------------------------------------
-
--- | Choose the smaller of two regular expressions in terms of 'size'.
-smaller :: Regex -> Regex -> Regex
-smaller r1 r2 
-  | size r1 <= size r2 = r1
-  | otherwise          = r2
 
 -- | The size of a regular expression, following Kahrs and Runciman (2021).
 size :: Regex -> Int
