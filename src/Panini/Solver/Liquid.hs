@@ -66,10 +66,10 @@ solve cs qs = do
 fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
 fixpoint cs s = do
   logData $ sigma <+> symEq <+> pretty s
-  r <- take 1 <$> filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
+  r <- filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
   case r of
-    [c] -> fixpoint cs =<< weaken s c
-    _   -> return s
+    []  -> return s
+    c:_ -> fixpoint cs =<< weaken s c
 
 -- | Weaken an assignment to satisfy a given constraint.
 weaken :: Assignment -> FlatCon -> Pan Assignment
