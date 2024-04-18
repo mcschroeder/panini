@@ -79,6 +79,9 @@ pattern EStrSub s i j = EFun "str.sub" [s,i,j]
 pattern EStrComp :: Expr -> Expr
 pattern EStrComp s = EFun "str.comp" [s]
 
+pattern EStrFirstIndexOfChar :: Expr -> Expr -> Expr
+pattern EStrFirstIndexOfChar s c = EFun "firstIndexOfChar" [s,c]
+
 ------------------------------------------------------------------------------
 
 -- | unit constant
@@ -179,6 +182,7 @@ typeOfExpr = \case
   EStrLen _     -> Just TInt
   EStrAt _ _    -> Just TChar
   EStrSub _ _ _ -> Just TString
+  EStrFirstIndexOfChar _ _ -> Just TInt
   EFun _ es     -> asum $ map typeOfExpr es
   ECon c        -> Just $ typeOfValue c
   EReg _        -> Just TString
@@ -203,6 +207,8 @@ typeOfVarInExpr x = \case
   EStrSub (EVar y) _ _  | x == y -> Just TString
   EStrSub _ (EVar y) _  | x == y -> Just TInt
   EStrSub _ _ (EVar y)  | x == y -> Just TInt
+  EStrFirstIndexOfChar (EVar y) _ | x == y -> Just TString
+  EStrFirstIndexOfChar _ (EVar y) | x == y -> Just TChar
   ESol y _ _            | x == y -> Nothing
   ESol _ _ r                     -> typeOfVarInRel x r
   EFun _ es                      -> asum $ map (typeOfVarInExpr x) es

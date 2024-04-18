@@ -1,4 +1,4 @@
-module Panini.Panic where
+module Panini.Panic (panic, impossible, assert, assertM) where
 
 import GHC.Stack
 import Panini.Pretty
