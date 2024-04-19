@@ -81,7 +81,7 @@ test,grammar,result,time,parser,reason
 291,"a?b?",OK,210,cond,exact
 300,"ab.*",OK,70,straight,exact
 310,".*ab",FAIL,140,straight,stuck
-310,".*ab",FAIL,590,loop,stuck
+311,".*ab",FAIL,590,loop,stuck
 320,"a.b",OK,100,straight,exact
 321,"a.b",OK,180,straight,exact
 322,"a.b",OK,130,cond,exact
