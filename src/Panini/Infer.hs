@@ -32,7 +32,7 @@ type Context = Map Name Type
 check :: Context -> Term -> Type -> Pan (Type, Con)
 check g e t̃ = do
   (t,c) <- infer g e
-  t̂ <- fresh g t̃
+  t̂ <- fresh t̃
   ĉ <- sub t t̂
   return (t̂, c ∧ ĉ)
 
@@ -74,7 +74,7 @@ infer g = \case
   
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv -> do
-    t̂₁ <- fresh g (shape t̃₁)
+    t̂₁ <- fresh (shape t̃₁)
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ pv
     let c = cImpl x t̂₁ c₂
@@ -84,18 +84,18 @@ infer g = \case
   Let x e₁ e₂ pv -> do
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂ <- fresh g (shape t₂)    
+    t̂₂ <- fresh (shape t₂)    
     ĉ₂ <- sub t₂ t̂₂
     let c = c₁ ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁      <- fresh g (shape t̃₁)
+    t̂₁      <- fresh (shape t̃₁)
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
     ĉ₁      <- sub t₁ t̂₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂      <- fresh g (shape t₂)
+    t̂₂      <- fresh (shape t₂)
     ĉ₂      <- sub t₂ t̂₂
     let c    = (cImpl x t̂₁ (c₁ ∧ ĉ₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return   $ (t̂₂,c) `withPV` pv
@@ -104,7 +104,7 @@ infer g = \case
   If v e₁ e₂ pv -> do
     checkBool g v
     (t₁,c₁) <- infer g e₁
-    t̂       <- fresh g (shape t₁)
+    t̂       <- fresh (shape t₁)
     ĉ₁      <- sub t₁ t̂
     (t₂,c₂) <- infer g e₂
     ĉ₂      <- sub t₂ t̂
@@ -134,8 +134,8 @@ self x = \case
   t -> t
 
 -- | Hole instantiation (▷).
-fresh :: Context -> Type -> Pan Type
-fresh = go . const [] --Map.toList
+fresh :: Type -> Pan Type
+fresh = go []
   where
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
