@@ -4,6 +4,7 @@ import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
 import Panini.Pretty
+import Panini.Provenance
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Prelude
@@ -23,22 +24,26 @@ import Prelude
 -- applications.
 --
 -- In the literature, κ-variables are sometimes referred to as /Horn variables/.
-data KVar = KVar !Int ![Base]
+data KVar = KVar !Int ![Base] !PV
   deriving stock (Ord, Eq, Show, Read, Generic)
 
 instance Hashable KVar
 
 -- | The parameters of a κ-variable.
 kparams :: KVar -> [Name]
-kparams (KVar _ ts) = [fromString $ "z" ++ show @Int i | i <- [0..length ts-1]]
+kparams (KVar _ ts _) = [fromString $ "z" ++ show @Int i | i <- [0..length ts-1]]
 
 ktypes :: KVar -> [Base]
-ktypes (KVar _ ts) = ts
+ktypes (KVar _ ts _) = ts
 
 instance Pretty KVar where
-  pretty k@(KVar _ ts) = prettyKVarName k <> prettyTuple zs
+  pretty k@(KVar _ ts _) = prettyKVarName k <> prettyTuple zs
     where
       zs = [pretty z <> colon <> pretty t | (z,t) <- zip (kparams k) ts]
 
 prettyKVarName :: KVar -> Doc
-prettyKVarName (KVar i _) = ann (Identifier VarIdent) $ kappa <> subscript i
+prettyKVarName (KVar i _ _) = ann (Identifier VarIdent) $ kappa <> subscript i
+
+instance HasProvenance KVar where
+  getPV (KVar _ _ pv) = pv
+  setPV pv (KVar i ts _) = KVar i ts pv

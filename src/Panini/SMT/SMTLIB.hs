@@ -118,7 +118,7 @@ instance SMTLIB AString where
 
 -- TODO: ensure uniqueness
 instance SMTLIB KVar where
-  encode (KVar i _) = "k" <> LB.fromString (show i)
+  encode (KVar i _ _) = "k" <> LB.fromString (show i)
 
 instance SMTLIB Name where
   encode (Name n _) = LB.fromText n

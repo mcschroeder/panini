@@ -37,7 +37,7 @@ solve cs qs = do
   logMessage $ "Construct initial solution" <+> sigma <> subscript 0
   -- TODO: we still assume free vars in qs to match the k param names (z0,...,zn)
   let s0 = Map.fromList
-         [ (k, q) | k@(KVar _ ts) <- Set.toList (kvars cs)
+         [ (k, q) | k@(KVar _ ts _) <- Set.toList (kvars cs)
          , let q = maybe PTrue meets (Map.lookup ts qs)
          ]
   logData $ sigma <> subscript 0 <+> symEq <+> pretty s0

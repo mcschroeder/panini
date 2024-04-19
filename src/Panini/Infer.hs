@@ -141,7 +141,7 @@ fresh = go []
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
-      κ <- freshK (b:ts)
+      κ <- freshK (b:ts) pv
       let v' = if v `elem` xs then freshName v xs else v
       let p = PAppK κ (map EVar (v':xs))
       return $ TBase v' b (Known p) (Derived pv "ins/hole")
@@ -155,11 +155,11 @@ fresh = go []
       t̂ <- go ((x,s):g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
 
-freshK :: [Base] -> Pan KVar
-freshK ts = do
+freshK :: [Base] -> PV -> Pan KVar
+freshK ts pv = do
   i <- gets kvarCount
   modify $ \s -> s { kvarCount = i + 1}
-  return $ KVar i ts
+  return $ KVar i ts pv
 
 -- | Returns the non-refined version of a type.
 shape :: Type -> Type

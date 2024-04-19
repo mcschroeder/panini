@@ -103,7 +103,7 @@ topoSortPreCons pcs =
   adj g@(PreCon _ _ k c) = (g, k2i k, map k2i $ Set.toList $ relevantKVars c)
   relevantKVars c        = Set.intersection (kvars c) gvars
   gvars                  = Set.fromList [k | PreCon _ _ k _ <- toList pcs]
-  k2i (KVar i _)         = i
+  k2i (KVar i _ _)       = i
 
 
 -- | Solve a single precondition constraint, resulting in an abstract value.
