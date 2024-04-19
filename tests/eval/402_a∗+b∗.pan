@@ -3,7 +3,7 @@ import axioms
 f402 : {s:string|?} -> unit
 f402 = \s:string.
   let n = length s in
-  rec wA : int -> bool = \i:int.
+  rec wA : {i:int|?} -> bool = \i:int.
     let p = lt i n in
     if p then
       let x = charAt s i in
@@ -16,7 +16,7 @@ f402 = \s:string.
     else
       true
   in
-  rec wB : int -> bool = \i:int.
+  rec wB : {i:int|?} -> bool = \i:int.
     let p = lt i n in
     if p then
       let x = charAt s i in

@@ -6,7 +6,7 @@ f230 = \s:string.
   let p1 = eqChar c 'a' in
   let _ = assert p1 in
   let n = length s in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let p2 = lt i n in
     if p2 then
       let x = charAt s i in

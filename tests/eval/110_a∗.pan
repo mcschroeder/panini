@@ -3,7 +3,7 @@ import axioms
 f110 : {s:string|?} -> unit
 f110 = \s:string.
   let n = length s in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let p = lt i n in
     if p then
       let x = charAt s i in

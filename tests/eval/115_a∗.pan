@@ -2,7 +2,7 @@ import axioms
 
 f115 : {s:string|?} -> unit
 f115 = \s0:string.  
-  rec w : string -> int -> unit = \s:string. \i:int.
+  rec w : {s:string|?} -> {i:int|?} -> unit = \s:string. \i:int.
     let n = length s in
     let p = lt i n in
     if p then

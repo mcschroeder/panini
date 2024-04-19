@@ -3,7 +3,7 @@ import axioms
 f400 : {s:string|?} -> unit
 f400 = \s:string.
   let go = \t:char.    
-    rec w : int -> bool = \i:int.
+    rec w : {i:int|?} -> bool = \i:int.
       let c = charAt s i in
       let pc = eqChar c t in
       let p0 = eq i 0 in

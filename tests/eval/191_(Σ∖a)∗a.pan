@@ -2,7 +2,7 @@ import axioms
 
 f191 : {s:string|?} -> unit
 f191 = \s:string.  
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let p = ge i 0 in
     if p then
       let x = charAt s i in

@@ -2,7 +2,7 @@ import axioms
 
 g = \s:string. \t:char. \i0:int.
   let n = length s in
-  rec g' : int -> int = \i:int.  
+  rec g' : {i:int|?} -> int = \i:int.  
     let p1 = le i n in
     if p1 then
       let c = charAt s i in

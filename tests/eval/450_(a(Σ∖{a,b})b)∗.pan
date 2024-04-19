@@ -18,7 +18,7 @@ f450 = \s:string.
     unit
   in
     let n = length s in
-    rec go : int -> unit = \i:int.
+    rec go : {i:int|?} -> unit = \i:int.
       let p = lt i n in
       if p then
         let j = add i 2 in

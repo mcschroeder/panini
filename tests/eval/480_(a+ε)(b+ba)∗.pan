@@ -3,7 +3,7 @@ import axioms
 f480 : {s:string|?} -> unit
 f480 = \s:string.
   let n = length s in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let p = ge i n in
     if p then
       unit

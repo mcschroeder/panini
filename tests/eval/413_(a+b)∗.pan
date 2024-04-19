@@ -3,7 +3,7 @@ import axioms
 f413 : {s:string|?} -> unit
 f413 = \s:string.
   let n = length s in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let q = lt i n in
     if q then
       let c = charAt s i in

@@ -4,7 +4,7 @@ f192 : {s:string|?} -> unit
 f192 = \s:string.
   let n = length s in
   let m = sub n 1 in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let p = lt i m in
     if p then
       let x = charAt s i in

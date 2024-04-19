@@ -12,7 +12,7 @@ f340 = \s:string.
     let p3 = and p0 p2 in
     assert p3
   in
-    rec w : int -> unit = \i:int.
+    rec w : {i:int|?} -> unit = \i:int.
       let q = lt i n in
       if q then
         let _ = go i in

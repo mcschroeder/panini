@@ -13,7 +13,8 @@ import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
--- TODO: update type rules in paper
+-- TODO: update type rules in paper; in particular: template generation / hole
+-- instantiation, which has gotten more complicated since the OOPSLA submission
 
 ------------------------------------------------------------------------------
 
@@ -91,7 +92,7 @@ infer g = \case
 
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁      <- fresh (shape t̃₁)
+    t̂₁      <- fresh t̃₁
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
     ĉ₁      <- sub t₁ t̂₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
