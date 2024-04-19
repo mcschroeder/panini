@@ -163,8 +163,8 @@ freshK ts pv = do
 
 -- | Returns the non-refined version of a type.
 shape :: Type -> Type
-shape (TBase v b _ pv) = TBase v b Unknown pv
-shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) pv
+shape (TBase v b _ pv) = TBase v b Unknown (Derived pv "shape")
+shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) (Derived pv "shape")
 
 -- | Subtyping (⩽).
 sub :: Type -> Type -> Pan Con
