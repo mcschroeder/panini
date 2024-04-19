@@ -9,8 +9,10 @@ module Panini.Provenance
 
 import Control.Monad
 import Data.ByteString qualified as BS
+import Data.Hashable
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
+import GHC.Generics (Generic)
 import Panini.Pretty
 import Prelude
 import System.IO
@@ -24,7 +26,9 @@ data SrcLoc = SrcLoc
   , begin :: (Int, Int)  -- ^ (line, column)
   , end   :: (Int, Int)  -- ^ (line, column)
   }
-  deriving stock (Eq, Ord, Show, Read)
+  deriving stock (Eq, Ord, Show, Read, Generic)
+
+instance Hashable SrcLoc
 
 instance Pretty SrcLoc where
   pretty (SrcLoc f (l1, c1) (l2, c2))
@@ -42,7 +46,9 @@ data PV
     -- ^ Derivation from original (e.g., type synthesis or variable renaming).
   | NoPV 
     -- ^ Most likely machine-generated data.
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Show, Read, Generic)
+
+instance Hashable PV
 
 -- | Ordering by (original) source location.
 instance Ord PV where
