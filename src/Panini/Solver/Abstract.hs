@@ -33,8 +33,7 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
--- A /precondition constraint/ is any constraint of the form @∀x:b. κ(x) => c@,
--- where @κ@ does not occur in @c@ in head position (but may occur otherwise).
+-- A /precondition constraint/ is any constraint of the form @∀x:b. κ(x) => c@.
 -- In this context, @κ@ is known as a /precondition variable/. Note that the
 -- variable @x@, the parameter applied to @κ@, is a free variable in @c@.
 data PreCon = PreCon Name Base KVar Con
@@ -47,12 +46,13 @@ instance Pretty PreCon where
 
 -- | Return all precondition constraints within the given constraint.
 allPreCons :: Con -> HashSet PreCon
-allPreCons c0 = HashSet.fromList 
-  [ PreCon x b k c 
-  | CAll x b (PAppK k [EVar y]) c <- Uniplate.universe c0, y == x
-  , null [k' | CHead (PAppK k' _) <- Uniplate.universe c, k' == k]
-  , freeVars c `Set.isSubsetOf` [x]
-  ]
+allPreCons c0 = HashSet.fromList $
+  [ PreCon x b k c | CAll x b p c <- Uniplate.universe c0, k <- preConK x p ]  
+ where
+  preConK x = \case
+    PAppK k [EVar y] | x == y -> [k]
+    POr ps                    -> concatMap (preConK x) ps
+    _                         -> []
 
 preConKVar :: PreCon -> KVar
 preConKVar (PreCon _ _ k _) = k
