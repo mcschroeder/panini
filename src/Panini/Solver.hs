@@ -40,20 +40,20 @@ solve kst c0 = do
   c2  <- Fusion.solve kst c1
   c3  <- simplifyCon c2                  § "Simplify constraint"
 
-  logMessage "Phase 2: LIQUID — Solve residual non-precondition variables"
-  ksp <- allPreConKVars c3               § "Identify precondition variables"
-  c4  <- apply (allTrue ksp) c3          § "Temporarily eliminate preconditions"
+  logMessage "Phase 2: LIQUID — Solve residual non-grammar variables"
+  ksp <- allGrammarVars c3               § "Identify grammar variables"
+  c4  <- apply (allTrue ksp) c3          § "Hide grammar variables"
   c5  <- simplifyCon c4                  § "Simplify constraint"
   qs  <- qualifiers c0 (kvars c5)        § "Extract candidate qualifiers"
   cs5 <- flat c5                         § "Flatten constraint"
   csk <- filter horny cs5                § "Gather Horn-headed constraints"
   s0  <- solution0 qs (kvars csk)        § "Construct initial solution"
   sl  <- Liquid.fixpoint csk s0
-  c6  <- c3                              § "Restore preconditions"
+  c6  <- c3                              § "Restore grammar variables"
   c7  <- apply sl c6                     § "Apply Liquid solution"
   c8  <- simplifyCon c7                  § "Simplify constraint"
 
-  logMessage "Phase 3: ABSTRACT — Find weakest preconditions"
+  logMessage "Phase 3: ABSTRACT — Infer grammars using abstract interpretation"
   sa  <- Abstract.solve c8
   c9  <- apply sa c8                     § "Apply abstract solution"
   c10 <- simplifyCon c9                  § "Simplify constraint"
@@ -71,5 +71,6 @@ solve kst c0 = do
  where
   allTrue         = Map.fromSet (const PTrue)
   allPreConKVars  = Set.fromList . map preConKVar . toList . allPreCons
+  allGrammarVars  = Set.filter (([TString] ==) . ktypes) . allPreConKVars
   qualifiers c ks = Map.fromSet (extractQualifiers c) (Set.map ktypes ks)
   solution0 qs ks = Map.fromSet (maybe PTrue meets . flip Map.lookup qs . ktypes) ks
