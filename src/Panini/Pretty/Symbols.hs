@@ -93,10 +93,15 @@ symNotNi = "∌" `orASCII` "\\notni"
 -- terminal, so instead we're appropriating "ꘉ" (U+A609, "VAI SYLLABLE NE"), a
 -- character from a syllabic writing system for the language spoken by the Vai
 -- people of Liberia, which just so happens to look remarkably similar.
-symNei, symEi :: Doc
-symNei = "ꘉ" `orASCII` "\\nei"
-symEi = "⊘" `orASCII` "\\ei"  -- NOTE: LaTeX "\oslash" NOT "\emptyset"
+symNei :: Doc
+symNei = "ꘉ" `orASCII` "><"
 
+-- NOTE: like with 'symNei', we really should be using the correct Unicode
+-- symbol "∥" (U+2225, "PARALLEL TO", LaTeX "\parallel") for the empty
+-- intersection relation, but "‖" (U+2016 "DOUBLE VERTICAL LINE") looks much
+-- nicer in my terminal
+symEi :: Doc
+symEi = "‖" `orASCII` "||"
 
 -- TODO: these replacements could cause massive confusion in string grammars
 lambda, kappa, sigma, bigSigma, epsilon :: Doc
