@@ -398,6 +398,7 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EVar _ :≠: e | b == TString                 -> Just $ EStrComp e
   -----------------------------------------------------------
   e :∈: EReg ere                              -> abstract x b $ e :=: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
+  e :∉: EReg ere                              -> abstract x b $ e :≠: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   -----------------------------------------------------------
   (EVar _ :+: EInt  c pv) :=: e               -> Just $ normExpr $ e :-: EInt  c pv
   (EVar _ :+: EIntA c   ) :=: e               -> Just $ normExpr $ e :-: EIntA c
