@@ -100,6 +100,9 @@ simplifyPred = rewrite $ \case
     | x1 == x2, x1 `notElem` freeVars y
     -> Just $ meets $ map (subst y x1) xs
 
+  -- ∃x:ℤ. x ⋈ c   ≡   ⊤    where c ∈ ℤ, ⋈ ∈ {=,≠,>,≥,<,≤}
+  PExists x1 TInt (PRel (Rel _ (EVar x2) (EInt _ _)))
+    | x1 == x2 -> Just PTrue
 
   -- ∃x:b. y = x   ≡   ⊤
   PExists x1 _ (PRel (y :=: EVar x2))
