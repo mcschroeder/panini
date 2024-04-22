@@ -43,7 +43,7 @@ test,grammar,result,time,parser,reason
 112,"a*",OK,1050,straight,exact
 113,"a*",OK,1450,loop,exact
 114,"a*",FAIL,640,loop,empty
-115,"a*",FAIL,500,loop,empty
+115,"a*",OK,1410,loop,exact
 120,"a.*",OK,50,straight,exact
 121,"a.*",OK,60,straight,exact
 130,".*a",OK,100,straight,exact
