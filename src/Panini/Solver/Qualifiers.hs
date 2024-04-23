@@ -1,6 +1,7 @@
 module Panini.Solver.Qualifiers (extractQualifiers) where
 
 import Data.Bifunctor
+import Data.Containers.ListUtils
 import Data.Foldable
 import Data.Generics.Uniplate.Operations
 import Data.List qualified as List
@@ -16,22 +17,37 @@ import Panini.Syntax
 import Prelude
 
 -- TODO: we assume kparams are always named z0,...,zn
+-- TODO: normalize the candidate predicates before eliminating duplicates
 
 ------------------------------------------------------------------------------
 
--- | Candidate qualifiers for a type signature b₁,b₂,…,bₙ are extracted from a
--- constraint based on all relations appearing in the constraint that contain
--- free variables matching any subsequence of the given type signature.
+-- | Given a constraint and a type signature b₁,b₂,…,bₙ, we extract candidate
+-- qualifiers for all subsequences of the type signature (i.e., we allow some
+-- parameters to be unassigned) based on the following heuristics:
+--
+--   1) We take all relations appearing in the constraint that contain free
+--      variables exactly matching (subsequences of) the given types.
+--
+--   2) For all singleton types, we form simple constant relations for all
+--      constant values appearing in the constraint.
+--
+-- The returned predicates are ready to be substituted for κ variables.
 extractQualifiers :: Con -> [Base] -> [Pred]
-extractQualifiers c bs = List.nub
+extractQualifiers c bs = nubOrd $
   [ PRel r' | bs' <- List.subsequences (zip bs zs)
             , not (null bs')
             , r <- toList $ relationsOver (map fst bs') c
             , let m = Map.fromListWith (++) $ map (second pure) bs'
-            , r' <- renameVars m r 
-  ]
+            , r' <- renameVars m r ]
+  ++ [ PRel $ Rel op (EVar z) a | (b,z) <- zip bs zs, (op,a) <- constants b ]
  where
   zs = [Name ("z" <> Text.pack (show i)) NoPV | i <- [0..] :: [Int]]
+  constants = \case
+    TUnit   -> [ (Eq, EUnit    NoPV) ]
+    TBool   -> [ (Eq, EBool b  NoPV) | b <- [True,False] ]
+    TInt    -> [ (op, EInt  i  NoPV) | EInt  i  _ <- universeBi c, op <- [Eq,Ne,Gt,Ge,Lt,Le] ]
+    TChar   -> [ (Eq, EChar ch NoPV) | EChar ch _ <- universeBi c ]
+    TString -> [ (Eq, EStr  s  NoPV) | EStr  s  _ <- universeBi c ]
 
 -- | Rename the variables in a relation according to a given (multi-)mapping
 -- based on type, exhausting all possibilities. Note: the given map is expected
