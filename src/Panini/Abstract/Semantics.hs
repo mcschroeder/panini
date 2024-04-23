@@ -429,11 +429,15 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev (AInt.eq i) ĉ
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA î  ) :=: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev î (AChar.eq c)
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA î  ) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev î ĉ
+  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :=: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev TOP (AChar.eq c)
+  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev TOP ĉ
   -----------------------------------------------------------
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :≠: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev (AInt.eq i) (AChar.eq c)
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :≠: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev (AInt.eq i) ĉ
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA î  ) :≠: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev î (AChar.eq c)  
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA î  ) :≠: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev î ĉ
+  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :≠: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev TOP (AChar.eq c)
+  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :≠: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev TOP ĉ
   -----------------------------------------------------------
   EStrSub (EVar _) (EInt  i _) (EInt  j _) :=: EStr  t _ -> Just $ EStrA $ strWithSubstr (AInt.eq i) (AInt.eq j) (AString.eq $ Text.unpack t)
   EStrSub (EVar _) (EIntA î  ) (EInt  j _) :=: EStr  t _ -> Just $ EStrA $ strWithSubstr î (AInt.eq j) (AString.eq $ Text.unpack t)
