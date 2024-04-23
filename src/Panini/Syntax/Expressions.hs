@@ -386,6 +386,10 @@ inverse = \case
 -- | The type of a variable in a given relation, if locally discernible.
 typeOfVarInRel :: Name -> Rel -> Maybe Base
 typeOfVarInRel x = \case
+  EVar y :=: e      | x == y -> typeOfExpr e
+  e      :=: EVar y | x == y -> typeOfExpr e
+  EVar y :≠: e      | x == y -> typeOfExpr e
+  e      :≠: EVar y | x == y -> typeOfExpr e
   EVar y :<: _      | x == y -> Just TInt
   _      :<: EVar y | x == y -> Just TInt
   EVar y :≤: _      | x == y -> Just TInt
@@ -394,8 +398,8 @@ typeOfVarInRel x = \case
   _      :>: EVar y | x == y -> Just TInt
   EVar y :≥: _      | x == y -> Just TInt
   _      :≥: EVar y | x == y -> Just TInt  
-  EVar y :∈: _      | x == y -> Just TString
-  _      :∈: EVar y | x == y -> Just TString
-  EVar y :∉: _      | x == y -> Just TString
-  _      :∉: EVar y | x == y -> Just TString
+  EVar y :∈: e      | x == y -> typeOfExpr e
+  e      :∈: EVar y | x == y -> typeOfExpr e
+  EVar y :∉: e      | x == y -> typeOfExpr e
+  e      :∉: EVar y | x == y -> typeOfExpr e  
   Rel _ e1 e2 -> typeOfVarInExpr x e1 <|> typeOfVarInExpr x e2
