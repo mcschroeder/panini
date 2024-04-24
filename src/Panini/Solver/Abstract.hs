@@ -9,6 +9,7 @@ module Panini.Solver.Abstract
 
 import Algebra.Lattice
 import Control.Monad.Extra
+import Data.Containers.ListUtils (nubOrd)
 import Data.Foldable
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Graph qualified as Graph
@@ -123,7 +124,7 @@ solve1 = \case
     solve1 $ PreCon x b k c2
 
   PreCon x b _ c -> do
-    c1 <- rewrite c
+    c1 <- qelim c
     c2 <- nnf c1 § "Convert to NNF"
     c3 <- simplifyPred c2 § "Simplify predicate"
     logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
@@ -184,8 +185,8 @@ unsafeUnwrapAString a = panic $ "unsafeUnwrapAString: unexpected" <+> pretty a
 
 -------------------------------------------------------------------------------
 
-rewrite :: Con -> Pan Pred
-rewrite c0 = do
+qelim :: Con -> Pan Pred
+qelim c0 = do
   c1 <- elimAll c0 § "Eliminate ∀"
   c2 <- elimExists c1
   logData c2
@@ -213,7 +214,7 @@ rewrite c0 = do
     PExists x t p -> do p' <- elimExists p
                         logMessage $ "Eliminate ∃" <> pretty x
                         logData $ PExists x t p'
-                        q <- fromDNF <$> mapMaybeM (varElim x t) (dnf p')
+                        q <- joins <$> mapM (qelim1 x t) (dnf p')
                         logData q
                         return q
 
@@ -244,9 +245,6 @@ dnf p0 = case nnf p0 of
   PAnd xs -> nub' $ map nub' $ map concat $ sequence $ map dnf xs
   POr xs  -> nub' $ map nub' $ concat $ map dnf xs
   _       -> impossible
-  
-fromDNF :: [[Rel]] -> Pred
-fromDNF = joins . map (meets . map PRel)
 
 nub' :: Hashable a => [a] -> [a]
 nub' = HashSet.toList . HashSet.fromList
@@ -254,44 +252,31 @@ nub' = HashSet.toList . HashSet.fromList
 
 -------------------------------------------------------------------------------
 
-varElim :: Name -> Base -> [Rel] -> Pan (Maybe [Rel])
-varElim x b φ = do
+-- | Eliminate a single (existentially quantified) variable from a conjunction
+-- of relations, returning a predicate that is logically equivalent to the input
+-- but no longer contains the given variable.
+--
+--     𝔐 ⊧ qelim1 x b R  ⟺  𝔐 ⊧ ∃(x:b). R 
+--
+qelim1 :: Name -> Base -> [Rel] -> Pan Pred
+qelim1 x b φ = do
   logMessage $ divider symDivH Nothing
-  logMessage $ "varElim" <+> pretty x <+> pretty b
+  logMessage $ "qelim1" <+> pretty x <+> pretty b
   logMessage $ "φ ←" <+> pretty φ  
   ξ <- mapM (abstractVar x b) [r | r <- φ, x `elem` freeVars r]
   logMessage $ "ξ ←" <+> pretty ξ  
-  -- let ξₘ = converge partialMeets (topExpr b : ξ)
-  -- logMessage $ "ξₘ =" <+> pretty ξₘ
-  -- if any containsBotAExpr ξₘ then do
-  --   logMessage "↯"
-  --   return Nothing
-  -- else do
-  let ξₘ = ξ
-  do
-    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξₘ, e₂ <- es]
-    let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
-    ψ <- filter (taut /=) <$> List.nub <$> mapM normRelM (ψ₁ ++ ψ₂)
-    logMessage $ "ψ ←" <+> pretty ψ
-    if any (== cont) ψ then do
-      logMessage "↯"
-      return Nothing
-    else
-      return $ Just ψ
+  let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
+  let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
+  ψ <- filter (taut /=) <$> nubOrd <$> mapM normRelM (ψ₁ ++ ψ₂)
+  logMessage $ "ψ ←" <+> pretty ψ
+  if any (== cont) ψ then do
+    logMessage "↯"
+    return PFalse
+  else
+    return $ meets $ map PRel ψ
 
 normRelM :: Rel -> Pan Rel
 normRelM r = do
   let r' = normRel r
   unless (r' == r) $ logMessage $ pretty r <+> " ⇝ " <+> pretty r'
   return r'
-
--- meet' (EVar x :=: EAbs a : EVar y :=: EAbs b : zs)
---   | x == y, Just c <- a ∧? b = meet' (EVar x :=: EAbs c : zs)
--- meet' (x:xs) = x : meet' xs
--- meet' [] = []
-
--- converge :: Eq a => (a -> a) -> a -> a
--- converge = until =<< ((==) =<<)
-
--- containsBotAExpr :: Expr -> Bool
--- containsBotAExpr e = or [hasBot a | EAbs a <- Uniplate.universe e]
