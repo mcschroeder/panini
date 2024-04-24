@@ -242,13 +242,9 @@ dnf p0 = case nnf p0 of
   PTrue   -> [[]]
   PFalse  -> []  
   PRel r  -> [[r]]
-  PAnd xs -> nub' $ map nub' $ map concat $ sequence $ map dnf xs
-  POr xs  -> nub' $ map nub' $ concat $ map dnf xs
+  PAnd xs -> nubOrd $ map nubOrd $ map concat $ sequence $ map dnf xs
+  POr xs  -> nubOrd $ map nubOrd $ concat $ map dnf xs
   _       -> impossible
-
-nub' :: Hashable a => [a] -> [a]
-nub' = HashSet.toList . HashSet.fromList
-{-# INLINE nub' #-}
 
 -------------------------------------------------------------------------------
 
