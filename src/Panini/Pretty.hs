@@ -23,6 +23,8 @@ import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.IntMap (IntMap)
+import Data.IntMap qualified as IntMap
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -64,6 +66,9 @@ instance Pretty a => Pretty (HashSet a) where
 
 instance (Pretty a, Pretty b) => Pretty (Map a b) where
   pretty = prettyMap . Map.toAscList
+
+instance (Pretty a) => Pretty (IntMap a) where
+  pretty = prettyMap . IntMap.toAscList
 
 instance Pretty a => Pretty (Maybe a) where
   pretty Nothing = "Nothing"
