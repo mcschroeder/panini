@@ -21,6 +21,7 @@ import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
 import Panini.Events
+import Panini.Frontend.Python
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
@@ -121,7 +122,12 @@ commands panOpts =
   [ ("help", const help)
   , ("load", loadFiles . words)
   , ("show", showEnv panOpts)
+  , ("python", loadPython . head . words)
   ]
+
+loadPython :: String -> InputT Pan ()
+loadPython f = lift $ continueOnError $ do
+  loadPythonSource f
 
 help :: InputT Pan ()
 help = outputStrLn "\
@@ -197,6 +203,7 @@ autocomplete = (sorted <$>) . fallbackCompletion completeCommands completeFiles
 
     completeFiles (r,s) = case splitCmd (reverse r) of
       (":load", _) -> completeFilename (r,s)
+      (":python",_) -> completeFilename (r,s)
       _            -> pure (r, [])
     
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace

@@ -42,9 +42,11 @@ library
     , githash
     , hashable
     , haskeline
+    , language-python
     , megaparsec == 9.2.*
     , optparse-applicative >= 0.18.1
     , parser-combinators
+    , pretty
     , prettyprinter
     , process
     , text
@@ -69,6 +71,7 @@ library
     Panini.Environment
     Panini.Error
     Panini.Events
+    Panini.Frontend.Python
     Panini.Infer
     Panini.Modules
     Panini.Monad
