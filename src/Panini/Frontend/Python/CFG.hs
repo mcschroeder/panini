@@ -89,7 +89,7 @@ instance Graphviz CFG where
     fromNode prefix =
       let mkId k = prefix <> (show k) 
       in \(key,node) -> case node of
-        FunDef{..} ->          
+        FunDef{..} ->
           [ Node (mkId key) 
             [ Shape Box
             , Label ("def" <+> prettyFunSig _name _args _result <> ": ...")
@@ -97,30 +97,39 @@ instance Graphviz CFG where
           , Edge (mkId key) (mkId _next) []
           , Subgraph ("cluster" <> mkId key) 
               [ Label (prettyFunSig _name _args _result)
-              , Graphviz.Style Rounded
+              , Graphviz.Style Dashed
               ]
               (fromCFG (mkId key <> "_") _body)
           ]
         
         Block{..} ->
-          [ Node (mkId key) [Shape Box, Label $ vsep $ map pretty _stmts]
+          [ Node (mkId key) 
+            [ Shape Box, Label $ vsep (map pretty _stmts) <> "\\l"
+            , Other "nojustify" "true"
+            ]
           , Edge (mkId key) (mkId _next) []
           ]
         
         Branch{..} ->
-          [ Node (mkId key) [Shape Diamond, Label $ pretty _cond]
+          [ Node (mkId key) 
+            [ Shape Ellipse
+            , Label $ "if" <+> pretty _cond
+            ]
           , Edge (mkId key) (mkId _nextTrue) [Label "true"]
           , Edge (mkId key) (mkId _nextFalse) [Label "false"]
           ]
 
         BranchFor{..} ->
           [ Node (mkId key) 
-              [ Shape Diamond
-              , Label $ pretty _targets <+> "in" <+> pretty _generator
+              [ Shape Ellipse
+              , Label $ "for" <+> prettyTuple' _targets <+> "in" <+> pretty _generator
               ]
           , Edge (mkId key) (mkId _nextMore) [Label "more"]
           , Edge (mkId key) (mkId _nextDone) [Label "done"]
           ]
+         where
+          prettyTuple' [x] = pretty x
+          prettyTuple' xs  = prettyTuple xs
     
         Exit -> [ Node (mkId key) [Shape Graphviz.None, Label "exit"] ]
 
