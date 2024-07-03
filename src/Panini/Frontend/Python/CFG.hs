@@ -165,18 +165,18 @@ addStatements ctx stmts next = foldrM (addStatement ctx) next stmts
 addStatement :: Context -> StatementSpan -> Label -> State CFG Label
 addStatement ctx stmt next = case stmt of
 
-  While{..} -> do
-    cond <- reserveLabel
+  While{..} -> do    
     nextFalse <- addStatements ctx while_else next
+    cond <- reserveLabel
     let ctx' = Context { break = nextFalse, continue = cond }
-    nextTrue  <- addStatements ctx' while_body next
+    nextTrue  <- addStatements ctx' while_body cond
     insertNode cond $ Branch while_cond nextTrue nextFalse
 
-  For{..} -> do
-    cond <- reserveLabel
+  For{..} -> do    
     nextDone <- addStatements ctx for_else next
+    cond <- reserveLabel
     let ctx' = Context { break = nextDone, continue = cond }
-    nextMore <- addStatements ctx' for_body next
+    nextMore <- addStatements ctx' for_body cond
     insertNode cond $ BranchFor for_targets for_generator nextMore nextDone
 
   AsyncFor{} -> undefined -- TODO
