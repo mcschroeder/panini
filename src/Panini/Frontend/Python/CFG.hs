@@ -10,6 +10,7 @@ import Language.Python.Common.AST as Py
 import Language.Python.Common.PrettyAST ()
 import Panini.Frontend.Python.Pretty ()
 import Panini.Pretty
+import Panini.Pretty.Graphviz as Graphviz
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -57,7 +58,7 @@ instance Pretty CFG where
 instance Pretty Node where
   pretty = \case
     FunDef  {..} -> nest 2 $ 
-      "def" <+> pretty _name <> prettyTuple _args <+> 
+      "def" <+> prettyFunSig _name _args _result <>
       "then" <+> arrow <> pretty _next 
       <\> pretty _body
     
@@ -73,6 +74,55 @@ instance Pretty Node where
       "else" <+> arrow <> pretty _nextDone
     
     Exit -> "exit"
+
+prettyFunSig :: IdentSpan -> [ParameterSpan] -> Maybe ExprSpan -> Doc
+prettyFunSig name args res = 
+  pretty name <> prettyTuple args <> maybe mempty (\r -> " ->" <+> pretty r) res
+
+instance Graphviz CFG where
+  dot = Digraph . fromCFG "_"
+   where
+    fromCFG :: String -> CFG -> [Graphviz.Statement]
+    fromCFG prefix = concatMap (fromNode prefix) . IntMap.toList . nodeMap
+
+    fromNode :: String -> (Label, Node) -> [Graphviz.Statement]
+    fromNode prefix =
+      let mkId k = prefix <> (show k) 
+      in \(key,node) -> case node of
+        FunDef{..} ->          
+          [ Node (mkId key) 
+            [ Shape Box
+            , Label ("def" <+> prettyFunSig _name _args _result <> ": ...")
+            ]
+          , Edge (mkId key) (mkId _next) []
+          , Subgraph ("cluster" <> mkId key) 
+              [ Label (prettyFunSig _name _args _result)
+              , Graphviz.Style Rounded
+              ]
+              (fromCFG (mkId key <> "_") _body)
+          ]
+        
+        Block{..} ->
+          [ Node (mkId key) [Shape Box, Label $ vsep $ map pretty _stmts]
+          , Edge (mkId key) (mkId _next) []
+          ]
+        
+        Branch{..} ->
+          [ Node (mkId key) [Shape Diamond, Label $ pretty _cond]
+          , Edge (mkId key) (mkId _nextTrue) [Label "true"]
+          , Edge (mkId key) (mkId _nextFalse) [Label "false"]
+          ]
+
+        BranchFor{..} ->
+          [ Node (mkId key) 
+              [ Shape Diamond
+              , Label $ pretty _targets <+> "in" <+> pretty _generator
+              ]
+          , Edge (mkId key) (mkId _nextMore) [Label "more"]
+          , Edge (mkId key) (mkId _nextDone) [Label "done"]
+          ]
+    
+        Exit -> [ Node (mkId key) [Shape Graphviz.None, Label "exit"] ]
 
 ------------------------------------------------------------------------------
 

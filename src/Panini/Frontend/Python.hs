@@ -8,6 +8,7 @@ import Language.Python.Version3
 import Panini.Frontend.Python.CFG as CFG
 import Panini.Monad
 import Panini.Pretty
+import Panini.Pretty.Graphviz
 import Panini.Provenance
 import Prelude
 
@@ -21,3 +22,4 @@ loadPythonSource fp = do
       --logData $ show pyMod
       let cfg = CFG.fromModule pyMod
       logData $ pretty cfg
+      liftIO $ renderGraph "trace.svg" cfg
