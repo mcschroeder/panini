@@ -212,4 +212,8 @@ addStatement ctx stmt next = case stmt of
   Break    {} -> return ctx.break
   Continue {} -> return ctx.continue
 
-  _ -> addNode $ Block [stmt] next
+  _ -> do
+    nextNode <- IntMap.lookup next <$> gets nodeMap
+    case nextNode of
+      Just (Block xs next2) -> insertNode next (Block (stmt:xs) next2)
+      _ -> addNode $ Block [stmt] next
