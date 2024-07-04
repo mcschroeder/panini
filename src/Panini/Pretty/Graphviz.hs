@@ -118,7 +118,7 @@ styleStr :: Style -> Builder
 styleStr = \case
   Dashed    -> "dashed"
   Dotted    -> "dotted"
-  Solid     -> "dolid"
+  Solid     -> "solid"
   Invisible -> "invis"
   Bold      -> "bold"
   Tapered   -> "tapered"

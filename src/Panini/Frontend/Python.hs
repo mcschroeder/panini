@@ -11,6 +11,7 @@ import Panini.Pretty
 import Panini.Pretty.Graphviz
 import Panini.Provenance
 import Prelude
+import System.FilePath
 
 loadPythonSource :: FilePath -> Pan ()
 loadPythonSource fp = do
@@ -22,4 +23,4 @@ loadPythonSource fp = do
       --logData $ show pyMod
       let cfg = CFG.fromModule pyMod
       logData $ pretty cfg
-      liftIO $ renderGraph "trace.svg" cfg
+      liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".svg") cfg

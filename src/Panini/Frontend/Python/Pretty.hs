@@ -19,3 +19,6 @@ instance Pretty StatementSpan where
 
 instance Pretty ExprSpan where
   pretty = pretty . TPP.render . Py.pretty
+
+instance Pretty ExceptClauseSpan where
+  pretty = pretty . TPP.render . Py.pretty
