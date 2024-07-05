@@ -2,16 +2,17 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python (loadPythonSource) where
 
-import Language.Python.Common.Pretty qualified as Py
-import Language.Python.Common.PrettyAST ()
+import Language.Python.Common qualified as Py
 import Language.Python.Version3
 import Panini.Frontend.Python.CFG as CFG
+import Panini.Frontend.Python.Pretty
 import Panini.Monad
 import Panini.Pretty
 import Panini.Pretty.Graphviz
 import Panini.Provenance
 import Prelude
 import System.FilePath
+import Panini.Error
 
 loadPythonSource :: FilePath -> Pan ()
 loadPythonSource fp = do
@@ -21,6 +22,13 @@ loadPythonSource fp = do
     Right (pyMod,_cmts) -> do
       logData $ pretty $ Py.prettyText pyMod
       --logData $ show pyMod
-      let cfg = CFG.fromModule pyMod
-      logData $ pretty cfg
-      liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".svg") cfg
+      case CFG.fromModule pyMod of
+        Left err -> do
+          throwError $ err2err err
+        Right cfg -> do
+          logData $ pretty cfg
+          liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".svg") cfg
+
+err2err :: CFG.Error -> Panini.Error.Error
+err2err (Unsupported stmt) = 
+  IOError "unsupported statement" (pySpanToPV $ keywordSpan stmt)

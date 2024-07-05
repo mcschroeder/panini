@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python.CFG where
 
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.IntMap.Strict (IntMap)
@@ -18,7 +20,7 @@ import Prelude
 
 type Label = Int
 
-data CFG = CFG 
+data CFG = CFG
   { nodeMap   :: IntMap Node
   , nextLabel :: Label
   , entry     :: Label
@@ -64,33 +66,19 @@ children = \case
 
 ------------------------------------------------------------------------------
 
-addNode :: Node -> State CFG Label
-addNode n = do
-  l <- reserveLabel
-  insertNode l n
+data Error = Unsupported StatementSpan
+  deriving stock (Show)
 
-reserveLabel :: State CFG Label
-reserveLabel = do
-  l <- gets nextLabel
-  modify' $ \g -> g { nextLabel = l + 1 }
-  return l
-
-insertNode :: Label -> Node -> State CFG Label
-insertNode l n = do
-  modify' $ \g -> g { nodeMap = IntMap.insert l n g.nodeMap }
-  return l
-
-------------------------------------------------------------------------------
-
-fromModule :: ModuleSpan -> CFG
+fromModule :: ModuleSpan -> Either Error CFG
 fromModule (Module stmts) = fromStatements stmts
 
-fromStatements :: [StatementSpan] -> CFG
-fromStatements stmts = removeOrphans $ compress $ cfg { entry }
- where
+fromStatements :: [StatementSpan] -> Either Error CFG
+fromStatements stmts = 
+  fixup <$> runExcept (runStateT (addStatements ctx0 stmts 0) cfg0)
+ where  
   ctx0 = Context 0 0 0 []
   cfg0 = CFG (IntMap.singleton 0 Exit) 1 0
-  (entry, cfg) = runState (addStatements ctx0 stmts 0) cfg0
+  fixup (entry, cfg) = removeOrphans $ compress $ cfg { entry }
 
 -- | Remove orphan nodes from the CFG.
 removeOrphans :: CFG -> CFG
@@ -119,17 +107,37 @@ compress cfg = cfg { nodeMap = foldl' go cfg.nodeMap keys0 }
 
 ------------------------------------------------------------------------------
 
+type CFGBuilder a = StateT CFG (Except Error) a
+
+addNode :: Node -> CFGBuilder Label
+addNode n = do
+  l <- reserveLabel
+  insertNode l n
+
+reserveLabel :: CFGBuilder Label
+reserveLabel = do
+  l <- gets nextLabel
+  modify' $ \g -> g { nextLabel = l + 1 }
+  return l
+
+insertNode :: Label -> Node -> CFGBuilder Label
+insertNode l n = do
+  modify' $ \g -> g { nodeMap = IntMap.insert l n g.nodeMap }
+  return l
+
+------------------------------------------------------------------------------
+
 data Context = Context
   { break    :: Label
   , continue :: Label
   , return_  :: Label
-  , except   :: [(ExceptClauseSpan, Label)]
+  , excepts   :: [(ExceptClauseSpan, Label)]
   }
 
-addStatements :: Context -> [StatementSpan] -> Label -> State CFG Label
+addStatements :: Context -> [StatementSpan] -> Label -> CFGBuilder Label
 addStatements ctx stmts next = foldrM (addStatement ctx) next stmts
 
-addStatement :: Context -> StatementSpan -> Label -> State CFG Label
+addStatement :: Context -> StatementSpan -> Label -> CFGBuilder Label
 addStatement ctx stmt next = case stmt of
 
   While{..} -> do    
@@ -137,27 +145,21 @@ addStatement ctx stmt next = case stmt of
     cond <- reserveLabel
     let ctx' = ctx { break = nextFalse, continue = cond }
     nextTrue  <- addStatements ctx' while_body cond    
-    insertNode cond $ Branch while_cond nextTrue nextFalse ctx.except
+    insertNode cond $ Branch while_cond nextTrue nextFalse ctx.excepts
 
   For{..} -> do    
     nextDone <- addStatements ctx for_else next
     cond <- reserveLabel
     let ctx' = ctx { break = nextDone, continue = cond }
     nextMore <- addStatements ctx' for_body cond
-    insertNode cond $ BranchFor for_targets for_generator nextMore nextDone ctx.except
-
-  AsyncFor{} -> undefined -- TODO
+    insertNode cond $ BranchFor for_targets for_generator nextMore nextDone ctx.excepts
 
   Fun{..} -> do
-    let body = fromStatements (stripDocstring fun_body)
+    body <- lift $ except $ fromStatements (stripDocstring fun_body)
     addNode $ FunDef fun_name fun_args fun_result_annotation body next
    where
     stripDocstring (StmtExpr{stmt_expr = Strings{}} : xs) = xs
     stripDocstring                                    xs  = xs
-
-  AsyncFun{} -> undefined -- TODO
-
-  Class{} -> undefined -- TODO
 
   Conditional{..} -> do
     else_ <- addStatements ctx cond_else next
@@ -165,7 +167,7 @@ addStatement ctx stmt next = case stmt of
    where
     addGuard (cond,body) nextFalse = do
       nextTrue <- addStatements ctx body next
-      addNode $ Branch cond nextTrue nextFalse ctx.except
+      addNode $ Branch cond nextTrue nextFalse ctx.excepts
 
   Return{} -> addNode $ Block [stmt] ctx.return_ []
 
@@ -178,23 +180,29 @@ addStatement ctx stmt next = case stmt of
                          , continue = finallyContinue
                          , return_ = finallyReturn 
                          }
-    except <- mapM (addHandlers ctxFinally finallyNext) try_excepts
+    excepts <- mapM (addHandlers ctxFinally finallyNext) try_excepts
     else_ <- addStatements ctxFinally try_else finallyNext
-    let ctxTry = ctxFinally { except }
+    let ctxTry = ctxFinally { excepts }
     addStatements ctxTry try_body else_
    where
     addHandlers ctx' next' Handler{..} = do
       handler <- addStatements ctx' handler_suite next'
       return (handler_clause, handler)
 
-  With{} -> undefined -- TODO
-  AsyncWith{} -> undefined -- TODO
-
   Pass     {} -> return next
   Break    {} -> return ctx.break
   Continue {} -> return ctx.continue
 
-  _ -> addNode $ Block [stmt] next ctx.except
+  AsyncFor  {} -> lift $ throwE $ Unsupported stmt
+  AsyncFun  {} -> lift $ throwE $ Unsupported stmt
+  Class     {} -> lift $ throwE $ Unsupported stmt
+  Decorated {} -> lift $ throwE $ Unsupported stmt
+  With      {} -> lift $ throwE $ Unsupported stmt   -- TODO: support with
+  AsyncWith {} -> lift $ throwE $ Unsupported stmt
+  Global    {} -> lift $ throwE $ Unsupported stmt
+  NonLocal  {} -> lift $ throwE $ Unsupported stmt
+
+  _ -> addNode $ Block [stmt] next ctx.excepts
 
 ------------------------------------------------------------------------------
 
