@@ -1,6 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedLists #-}
-module Panini.Frontend.Python.CFG where
+module Panini.Frontend.Python.CFG
+  ( Label
+  , CFG(..)
+  , Node(..)
+  , children
+  , fromModule
+  , Error(..)
+  ) where
 
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except

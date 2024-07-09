@@ -5,6 +5,7 @@ module Panini.Frontend.Python (loadPythonSource) where
 import Language.Python.Common qualified as Py
 import Language.Python.Version3
 import Panini.Frontend.Python.CFG as CFG
+import Panini.Frontend.Python.Dom
 import Panini.Frontend.Python.Pretty
 import Panini.Monad
 import Panini.Pretty
@@ -13,6 +14,8 @@ import Panini.Provenance
 import Prelude
 import System.FilePath
 import Panini.Error
+import Data.IntMap.Strict qualified as IntMap
+import Control.Monad
 
 loadPythonSource :: FilePath -> Pan ()
 loadPythonSource fp = do
@@ -28,6 +31,16 @@ loadPythonSource fp = do
         Right cfg -> do
           logData $ pretty cfg
           liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".svg") cfg
+
+          let d = idom cfg
+          logData $ show d
+          forM_ (IntMap.elems cfg.nodeMap) $ \case
+            FunDef{..} -> do
+              let d' = idom _body
+              logData $ show d'
+            _ -> return ()
+
+
 
 err2err :: CFG.Error -> Panini.Error.Error
 err2err (Unsupported stmt) = 

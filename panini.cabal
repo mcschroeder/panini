@@ -33,6 +33,7 @@ library
   build-depends:
       base ^>=4.18
     , ansi-terminal
+    , array
     , bytestring
     , containers
     , directory
@@ -72,6 +73,7 @@ library
     Panini.Error
     Panini.Events
     Panini.Frontend.Python
+    Panini.Frontend.Python.Dom
     Panini.Frontend.Python.CFG
     Panini.Frontend.Python.Pretty
     Panini.Infer
