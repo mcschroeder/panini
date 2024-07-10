@@ -43,18 +43,21 @@ data Node
       , _next   :: Label
       }
   | Block
-      { _stmts  :: [StatementSpan]
+      { _phi    :: [Phi]
+      , _stmts  :: [StatementSpan]
       , _next   :: Label 
       , _except :: [(ExceptClauseSpan,Label)]
       }
   | Branch
-      { _cond      :: ExprSpan
+      { _phi       :: [Phi]
+      , _cond      :: ExprSpan
       , _nextTrue  :: Label
       , _nextFalse :: Label
       , _except    :: [(ExceptClauseSpan,Label)]
       }
   | BranchFor
-      { _targets   :: [ExprSpan]
+      { _phi       :: [Phi]
+      , _targets   :: [ExprSpan]
       , _generator :: ExprSpan
       , _nextMore  :: Label
       , _nextDone  :: Label
@@ -63,13 +66,16 @@ data Node
   | Exit
   deriving stock (Show)
 
+data Phi = Phi IdentSpan [Label]
+  deriving stock (Show)
+
 children :: Node -> [Label]
 children = \case
-  FunDef{..} -> [_next]
-  Block{..} -> _next : map snd _except
-  Branch{..} -> _nextTrue : _nextFalse : map snd _except
-  BranchFor{..} -> _nextMore : _nextDone : map snd _except
-  Exit -> []
+  FunDef    {..} -> [_next]
+  Block     {..} -> _next : map snd _except
+  Branch    {..} -> _nextTrue : _nextFalse : map snd _except
+  BranchFor {..} -> _nextMore : _nextDone : map snd _except
+  Exit           -> []
 
 ------------------------------------------------------------------------------
 
@@ -152,18 +158,37 @@ addStatement ctx stmt next = case stmt of
     cond <- reserveLabel
     let ctx' = ctx { break = nextFalse, continue = cond }
     nextTrue  <- addStatements ctx' while_body cond    
-    insertNode cond $ Branch while_cond nextTrue nextFalse ctx.excepts
+    insertNode cond $ Branch 
+      { _phi       = []
+      , _cond      = while_cond
+      , _nextTrue  = nextTrue
+      , _nextFalse = nextFalse
+      , _except    = ctx.excepts
+      }
 
   For{..} -> do    
     nextDone <- addStatements ctx for_else next
     cond <- reserveLabel
     let ctx' = ctx { break = nextDone, continue = cond }
     nextMore <- addStatements ctx' for_body cond
-    insertNode cond $ BranchFor for_targets for_generator nextMore nextDone ctx.excepts
+    insertNode cond $ BranchFor 
+      { _phi        = []
+      , _targets    = for_targets
+      , _generator  = for_generator
+      , _nextMore   = nextMore
+      , _nextDone   = nextDone
+      , _except     = ctx.excepts
+      }
 
   Fun{..} -> do
     body <- lift $ except $ fromStatements (stripDocstring fun_body)
-    addNode $ FunDef fun_name fun_args fun_result_annotation body next
+    addNode $ FunDef 
+      { _name   = fun_name
+      , _args   = fun_args
+      , _result = fun_result_annotation
+      , _body   = body
+      , _next   = next
+      }
    where
     stripDocstring (StmtExpr{stmt_expr = Strings{}} : xs) = xs
     stripDocstring                                    xs  = xs
@@ -174,9 +199,20 @@ addStatement ctx stmt next = case stmt of
    where
     addGuard (cond,body) nextFalse = do
       nextTrue <- addStatements ctx body next
-      addNode $ Branch cond nextTrue nextFalse ctx.excepts
+      addNode $ Branch 
+        { _phi       = []
+        , _cond      = cond
+        , _nextTrue  = nextTrue
+        , _nextFalse = nextFalse
+        , _except    = ctx.excepts
+        }
 
-  Return{} -> addNode $ Block [stmt] ctx.return_ []
+  Return{} -> addNode $ Block 
+    { _phi    = []
+    , _stmts  = [stmt]
+    , _next   = ctx.return_
+    , _except = [] -- TODO: is this correct?
+    }
 
   Try{..} -> do
     finallyNext <- addStatements ctx try_finally next
@@ -209,7 +245,12 @@ addStatement ctx stmt next = case stmt of
   Global    {} -> lift $ throwE $ Unsupported stmt
   NonLocal  {} -> lift $ throwE $ Unsupported stmt
 
-  _ -> addNode $ Block [stmt] next ctx.excepts
+  _ -> addNode $ Block 
+    { _phi    = []
+    , _stmts  = [stmt]
+    , _next   = next
+    , _except = ctx.excepts
+    }
 
 ------------------------------------------------------------------------------
 
