@@ -7,7 +7,8 @@ helpful utility functions and types.
 -}
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
-  , Var(..)
+  , Var
+  , VarMention(..)
   , stmtVars
   , exprVars
   , exprVarsN
@@ -27,10 +28,12 @@ import Language.Python.Common.AST
 
 ------------------------------------------------------------------------------
 
-data Var = Assigned String | Used String
+type Var = String
+
+data VarMention = Assigned Var | Used Var
   deriving stock (Eq, Ord, Show)
 
-stmtVars :: StatementSpan -> Set Var
+stmtVars :: StatementSpan -> Set VarMention
 stmtVars = \case
   Import          {}   -> []
   FromImport      {}   -> []
@@ -69,7 +72,7 @@ stmtVars = \case
   usedM = maybe [] used
 
 -- | All /free/ variables in the given expression.
-exprVars :: ExprSpan -> Set String
+exprVars :: ExprSpan -> Set Var
 exprVars = \case
   Var        {..} -> [var_ident.ident_string]
   Call       {..} -> exprVarsN (call_fun : map arg_expr call_args)
@@ -96,10 +99,10 @@ exprVars = \case
   StringConversion {..} -> exprVars backquoted_expr
   _               -> []
 
-exprVarsN :: [ExprSpan] -> Set String
+exprVarsN :: [ExprSpan] -> Set Var
 exprVarsN = Set.unions . map exprVars
 
-paramNames :: [ParameterSpan] -> Set String
+paramNames :: [ParameterSpan] -> Set Var
 paramNames = Set.fromList . concatMap go
  where
   go    Param          {..} = [param_name.ident_string]

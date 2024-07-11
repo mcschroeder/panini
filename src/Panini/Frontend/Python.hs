@@ -6,6 +6,7 @@ import Language.Python.Common qualified as Py
 import Language.Python.Version3
 import Panini.Frontend.Python.CFG as CFG
 import Panini.Frontend.Python.Dom
+import Panini.Frontend.Python.SSA
 import Panini.Frontend.Python.Pretty
 import Panini.Monad
 import Panini.Pretty
@@ -34,11 +35,16 @@ loadPythonSource fp = do
 
           let d = domTree cfg
           logData $ show d
+          let phi = phiPlacements d cfg
+          logData $ show phi
           liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".dom.svg") d          
+
           forM_ (IntMap.elems cfg.nodeMap) $ \case
             FunDef{..} -> do
               let d' = domTree _body
               logData $ show d'
+              let phi' = phiPlacements d' _body
+              logData $ show phi'
               liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".dom.svg") d'              
             _ -> return ()
 

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python.CFG
   ( Label
+  , LabelSet
   , CFG(..)
   , Node(..)
   , successors
@@ -15,6 +16,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
+import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
 import Language.Python.Common.PrettyAST ()
 import Panini.Frontend.Python.AST
@@ -26,6 +28,7 @@ import Prelude
 ------------------------------------------------------------------------------
 
 type Label = Int
+type LabelSet = IntSet
 
 data CFG = CFG
   { nodeMap   :: IntMap Node
@@ -43,30 +46,24 @@ data Node
       , _next   :: Label
       }
   | Block
-      { _phi    :: [Phi]
-      , _stmts  :: [StatementSpan]
+      { _stmts  :: [StatementSpan]
       , _next   :: Label 
       , _except :: [(ExceptClauseSpan,Label)]
       }
   | Branch
-      { _phi       :: [Phi]
-      , _cond      :: ExprSpan
+      { _cond      :: ExprSpan
       , _nextTrue  :: Label
       , _nextFalse :: Label
       , _except    :: [(ExceptClauseSpan,Label)]
       }
   | BranchFor
-      { _phi       :: [Phi]
-      , _targets   :: [ExprSpan]
+      { _targets   :: [ExprSpan]
       , _generator :: ExprSpan
       , _nextMore  :: Label
       , _nextDone  :: Label
       , _except    :: [(ExceptClauseSpan,Label)]
       }
   | Exit
-  deriving stock (Show)
-
-data Phi = Phi IdentSpan [Label]
   deriving stock (Show)
 
 successors :: Node -> [Label]
@@ -159,8 +156,7 @@ addStatement ctx stmt next = case stmt of
     let ctx' = ctx { break = nextFalse, continue = cond }
     nextTrue  <- addStatements ctx' while_body cond    
     insertNode cond $ Branch 
-      { _phi       = []
-      , _cond      = while_cond
+      { _cond      = while_cond
       , _nextTrue  = nextTrue
       , _nextFalse = nextFalse
       , _except    = ctx.excepts
@@ -172,8 +168,7 @@ addStatement ctx stmt next = case stmt of
     let ctx' = ctx { break = nextDone, continue = cond }
     nextMore <- addStatements ctx' for_body cond
     insertNode cond $ BranchFor 
-      { _phi        = []
-      , _targets    = for_targets
+      { _targets    = for_targets
       , _generator  = for_generator
       , _nextMore   = nextMore
       , _nextDone   = nextDone
@@ -200,16 +195,14 @@ addStatement ctx stmt next = case stmt of
     addGuard (cond,body) nextFalse = do
       nextTrue <- addStatements ctx body next
       addNode $ Branch 
-        { _phi       = []
-        , _cond      = cond
+        { _cond      = cond
         , _nextTrue  = nextTrue
         , _nextFalse = nextFalse
         , _except    = ctx.excepts
         }
 
   Return{} -> addNode $ Block 
-    { _phi    = []
-    , _stmts  = [stmt]
+    { _stmts  = [stmt]
     , _next   = ctx.return_
     , _except = [] -- TODO: is this correct?
     }
@@ -246,8 +239,7 @@ addStatement ctx stmt next = case stmt of
   NonLocal  {} -> lift $ throwE $ Unsupported stmt
 
   _ -> addNode $ Block 
-    { _phi    = []
-    , _stmts  = [stmt]
+    { _stmts  = [stmt]
     , _next   = next
     , _except = ctx.excepts
     }
