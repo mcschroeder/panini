@@ -31,6 +31,8 @@ import Data.List qualified as List
 import Data.STRef
 import Panini.Frontend.Python.CFG
 import Panini.Panic
+import Panini.Pretty
+import Panini.Pretty.Graphviz as Graphviz
 import Prelude hiding (succ,pred)
 
 ------------------------------------------------------------------------------
@@ -43,6 +45,18 @@ data DomTree = DomTree
   , domTreeRoot :: Label
   }
   deriving stock (Show)
+
+instance Graphviz DomTree where
+  dot DomTree{..} = Digraph $ go domTreeRoot
+   where
+    go l = 
+      let cs = domChildren IntMap.! l 
+          df = domFrontier IntMap.! l
+      in 
+        [Node (show l) [Shape Circle, Label (pretty l)]]
+        ++ map (\c -> Edge (show l) (show c) []) cs
+        ++ map (\f -> Edge (show l) (show f) [Graphviz.Style Dashed]) df
+        ++ concatMap go cs
 
 ------------------------------------------------------------------------------
 

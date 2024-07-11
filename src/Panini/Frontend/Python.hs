@@ -34,10 +34,12 @@ loadPythonSource fp = do
 
           let d = domTree cfg
           logData $ show d
+          liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".dom.svg") d          
           forM_ (IntMap.elems cfg.nodeMap) $ \case
             FunDef{..} -> do
               let d' = domTree _body
               logData $ show d'
+              liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".dom.svg") d'              
             _ -> return ()
 
 
