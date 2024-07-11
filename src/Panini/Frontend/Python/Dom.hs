@@ -59,10 +59,10 @@ domTree cfg = DomTree{..}
   toLabel   = (IntMap.!) vertexMap
   getNode   = (IntMap.!) cfg.nodeMap  
 
-  successors = map toVertex . children . getNode . toLabel
+  successors' = map toVertex . successors . getNode . toLabel
   
   r    = toVertex cfg.entry
-  succ = listArray (1,n) (map successors vertices)
+  succ = listArray (1,n) (map successors' vertices)
   idom = dominators succ r
   tree = dominatorTree idom
   df   = dominanceFrontiers succ tree idom

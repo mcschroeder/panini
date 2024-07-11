@@ -4,7 +4,7 @@ module Panini.Frontend.Python.CFG
   ( Label
   , CFG(..)
   , Node(..)
-  , children
+  , successors
   , fromModule
   , Error(..)
   ) where
@@ -69,8 +69,8 @@ data Node
 data Phi = Phi IdentSpan [Label]
   deriving stock (Show)
 
-children :: Node -> [Label]
-children = \case
+successors :: Node -> [Label]
+successors = \case
   FunDef    {..} -> [_next]
   Block     {..} -> _next : map snd _except
   Branch    {..} -> _nextTrue : _nextFalse : map snd _except
@@ -98,7 +98,7 @@ removeOrphans :: CFG -> CFG
 removeOrphans cfg = cfg { nodeMap = IntMap.restrictKeys cfg.nodeMap nonOrphans }
  where
   nonOrphans = IntSet.fromList 
-             $ cfg.entry : (concatMap children $ IntMap.elems cfg.nodeMap)
+             $ cfg.entry : (concatMap successors $ IntMap.elems cfg.nodeMap)
 
 -- | Merge consecutive CFG blocks, if it is safe to do so.
 compress :: CFG -> CFG
@@ -115,7 +115,7 @@ compress cfg = cfg { nodeMap = foldl' go cfg.nodeMap keys0 }
   go m _ = m
 
   parents k m = [parent | (parent, node) <- IntMap.assocs m
-                        , child <- children node
+                        , child <- successors node
                         , child == k]
 
 ------------------------------------------------------------------------------
