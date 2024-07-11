@@ -32,11 +32,11 @@ loadPythonSource fp = do
           logData $ pretty cfg
           liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".svg") cfg
 
-          let d = idom cfg
+          let d = domTree cfg
           logData $ show d
           forM_ (IntMap.elems cfg.nodeMap) $ \case
             FunDef{..} -> do
-              let d' = idom _body
+              let d' = domTree _body
               logData $ show d'
             _ -> return ()
 
