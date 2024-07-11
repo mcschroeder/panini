@@ -2,10 +2,10 @@
 {-# LANGUAGE RecordWildCards #-}
 module Panini.Frontend.Python.Pretty where
 
-import Language.Python.Common.AST as Py
 import Language.Python.Common.Pretty qualified as Py
 import Language.Python.Common.PrettyAST ()
 import Language.Python.Common.SrcLocation as Py
+import Panini.Frontend.Python.AST
 import Panini.Pretty
 import Panini.Provenance
 import Prelude

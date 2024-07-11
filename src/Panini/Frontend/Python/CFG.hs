@@ -16,8 +16,8 @@ import Data.Foldable
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet qualified as IntSet
-import Language.Python.Common.AST as Py
 import Language.Python.Common.PrettyAST ()
+import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.Pretty ()
 import Panini.Pretty
 import Panini.Pretty.Graphviz as Graphviz

@@ -74,6 +74,7 @@ library
     Panini.Events
     Panini.Frontend.Python
     Panini.Frontend.Python.Dom
+    Panini.Frontend.Python.AST
     Panini.Frontend.Python.CFG
     Panini.Frontend.Python.Pretty
     Panini.Infer
