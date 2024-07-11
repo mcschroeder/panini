@@ -301,6 +301,7 @@ instance Graphviz CFG where
           [ Node (mkId key) 
             [ Shape Box
             , Label ("def" <+> prettyFunSig _name _args _result <> ": ...")
+            , XLabel (pretty key)
             ]
           , Edge (mkId key) (mkId _next) []
           , Subgraph ("cluster" <> mkId key) 
@@ -312,8 +313,10 @@ instance Graphviz CFG where
         
         Block{..} ->
           [ Node (mkId key) 
-            [ Shape Box, Label $ vsep (map pretty _stmts) <> "\\l"
+            [ Shape Box
+            , Label $ vsep (map pretty _stmts) <> "\\l"
             , Other "nojustify" "true"
+            , XLabel (pretty key)
             ]
           , Edge (mkId key) (mkId _next) []
           ] ++ map (\(e,l) -> exceptEdge key l e) _except
@@ -322,6 +325,7 @@ instance Graphviz CFG where
           [ Node (mkId key) 
             [ Shape Ellipse
             , Label $ "if" <+> pretty _cond
+            , XLabel (pretty key)
             ]
           , Edge (mkId key) (mkId _nextTrue) [Label "true"]
           , Edge (mkId key) (mkId _nextFalse) [Label "false"]
@@ -331,6 +335,7 @@ instance Graphviz CFG where
           [ Node (mkId key) 
               [ Shape Ellipse
               , Label $ "for" <+> prettyTuple' _targets <+> "in" <+> pretty _generator
+              , XLabel (pretty key)
               ]
           , Edge (mkId key) (mkId _nextMore) [Label "more"]
           , Edge (mkId key) (mkId _nextDone) [Label "done"]

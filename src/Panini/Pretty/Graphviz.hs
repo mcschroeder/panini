@@ -49,6 +49,7 @@ data Attribute
   = Shape Shape
   | Style Style
   | Label Doc
+  | XLabel Doc
   | Other String String
 
 data Shape 
@@ -99,8 +100,11 @@ attrStr :: Attribute -> Builder
 attrStr = \case
   Shape s -> "shape=" <> shapeStr s
   Style s -> "style=" <> styleStr s
-  Label t -> "label=\"" <> (LB.fromString $ escape $ showPretty t) <> "\""
-  Other k v -> LB.fromString k <> "=\"" <> (LB.fromString $ escape v) <> "\""
+  Label t -> "label=" <> quotedString (showPretty t)
+  XLabel t -> "xlabel=" <> quotedString (showPretty t)
+  Other k v -> LB.fromString k <> "=" <> quotedString v
+ where
+  quotedString s = "\"" <> (LB.fromString $ escape s) <> "\""
 
 shapeStr :: Shape -> Builder
 shapeStr = \case
