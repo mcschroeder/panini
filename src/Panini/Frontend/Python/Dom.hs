@@ -71,7 +71,7 @@ domTree cfg = DomTree{..}
 
   domChildren = IntMap.fromList $ toLabelAssocs $ tail $ assocs tree
   domFrontier = IntMap.fromList $ toLabelAssocs $ assocs df
-  domTreeRoot = r
+  domTreeRoot = cfg.entry
 
 ------------------------------------------------------------------------------
 
