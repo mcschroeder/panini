@@ -1,11 +1,9 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedLists #-}
 
 {-|
 This module is concerned with the dominance relation between nodes in a
 control-flow graph. It contains low-level functions to compute the immediate
-dominators and the dominance frontier of all vertices in an arbitrary flowgraph,
-as well as some high-level wrappers to work with Python CFGs.
+dominators and the dominance frontier of all vertices in a flowgraph.
 
 References:
 
@@ -19,76 +17,23 @@ References:
     https://doi.org/10.1145/357062.357071
 
 -}
-module Panini.Frontend.Python.Dom where
+module Panini.Frontend.Common.Dom
+  ( Vertex
+  , VertexSet
+  , dominanceFrontiers
+  , dominatorTree
+  , dominators
+  ) where
 
 import Control.Monad.Extra
 import Control.Monad.ST
 import Data.Array.ST
 import Data.Array.Unboxed
-import Data.Bifunctor
-import Data.IntMap.Strict (IntMap)
-import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
 import Data.STRef
-import Panini.Frontend.Python.CFG
 import Panini.Panic
-import Panini.Pretty
-import Panini.Pretty.Graphviz as Graphviz
 import Prelude hiding (succ,pred)
-
-------------------------------------------------------------------------------
-
--- | The dominator tree summarizes the dominance relations between nodes in a
--- control-flow graph.
-data DomTree = DomTree
-  { domChildren :: IntMap LabelSet
-  , domFrontier :: IntMap LabelSet
-  , domTreeRoot :: Label
-  }
-  deriving stock (Show)
-
-instance Graphviz DomTree where
-  dot DomTree{..} = Digraph $ go domTreeRoot
-   where
-    go l = 
-      let cs = IntSet.toAscList $ domChildren IntMap.! l 
-          df = IntSet.toAscList $ domFrontier IntMap.! l
-      in 
-        [Node (show l) [Shape Circle, Label (pretty l)]]
-        ++ map (\c -> Edge (show l) (show c) []) cs
-        ++ map (\f -> Edge (show l) (show f) [Graphviz.Style Dashed]) df
-        ++ concatMap go cs
-
-------------------------------------------------------------------------------
-
--- | Compute the dominator tree of a CFG, including all dominance frontiers.
-domTree :: CFG -> DomTree
-domTree cfg = DomTree{..}
- where
-  n         = IntMap.size cfg.nodeMap
-  labels    = IntMap.keys cfg.nodeMap
-  vertices  = [1..n]
-  labelMap  = IntMap.fromList $ zip labels vertices
-  vertexMap = IntMap.fromList $ zip vertices labels
-  toVertex  = (IntMap.!) labelMap
-  toLabel   = (IntMap.!) vertexMap
-  getNode   = (IntMap.!) cfg.nodeMap  
-
-  successors' = 
-    IntSet.fromList . map toVertex . successors . getNode . toLabel
-  
-  r    = toVertex cfg.entry
-  succ = listArray (1,n) (map successors' vertices)
-  idom = dominators succ r
-  tree = dominatorTree idom
-  df   = dominanceFrontiers succ tree idom
-  
-  toLabelAssocs = map (bimap toLabel (IntSet.map toLabel))
-
-  domChildren = IntMap.fromList $ toLabelAssocs $ tail $ assocs tree
-  domFrontier = IntMap.fromList $ toLabelAssocs $ assocs df
-  domTreeRoot = cfg.entry
 
 ------------------------------------------------------------------------------
 
@@ -152,7 +97,7 @@ dominanceFrontiers succ children idom = runSTArray $ do
 -- immediately dominated by that vertex. Note that this array starts at index 0,
 -- which maps to the root of the tree.
 dominatorTree :: UArray Vertex Vertex -> Array Vertex VertexSet
-dominatorTree idom =
+dominatorTree idom = 
   accumArray (flip IntSet.insert) [] (0,n) $ map (\(v,d) -> (d,v)) $ assocs idom
  where
   (_,n) = bounds idom

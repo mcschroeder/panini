@@ -72,8 +72,10 @@ library
     Panini.Environment
     Panini.Error
     Panini.Events
+    Panini.Frontend.Common.Dom
+    Panini.Frontend.Common.SSA
     Panini.Frontend.Python
-    Panini.Frontend.Python.Dom
+    Panini.Frontend.Python.DomTree
     Panini.Frontend.Python.AST
     Panini.Frontend.Python.CFG
     Panini.Frontend.Python.Pretty
