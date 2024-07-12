@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedLists #-}
 
 {-|
 This module is concerned with the dominance relation between nodes in a
@@ -27,7 +28,8 @@ import Data.Array.Unboxed
 import Data.Bifunctor
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
-import Data.List qualified as List
+import Data.IntSet (IntSet)
+import Data.IntSet qualified as IntSet
 import Data.STRef
 import Panini.Frontend.Python.CFG
 import Panini.Panic
@@ -40,8 +42,8 @@ import Prelude hiding (succ,pred)
 -- | The dominator tree summarizes the dominance relations between nodes in a
 -- control-flow graph.
 data DomTree = DomTree
-  { domChildren :: IntMap [Label]
-  , domFrontier :: IntMap [Label]
+  { domChildren :: IntMap LabelSet
+  , domFrontier :: IntMap LabelSet
   , domTreeRoot :: Label
   }
   deriving stock (Show)
@@ -50,8 +52,8 @@ instance Graphviz DomTree where
   dot DomTree{..} = Digraph $ go domTreeRoot
    where
     go l = 
-      let cs = domChildren IntMap.! l 
-          df = domFrontier IntMap.! l
+      let cs = IntSet.toAscList $ domChildren IntMap.! l 
+          df = IntSet.toAscList $ domFrontier IntMap.! l
       in 
         [Node (show l) [Shape Circle, Label (pretty l)]]
         ++ map (\c -> Edge (show l) (show c) []) cs
@@ -73,7 +75,8 @@ domTree cfg = DomTree{..}
   toLabel   = (IntMap.!) vertexMap
   getNode   = (IntMap.!) cfg.nodeMap  
 
-  successors' = map toVertex . successors . getNode . toLabel
+  successors' = 
+    IntSet.fromList . map toVertex . successors . getNode . toLabel
   
   r    = toVertex cfg.entry
   succ = listArray (1,n) (map successors' vertices)
@@ -81,7 +84,7 @@ domTree cfg = DomTree{..}
   tree = dominatorTree idom
   df   = dominanceFrontiers succ tree idom
   
-  toLabelAssocs = map (bimap toLabel (map toLabel))
+  toLabelAssocs = map (bimap toLabel (IntSet.map toLabel))
 
   domChildren = IntMap.fromList $ toLabelAssocs $ tail $ assocs tree
   domFrontier = IntMap.fromList $ toLabelAssocs $ assocs df
@@ -90,7 +93,10 @@ domTree cfg = DomTree{..}
 ------------------------------------------------------------------------------
 
 type Vertex = Int
-type VertexSet = [Int]  -- TODO: use IntSet
+type VertexSet = IntSet
+
+forEach :: Monad m => IntSet -> (Int -> m ()) -> m ()
+forEach xs = forM_ (IntSet.toAscList xs)
 
 -- | Calculate the distance frontiers for each vertex in a flowgraph.
 --
@@ -121,16 +127,18 @@ dominanceFrontiers succ children idom = runSTArray $ do
   ---------------------------------------------------------
   let
     go x = do
-      mapM_ go (children ! x)
-      forM_ (succ ! x) $ \y ->
-        when (idom ! y /= x) $ modifyArray' df x (y:)
-      forM_ (children ! x) $ \z -> do
+      forEach (children ! x) go
+      forEach (succ ! x) $ \y ->
+        when (idom ! y /= x) $ 
+          modifyArray' df x (IntSet.insert y)
+      forEach (children ! x) $ \z -> do
         ys <- readArray df z
-        forM_ ys $ \y ->
-          when (idom ! y /= x) $ modifyArray' df x (y:)
+        forEach ys $ \y ->
+          when (idom ! y /= x) $ 
+            modifyArray' df x (IntSet.insert y)
   ---------------------------------------------------------
-  assertM (length (children ! 0) == 1)
-  go $ head $ children ! 0
+  assertM (IntSet.size (children ! 0) == 1)
+  go $ head $ IntSet.toList $ children ! 0
   return df
 
 -- | Compute the dominator tree from an array of immediate dominators.
@@ -145,7 +153,7 @@ dominanceFrontiers succ children idom = runSTArray $ do
 -- which maps to the root of the tree.
 dominatorTree :: UArray Vertex Vertex -> Array Vertex VertexSet
 dominatorTree idom =
-  accumArray (flip (:)) [] (0,n) $ map (\(v,d) -> (d,v)) $ assocs idom
+  accumArray (flip IntSet.insert) [] (0,n) $ map (\(v,d) -> (d,v)) $ assocs idom
  where
   (_,n) = bounds idom
 
@@ -191,12 +199,12 @@ dominators succ r = runSTUArray $ do
       writeArray child v 0
       writeArray ancestor v 0
       writeArray size v 1
-      forM_ (succ ! v) $ \w -> do
+      forEach (succ ! v) $ \w -> do
         s <- readArray semi w
         when (s == 0) $ do
           writeArray parent w v
           dfs w
-        modifyArray' pred w (v:)
+        modifyArray' pred w (IntSet.insert v)
   ---------------------------------------------------------
     compress v = do
       a  <- readArray ancestor v
@@ -278,33 +286,33 @@ dominators succ r = runSTUArray $ do
   -- Step 1. Number the vertices and initialize all arrays.
   dfs r  
   
-  forM_ [n,n-1..2] $ \i -> do
+  forM_ ([n,n-1..2] :: [Int]) $ \i -> do
     w <- readArray vertex i
   
     -- Step 2. Compute all semidominators.
     vs <- readArray pred w
-    forM_ vs $ \v -> do
+    forEach vs $ \v -> do
       u <- eval v
       su <- readArray semi u
       sw <- readArray semi w
       when (su < sw) $ writeArray semi w su
     sw <- readArray semi w
     vsw <- readArray vertex sw
-    modifyArray' bucket vsw (w:)
+    modifyArray' bucket vsw (IntSet.insert w)
     p <- readArray parent w
     link p w
   
     -- Step 3. Implicitly define the immediate dominators.
     vs2 <- readArray bucket p
-    forM_ vs2 $ \v -> do
-      modifyArray' bucket p (List.delete v)
+    forEach vs2 $ \v -> do
+      modifyArray' bucket p (IntSet.delete v)
       u <- eval v
       su <- readArray semi u
       sv <- readArray semi v
       writeArray dom v (if su < sv then u else p)  
   
   -- Step 4. Explicitly define the remaining immediate dominators.
-  forM_ [2..n] $ \i -> do
+  forM_ ([2..n] :: [Int]) $ \i -> do
     w <- readArray vertex i
     d <- readArray dom w
     s <- readArray vertex =<< readArray semi w
