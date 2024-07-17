@@ -7,6 +7,7 @@ helpful utility functions and types.
 -}
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
+  , pySpanToPV
   , Var
   , VarMention(..)
   , stmtVars
@@ -20,11 +21,24 @@ module Panini.Frontend.Python.AST
   , dictKeyDatumListExprs
   ) where
 
-import Prelude
+import Data.Maybe
 import Data.Set (Set, (\\))
 import Data.Set qualified as Set
-import Data.Maybe
 import Language.Python.Common.AST
+import Language.Python.Common.SrcLocation
+import Panini.Provenance
+import Prelude
+
+------------------------------------------------------------------------------
+
+pySpanToPV :: SrcSpan -> PV
+pySpanToPV = \case
+  SpanEmpty -> NoPV
+  sp -> FromSource SrcLoc{..} Nothing
+   where 
+    file  = sp.span_filename
+    begin = (startRow sp, startCol sp)
+    end   = (endRow   sp, endCol   sp + 1)
 
 ------------------------------------------------------------------------------
 

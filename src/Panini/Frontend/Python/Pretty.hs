@@ -30,15 +30,6 @@ instance Pretty ExceptClauseSpan where
 
 ------------------------------------------------------------------------------
 
-pySpanToPV :: SrcSpan -> PV
-pySpanToPV = \case
-  SpanEmpty -> NoPV
-  sp -> FromSource SrcLoc{..} Nothing
-   where 
-    file  = sp.span_filename
-    begin = (startRow sp, startCol sp)
-    end   = (endRow   sp, endCol   sp + 1)
-
 keywordSpan :: StatementSpan -> SrcSpan
 keywordSpan stmt = case stmt of
   Import{}      -> mk 5

@@ -7,6 +7,8 @@ import Language.Python.Version3
 import Panini.Frontend.Python.CFG as CFG
 import Panini.Frontend.Python.DomTree
 import Panini.Frontend.Python.SSA
+import Panini.Frontend.Python.ANF
+import Panini.Frontend.Python.AST as Py
 import Panini.Frontend.Python.Pretty
 import Panini.Monad
 import Panini.Pretty
@@ -32,28 +34,32 @@ loadPythonSource fp = do
         Right cfg -> do
           logData $ pretty cfg
           liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".svg") cfg
-
-          let d = domTree cfg
-          logData $ show d
-          liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".dom.svg") d
-          let phi = phiFuncs d cfg
-          logData $ show phi
-          let cfg' = placePhiFunctions phi cfg 
-          logData $ pretty cfg'
-          liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".phi.svg") cfg'
+          -- let d = domTree cfg
+          -- logData $ show d
+          -- liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".dom.svg") d
+          -- let phi = phiFuncs d cfg
+          -- logData $ show phi
+          -- let cfg' = placePhiFunctions phi cfg 
+          -- logData $ pretty cfg'
+          -- liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".phi.svg") cfg'
           
-          forM_ (IntMap.elems cfg.nodeMap) $ \case
-            FunDef{..} -> do
-              let d' = domTree _body
-              logData $ show d'
-              liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".dom.svg") d'
-              let phi' = phiFuncs d' _body
-              logData $ show phi'
-              let _body' = placePhiFunctions phi' _body
-              logData $ pretty _body'
-              liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".phi.svg") _body'
+          -- forM_ (IntMap.elems cfg.nodeMap) $ \case
+          --   FunDef{..} -> do
+          --     let d' = domTree _body
+          --     logData $ show d'
+          --     liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".dom.svg") d'
+          --     let phi' = phiFuncs d' _body
+          --     logData $ show phi'
+          --     let _body' = placePhiFunctions phi' _body
+          --     logData $ pretty _body'
+          --     liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".phi.svg") _body'
               
-            _ -> return ()
+          --   _ -> return ()
+
+
+          case transpile cfg of
+            Left err2 -> error err2
+            Right prog -> logData $ pretty prog
 
 
 
