@@ -14,8 +14,10 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Frontend.Common.SSA
 import Panini.Frontend.Python.AST hiding (Var)
+import Panini.Frontend.Python.AST qualified as Py
 import Panini.Frontend.Python.CFG
 import Panini.Frontend.Python.DomTree
+import Language.Python.Common.SrcLocation
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -73,3 +75,26 @@ phiFuncs dt cfg = phi'
   phi = phiPlacements a df
 
   phi' = IntMap.fromList $ map (first toLabel) $ assocs phi
+
+
+placePhiFunctions :: IntMap VarSet -> CFG -> CFG
+placePhiFunctions phis cfg = cfg { nodeMap = IntMap.mapWithKey go cfg.nodeMap}
+ where
+  numPreds = IntMap.map length $ cfgPredecessors cfg
+
+  go _ Exit = Exit
+  go l n = case phis IntMap.! l of
+    [] -> n
+    vs -> n { _stmts = map (mkPhi l) (Set.toAscList vs) ++ n._stmts}
+  
+  mkPhi l v = Assign lhs rhs SpanEmpty
+   where
+    lhs = [var]
+    rhs = Call phi rvs SpanEmpty
+    phi = Py.Var (Ident "Φ" SpanEmpty) SpanEmpty
+    rvs = replicate (numPreds IntMap.! l) (ArgExpr var SpanEmpty)
+    var = Py.Var (Ident v SpanEmpty) SpanEmpty
+
+
+
+

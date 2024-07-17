@@ -38,6 +38,9 @@ loadPythonSource fp = do
           liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".dom.svg") d
           let phi = phiFuncs d cfg
           logData $ show phi
+          let cfg' = placePhiFunctions phi cfg 
+          logData $ pretty cfg'
+          liftIO $ renderGraph ("trace_" <> takeBaseName fp <> ".phi.svg") cfg'
           
           forM_ (IntMap.elems cfg.nodeMap) $ \case
             FunDef{..} -> do
@@ -46,6 +49,9 @@ loadPythonSource fp = do
               liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".dom.svg") d'
               let phi' = phiFuncs d' _body
               logData $ show phi'
+              let _body' = placePhiFunctions phi' _body
+              logData $ pretty _body'
+              liftIO $ renderGraph ("trace_" <> takeBaseName fp <> "_" <> showPretty _name <> ".phi.svg") _body'
               
             _ -> return ()
 
