@@ -39,7 +39,8 @@ data CFG = CFG
 
 data Node
   = FunDef
-      { _name   :: IdentSpan
+      { _stmts  :: [StatementSpan]
+      , _name   :: IdentSpan
       , _args   :: [ParameterSpan]
       , _result :: Maybe ExprSpan
       , _body   :: CFG
@@ -51,13 +52,15 @@ data Node
       , _except :: [(ExceptClauseSpan,Label)]
       }
   | Branch
-      { _cond      :: ExprSpan
+      { _stmts     :: [StatementSpan]
+      , _cond      :: ExprSpan
       , _nextTrue  :: Label
       , _nextFalse :: Label
       , _except    :: [(ExceptClauseSpan,Label)]
       }
   | BranchFor
-      { _targets   :: [ExprSpan]
+      { _stmts     :: [StatementSpan]
+      , _targets   :: [ExprSpan]
       , _generator :: ExprSpan
       , _nextMore  :: Label
       , _nextDone  :: Label
@@ -156,7 +159,8 @@ addStatement ctx stmt next = case stmt of
     let ctx' = ctx { break = nextFalse, continue = cond }
     nextTrue  <- addStatements ctx' while_body cond    
     insertNode cond $ Branch 
-      { _cond      = while_cond
+      { _stmts     = []
+      , _cond      = while_cond
       , _nextTrue  = nextTrue
       , _nextFalse = nextFalse
       , _except    = ctx.excepts
@@ -168,7 +172,8 @@ addStatement ctx stmt next = case stmt of
     let ctx' = ctx { break = nextDone, continue = cond }
     nextMore <- addStatements ctx' for_body cond
     insertNode cond $ BranchFor 
-      { _targets    = for_targets
+      { _stmts      = []
+      , _targets    = for_targets
       , _generator  = for_generator
       , _nextMore   = nextMore
       , _nextDone   = nextDone
@@ -178,7 +183,8 @@ addStatement ctx stmt next = case stmt of
   Fun{..} -> do
     body <- lift $ except $ fromStatements (stripDocstring fun_body)
     addNode $ FunDef 
-      { _name   = fun_name
+      { _stmts  = []
+      , _name   = fun_name
       , _args   = fun_args
       , _result = fun_result_annotation
       , _body   = body
@@ -195,7 +201,8 @@ addStatement ctx stmt next = case stmt of
     addGuard (cond,body) nextFalse = do
       nextTrue <- addStatements ctx body next
       addNode $ Branch 
-        { _cond      = cond
+        { _stmts     = []
+        , _cond      = cond
         , _nextTrue  = nextTrue
         , _nextFalse = nextFalse
         , _except    = ctx.excepts
@@ -287,14 +294,18 @@ instance Graphviz CFG where
     fromNode :: String -> (Label, Node) -> [Graphviz.Statement]
     fromNode prefix =
       let mkId k = prefix <> (show k)
-          exceptEdge k l e = Edge (mkId k) (mkId l) [Label $ pretty e]
+          exceptEdge k (e,l) = Edge (mkId k) (mkId l) [Label $ pretty e]
+          boxNode k stmts lbl = 
+            Node (mkId k) 
+              [ Shape Box
+              , Label $ mconcat $ map (<> "\\l") $ map pretty stmts ++ lbl
+              , Other "nojustify" "true"
+              , XLabel (pretty k)
+              ]
       in \(key,node) -> case node of
         FunDef{..} ->
-          [ Node (mkId key) 
-            [ Shape Box
-            , Label ("def" <+> prettyFunSig _name _args _result <> ": ...")
-            , XLabel (pretty key)
-            ]
+          [ boxNode key _stmts
+              ["def" <+> prettyFunSig _name _args _result <> ": ..."]
           , Edge (mkId key) (mkId _next) []
           , Subgraph ("cluster" <> mkId key) 
               [ Label (prettyFunSig _name _args _result)
@@ -304,34 +315,22 @@ instance Graphviz CFG where
           ]
         
         Block{..} ->
-          [ Node (mkId key) 
-            [ Shape Box
-            , Label $ vsep (map pretty _stmts) <> "\\l"
-            , Other "nojustify" "true"
-            , XLabel (pretty key)
-            ]
+          [ boxNode key _stmts []
           , Edge (mkId key) (mkId _next) []
-          ] ++ map (\(e,l) -> exceptEdge key l e) _except
+          ] ++ map (exceptEdge key) _except
         
         Branch{..} ->
-          [ Node (mkId key) 
-            [ Shape Ellipse
-            , Label $ "if" <+> pretty _cond
-            , XLabel (pretty key)
-            ]
+          [ boxNode key _stmts ["if" <+> pretty _cond]
           , Edge (mkId key) (mkId _nextTrue) [Label "true"]
           , Edge (mkId key) (mkId _nextFalse) [Label "false"]
-          ] ++ map (\(e,l) -> exceptEdge key l e) _except
+          ] ++ map (exceptEdge key) _except
 
         BranchFor{..} ->
-          [ Node (mkId key) 
-              [ Shape Ellipse
-              , Label $ "for" <+> prettyTuple' _targets <+> "in" <+> pretty _generator
-              , XLabel (pretty key)
-              ]
+          [ boxNode key _stmts 
+              ["for" <+> prettyTuple' _targets <+> "in" <+> pretty _generator]
           , Edge (mkId key) (mkId _nextMore) [Label "more"]
           , Edge (mkId key) (mkId _nextDone) [Label "done"]
-          ] ++ map (\(e,l) -> exceptEdge key l e) _except
+          ] ++ map (exceptEdge key) _except
          where
           prettyTuple' [x] = pretty x
           prettyTuple' xs  = prettyTuple xs
