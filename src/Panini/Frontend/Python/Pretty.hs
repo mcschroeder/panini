@@ -19,9 +19,7 @@ instance Pretty ParameterSpan where
   pretty = pretty . TPP.render . Py.pretty
 
 instance Pretty StatementSpan where
-  pretty = \case
-    PhiAssign x xs -> pretty x <+> "= Φ" <> prettyTuple xs
-    s -> pretty $ TPP.render $ Py.pretty s
+  pretty = pretty . TPP.render . Py.pretty
 
 instance Pretty ExprSpan where
   pretty = pretty . TPP.render . Py.pretty

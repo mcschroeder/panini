@@ -39,8 +39,7 @@ data CFG = CFG
 
 data Node
   = FunDef
-      { _stmts  :: [StatementSpan]
-      , _name   :: IdentSpan
+      { _name   :: IdentSpan
       , _args   :: [ParameterSpan]
       , _result :: Maybe ExprSpan
       , _body   :: CFG
@@ -52,15 +51,13 @@ data Node
       , _except :: [(ExceptClauseSpan,Label)]
       }
   | Branch
-      { _stmts     :: [StatementSpan]
-      , _cond      :: ExprSpan
+      { _cond      :: ExprSpan
       , _nextTrue  :: Label
       , _nextFalse :: Label
       , _except    :: [(ExceptClauseSpan,Label)]
       }
   | BranchFor
-      { _stmts     :: [StatementSpan]
-      , _targets   :: [ExprSpan]
+      { _targets   :: [ExprSpan]
       , _generator :: ExprSpan
       , _nextMore  :: Label
       , _nextDone  :: Label
@@ -159,8 +156,7 @@ addStatement ctx stmt next = case stmt of
     let ctx' = ctx { break = nextFalse, continue = cond }
     nextTrue  <- addStatements ctx' while_body cond    
     insertNode cond $ Branch 
-      { _stmts     = []
-      , _cond      = while_cond
+      { _cond      = while_cond
       , _nextTrue  = nextTrue
       , _nextFalse = nextFalse
       , _except    = ctx.excepts
@@ -172,8 +168,7 @@ addStatement ctx stmt next = case stmt of
     let ctx' = ctx { break = nextDone, continue = cond }
     nextMore <- addStatements ctx' for_body cond
     insertNode cond $ BranchFor 
-      { _stmts      = []
-      , _targets    = for_targets
+      { _targets    = for_targets
       , _generator  = for_generator
       , _nextMore   = nextMore
       , _nextDone   = nextDone
@@ -183,8 +178,7 @@ addStatement ctx stmt next = case stmt of
   Fun{..} -> do
     body <- lift $ except $ fromStatements (stripDocstring fun_body)
     addNode $ FunDef 
-      { _stmts  = []
-      , _name   = fun_name
+      { _name   = fun_name
       , _args   = fun_args
       , _result = fun_result_annotation
       , _body   = body
@@ -201,8 +195,7 @@ addStatement ctx stmt next = case stmt of
     addGuard (cond,body) nextFalse = do
       nextTrue <- addStatements ctx body next
       addNode $ Branch 
-        { _stmts     = []
-        , _cond      = cond
+        { _cond      = cond
         , _nextTrue  = nextTrue
         , _nextFalse = nextFalse
         , _except    = ctx.excepts
@@ -310,17 +303,16 @@ instance Graphviz CFG where
     fromNode prefix =
       let mkId k = prefix <> (show k)
           exceptEdge k (e,l) = Edge (mkId k) (mkId l) [Label $ pretty e]
-          boxNode k stmts lbl = 
+          boxNode k lbl = 
             Node (mkId k) 
               [ Shape Box
-              , Label $ mconcat $ map (<> "\\l") $ map pretty stmts ++ lbl
+              , Label lbl
               , Other "nojustify" "true"
               , XLabel (pretty k)
               ]
       in \(key,node) -> case node of
         FunDef{..} ->
-          [ boxNode key _stmts
-              ["def" <+> prettyFunSig _name _args _result <> ": ..."]
+          [ boxNode key ("def" <+> prettyFunSig _name _args _result <> ": ...")
           , Edge (mkId key) (mkId _next) []
           , Subgraph ("cluster" <> mkId key) 
               [ Label (prettyFunSig _name _args _result)
@@ -330,19 +322,18 @@ instance Graphviz CFG where
           ]
         
         Block{..} ->
-          [ boxNode key _stmts []
+          [ boxNode key (mconcat $ map (<> "\\l") $ map pretty _stmts)
           , Edge (mkId key) (mkId _next) []
           ] ++ map (exceptEdge key) _except
         
         Branch{..} ->
-          [ boxNode key _stmts ["if" <+> pretty _cond]
+          [ boxNode key ("if" <+> pretty _cond)
           , Edge (mkId key) (mkId _nextTrue) [Label "true"]
           , Edge (mkId key) (mkId _nextFalse) [Label "false"]
           ] ++ map (exceptEdge key) _except
 
         BranchFor{..} ->
-          [ boxNode key _stmts 
-              ["for" <+> prettyTuple' _targets <+> "in" <+> pretty _generator]
+          [ boxNode key ("for" <+> prettyTuple' _targets <+> "in" <+> pretty _generator)
           , Edge (mkId key) (mkId _nextMore) [Label "more"]
           , Edge (mkId key) (mkId _nextDone) [Label "done"]
           ] ++ map (exceptEdge key) _except
