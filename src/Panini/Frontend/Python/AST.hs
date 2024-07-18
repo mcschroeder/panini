@@ -7,6 +7,7 @@ helpful utility functions and types.
 -}
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
+  , assignOpToOp
   , pattern PhiAssign
   , pySpanToPV
   , Var
@@ -29,6 +30,24 @@ import Language.Python.Common.AST
 import Language.Python.Common.SrcLocation
 import Panini.Provenance
 import Prelude
+
+------------------------------------------------------------------------------
+
+assignOpToOp :: AssignOp annot -> Op annot
+assignOpToOp = \case
+  PlusAssign       a -> Plus        a
+  MinusAssign      a -> Minus       a
+  MultAssign       a -> Multiply    a
+  DivAssign        a -> Divide      a
+  ModAssign        a -> Modulo      a
+  PowAssign        a -> Exponent    a
+  BinAndAssign     a -> BinaryAnd   a
+  BinOrAssign      a -> BinaryOr    a
+  BinXorAssign     a -> Xor         a
+  LeftShiftAssign  a -> ShiftLeft   a
+  RightShiftAssign a -> ShiftRight  a
+  FloorDivAssign   a -> FloorDivide a
+  MatrixMultAssign a -> MatrixMult  a
 
 ------------------------------------------------------------------------------
 
