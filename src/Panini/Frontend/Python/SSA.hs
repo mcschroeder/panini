@@ -41,9 +41,6 @@ nodeVars = Set.unions . \case
   used  = Set.map Used . exprVars
   assdN = Set.map Assigned . exprVarsN
 
-data Phi = Phi Var [Label]
-  deriving stock (Show)
-
 cfgPredecessors :: CFG -> IntMap [Label]
 cfgPredecessors = foldl' go mempty . IntMap.assocs . nodeMap
  where
@@ -87,14 +84,5 @@ placePhiFunctions phis cfg = cfg { nodeMap = IntMap.mapWithKey go cfg.nodeMap}
     [] -> n
     vs -> n { _stmts = map (mkPhi l) (Set.toAscList vs) ++ n._stmts}
   
-  mkPhi l v = Assign lhs rhs SpanEmpty
-   where
-    lhs = [var]
-    rhs = Call phi rvs SpanEmpty
-    phi = Py.Var (Ident "Φ" SpanEmpty) SpanEmpty
-    rvs = replicate (numPreds IntMap.! l) (ArgExpr var SpanEmpty)
-    var = Py.Var (Ident v SpanEmpty) SpanEmpty
-
-
-
+  mkPhi l v = PhiAssign v (replicate (numPreds IntMap.! l) v)
 

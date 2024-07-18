@@ -7,7 +7,6 @@ import Language.Python.Common.PrettyAST ()
 import Language.Python.Common.SrcLocation as Py
 import Panini.Frontend.Python.AST
 import Panini.Pretty
-import Panini.Provenance
 import Prelude
 import Text.PrettyPrint qualified as TPP
 
@@ -20,7 +19,9 @@ instance Pretty ParameterSpan where
   pretty = pretty . TPP.render . Py.pretty
 
 instance Pretty StatementSpan where
-  pretty = pretty . TPP.render . Py.pretty
+  pretty = \case
+    PhiAssign x xs -> pretty x <+> "= Φ" <> prettyTuple xs
+    s -> pretty $ TPP.render $ Py.pretty s
 
 instance Pretty ExprSpan where
   pretty = pretty . TPP.render . Py.pretty

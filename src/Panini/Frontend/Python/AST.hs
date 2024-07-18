@@ -7,6 +7,7 @@ helpful utility functions and types.
 -}
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
+  , pattern PhiAssign
   , pySpanToPV
   , Var
   , VarMention(..)
@@ -28,6 +29,35 @@ import Language.Python.Common.AST
 import Language.Python.Common.SrcLocation
 import Panini.Provenance
 import Prelude
+
+------------------------------------------------------------------------------
+
+pattern PhiAssign :: String -> [String] -> StatementSpan
+pattern PhiAssign x xs = Assign [VarName x] (PhiCall xs) SpanEmpty_
+
+pattern PhiCall :: [String] -> ExprSpan
+pattern PhiCall vs = Call PhiFunc (ArgVars vs) SpanEmpty_
+
+pattern PhiFunc :: ExprSpan
+pattern PhiFunc = Var (Ident "%phi" SpanEmpty_) SpanEmpty_
+
+pattern VarName :: String -> ExprSpan
+pattern VarName x = Var (Ident x SpanEmpty_) SpanEmpty_
+
+pattern SpanEmpty_ :: SrcSpan
+pattern SpanEmpty_ <- _ where 
+  SpanEmpty_ = SpanEmpty
+
+pattern ArgVars :: [String] -> [ArgumentSpan]
+pattern ArgVars xs <- (expectArgVars -> Just xs) where
+  ArgVars xs = map (\x -> ArgExpr (VarName x) SpanEmpty) xs
+
+expectArgVars :: [ArgumentSpan] -> Maybe [String]
+expectArgVars = go []
+ where
+  go vs []                           = Just (reverse vs)
+  go vs (ArgExpr (VarName v) _ : xs) = go (v:vs) xs
+  go _  _                            = Nothing
 
 ------------------------------------------------------------------------------
 
