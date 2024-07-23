@@ -8,6 +8,7 @@ helpful utility functions and types.
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
   , assignOpToOp
+  , pattern ArgExprs
   , pattern PhiAssign
   , pySpanToPV
   , Var
@@ -48,6 +49,19 @@ assignOpToOp = \case
   RightShiftAssign a -> ShiftRight  a
   FloorDivAssign   a -> FloorDivide a
   MatrixMultAssign a -> MatrixMult  a
+
+------------------------------------------------------------------------------
+
+pattern ArgExprs :: [ExprSpan] -> [ArgumentSpan]
+pattern ArgExprs xs <- (expectArgExprs -> Just xs) where
+  ArgExprs xs = map (\x -> ArgExpr x SpanEmpty) xs
+
+expectArgExprs :: [ArgumentSpan] -> Maybe [ExprSpan]
+expectArgExprs = go []
+ where
+  go es []                 = Just (reverse es)
+  go es (ArgExpr e _ : xs) = go (e:es) xs
+  go _  _                  = Nothing
 
 ------------------------------------------------------------------------------
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Panini.Frontend.Python.ANF where
 
@@ -6,28 +7,54 @@ import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Panini.Frontend.Python.AST as Py
-import Panini.Frontend.Python.CFG
+import Panini.Frontend.Python.AST hiding (Var)
+import Panini.Frontend.Python.AST qualified as Py
+import Panini.Frontend.Python.CFG hiding (Error)
 import Panini.Frontend.Python.SSA
 import Panini.Frontend.Common.SSA (VarSet)
 import Panini.Frontend.Python.DomTree
-import Data.IntMap.Strict (IntMap)
+import Language.Python.Common.SrcLocation
+import Data.IntMap.Strict (IntMap, (!))
 import Data.IntMap.Strict qualified as IntMap
 import Panini.Syntax
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
 import Data.Text qualified as Text
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.IntSet qualified as IntSet
+import Data.String
+import Data.Foldable
+import Panini.Panic
+import Data.Text (Text)
 
-type Transpiler a = StateT () (Except String) a
 
-transpile :: CFG -> Either String Program
-transpile cfg = runExcept (evalStateT (transpileTopLevel cfg) ())
+-- TODO: language-python needs to be updated to support newer Python syntax
+-- TODO: be explicit about the Python version that is supported (semantics!)
+
+
+data Error
+  = UnsupportedStatement StatementSpan
+  | UnsupportedExpression ExprSpan    
+  | UnsupportedTypeHint ExprSpan
+  | UnsupportedDefaultParameter ExprSpan
+  | MissingParameterTypeHint ParameterSpan
+  | UnsupportedParameter ParameterSpan
+  | UnsupportedAtomicExpression ExprSpan
+  | UnsupportedOperator OpSpan
+  | OtherError String  -- TODO: remove
+  deriving stock (Show)
+
+type Transpiler a = StateT (Int) (Except Error) a
+
+transpile :: CFG -> Either Error Program
+transpile cfg = runExcept (evalStateT (transpileTopLevel cfg) (0))
 
 transpileTopLevel :: CFG -> Transpiler Program
 transpileTopLevel cfg = go cfg.entry
  where
-  go l = case cfg.nodeMap IntMap.! l of
+  go l = case cfg.nodeMap ! l of
     FunDef{..} -> do
       k <- transpileFun _body
       lam <- mkLams _args k
@@ -38,14 +65,14 @@ transpileTopLevel cfg = go cfg.entry
       imports <- concat <$> mapM goImport _stmts
       (imports ++) <$> go _next
     
-    Branch{} -> lift $ throwE $ "UnsupportedTopLevel: branch" -- TODO
-    BranchFor{} -> lift $ throwE $ "UnsupportedTopLevel: for" -- TODO
+    Branch{} -> lift $ throwE $ OtherError "UnsupportedTopLevel: branch" -- TODO
+    BranchFor{} -> lift $ throwE $ OtherError "UnsupportedTopLevel: for" -- TODO
 
-    Exit -> return []  
+    Exit -> return []
 
   goImport = \case
     Py.Import{} -> return [] -- TODO: transpile imports and add to builder environment
-    stmt        -> lift $ throwE $ "UnsupportedTopLevel: " ++ showPretty stmt -- TODO
+    stmt        -> lift $ throwE $ OtherError $ "UnsupportedTopLevel: " ++ showPretty stmt -- TODO
   
 mkLams :: [ParameterSpan] -> Term -> Transpiler Term 
 mkLams ps k0 = foldM mkLam k0 (reverse ps)
@@ -58,22 +85,82 @@ mkLams ps k0 = foldM mkLam k0 (reverse ps)
       } 
       -> case typeHintToType typeHint of
         Just t -> return $ Lam (mangle param_name) t k (pySpanToPV p.param_annot)
-        Nothing -> lift $ throwE $ "Unsupported Python type: " ++ show typeHint
+        Nothing -> lift $ throwE $ UnsupportedTypeHint typeHint
 
     Param 
-      { param_default = Just _ 
+      { param_default = Just param
       } 
-      -> lift $ throwE $ "Default parameter values are unsupported"
+      -> lift $ throwE $ UnsupportedDefaultParameter param
 
     Param 
       { param_py_annotation = Nothing 
       } 
-      -> lift $ throwE $ "Missing type annotation for function parameter: " ++ showPretty p    
+      -> lift $ throwE $ MissingParameterTypeHint p
   
-    _ -> lift $ throwE $ "Unsupported function parameter type: " ++ showPretty p
+    _ -> lift $ throwE $ UnsupportedParameter p
 
 transpileFun :: CFG -> Transpiler Term
-transpileFun = undefined
+transpileFun cfg = goDom (Val (Var (blockName domTreeRoot))) domTreeRoot
+ where
+  dt@DomTree{..} = domTree cfg
+  phis = phiFuncs dt cfg
+  
+  goDom k l = case phis ! l of
+    [] -> do
+      body <- mkBody l
+      e1 <- foldM goDom body (IntSet.toAscList $ domChildren ! l)
+      return $ Let (blockName l) e1 k NoPV
+    
+    vs -> do
+      body <- mkBody l
+      e1 <- foldM goDom body (IntSet.toAscList $ domChildren ! l)
+      let lams = mkPhiLams (Set.toList vs) e1  -- TODO: var order?
+      return $ Rec (blockName l) typeTODO lams k NoPV
+  
+  mkBody l = case cfg.nodeMap ! l of
+    FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" -- TODO
+
+    Block{..} -> do
+      k <- mkCall _next
+      foldM transpileStmt k (reverse _stmts)
+
+    Branch{..} -> do
+      kTrue <- mkCall _nextTrue
+      kFalse <- mkCall _nextFalse
+      v <- newVar
+      let k = If (Var v) kTrue kFalse NoPV
+      foldM transpileStmt k ([mkAssignStmt v _cond] :: [StatementSpan])
+
+    BranchFor{} -> lift $ throwE $ OtherError $ "for..in not yet supported" -- TODO
+    Exit -> return $ Val (Con (U NoPV))
+
+  mkCall l = case phis ! l of
+    [] -> return $ Val (Var (blockName l))
+    vs -> return $ foldl' (\e v -> App e v NoPV) (Val (Var (blockName l))) (map (Var . fromString) $ Set.toAscList vs)
+
+newVar :: Transpiler Name
+newVar = do
+  i <- get
+  put $ i + 1
+  return $ Name (Text.pack $ "v" ++ show i) NoPV
+
+mkAssignStmt :: Name -> ExprSpan -> StatementSpan
+mkAssignStmt (Name x _) e = 
+  Assign [Py.Var (Ident (Text.unpack x) SpanEmpty) SpanEmpty] e SpanEmpty
+
+mkPhiLams :: [String] -> Term -> Term
+mkPhiLams xs k0 = foldr mkPhiLam k0 xs
+ where
+  mkPhiLam x k = Lam (fromString x) typeTODO k NoPV  -- TODO: type
+
+-- TODO: remove
+typeTODO :: Type
+typeTODO = TBase dummyName TInt (Known PTrue) NoPV
+
+-- TODO: uniqueness
+-- TODO: provenance
+blockName :: Label -> Name
+blockName l = Name ("L" <> Text.pack (show l)) NoPV 
 
 mangle :: IdentSpan -> Name
 mangle Ident{..} = Name (Text.pack ident_string) (pySpanToPV ident_annot)
@@ -90,48 +177,130 @@ typeHintToType = \case
   _ -> Nothing 
 
 
--- transpilreStmt stmt = case stmt of
---   Import          {}   -> undefined -- TODO: add import to environment
---   Assign          {..} -> assdN assign_to <> used assign_expr
---   AugmentedAssign {..} -> assd aug_assign_to <> used aug_assign_expr
---   AnnotatedAssign {..} -> assd ann_assign_to <> (usedM ann_assign_expr)
---   Return          {..} -> usedM return_expr
--- --Raise           {..} -> undefined  -- TODO
--- --With            {..} -> undefined  -- TODO
--- --Delete          {..} -> undefined  -- TODO
---   StmtExpr        {..} -> undefined  -- TODO
---   Assert          {..} -> map mkAssert assert_exprs
---   Print           {..} -> usedN print_exprs -- TODO
---   Exec            {..} -> usedN $ exec_expr : unwrap2 exec_globals_locals  -- TODO
---   stmt                 -> throwE (Unsupported stmt)
+transpileStmt :: Term -> StatementSpan -> Transpiler Term
+transpileStmt k = \case
+  Assign { assign_to = [Py.Var x _], ..} -> do
+    e1 <- transpileExpr assign_expr
+    return $ Let (mangle x) e1 k (pySpanToPV stmt_annot)
+  
+  Assert {..} -> do
+    let assertFunc = Py.Var (Ident "assert" stmt_annot) stmt_annot
+    fs <- mapM (\e -> transpileSimpleCall assertFunc [e]) assert_exprs
+    return $ foldr (\f k' -> Let dummyName f k' NoPV) k fs  -- TODO: pv
 
 
 
--- mangle :: IdentSpan -> Var 
--- newVar :: m Var
--- newVarBasedOn :: IdentSpan -> m Var
+  stmt -> lift $ throwE $ UnsupportedStatement stmt
 
 
--- transpile Block{..} = foldr go (mkGotoApp _next) _stmts
---  where
---   go stmt k = case stmt of
---     Assign 
---       { assign_to = [Py.Var x]
---       , assign_expr = Py.Var y 
---       } 
---       -> Let (mangle x) (Val (Var (mangle y))) k
-    
---     Assign 
---       { assign_to = [Py.Var x]
---       , assign_expr = Py.Int { int_value } 
---       } 
---       -> Let (mangle x) (Val (Con (I int_value NoPV))) k
-    
---     AugmentedAssign 
---       { aug_assign_to = Py.Var x
---       , aug_assign_expr = Py.Var y
---       , aug_assign_op = PlusAssign
---       }
---       -> Let (mangle x) (App (App (Var "add") (Val (Var mangle x))) (Val (Var (mangle y)))) k
+transpileExpr :: ExprSpan -> Transpiler Term
+transpileExpr = \case
+  expr | isAtomic expr -> Val <$> transpileAtom expr  
+  
+  Call { call_args = ArgExprs args, .. } -> transpileSimpleCall call_fun args
+  
+  BinaryOp {..} -> do
+    opName <- getOperatorName operator
+    let opFunc = Py.Var (Ident opName operator.op_annot) operator.op_annot
+    transpileSimpleCall opFunc [left_op_arg,right_op_arg]
+  
+  -- TODO: this is hardcoded to str.at right now; vary by type!
+  Subscript {..} -> do
+    let subFunc = Py.Var (Ident "str.at" expr_annot) expr_annot
+    transpileSimpleCall subFunc [subscriptee, subscript_expr]
+
+  expr -> lift $ throwE $ UnsupportedExpression expr
+
+transpileSimpleCall :: ExprSpan -> [ExprSpan] -> Transpiler Term
+transpileSimpleCall f args = go [] (f:args)
+ where
+  go (reverse -> f:vs) [] = return $ foldl' (\e v -> App e v NoPV) (Val f) vs
+  go vs (x:xs) 
+    | isAtomic x = do
+        v <- transpileAtom x
+        go (v:vs) xs
+    | otherwise = do
+        v <- newVar
+        e <- transpileExpr x
+        k <- go (Var v : vs) xs
+        return $ Let v e k NoPV
+
+-- TODO: types: int.eq vs char.eq etc.
+getOperatorName :: OpSpan -> Transpiler String
+getOperatorName = \case
+    LessThan          {} -> return "lt"
+    GreaterThan       {} -> return "gt"
+    Equality          {} -> return "eq"
+    GreaterThanEquals {} -> return "ge"
+    LessThanEquals    {} -> return "le"
+    NotEquals         {} -> return "ne"
+    NotEqualsV2       {} -> return "ne"
+    Plus              {} -> return "add"
+    Minus             {} -> return "sub"
+    op                   -> lift $ throwE $ UnsupportedOperator op
+
+-- precondition: input expression must be atomic
+transpileAtom :: ExprSpan -> Transpiler Atom
+transpileAtom expr = case expr of
+  Py.Var         {..} -> return $ Var (mangle var_ident)
+  Int            {..} -> return $ Con (I int_value (pySpanToPV expr_annot))
+  LongInt        {..} -> return $ Con (I int_value (pySpanToPV expr_annot))
+  Float          {}   -> unsupported  -- TODO
+  Imaginary      {}   -> unsupported  -- TODO
+  Bool           {..} -> return $ Con (B bool_value (pySpanToPV expr_annot))
+  None           {}   -> unsupported  -- TODO
+  ByteStrings    {}   -> unsupported  -- TODO
+  Strings        {..} -> return $ Con (S (mkString strings_strings) (pySpanToPV expr_annot))
+  UnicodeStrings {}   -> unsupported  -- TODO
+  Paren          {..} -> transpileAtom paren_expr
+  _                   -> panic $ "unexpected non-atomic expression:" <+> pretty expr
+ where
+  unsupported = lift $ throwE $ UnsupportedAtomicExpression expr
 
 
+-- TODO: raw strings
+-- TODO: does language-python properly parse backslash at EOL to ignore newline?
+mkString :: [String] -> Text
+mkString xs = Text.pack $ concatMap unlit xs
+ where  
+  unlit ('\'':cs) = unlit cs
+  unlit ('\"':cs) = unlit cs
+  unlit ('\\':'n':cs) = '\n' : unlit cs
+  unlit ('\\':'\\':cs) = '\\' : unlit cs
+  unlit ('\\':'\'':cs) = '\'' : unlit cs
+  unlit ('\\':'\"':cs) = '\"' : unlit cs
+  unlit ('\\':'a':cs) = '\a' : unlit cs
+  unlit ('\\':'b':cs) = '\b' : unlit cs
+  unlit ('\\':'f':cs) = '\f' : unlit cs
+  unlit ('\\':'n':cs) = '\n' : unlit cs
+  unlit ('\\':'r':cs) = '\r' : unlit cs
+  unlit ('\\':'t':cs) = '\t' : unlit cs
+  unlit ('\\':'v':cs) = '\v' : unlit cs
+  -- TODO: \ooo       Character with octal value ooo
+  -- TODO: \xhh       Character with hex value hh
+  -- TODO: \N{name}   Character named name in the Unicode database
+  -- TODO: \uxxxx     Character with 16-bit hex value xxxx
+  -- TODO: \Uxxxxxxxx Character with 32-bit hex value xxxxxxxx
+  unlit (c:cs) = c : unlit cs
+  unlit [] = []
+
+
+isAtomic :: ExprSpan -> Bool
+isAtomic = \case
+  Py.Var         {}   -> True
+  Int            {}   -> True
+  LongInt        {}   -> True
+  Float          {}   -> True
+  Imaginary      {}   -> True
+  Bool           {}   -> True
+  None           {}   -> True
+  ByteStrings    {}   -> True
+  Strings        {..} -> not $ any isFString strings_strings
+  UnicodeStrings {}   -> True
+  Paren          {..} -> isAtomic paren_expr
+  _                   -> False
+
+isFString :: String -> Bool
+isFString ('f':_) = True
+isFString ('F':_) = True
+isFString _       = False

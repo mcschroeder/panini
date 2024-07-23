@@ -1,5 +1,5 @@
 
-def lsb_check(s):
+def lsb_check(s: str):
   i = 0
   while i < len(s)-1:
     assert s[i] == '0'
