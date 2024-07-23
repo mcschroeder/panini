@@ -58,27 +58,39 @@ instance Pretty Term where
     
     App e x _ -> pretty e <+> pretty x  
     
-    Lam x t e _ -> 
-      nest 2 $ group $ 
+    Lam x t e _ -> nest 2 $ group $ 
       lambda <> pretty x <> ":" <> parensIf (isFun t) (pretty t) <> dot <\>
         pretty e
 
+    Let x e1 e2 _ | isBinding e1 ->
+      nest 2 (kw "let" <+> pretty x <+> symEq <\\> 
+        pretty e1) <\\>
+      nest 2 (kw "in" <\\> 
+        pretty e2)
+
     Let x e1 e2 _ -> 
-      ann Keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> 
-      ann Keyword "in") <\\> 
+      kw "let" <+> pretty x <+> symEq <+> pretty e1 <+> kw "in" <\\>
       pretty e2
   
     Rec x t e1 e2 _ ->
-      ann Keyword "rec" <+> pretty x <+> ":" <+> pretty t <\> 
-      symEq <+> group (pretty e1 <\> 
-      ann Keyword "in") <\\> 
-      pretty e2
+      kw "rec" <+> pretty x <+> ":" <+> pretty t <+> symEq <+> pretty e1 <\\> 
+      nest 2 (kw "in" <\\> 
+        pretty e2)
   
     If x e1 e2 _ -> group $
-      ann Keyword "if" <+> pretty x <+> nest 2 (ann Keyword "then" <\> 
-        pretty e1) <\> 
-      nest 2 (ann Keyword "else" <\> 
+      kw "if" <+> pretty x <+> nest 2 (kw "then" <\> 
+        pretty e1) <\>
+      nest 2 (kw "else" <\> 
         pretty e2)
+   
+   where
+    kw = ann Keyword
+
+isBinding :: Term -> Bool
+isBinding = \case
+  Let _ _ _ _   -> True
+  Rec _ _ _ _ _ -> True
+  _             -> False
 
 instance Pretty Atom where
   pretty = \case
