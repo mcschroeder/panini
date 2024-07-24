@@ -20,7 +20,7 @@ class ReversableCon a where
 type SMTContext = State SMTState
 
 data SMTState = SMTState {
-    smtConsts :: Set (Name, PrimitiveBase),
+    smtConsts :: Set (Name, Base),
     counter :: Int
 }
 
@@ -73,7 +73,7 @@ getUniqueName (Name t pv) = do
 -- | As the forall implications are eliminated, the State is needed to track the new constants.
 --
 -- | If the constraints are list, they are mapped to a single or-constraint, as every single constraint needs to be unsat individually.
-reverseConToResult :: ReversableCon a => [a] -> ([ReversedCon], [(Name, PrimitiveBase)])
+reverseConToResult :: ReversableCon a => [a] -> ([ReversedCon], [(Name, Base)])
 reverseConToResult cs = ([RCOR rc], elems (smtConsts s))
   where
     (rc, s) = runState (mapM reverseCon cs) (SMTState empty 0)
