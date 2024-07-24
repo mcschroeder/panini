@@ -44,6 +44,7 @@ data Node
       , _result :: Maybe ExprSpan
       , _body   :: CFG
       , _next   :: Label
+      , _except :: [(ExceptClauseSpan,Label)]
       }
   | Block
       { _stmts  :: [StatementSpan]
@@ -183,6 +184,7 @@ addStatement ctx stmt next = case stmt of
       , _result = fun_result_annotation
       , _body   = body
       , _next   = next
+      , _except = ctx.excepts
       }
    where
     stripDocstring (StmtExpr{stmt_expr = Strings{}} : xs) = xs
