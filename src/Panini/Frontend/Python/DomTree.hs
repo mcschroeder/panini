@@ -1,6 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE OverloadedLists #-}
-
 module Panini.Frontend.Python.DomTree where
 
 import Data.Array.Unboxed
@@ -8,61 +5,55 @@ import Data.Bifunctor
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet qualified as IntSet
-import Panini.Frontend.Python.CFG
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Panini.Frontend.Common.Dom
-import Panini.Pretty
-import Panini.Pretty.Graphviz as Graphviz
-import Prelude hiding (succ,pred)
+import Panini.Frontend.Common.SSA
+import Panini.Frontend.Python.AST
+import Panini.Frontend.Python.CFG
+import Prelude hiding (succ)
 
 ------------------------------------------------------------------------------
 
--- | The dominator tree summarizes the dominance relations between nodes in a
--- control-flow graph.
 data DomTree = DomTree
-  { domChildren :: IntMap LabelSet
-  , domFrontier :: IntMap LabelSet
-  , domTreeRoot :: Label
+  { root     :: Label
+  , nodes    :: IntMap Node
+  , children :: IntMap [Label]
+  , phiVars  :: IntMap [Var]
   }
   deriving stock (Show)
 
-instance Graphviz DomTree where
-  dot DomTree{..} = Digraph $ go domTreeRoot
-   where
-    go l = 
-      let cs = IntSet.toAscList $ domChildren IntMap.! l 
-          df = IntSet.toAscList $ domFrontier IntMap.! l
-      in 
-        [Node (show l) [Shape Circle, Label (pretty l)]]
-        ++ map (\c -> Edge (show l) (show c) []) cs
-        ++ map (\f -> Edge (show l) (show f) [Graphviz.Style Dashed]) df
-        ++ concatMap go cs
-
-------------------------------------------------------------------------------
-
--- | Compute the dominator tree of a CFG, including all dominance frontiers.
 domTree :: CFG -> DomTree
-domTree cfg = DomTree{..}
+domTree cfg = DomTree {..}
  where
-  n         = IntMap.size cfg.nodeMap
-  labels    = IntMap.keys cfg.nodeMap
+  root     = cfg.entry
+  nodes    = cfg.nodeMap
+  children = fromAss (map toLabel . IntSet.toAscList) $ tail $ assocs tree
+  phiVars  = fromAss Set.toAscList $ assocs phis
+
+  n         = IntMap.size nodes  
+  labels    = IntMap.keys nodes
   vertices  = [1..n]
   labelMap  = IntMap.fromList $ zip labels vertices
   vertexMap = IntMap.fromList $ zip vertices labels
   toVertex  = (IntMap.!) labelMap
   toLabel   = (IntMap.!) vertexMap
-  getNode   = (IntMap.!) cfg.nodeMap  
+  toNode    = (IntMap.!) nodes . toLabel
+  fromAss f = IntMap.fromList . map (bimap toLabel f)  
+  vertexSuc = IntSet.fromList . map toVertex . successors . toNode  
 
-  successors' = 
-    IntSet.fromList . map toVertex . successors . getNode . toLabel
-  
-  r    = toVertex cfg.entry
-  succ = listArray (1,n) (map successors' vertices)
-  idom = dominators succ r
+  succ = listArray (1,n) (map vertexSuc vertices)
+  idom = dominators succ (toVertex root)
   tree = dominatorTree idom
-  df   = dominanceFrontiers succ tree idom
-  
-  toLabelAssocs = map (bimap toLabel (IntSet.map toLabel))
+  frnt = dominanceFrontiers succ tree idom
+  vars = Map.map (IntSet.map toVertex) (variableAssignments cfg)
+  phis = phiPlacements vars frnt
 
-  domChildren = IntMap.fromList $ toLabelAssocs $ tail $ assocs tree
-  domFrontier = IntMap.fromList $ toLabelAssocs $ assocs df
-  domTreeRoot = cfg.entry
+------------------------------------------------------------------------------
+
+variableAssignments :: CFG -> Map Var LabelSet
+variableAssignments cfg = Map.fromListWith (<>) 
+  [ (v, IntSet.singleton l) | (l,n) <- IntMap.assocs cfg.nodeMap
+                            , Assigned v <- Set.toList (variables n)
+  ]

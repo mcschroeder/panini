@@ -1,6 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE OverloadedLists #-}
-
 module Panini.Frontend.Python.ANF where
 
 import Control.Monad
@@ -10,8 +7,6 @@ import Control.Monad.Trans.State.Strict
 import Panini.Frontend.Python.AST hiding (Var)
 import Panini.Frontend.Python.AST qualified as Py
 import Panini.Frontend.Python.CFG hiding (Error)
-import Panini.Frontend.Python.SSA
-import Panini.Frontend.Common.SSA (VarSet)
 import Panini.Frontend.Python.DomTree
 import Language.Python.Common.SrcLocation
 import Data.IntMap.Strict (IntMap, (!))
@@ -48,15 +43,16 @@ data Error
 
 type Transpiler a = StateT (Int) (Except Error) a
 
-transpile :: CFG -> Either Error Program
-transpile cfg = runExcept (evalStateT (transpileTopLevel cfg) (0))
+transpile :: DomTree -> Either Error Program
+transpile dom = runExcept (evalStateT (transpileTopLevel dom) (0))
 
-transpileTopLevel :: CFG -> Transpiler Program
-transpileTopLevel cfg = go cfg.entry
+-- TODO
+transpileTopLevel :: DomTree -> Transpiler Program
+transpileTopLevel dom = go dom.root
  where
-  go l = case cfg.nodeMap ! l of
+  go l = case dom.nodes ! l of
     FunDef{..} -> do
-      k <- transpileFun _body
+      k <- transpileFun (domTree _body)
       lam <- mkLams _args k
       let def = Define (mangle _name) lam
       (def :) <$> go _next
@@ -99,25 +95,22 @@ mkLams ps k0 = foldM mkLam k0 (reverse ps)
   
     _ -> lift $ throwE $ UnsupportedParameter p
 
-transpileFun :: CFG -> Transpiler Term
-transpileFun cfg = goDom (Val (Var (blockName domTreeRoot))) domTreeRoot
- where
-  dt@DomTree{..} = domTree cfg
-  phis = phiFuncs dt cfg
-  
-  goDom k l = case phis ! l of
+transpileFun :: DomTree -> Transpiler Term
+transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
+ where  
+  goDom k l = case dom.phiVars ! l of
     [] -> do
       body <- mkBody l
-      e1 <- foldM goDom body (IntSet.toAscList $ domChildren ! l)
+      e1 <- foldM goDom body (dom.children ! l)
       return $ Let (blockName l) e1 k NoPV
     
     vs -> do
       body <- mkBody l
-      e1 <- foldM goDom body (IntSet.toAscList $ domChildren ! l)
-      let lams = mkPhiLams (Set.toList vs) e1  -- TODO: var order?
+      e1 <- foldM goDom body (dom.children ! l)
+      let lams = mkPhiLams vs e1
       return $ Rec (blockName l) typeTODO lams k NoPV
   
-  mkBody l = case cfg.nodeMap ! l of
+  mkBody l = case dom.nodes ! l of
     FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" -- TODO
 
     Block{..} -> do
@@ -134,9 +127,9 @@ transpileFun cfg = goDom (Val (Var (blockName domTreeRoot))) domTreeRoot
     BranchFor{} -> lift $ throwE $ OtherError $ "for..in not yet supported" -- TODO
     Exit -> return $ Val (Con (U NoPV))
 
-  mkCall l = case phis ! l of
+  mkCall l = case dom.phiVars ! l of
     [] -> return $ Val (Var (blockName l))
-    vs -> return $ foldl' (\e v -> App e v NoPV) (Val (Var (blockName l))) (map (Var . fromString) $ Set.toAscList vs)
+    vs -> return $ foldl' (\e v -> App e v NoPV) (Val (Var (blockName l))) (map (Var . fromString) vs)
 
 newVar :: Transpiler Name
 newVar = do

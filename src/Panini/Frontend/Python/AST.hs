@@ -10,7 +10,6 @@ module Panini.Frontend.Python.AST
   , assignOpToOp
   , pattern ArgExprs
   , pySpanToPV
-  , Var
   , VarMention(..)
   , stmtVars
   , exprVars
@@ -75,9 +74,7 @@ pySpanToPV = \case
 
 ------------------------------------------------------------------------------
 
-type Var = String
-
-data VarMention = Assigned Var | Used Var
+data VarMention = Assigned String | Used String
   deriving stock (Eq, Ord, Show)
 
 stmtVars :: StatementSpan -> Set VarMention
@@ -119,7 +116,7 @@ stmtVars = \case
   usedM = maybe [] used
 
 -- | All /free/ variables in the given expression.
-exprVars :: ExprSpan -> Set Var
+exprVars :: ExprSpan -> Set String
 exprVars = \case
   Var        {..} -> [var_ident.ident_string]
   Call       {..} -> exprVarsN (call_fun : map arg_expr call_args)
@@ -146,10 +143,10 @@ exprVars = \case
   StringConversion {..} -> exprVars backquoted_expr
   _               -> []
 
-exprVarsN :: [ExprSpan] -> Set Var
+exprVarsN :: [ExprSpan] -> Set String
 exprVarsN = Set.unions . map exprVars
 
-paramNames :: [ParameterSpan] -> Set Var
+paramNames :: [ParameterSpan] -> Set String
 paramNames = Set.fromList . concatMap go
  where
   go    Param          {..} = [param_name.ident_string]

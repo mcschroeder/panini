@@ -6,6 +6,7 @@ module Panini.Frontend.Python.CFG
   , CFG(..)
   , Node(..)
   , successors
+  , variables
   , fromModule
   , Error(..)
   ) where
@@ -18,8 +19,10 @@ import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Language.Python.Common.PrettyAST ()
-import Panini.Frontend.Python.AST
+import Panini.Frontend.Python.AST hiding (Set)
 import Panini.Frontend.Python.Pretty ()
 import Panini.Pretty
 import Panini.Pretty.Graphviz as Graphviz
@@ -74,6 +77,17 @@ successors = \case
   Branch    {..} -> _nextTrue : _nextFalse : map snd _except
   BranchFor {..} -> _nextMore : _nextDone : map snd _except
   Exit           -> []
+
+variables :: Node -> Set VarMention
+variables = Set.unions . \case
+  FunDef    {}   -> []
+  Block     {..} -> map stmtVars _stmts
+  Branch    {..} -> [used _cond]
+  BranchFor {..} -> [assdN _targets] ++ [used _generator]
+  Exit           -> []
+ where
+  used  = Set.map Used . exprVars
+  assdN = Set.map Assigned . exprVarsN
 
 ------------------------------------------------------------------------------
 
