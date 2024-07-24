@@ -6,8 +6,8 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.IntMap.Strict ((!))
+import Data.Char
 import Data.String
-import Data.Text (Text)
 import Data.Text qualified as Text
 import Language.Python.Common.SrcLocation
 import Panini.Frontend.Python.AST hiding (Var)
@@ -224,7 +224,7 @@ getOperatorName = \case
     Minus             {} -> return "sub"
     op                   -> lift $ throwE $ UnsupportedOperator op
 
--- precondition: input expression must be atomic
+-- expects expression to be atomic
 transpileAtom :: ExprSpan -> Transpiler Atom
 transpileAtom expr = case expr of
   Py.Var         {..} -> return $ Var (mangle var_ident)
@@ -235,7 +235,7 @@ transpileAtom expr = case expr of
   Bool           {..} -> return $ Con (B bool_value (pySpanToPV expr_annot))
   None           {}   -> unsupported  -- TODO
   ByteStrings    {}   -> unsupported  -- TODO
-  Strings        {..} -> return $ Con (S (mkString strings_strings) (pySpanToPV expr_annot))
+  Strings        {}   -> transpileStringLiteral expr
   UnicodeStrings {}   -> unsupported  -- TODO
   Paren          {..} -> transpileAtom paren_expr
   _                   -> panic $ "unexpected non-atomic expression:" <+> pretty expr
@@ -243,32 +243,57 @@ transpileAtom expr = case expr of
   unsupported = lift $ throwE $ UnsupportedAtomicExpression expr
 
 
--- TODO: raw strings
--- TODO: does language-python properly parse backslash at EOL to ignore newline?
-mkString :: [String] -> Text
-mkString xs = Text.pack $ concatMap unlit xs
+-- TODO: support triple-quoted strings
+-- TODO: support global encoding declarations in source file
+-- TODO: check that this really follows the spec
+transpileStringLiteral :: ExprSpan -> Transpiler Atom
+transpileStringLiteral expr@Strings{..} = do
+  s <- (Text.pack . concat) <$> mapM decode strings_strings
+  return $ Con (S s (pySpanToPV expr_annot))
  where  
-  unlit ('\'':cs) = unlit cs
-  unlit ('\"':cs) = unlit cs
-  unlit ('\\':'n':cs) = '\n' : unlit cs
-  unlit ('\\':'\\':cs) = '\\' : unlit cs
-  unlit ('\\':'\'':cs) = '\'' : unlit cs
-  unlit ('\\':'\"':cs) = '\"' : unlit cs
-  unlit ('\\':'a':cs) = '\a' : unlit cs
-  unlit ('\\':'b':cs) = '\b' : unlit cs
-  unlit ('\\':'f':cs) = '\f' : unlit cs
-  unlit ('\\':'n':cs) = '\n' : unlit cs
-  unlit ('\\':'r':cs) = '\r' : unlit cs
-  unlit ('\\':'t':cs) = '\t' : unlit cs
-  unlit ('\\':'v':cs) = '\v' : unlit cs
-  -- TODO: \ooo       Character with octal value ooo
-  -- TODO: \xhh       Character with hex value hh
-  -- TODO: \N{name}   Character named name in the Unicode database
-  -- TODO: \uxxxx     Character with 16-bit hex value xxxx
-  -- TODO: \Uxxxxxxxx Character with 32-bit hex value xxxxxxxx
-  unlit (c:cs) = c : unlit cs
-  unlit [] = []
+  decode ('r':cs) = unqote cs
+  decode ('R':cs) = unqote cs
+  decode (    cs) = unescape <$> unqote cs
 
+  unqote ('\"':'\"':'\"':_) = lift $ throwE $ UnsupportedAtomicExpression expr
+  unqote ('\"':cs) = pure $ init cs
+  unqote ('\'':cs) = pure $ init cs
+  unqote _         = panic $ "malformed string literal:" <+> pretty expr
+
+transpileStringLiteral expr =
+  panic $ "unexpected expression (not a string literal):" <+> pretty expr
+
+-- TODO: support \N{name}
+unescape :: String -> String
+unescape ('\'':cs) = unescape cs
+unescape ('\"':cs) = unescape cs
+unescape ('\\':'\n':cs) = unescape cs
+unescape ('\\':'\\':cs) = '\\' : unescape cs
+unescape ('\\':'\'':cs) = '\'' : unescape cs
+unescape ('\\':'\"':cs) = '\"' : unescape cs
+unescape ('\\':'a':cs) = '\a' : unescape cs
+unescape ('\\':'b':cs) = '\b' : unescape cs
+unescape ('\\':'f':cs) = '\f' : unescape cs
+unescape ('\\':'n':cs) = '\n' : unescape cs
+unescape ('\\':'r':cs) = '\r' : unescape cs
+unescape ('\\':'t':cs) = '\t' : unescape cs
+unescape ('\\':'v':cs) = '\v' : unescape cs
+unescape ('\\':a:b:c:cs) | Just x <- readOctDigits [a,b,c] = x : unescape cs
+unescape ('\\':'x':a:b:cs) | Just x <- readHexDigits [a,b] = x : unescape cs
+unescape ('\\':'u':a:b:c:d:cs) | Just x <- readHexDigits [a,b,c,d] = x : unescape cs
+unescape ('\\':'U':a:b:c:d:e:f:g:h:cs) | Just x <- readHexDigits [a,b,c,d,e,f,g,h] = x : unescape cs
+unescape (c:cs) = c : unescape cs
+unescape [] = []
+
+readOctDigits :: [Char] -> Maybe Char
+readOctDigits cs = case readLitChar ("\\o" ++ cs) of
+  [(c,[])] -> Just c
+  _        -> Nothing
+
+readHexDigits :: [Char] -> Maybe Char
+readHexDigits cs = case readLitChar ("\\x" ++ cs) of
+  [(c,[])] -> Just c
+  _        -> Nothing
 
 isAtomic :: ExprSpan -> Bool
 isAtomic = \case
@@ -286,6 +311,10 @@ isAtomic = \case
   _                   -> False
 
 isFString :: String -> Bool
-isFString ('f':_) = True
-isFString ('F':_) = True
-isFString _       = False
+isFString ('f':_)     = True
+isFString ('F':_)     = True
+isFString ('r':'f':_) = True
+isFString ('r':'F':_) = True
+isFString ('R':'f':_) = True
+isFString ('R':'F':_) = True
+isFString _           = False
