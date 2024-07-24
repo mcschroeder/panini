@@ -206,7 +206,7 @@ addStatement ctx stmt next = case stmt of
   Return{} -> addNode $ Block 
     { _stmts  = [stmt]
     , _next   = ctx.return_
-    , _except = [] -- TODO: is this correct?
+    , _except = ctx.excepts
     }
 
   Try{..} -> do
