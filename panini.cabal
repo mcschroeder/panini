@@ -75,13 +75,13 @@ library
     Panini.Frontend.Common.Dom
     Panini.Frontend.Common.SSA
     Panini.Frontend.Python
-    Panini.Frontend.Python.ANF
     Panini.Frontend.Python.AST
     Panini.Frontend.Python.CFG
     Panini.Frontend.Python.DomTree
     Panini.Frontend.Python.Error
     Panini.Frontend.Python.Pretty
     Panini.Frontend.Python.Provenance
+    Panini.Frontend.Python.Transpiler
     Panini.Infer
     Panini.Modules
     Panini.Monad

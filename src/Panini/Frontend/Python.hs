@@ -8,7 +8,7 @@ import Panini.Error
 import Panini.Frontend.Python.CFG as CFG
 import Panini.Frontend.Python.DomTree
 import Panini.Frontend.Python.Error as Py
-import Panini.Frontend.Python.ANF as ANF
+import Panini.Frontend.Python.Transpiler
 import Panini.Monad
 import Panini.Pretty
 import Panini.Pretty.Graphviz

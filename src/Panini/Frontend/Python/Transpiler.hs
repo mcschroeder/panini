@@ -1,15 +1,11 @@
-module Panini.Frontend.Python.ANF where
+module Panini.Frontend.Python.Transpiler (transpile) where
 
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Foldable
-import Data.IntMap.Strict (IntMap, (!))
-import Data.IntMap.Strict qualified as IntMap
-import Data.IntSet qualified as IntSet
-import Data.Set (Set)
-import Data.Set qualified as Set
+import Data.IntMap.Strict ((!))
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -26,14 +22,17 @@ import Panini.Provenance
 import Panini.Syntax
 import Prelude
 
+------------------------------------------------------------------------------
 
 -- TODO: language-python needs to be updated to support newer Python syntax
 -- TODO: be explicit about the Python version that is supported (semantics!)
 
-type Transpiler a = StateT (Int) (Except Error) a
-
 transpile :: DomTree -> Either Error Program
 transpile dom = runExcept (evalStateT (transpileTopLevel dom) (0))
+
+------------------------------------------------------------------------------
+
+type Transpiler a = StateT (Int) (Except Error) a
 
 -- TODO
 transpileTopLevel :: DomTree -> Transpiler Program
@@ -196,16 +195,20 @@ transpileExpr = \case
 transpileSimpleCall :: ExprSpan -> [ExprSpan] -> Transpiler Term
 transpileSimpleCall f args = go [] (f:args)
  where
-  go (reverse -> f:vs) [] = return $ foldl' (\e v -> App e v NoPV) (Val f) vs
-  go vs (x:xs) 
+  go vs (x:xs)
     | isAtomic x = do
         v <- transpileAtom x
         go (v:vs) xs
+
     | otherwise = do
         v <- newVar
         e <- transpileExpr x
         k <- go (Var v : vs) xs
         return $ Let v e k NoPV
+  
+  go vs [] = case reverse vs of
+    z:zs -> return $ foldl' (\e x -> App e x NoPV) (Val z) zs
+    _    -> impossible
 
 -- TODO: types: int.eq vs char.eq etc.
 getOperatorName :: OpSpan -> Transpiler String
