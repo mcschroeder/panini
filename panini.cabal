@@ -91,6 +91,7 @@ library
     Panini.Regex.SMT
     Panini.Regex.Type
     Panini.SMT.RegLan
+    Panini.SMT.ReversableCon
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
     Panini.Solver

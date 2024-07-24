@@ -13,6 +13,7 @@ import Panini.Provenance
 import Panini.Regex.POSIX.ERE qualified as ERE
 import Panini.Regex.SMT qualified as Regex
 import Panini.SMT.RegLan
+import Panini.SMT.ReversableCon
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
@@ -51,6 +52,13 @@ instance SMTLIB FlatCon where
   encode (FAll [] p q) = sexpr ["=>", encode p, encode q]
   encode (FAll xs p q) = sexpr [ "forall", sorts xs
                                , sexpr ["=>", encode p, encode q]]
+
+instance SMTLIB ReversedCon where
+  encode = \case
+    RCHead p    -> encode p
+    RCAnd c1 c2 -> sexpr ["and", encode c1, encode c2]
+    RCNot c     -> sexpr ["not", encode c]
+    RCOR cs     -> sexpr ("or" : map encode cs)
 
 instance SMTLIB Pred where
   encode = \case
