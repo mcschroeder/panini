@@ -23,6 +23,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Language.Python.Common.PrettyAST ()
 import Panini.Frontend.Python.AST hiding (Set)
+import Panini.Frontend.Python.Error
 import Panini.Frontend.Python.Pretty ()
 import Panini.Pretty
 import Panini.Pretty.Graphviz as Graphviz
@@ -90,9 +91,6 @@ variables = Set.unions . \case
   assdN = Set.map Assigned . exprVarsN
 
 ------------------------------------------------------------------------------
-
-data Error = Unsupported StatementSpan
-  deriving stock (Show)
 
 fromModule :: ModuleSpan -> Either Error CFG
 fromModule (Module stmts) = fromStatements stmts
@@ -260,14 +258,14 @@ addStatement ctx stmt next = case stmt of
                     , _except = ctx.excepts
                     }
 
-  AsyncFor  {} -> lift $ throwE $ Unsupported stmt
-  AsyncFun  {} -> lift $ throwE $ Unsupported stmt
-  Class     {} -> lift $ throwE $ Unsupported stmt
-  Decorated {} -> lift $ throwE $ Unsupported stmt
-  With      {} -> lift $ throwE $ Unsupported stmt   -- TODO: support with
-  AsyncWith {} -> lift $ throwE $ Unsupported stmt
-  Global    {} -> lift $ throwE $ Unsupported stmt
-  NonLocal  {} -> lift $ throwE $ Unsupported stmt
+  AsyncFor  {} -> lift $ throwE $ UnsupportedStatement stmt
+  AsyncFun  {} -> lift $ throwE $ UnsupportedStatement stmt
+  Class     {} -> lift $ throwE $ UnsupportedStatement stmt
+  Decorated {} -> lift $ throwE $ UnsupportedStatement stmt
+  With      {} -> lift $ throwE $ UnsupportedStatement stmt   -- TODO: support with
+  AsyncWith {} -> lift $ throwE $ UnsupportedStatement stmt
+  Global    {} -> lift $ throwE $ UnsupportedStatement stmt
+  NonLocal  {} -> lift $ throwE $ UnsupportedStatement stmt
 
   _ -> addNode $ Block 
     { _stmts  = [stmt]

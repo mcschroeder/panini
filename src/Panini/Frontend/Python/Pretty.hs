@@ -2,9 +2,13 @@
 {-# LANGUAGE RecordWildCards #-}
 module Panini.Frontend.Python.Pretty where
 
+import Language.Python.Common.ParseError
 import Language.Python.Common.Pretty qualified as Py
 import Language.Python.Common.PrettyAST ()
+import Language.Python.Common.PrettyParseError ()
+import Language.Python.Common.PrettyToken ()
 import Language.Python.Common.SrcLocation as Py
+import Language.Python.Common.Token
 import Panini.Frontend.Python.AST
 import Panini.Pretty
 import Prelude
@@ -28,6 +32,12 @@ instance Pretty ExceptClauseSpan where
   pretty = pretty . TPP.render . Py.pretty
 
 instance Pretty OpSpan where
+  pretty = pretty . TPP.render . Py.pretty
+
+instance Pretty ParseError where
+  pretty = pretty . TPP.render . Py.pretty
+
+instance Pretty Token where
   pretty = pretty . TPP.render . Py.pretty
 
 ------------------------------------------------------------------------------

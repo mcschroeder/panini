@@ -4,42 +4,31 @@ import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Foldable
+import Data.IntMap.Strict (IntMap, (!))
+import Data.IntMap.Strict qualified as IntMap
+import Data.IntSet qualified as IntSet
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.String
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Language.Python.Common.SrcLocation
 import Panini.Frontend.Python.AST hiding (Var)
 import Panini.Frontend.Python.AST qualified as Py
 import Panini.Frontend.Python.CFG hiding (Error)
 import Panini.Frontend.Python.DomTree
-import Language.Python.Common.SrcLocation
-import Data.IntMap.Strict (IntMap, (!))
-import Data.IntMap.Strict qualified as IntMap
-import Panini.Syntax
+import Panini.Frontend.Python.Error
+import Panini.Frontend.Python.Provenance
+import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
+import Panini.Syntax
 import Prelude
-import Data.Text qualified as Text
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Data.IntSet qualified as IntSet
-import Data.String
-import Data.Foldable
-import Panini.Panic
-import Data.Text (Text)
 
 
 -- TODO: language-python needs to be updated to support newer Python syntax
 -- TODO: be explicit about the Python version that is supported (semantics!)
-
-
-data Error
-  = UnsupportedStatement StatementSpan
-  | UnsupportedExpression ExprSpan    
-  | UnsupportedTypeHint ExprSpan
-  | UnsupportedDefaultParameter ExprSpan
-  | MissingParameterTypeHint ParameterSpan
-  | UnsupportedParameter ParameterSpan
-  | UnsupportedAtomicExpression ExprSpan
-  | UnsupportedOperator OpSpan
-  | OtherError String  -- TODO: remove
-  deriving stock (Show)
 
 type Transpiler a = StateT (Int) (Except Error) a
 

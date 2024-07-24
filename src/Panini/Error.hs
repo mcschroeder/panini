@@ -3,6 +3,7 @@ module Panini.Error where
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Abstract.AValue
+import Panini.Frontend.Python.Error qualified as Python
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Constraints
@@ -23,7 +24,8 @@ data Error
   | IOError String PV
   | AbstractionImpossible Name Rel Rel
   | ConcretizationImpossible Name Base AValue
-  deriving stock (Show, Read)
+  | PythonFrontendError Python.Error PV
+  deriving stock (Show)
 
 instance HasProvenance Error where
   getPV = \case
@@ -37,6 +39,7 @@ instance HasProvenance Error where
     IOError _ pv                   -> pv
     AbstractionImpossible x _r1 _  -> getPV x -- TODO: getPV r1
     ConcretizationImpossible x _ _ -> getPV x -- TODO: getPV a
+    PythonFrontendError _ pv       -> pv
   
   setPV pv = \case
     AlreadyDefined x               -> AlreadyDefined (setPV pv x)
@@ -49,6 +52,7 @@ instance HasProvenance Error where
     IOError e _                    -> IOError e pv
     AbstractionImpossible x r1 r2  -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
     ConcretizationImpossible x b a -> ConcretizationImpossible (setPV pv x) b a -- TODO: setPV a
+    PythonFrontendError e _        -> PythonFrontendError e pv
 
 -------------------------------------------------------------------------------
 
@@ -78,6 +82,7 @@ prettyErrorMessage = \case
   ConcretizationImpossible x b a ->
     "concretization impossible for" <+> pretty b <> ":" <\> 
     "⟦" <> pretty a <> "⟧↓" <> pretty x
+  PythonFrontendError e _ -> pretty e
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
 prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))

@@ -9,7 +9,6 @@ module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
   , assignOpToOp
   , pattern ArgExprs
-  , pySpanToPV
   , VarMention(..)
   , stmtVars
   , exprVars
@@ -27,7 +26,6 @@ import Data.Set (Set, (\\))
 import Data.Set qualified as Set
 import Language.Python.Common.AST
 import Language.Python.Common.SrcLocation
-import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -60,17 +58,6 @@ expectArgExprs = go []
   go es []                 = Just (reverse es)
   go es (ArgExpr e _ : xs) = go (e:es) xs
   go _  _                  = Nothing
-
-------------------------------------------------------------------------------
-
-pySpanToPV :: SrcSpan -> PV
-pySpanToPV = \case
-  SpanEmpty -> NoPV
-  sp -> FromSource SrcLoc{..} Nothing
-   where 
-    file  = sp.span_filename
-    begin = (startRow sp, startCol sp)
-    end   = (endRow   sp, endCol   sp + 1)
 
 ------------------------------------------------------------------------------
 

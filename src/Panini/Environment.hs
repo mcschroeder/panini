@@ -131,7 +131,7 @@ data Definition
         , _reason       :: String
         }
 
-    deriving stock (Show, Read)
+    deriving stock (Show)
 
 -------------------------------------------------------------------------------
 
