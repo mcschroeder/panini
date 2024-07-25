@@ -22,7 +22,7 @@ data DomTree = DomTree
   { root     :: Label
   , nodes    :: IntMap Node
   , children :: IntMap [Label]
-  , phiVars  :: IntMap [Var]
+  , phiVars  :: IntMap [String]
   }
   deriving stock (Show)
 
@@ -54,7 +54,7 @@ domTree cfg = DomTree {..}
 
 ------------------------------------------------------------------------------
 
-variableAssignments :: CFG -> Map Var LabelSet
+variableAssignments :: CFG -> Map String LabelSet
 variableAssignments cfg = Map.fromListWith (<>) 
   [ (v, IntSet.singleton l) | (l,n) <- IntMap.assocs cfg.nodeMap
                             , Assigned v <- Set.toList (variables n)

@@ -30,13 +30,16 @@ import Prelude hiding (pred)
 
 ------------------------------------------------------------------------------
 
-type Var = String
-type VarSet = Set Var
-
 -- | Compute the placements of ϕ-functions in a flowgraph.
 --
--- The inputs to this function are the locations of each variable assignment and
--- the dominance frontiers for each vertex.
+-- As input, we need:
+--
+--   1. The locations of all variable assignments, i.e., a mapping from
+--      variables to sets of flowgraph vertices that contain some relevant
+--      assignment statement. Note that the variable type is entirely opaque; it
+--      merely needs to admit some kind of ordering (via 'Ord').
+--
+--   2. The dominance frontiers of all vertices (see 'dominanceFrontiers').
 --
 -- The output array maps each vertex of the input graph to the (possibly empty)
 -- set of variables for which ϕ-functions have to be placed at the entrance of
@@ -46,9 +49,10 @@ type VarSet = Set Var
 -- The runtime is effectively linear in the size of original variable
 -- assignments in the input graph.
 phiPlacements 
-  :: Map Var VertexSet       -- ^ locations of variable assignments
+  :: Ord v 
+  => Map v VertexSet         -- ^ locations of variable assignments
   -> Array Vertex VertexSet  -- ^ dominance frontiers
-  -> Array Vertex VarSet     -- ^ placements of ϕ-functions
+  -> Array Vertex (Set v)    -- ^ placements of ϕ-functions
 phiPlacements a df = runSTArray $ do
   let (m,n) = bounds df
   assertM (m == 1)
