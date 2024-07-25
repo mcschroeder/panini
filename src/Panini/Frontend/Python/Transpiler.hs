@@ -8,6 +8,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.IntMap.Strict ((!))
+import Data.Maybe
 import Data.Char
 import Data.String
 import Data.Text qualified as Text
@@ -42,48 +43,87 @@ transpileTopLevel dom = go dom.root
  where
   go l = case dom.nodes ! l of
     FunDef{..} -> do
-      k <- transpileFun (domTree _body)
-      lam <- mkLams _args k
-      let def = Define (mangle _name) lam
-      (def :) <$> go _next
+      typ     <- mkFunType _args _result
+      let ass  = Assume (mangle _name) typ
+      k       <- transpileFun (domTree _body)      
+      lam     <- mkLambdas _args k
+      let def  = Define (mangle _name) lam
+      rest    <- go _next
+      return   $ ass : def : rest
 
     Block{..} -> do
       imports <- concat <$> mapM goImport _stmts
-      (imports ++) <$> go _next
+      -- TODO: deal with other stmts
+      rest    <- go _next
+      return   $ imports ++ rest
     
-    Branch{} -> lift $ throwE $ OtherError "UnsupportedTopLevel: branch" -- TODO
-    BranchFor{} -> lift $ throwE $ OtherError "UnsupportedTopLevel: for" -- TODO
+    Branch{} -> do
+      lift $ throwE $ OtherError "UnsupportedTopLevel: branch" -- TODO
+    
+    BranchFor{} -> do
+      lift $ throwE $ OtherError "UnsupportedTopLevel: for" -- TODO
 
     Exit -> return []
 
   goImport = \case
     Py.Import{} -> return [] -- TODO: transpile imports and add to builder environment
     stmt        -> lift $ throwE $ OtherError $ "UnsupportedTopLevel: " ++ showPretty stmt -- TODO
-  
-mkLams :: [ParameterSpan] -> Term -> Transpiler Term 
-mkLams ps k0 = foldM mkLam k0 (reverse ps)
+
+------------------------------------------------------------------------------
+
+mkFunType :: [ParameterSpan] -> Maybe ExprSpan -> Transpiler Type
+mkFunType ps retm = do
+  retBaseType <- maybe (pure TUnit) baseTypeFromHint retm
+  let retPV    = maybe NoPV (pySpanToPV . expr_annot) retm
+  let retType  = TBase dummyName retBaseType (Known PTrue) retPV  
+  foldM go retType (reverse ps)
+ where
+  go t2 p = do
+    (x,hint) <- requireOrdinaryHintedParam p
+    b        <- baseTypeFromHint hint
+    let tpv   = pySpanToPV (annot hint)
+    let v     = mangle x
+    let t1    = TBase v b Unknown tpv
+    let lpv   = pySpanToPV (annot p)
+    return    $ TFun v t1 t2 lpv
+
+mkLambdas :: [ParameterSpan] -> Term -> Transpiler Term 
+mkLambdas ps k0 = foldM go k0 (reverse ps)
  where  
-  mkLam k p = case p of
-    Param
-      { param_name
-      , param_py_annotation = Just typeHint
-      , param_default = Nothing
-      } 
-      -> case typeHintToType typeHint of
-        Just t -> return $ Lam (mangle param_name) t k (pySpanToPV p.param_annot)
-        Nothing -> lift $ throwE $ UnsupportedTypeHint typeHint
+  go k p = do
+    (x,hint) <- requireOrdinaryHintedParam p
+    b        <- baseTypeFromHint hint
+    let tpv   = pySpanToPV (annot hint)
+    let t     = TBase dummyName b (Known PTrue) tpv    
+    let lpv   = pySpanToPV (annot p)
+    let v     = mangle x
+    return    $ Lam v t k lpv
 
-    Param 
-      { param_default = Just param
-      } 
-      -> lift $ throwE $ UnsupportedDefaultParameter param
+requireOrdinaryHintedParam :: ParameterSpan -> Transpiler (IdentSpan, ExprSpan)
+requireOrdinaryHintedParam p = case p of
+  Param
+    { param_name
+    , param_py_annotation = Just hint
+    , param_default       = Nothing
+    } 
+    -> return (param_name, hint)
 
-    Param 
-      { param_py_annotation = Nothing 
-      } 
-      -> lift $ throwE $ MissingParameterTypeHint p
-  
-    _ -> lift $ throwE $ UnsupportedParameter p
+  Param { param_default = Just expr } 
+    -> lift $ throwE $ UnsupportedDefaultParameter expr
+
+  Param { param_py_annotation = Nothing } 
+    -> lift $ throwE $ MissingParameterTypeHint p
+
+  _ -> lift $ throwE $ UnsupportedParameter p
+
+baseTypeFromHint :: ExprSpan -> Transpiler Base
+baseTypeFromHint = \case
+  IsVar "bool" -> return TBool
+  IsVar "int"  -> return TInt
+  IsVar "str"  -> return TString
+  expr         -> lift $ throwE $ UnsupportedTypeHint expr
+
+------------------------------------------------------------------------------
 
 transpileFun :: DomTree -> Transpiler Term
 transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
@@ -147,17 +187,6 @@ blockName l = Name ("L" <> Text.pack (show l)) NoPV
 
 mangle :: IdentSpan -> Name
 mangle Ident{..} = Name (Text.pack ident_string) (pySpanToPV ident_annot)
-
-typeHintToType :: ExprSpan -> Maybe Type
-typeHintToType = \case
-  Py.Var{..} -> 
-    let baseType b = TBase dummyName b (Known PTrue) (pySpanToPV expr_annot)
-    in case var_ident.ident_string of
-      "bool" -> Just (baseType TBool)
-      "int"  -> Just (baseType TInt)
-      "str"  -> Just (baseType TString)
-      _      -> Nothing
-  _ -> Nothing 
 
 
 transpileStmt :: Term -> StatementSpan -> Transpiler Term
