@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Panini.Frontend.Python.Transpiler (transpile) where
 
 import Control.Monad

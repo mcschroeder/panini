@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Panini.Frontend.Python.Provenance where
 
 import Language.Python.Common.SrcLocation

@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Panini.Frontend.Python.DomTree where
 
 import Data.Array.Unboxed
