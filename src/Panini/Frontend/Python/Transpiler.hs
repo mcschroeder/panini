@@ -2,14 +2,16 @@
 
 module Panini.Frontend.Python.Transpiler (transpile) where
 
-import Control.Monad
+import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Char
 import Data.Foldable
 import Data.IntMap.Strict ((!))
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe
-import Data.Char
 import Data.String
 import Data.Text qualified as Text
 import Language.Python.Common.SrcLocation
@@ -31,11 +33,42 @@ import Prelude
 -- TODO: be explicit about the Python version that is supported (semantics!)
 
 transpile :: DomTree -> Either Error Program
-transpile dom = runExcept (evalStateT (transpileTopLevel dom) (0))
+transpile dom = runExcept (evalStateT (transpileTopLevel dom) env0)
+ where
+  env0 = TranspilerEnv 
+    { varSource   = 0
+    , typeContext = mempty 
+    }
 
 ------------------------------------------------------------------------------
 
-type Transpiler a = StateT (Int) (Except Error) a
+data TranspilerEnv = TranspilerEnv
+  { varSource   :: Int
+  , typeContext :: Map Name Base
+  }
+  deriving stock (Show)
+
+type Transpiler a = StateT TranspilerEnv (Except Error) a
+
+newVar :: Transpiler Name
+newVar = do
+  i <- gets varSource
+  modify' $ \env -> env { varSource = i + 1 }
+  return $ Name (Text.pack $ "v" ++ show i) NoPV
+
+mangle :: IdentSpan -> Name
+mangle Ident{..} = Name (Text.pack ident_string) (pySpanToPV ident_annot)
+
+typeOf :: Name -> Transpiler (Maybe Base)
+typeOf x = Map.lookup x <$> gets typeContext
+
+addTyping :: Name -> Base -> Transpiler ()
+addTyping x b = typeOf x >>= \case
+  Nothing -> modify' $ \env -> env { typeContext = Map.insert x b env.typeContext }
+  Just b1 | b1 == b -> return ()
+          | otherwise -> lift $ throwE $ OtherError $ "inconsistent types for " ++ showPretty x
+
+------------------------------------------------------------------------------
 
 -- TODO
 transpileTopLevel :: DomTree -> Transpiler Program
@@ -130,15 +163,16 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
  where  
   goDom k l = case dom.phiVars ! l of
     [] -> do
-      body <- mkBody l
-      e1 <- foldM goDom body (dom.children ! l)
-      return $ Let (blockName l) e1 k NoPV
+      body   <- mkBody l
+      e1     <- foldM goDom body (dom.children ! l)
+      return  $ Let (blockName l) e1 k NoPV
     
     vs -> do
-      body <- mkBody l
-      e1 <- foldM goDom body (dom.children ! l)
-      let lams = mkPhiLams vs e1
-      return $ Rec (blockName l) typeTODO lams k NoPV
+      body   <- mkBody l
+      e1     <- foldM goDom body (dom.children ! l)
+      typ    <- mkPhiFunType vs
+      lams   <- mkPhiLambdas vs e1
+      return  $ Rec (blockName l) typ lams k NoPV
   
   mkBody l = case dom.nodes ! l of
     FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" -- TODO
@@ -161,40 +195,62 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
     [] -> return $ Val (Var (blockName l))
     vs -> return $ foldl' (\e v -> App e v NoPV) (Val (Var (blockName l))) (map (Var . fromString) vs)
 
-newVar :: Transpiler Name
-newVar = do
-  i <- get
-  put $ i + 1
-  return $ Name (Text.pack $ "v" ++ show i) NoPV
-
-mkAssignStmt :: Name -> ExprSpan -> StatementSpan
-mkAssignStmt (Name x _) e = 
-  Assign [Py.Var (Ident (Text.unpack x) SpanEmpty) SpanEmpty] e SpanEmpty
-
-mkPhiLams :: [String] -> Term -> Term
-mkPhiLams xs k0 = foldr mkPhiLam k0 xs
- where
-  mkPhiLam x k = Lam (fromString x) typeTODO k NoPV  -- TODO: type
-
--- TODO: remove
-typeTODO :: Type
-typeTODO = TBase dummyName TInt (Known PTrue) NoPV
-
 -- TODO: uniqueness
 -- TODO: provenance
 blockName :: Label -> Name
 blockName l = Name ("L" <> Text.pack (show l)) NoPV 
 
-mangle :: IdentSpan -> Name
-mangle Ident{..} = Name (Text.pack ident_string) (pySpanToPV ident_annot)
+mkAssignStmt :: Name -> ExprSpan -> StatementSpan
+mkAssignStmt (Name x _) e = 
+  Assign [Py.Var (Ident (Text.unpack x) SpanEmpty) SpanEmpty] e SpanEmpty
 
+mkPhiFunType :: [String] -> Transpiler Type
+mkPhiFunType xs = do
+  let retBaseType = TUnit -- TODO
+  let retType     = TBase dummyName retBaseType (Known PTrue) NoPV
+  foldM go retType (reverse xs)
+ where
+  go t2 x = do
+    let v   = fromString x
+    bm     <- typeOf v
+    b      <- maybe (lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty v)) pure bm
+    let t1  = TBase v b Unknown NoPV
+    return  $ TFun v t1 t2 NoPV
+
+mkPhiLambdas :: [String] -> Term -> Transpiler Term
+mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
+ where
+  go k x = do
+    let v   = fromString x
+    bm     <- typeOf v
+    b      <- maybe (lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty v)) pure bm
+    let t   = TBase dummyName b (Known PTrue) NoPV
+    return  $ Lam v t k NoPV
+
+inferBaseType :: Term -> Transpiler (Maybe Base)
+inferBaseType = \case
+  Val (Var x) -> typeOf x
+  Val (Con c) -> return $ Just $ typeOfValue c
+  _ -> return Nothing
 
 transpileStmt :: Term -> StatementSpan -> Transpiler Term
 transpileStmt k = \case
   Assign { assign_to = [Py.Var x _], ..} -> do
     e1 <- transpileExpr assign_expr
-    return $ Let (mangle x) e1 k (pySpanToPV stmt_annot)
+    let v = mangle x
+    whenJustM (inferBaseType e1) (addTyping v)
+    return $ Let v e1 k (pySpanToPV stmt_annot)
   
+  AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do
+    b <- baseTypeFromHint ann_assign_annotation
+    let v = mangle x
+    addTyping v b
+    case ann_assign_expr of
+      Nothing -> return k
+      Just ex -> do
+        e1 <- transpileExpr ex
+        return $ Let v e1 k (pySpanToPV stmt_annot)
+
   Assert {..} -> do
     let assertFunc = Py.Var (Ident "assert" stmt_annot) stmt_annot
     fs <- mapM (\e -> transpileSimpleCall assertFunc [e]) assert_exprs
