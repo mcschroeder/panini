@@ -32,12 +32,15 @@ import Prelude
 -- TODO: language-python needs to be updated to support newer Python syntax
 -- TODO: be explicit about the Python version that is supported (semantics!)
 
+-- TODO: IDEA: use annot field of Python types to store Python type info
+-- TODO: IDEA: replace SrcSpan annot with Panini PV annot?
+
 transpile :: DomTree -> Either Error Program
 transpile dom = runExcept (evalStateT (transpileTopLevel dom) env0)
  where
   env0 = TranspilerEnv 
     { varSource   = 0
-    , typeContext = mempty 
+    , typeContext = Map.fromList [("len", TInt), ("add",TInt), ("sub",TInt), ("lt", TInt), ("charAt", TChar), ("eqChar", TBool)] 
     }
 
 ------------------------------------------------------------------------------
@@ -59,14 +62,40 @@ newVar = do
 mangle :: IdentSpan -> Name
 mangle Ident{..} = Name (Text.pack ident_string) (pySpanToPV ident_annot)
 
-typeOf :: Name -> Transpiler (Maybe Base)
-typeOf x = Map.lookup x <$> gets typeContext
+typeOfVar :: Name -> Transpiler Base
+typeOfVar x = do
+  ctx <- gets typeContext
+  case Map.lookup x ctx of
+    Just b -> return b
+    Nothing -> lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty x)
+
+typeOfAtom :: Atom -> Transpiler Base
+typeOfAtom (Var x) = typeOfVar x
+typeOfAtom (Con c) = return $ typeOfValue c
+
+typeOfTerm :: Term -> Transpiler Base
+typeOfTerm e0 = go e0
+ where
+  go = \case
+    Val (Var x) -> do
+      ctx <- gets typeContext
+      case Map.lookup x ctx of
+        Just b -> return b
+        Nothing -> lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty x ++ " in " ++ showPretty e0)
+    Val (Con c) -> return $ typeOfValue c
+    App e _ _ -> go e
+    Lam _ _ e _ -> go e
+    Let _ _ e _ -> go e
+    Rec _ _ _ e _ -> go e
+    If _ e _ _ -> go e  
 
 addTyping :: Name -> Base -> Transpiler ()
-addTyping x b = typeOf x >>= \case
-  Nothing -> modify' $ \env -> env { typeContext = Map.insert x b env.typeContext }
-  Just b1 | b1 == b -> return ()
-          | otherwise -> lift $ throwE $ OtherError $ "inconsistent types for " ++ showPretty x
+addTyping x b = do
+  ctx <- gets typeContext
+  case Map.lookup x ctx of   
+    Nothing -> modify' $ \env -> env { typeContext = Map.insert x b ctx }
+    Just b1 | b1 == b -> return ()
+            | otherwise -> lift $ throwE $ OtherError $ "inconsistent types for " ++ showPretty x
 
 ------------------------------------------------------------------------------
 
@@ -118,6 +147,7 @@ mkFunType ps retm = do
     let v     = mangle x
     let t1    = TBase v b Unknown tpv
     let lpv   = pySpanToPV (annot p)
+    addTyping v b  -- TODO
     return    $ TFun v t1 t2 lpv
 
 mkLambdas :: [ParameterSpan] -> Term -> Transpiler Term 
@@ -176,19 +206,15 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
   
   mkBody l = case dom.nodes ! l of
     FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" -- TODO
-
-    Block{..} -> do
-      k <- mkCall _next
-      foldM transpileStmt k (reverse _stmts)
-
-    Branch{..} -> do
-      kTrue <- mkCall _nextTrue
+    Block{..} -> transpileStmts _stmts =<< mkCall _next
+    Branch{..} -> do      
+      kTrue  <- mkCall _nextTrue
       kFalse <- mkCall _nextFalse
-      v <- newVar
-      let k = If (Var v) kTrue kFalse NoPV
-      foldM transpileStmt k ([mkAssignStmt v _cond] :: [StatementSpan])
-
-    BranchFor{} -> lift $ throwE $ OtherError $ "for..in not yet supported" -- TODO
+      v      <- newVar
+      let k   = If (Var v) kTrue kFalse NoPV
+      transpileStmts [mkAssignStmt v _cond] k
+    
+    BranchFor {} -> lift $ throwE $ OtherError $ "for..in not yet supported" -- TODO
     Exit -> return $ Val (Con (U NoPV))
 
   mkCall l = case dom.phiVars ! l of
@@ -212,8 +238,7 @@ mkPhiFunType xs = do
  where
   go t2 x = do
     let v   = fromString x
-    bm     <- typeOf v
-    b      <- maybe (lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty v)) pure bm
+    b      <- typeOfVar v
     let t1  = TBase v b Unknown NoPV
     return  $ TFun v t1 t2 NoPV
 
@@ -222,94 +247,109 @@ mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
  where
   go k x = do
     let v   = fromString x
-    bm     <- typeOf v
-    b      <- maybe (lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty v)) pure bm
+    b      <- typeOfVar v
     let t   = TBase dummyName b (Known PTrue) NoPV
     return  $ Lam v t k NoPV
 
-inferBaseType :: Term -> Transpiler (Maybe Base)
-inferBaseType = \case
-  Val (Var x) -> typeOf x
-  Val (Con c) -> return $ Just $ typeOfValue c
-  _ -> return Nothing
-
-transpileStmt :: Term -> StatementSpan -> Transpiler Term
-transpileStmt k = \case
-  Assign { assign_to = [Py.Var x _], ..} -> do
-    e1 <- transpileExpr assign_expr
-    let v = mangle x
-    whenJustM (inferBaseType e1) (addTyping v)
-    return $ Let v e1 k (pySpanToPV stmt_annot)
-  
-  AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do
-    b <- baseTypeFromHint ann_assign_annotation
-    let v = mangle x
-    addTyping v b
-    case ann_assign_expr of
-      Nothing -> return k
-      Just ex -> do
-        e1 <- transpileExpr ex
+-- TODO: pass along context of all exceptions being caught in the current block
+transpileStmts :: [StatementSpan] -> Term -> Transpiler Term
+transpileStmts stmts k0 = go stmts
+ where
+  go []          = return k0
+  go (stmt:rest) = case stmt of
+    Assign { assign_to = [Py.Var x _], ..} ->
+      withTerm assign_expr $ \e1 -> do
+        let v = mangle x
+        b <- typeOfTerm e1
+        addTyping v b
+        k <- go rest
         return $ Let v e1 k (pySpanToPV stmt_annot)
 
-  Assert {..} -> do
-    let assertFunc = Py.Var (Ident "assert" stmt_annot) stmt_annot
-    fs <- mapM (\e -> transpileSimpleCall assertFunc [e]) assert_exprs
-    return $ foldr (\f k' -> Let dummyName f k' NoPV) k fs  -- TODO: pv
-
-
-
-  stmt -> lift $ throwE $ UnsupportedStatement stmt
-
-
-transpileExpr :: ExprSpan -> Transpiler Term
-transpileExpr = \case
-  expr | isAtomic expr -> Val <$> transpileAtom expr  
+    AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do
+      b <- baseTypeFromHint ann_assign_annotation
+      let v = mangle x
+      addTyping v b
+      case ann_assign_expr of
+        Nothing -> go rest
+        Just ex -> withTerm ex $ \e1 -> do
+            k <- go rest
+            return $ Let v e1 k (pySpanToPV stmt_annot)
   
-  Call { call_args = ArgExprs args, .. } -> transpileSimpleCall call_fun args
-  
+    -- TODO: technically, assert raises an AssertionError, which could be caught!
+    Assert { assert_exprs = [expr], .. } ->
+      withAtom expr $ \a -> do
+        let f = mkApp "assert" [a]
+        k <- go rest
+        return $ Let dummyName f k (pySpanToPV stmt_annot)
+
+    _ -> lift $ throwE $ UnsupportedStatement stmt
+
+
+withTerm :: ExprSpan -> (Term -> Transpiler Term) -> Transpiler Term
+withTerm expr k = case expr of
+  _ | isAtomic expr -> k =<< Val <$> transpileAtom expr
+
+  -- TODO: transpile known functions  
+  Call { call_fun = Py.Var f _, call_args = ArgExprs args } -> do
+    withAtoms args $ \as -> do
+      k $ mkApp (mangle f) as
+
   BinaryOp {..} -> do
-    opName <- getOperatorName operator
-    let opFunc = Py.Var (Ident opName operator.op_annot) operator.op_annot
-    transpileSimpleCall opFunc [left_op_arg,right_op_arg]
+    withAtom left_op_arg $ \lhs -> do
+      withAtom right_op_arg $ \rhs -> do
+        b1 <- typeOfAtom lhs
+        b2 <- typeOfAtom rhs        
+        op <- mkOpFun operator b1 b2
+        k $ mkApp op [lhs,rhs]
   
-  -- TODO: this is hardcoded to str.at right now; vary by type!
   Subscript {..} -> do
-    let subFunc = Py.Var (Ident "str.at" expr_annot) expr_annot
-    transpileSimpleCall subFunc [subscriptee, subscript_expr]
+    withAtom subscriptee $ \obj -> do
+      withAtom subscript_expr $ \index -> do
+        b1 <- typeOfAtom obj
+        b2 <- typeOfAtom index
+        fn <- mkSubscriptFun b1 b2
+        k $ mkApp fn [obj,index]
 
-  expr -> lift $ throwE $ UnsupportedExpression expr
+  _ -> lift $ throwE $ UnsupportedExpression expr
 
-transpileSimpleCall :: ExprSpan -> [ExprSpan] -> Transpiler Term
-transpileSimpleCall f args = go [] (f:args)
+withAtom :: ExprSpan -> (Atom -> Transpiler Term) -> Transpiler Term
+withAtom expr k
+  | isAtomic expr = transpileAtom expr >>= k
+  | otherwise = do
+      withTerm expr $ \e1 -> do
+        v  <- newVar
+        b  <- typeOfTerm e1
+        addTyping v b
+        e2 <- k (Var v)
+        return $ Let v e1 e2 NoPV
+
+withAtoms :: [ExprSpan] -> ([Atom] -> Transpiler Term) -> Transpiler Term
+withAtoms xs0 k0 = go [] xs0
  where
-  go vs (x:xs)
-    | isAtomic x = do
-        v <- transpileAtom x
-        go (v:vs) xs
+  go ys []     = k0 (reverse ys)
+  go ys (x:xs) = withAtom x $ \y -> go (y:ys) xs
 
-    | otherwise = do
-        v <- newVar
-        e <- transpileExpr x
-        k <- go (Var v : vs) xs
-        return $ Let v e k NoPV
-  
-  go vs [] = case reverse vs of
-    z:zs -> return $ foldl' (\e x -> App e x NoPV) (Val z) zs
-    _    -> impossible
+mkApp :: Name -> [Atom] -> Term
+mkApp f xs = foldl' (\e y -> App e y NoPV) (Val (Var f)) xs
 
--- TODO: types: int.eq vs char.eq etc.
-getOperatorName :: OpSpan -> Transpiler String
-getOperatorName = \case
-    LessThan          {} -> return "lt"
-    GreaterThan       {} -> return "gt"
-    Equality          {} -> return "eq"
-    GreaterThanEquals {} -> return "ge"
-    LessThanEquals    {} -> return "le"
-    NotEquals         {} -> return "ne"
-    NotEqualsV2       {} -> return "ne"
-    Plus              {} -> return "add"
-    Minus             {} -> return "sub"
-    op                   -> lift $ throwE $ UnsupportedOperator op
+
+
+mkOpFun :: OpSpan -> Base -> Base -> Transpiler Name
+mkOpFun LessThan{}          TInt    TInt    = return "lt"
+mkOpFun GreaterThan{}       TInt    TInt    = return "gt"
+mkOpFun Equality{}          TInt    TInt    = return "eq"
+mkOpFun Equality{}          TString TString = return "match"
+mkOpFun Equality{}          TChar   TChar   = return "eqChar"
+mkOpFun GreaterThanEquals{} TInt    TInt    = return "ge"
+mkOpFun LessThanEquals{}    TInt    TInt    = return "le"
+mkOpFun Plus{}              TInt    TInt    = return "add"
+mkOpFun Minus{}             TInt    TInt    = return "sub"
+mkOpFun op                   _      _       = lift $ throwE $ UnsupportedOperator op -- TODO: type-specific error message
+
+mkSubscriptFun :: Base -> Base -> Transpiler Name
+mkSubscriptFun TString TInt = return "charAt"
+mkSubscriptFun a b = lift $ throwE $ OtherError $ "unsupported subscript" ++ showPretty a ++ " " ++ showPretty b
+
 
 -- expects expression to be atomic
 transpileAtom :: ExprSpan -> Transpiler Atom
@@ -335,8 +375,11 @@ transpileAtom expr = case expr of
 -- TODO: check that this really follows the spec
 transpileStringLiteral :: ExprSpan -> Transpiler Atom
 transpileStringLiteral expr@Strings{..} = do
-  s <- (Text.pack . concat) <$> mapM decode strings_strings
-  return $ Con (S s (pySpanToPV expr_annot))
+  let pv = pySpanToPV expr_annot
+  s <- concatMapM decode strings_strings  
+  case s of
+    [c] -> return $ Con (C c pv)
+    cs  -> return $ Con (S (Text.pack cs) pv)
  where  
   decode ('r':cs) = unqote cs
   decode ('R':cs) = unqote cs
