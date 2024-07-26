@@ -22,11 +22,12 @@ import Data.IntSet qualified as IntSet
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Language.Python.Common.PrettyAST ()
-import Panini.Frontend.Python.AST hiding (Set)
+import Panini.Frontend.Python.AST as Py
 import Panini.Frontend.Python.Error
 import Panini.Frontend.Python.Pretty ()
 import Panini.Pretty
 import Panini.Pretty.Graphviz as Graphviz
+import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -34,44 +35,44 @@ import Prelude
 type Label = Int
 type LabelSet = IntSet
 
-data CFG = CFG
-  { nodeMap   :: IntMap Node
+data CFG a = CFG
+  { nodeMap   :: IntMap (Node a)
   , nextLabel :: Label
   , entry     :: Label
   }
   deriving stock (Show)
 
-data Node
+data Node a
   = FunDef
-      { _name   :: IdentSpan
-      , _args   :: [ParameterSpan]
-      , _result :: Maybe ExprSpan
-      , _body   :: CFG
+      { _name   :: Ident a
+      , _args   :: [Parameter a]
+      , _result :: Maybe (Expr a)
+      , _body   :: CFG a
       , _next   :: Label
-      , _except :: [(ExceptClauseSpan,Label)]
+      , _except :: [(ExceptClause a, Label)]
       }
   | Block
-      { _stmts  :: [StatementSpan]
+      { _stmts  :: [Py.Statement a]
       , _next   :: Label 
-      , _except :: [(ExceptClauseSpan,Label)]
+      , _except :: [(ExceptClause a, Label)]
       }
   | Branch
-      { _cond      :: ExprSpan
+      { _cond      :: Expr a
       , _nextTrue  :: Label
       , _nextFalse :: Label
-      , _except    :: [(ExceptClauseSpan,Label)]
+      , _except    :: [(ExceptClause a, Label)]
       }
   | BranchFor
-      { _targets   :: [ExprSpan]
-      , _generator :: ExprSpan
+      { _targets   :: [Expr a]
+      , _generator :: Expr a
       , _nextMore  :: Label
       , _nextDone  :: Label
-      , _except    :: [(ExceptClauseSpan,Label)]
+      , _except    :: [(ExceptClause a, Label)]
       }
   | Exit
   deriving stock (Show)
 
-successors :: Node -> [Label]
+successors :: Node a -> [Label]
 successors = \case
   FunDef    {..} -> [_next]
   Block     {..} -> _next : map snd _except
@@ -79,7 +80,7 @@ successors = \case
   BranchFor {..} -> _nextMore : _nextDone : map snd _except
   Exit           -> []
 
-variables :: Node -> Set VarMention
+variables :: Node a -> Set VarMention
 variables = Set.unions . \case
   FunDef    {}   -> []
   Block     {..} -> map stmtVars _stmts
@@ -92,10 +93,10 @@ variables = Set.unions . \case
 
 ------------------------------------------------------------------------------
 
-fromModule :: ModuleSpan -> Either Error CFG
+fromModule :: (Eq a, HasProvenance a) => Module a -> Either Error (CFG a)
 fromModule (Module stmts) = fromStatements stmts
 
-fromStatements :: [StatementSpan] -> Either Error CFG
+fromStatements :: (Eq a, HasProvenance a) => [Py.Statement a] -> Either Error (CFG a)
 fromStatements stmts = 
   fixup <$> runExcept (runStateT (addStatements ctx0 stmts 0) cfg0)
  where  
@@ -104,14 +105,14 @@ fromStatements stmts =
   fixup (entry, cfg) = removeOrphans $ compress $ cfg { entry }
 
 -- | Remove orphan nodes from the CFG.
-removeOrphans :: CFG -> CFG
+removeOrphans :: CFG a -> CFG a
 removeOrphans cfg = cfg { nodeMap = IntMap.restrictKeys cfg.nodeMap nonOrphans }
  where
   nonOrphans = IntSet.fromList 
              $ cfg.entry : (concatMap successors $ IntMap.elems cfg.nodeMap)
 
 -- | Merge consecutive CFG blocks, if it is safe to do so.
-compress :: CFG -> CFG
+compress :: Eq a => CFG a -> CFG a
 compress cfg = cfg { nodeMap = foldl' go cfg.nodeMap keys0 }
  where
   keys0 = IntMap.keys cfg.nodeMap
@@ -130,37 +131,37 @@ compress cfg = cfg { nodeMap = foldl' go cfg.nodeMap keys0 }
 
 ------------------------------------------------------------------------------
 
-type CFGBuilder a = StateT CFG (Except Error) a
+type CFGBuilder a r = StateT (CFG a) (Except Error) r
 
-addNode :: Node -> CFGBuilder Label
+addNode :: Node a -> CFGBuilder a Label
 addNode n = do
   l <- reserveLabel
   insertNode l n
 
-reserveLabel :: CFGBuilder Label
+reserveLabel :: CFGBuilder a Label
 reserveLabel = do
   l <- gets nextLabel
   modify' $ \g -> g { nextLabel = l + 1 }
   return l
 
-insertNode :: Label -> Node -> CFGBuilder Label
+insertNode :: Label -> Node a -> CFGBuilder a Label
 insertNode l n = do
   modify' $ \g -> g { nodeMap = IntMap.insert l n g.nodeMap }
   return l
 
 ------------------------------------------------------------------------------
 
-data Context = Context
+data Context a = Context
   { break    :: Label
   , continue :: Label
   , return_  :: Label
-  , excepts   :: [(ExceptClauseSpan, Label)]
+  , excepts   :: [(ExceptClause a, Label)]
   }
 
-addStatements :: Context -> [StatementSpan] -> Label -> CFGBuilder Label
+addStatements :: (Eq a, HasProvenance a) => Context a -> [Py.Statement a] -> Label -> CFGBuilder a Label
 addStatements ctx stmts next = foldrM (addStatement ctx) next stmts
 
-addStatement :: Context -> StatementSpan -> Label -> CFGBuilder Label
+addStatement :: (Eq a, HasProvenance a) => Context a -> Py.Statement a -> Label -> CFGBuilder a Label
 addStatement ctx stmt next = case stmt of
 
   While{..} -> do    
@@ -275,13 +276,13 @@ addStatement ctx stmt next = case stmt of
 
 ------------------------------------------------------------------------------
 
-instance Pretty CFG where
+instance Pretty (CFG a) where
   pretty CFG{..} = prettyMap $ map markEntry $ IntMap.toDescList $ nodeMap
    where
     markEntry (k,n) | k == entry = (arrow <> pretty k, pretty n)
                     | otherwise  = (pretty k, pretty n)
 
-instance Pretty Node where
+instance Pretty (Node a) where
   pretty = \case
     FunDef{..} -> nest 2 $ 
       "def" <+> prettyFunSig _name _args _result 
@@ -299,21 +300,21 @@ instance Pretty Node where
       <+> prettyMap _except    
     Exit -> "exit"
 
-prettyFunSig :: IdentSpan -> [ParameterSpan] -> Maybe ExprSpan -> Doc
-prettyFunSig name args res = 
+prettyFunSig :: Ident a -> [Parameter a] -> Maybe (Expr a) -> Doc
+prettyFunSig name args res =
   pretty name <> prettyTuple args <> maybe mempty (\r -> " ->" <+> pretty r) res
 
-instance Graphviz CFG where
+instance Graphviz (CFG a) where
   dot = Digraph . fromCFG "_"
    where
-    fromCFG :: String -> CFG -> [Graphviz.Statement]
+    fromCFG :: String -> CFG a -> [Graphviz.Statement]
     fromCFG prefix cfg = 
       concatMap (fromNode prefix) (IntMap.toList cfg.nodeMap)
       ++ [ Node (prefix <> "entry") [Shape Graphviz.None, Label "entry"]
          , Edge (prefix <> "entry") (prefix <> show cfg.entry) [] 
          ]
 
-    fromNode :: String -> (Label, Node) -> [Graphviz.Statement]
+    fromNode :: String -> (Label, Node a) -> [Graphviz.Statement]
     fromNode prefix =
       let mkId k = prefix <> (show k)
           exceptEdge k (e,l) = Edge (mkId k) (mkId l) [Label $ pretty e]

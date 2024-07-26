@@ -9,18 +9,17 @@ import Panini.Provenance
 import Panini.Pretty
 import Prelude
 
-data Error
-  = ParserError ParseError
-  | UnsupportedStatement StatementSpan
-  | UnsupportedExpression ExprSpan    
-  | UnsupportedTypeHint ExprSpan
-  | UnsupportedDefaultParameter ExprSpan
-  | MissingParameterTypeHint ParameterSpan
-  | UnsupportedParameter ParameterSpan
-  | UnsupportedAtomicExpression ExprSpan
-  | UnsupportedOperator OpSpan  
-  | OtherError String  -- TODO: remove
-  deriving stock (Show)
+data Error where
+  ParserError                 :: ParseError                       -> Error
+  UnsupportedStatement        :: HasProvenance a => (Statement a) -> Error
+  UnsupportedExpression       :: HasProvenance a => (Expr a)      -> Error
+  UnsupportedTypeHint         :: HasProvenance a => (Expr a)      -> Error
+  UnsupportedDefaultParameter :: HasProvenance a => (Expr a)      -> Error
+  MissingParameterTypeHint    :: HasProvenance a => (Parameter a) -> Error
+  UnsupportedParameter        :: HasProvenance a => (Parameter a) -> Error
+  UnsupportedAtomicExpression :: HasProvenance a => (Expr a)      -> Error
+  UnsupportedOperator         :: HasProvenance a => (Op a)        -> Error
+  OtherError                  :: String                           -> Error -- TODO: remove
 
 instance Pretty Error where
   pretty = \case
@@ -37,19 +36,20 @@ instance Pretty Error where
     UnsupportedOperator op            -> "unsupported operator:" <\> pretty op
     OtherError err                    -> pretty err
 
--- TODO: split HasProvenance into separate getter and setter classes
-getPV' :: Error -> PV
-getPV' = \case
-  ParserError (UnexpectedToken t)   -> pySpanToPV (token_span t)
-  ParserError (UnexpectedChar _ l)  -> pyLocToPV l
-  ParserError (StrError _)          -> NoPV
-  UnsupportedStatement stmt         -> pySpanToPV (annot stmt)
-  UnsupportedExpression expr        -> pySpanToPV (annot expr)
-  UnsupportedTypeHint expr          -> pySpanToPV (annot expr)
-  UnsupportedDefaultParameter expr  -> pySpanToPV (annot expr)
-  MissingParameterTypeHint param    -> pySpanToPV (annot param)
-  UnsupportedParameter param        -> pySpanToPV (annot param)
-  UnsupportedAtomicExpression expr  -> pySpanToPV (annot expr)
-  UnsupportedOperator op            -> pySpanToPV (annot op)
-  OtherError _                      -> NoPV
+instance HasProvenance Error where
+  getPV = \case
+    ParserError (UnexpectedToken t)   -> pySpanToPV (token_span t)
+    ParserError (UnexpectedChar _ l)  -> pyLocToPV l
+    ParserError (StrError _)          -> NoPV
+    UnsupportedStatement stmt         -> getPV stmt
+    UnsupportedExpression expr        -> getPV expr
+    UnsupportedTypeHint expr          -> getPV expr
+    UnsupportedDefaultParameter expr  -> getPV expr
+    MissingParameterTypeHint param    -> getPV param
+    UnsupportedParameter param        -> getPV param
+    UnsupportedAtomicExpression expr  -> getPV expr
+    UnsupportedOperator op            -> getPV op
+    OtherError _                      -> NoPV
+  
+  setPV _ = undefined -- TODO: remove
 

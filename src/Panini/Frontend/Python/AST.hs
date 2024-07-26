@@ -26,7 +26,6 @@ import Data.Maybe
 import Data.Set (Set, (\\))
 import Data.Set qualified as Set
 import Language.Python.Common.AST
-import Language.Python.Common.SrcLocation
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -54,11 +53,10 @@ assignOpToOp = \case
 
 ------------------------------------------------------------------------------
 
-pattern ArgExprs :: [ExprSpan] -> [ArgumentSpan]
-pattern ArgExprs xs <- (expectArgExprs -> Just xs) where
-  ArgExprs xs = map (\x -> ArgExpr x SpanEmpty) xs
+pattern ArgExprs :: [Expr a] -> [Argument a]
+pattern ArgExprs xs <- (expectArgExprs -> Just xs)
 
-expectArgExprs :: [ArgumentSpan] -> Maybe [ExprSpan]
+expectArgExprs :: [Argument a] -> Maybe [Expr a]
 expectArgExprs = go []
  where
   go es []                 = Just (reverse es)
@@ -70,7 +68,7 @@ expectArgExprs = go []
 data VarMention = Assigned String | Used String
   deriving stock (Eq, Ord, Show)
 
-stmtVars :: StatementSpan -> Set VarMention
+stmtVars :: Statement a -> Set VarMention
 stmtVars = \case
   Import          {}   -> []
   FromImport      {}   -> []
@@ -109,7 +107,7 @@ stmtVars = \case
   usedM = maybe [] used
 
 -- | All /free/ variables in the given expression.
-exprVars :: ExprSpan -> Set String
+exprVars :: Expr a -> Set String
 exprVars = \case
   Var        {..} -> [var_ident.ident_string]
   Call       {..} -> exprVarsN (call_fun : map arg_expr call_args)
@@ -136,10 +134,10 @@ exprVars = \case
   StringConversion {..} -> exprVars backquoted_expr
   _               -> []
 
-exprVarsN :: [ExprSpan] -> Set String
+exprVarsN :: [Expr a] -> Set String
 exprVarsN = Set.unions . map exprVars
 
-paramNames :: [ParameterSpan] -> Set String
+paramNames :: [Parameter a] -> Set String
 paramNames = Set.fromList . concatMap go
  where
   go    Param          {..} = [param_name.ident_string]
@@ -150,30 +148,30 @@ paramNames = Set.fromList . concatMap go
   goTup ParamTupleName {..} = [param_tuple_name.ident_string]
   goTup ParamTuple     {..} = concatMap goTup param_tuple
 
-paramDefaults :: [ParameterSpan] -> [ExprSpan]
+paramDefaults :: [Parameter a] -> [Expr a]
 paramDefaults = catMaybes . concatMap go
  where
   go Param       {..} = [param_default]
   go UnPackTuple {..} = [param_default]
   go _                = []
 
-sliceExprs :: SliceSpan -> [ExprSpan]
+sliceExprs :: Slice a -> [Expr a]
 sliceExprs = \case
   SliceProper e1 e2 e3 _ -> catMaybes $ [e1,e2] ++ catMaybes [e3]
   SliceExpr e _          -> [e]
   SliceEllipsis _        -> []
 
-raiseExprs :: RaiseExprSpan -> [ExprSpan]
+raiseExprs :: RaiseExpr a -> [Expr a]
 raiseExprs = \case
   RaiseV3 es -> unwrap2 es
   RaiseV2 es -> unwrap3 es
 
-yieldArgExpr :: YieldArgSpan -> ExprSpan
+yieldArgExpr :: YieldArg a -> Expr a
 yieldArgExpr = \case
   YieldFrom e _ -> e  
   YieldExpr e   -> e
 
-dictKeyDatumListExprs :: [DictKeyDatumListSpan] -> [ExprSpan]
+dictKeyDatumListExprs :: [DictKeyDatumList a] -> [Expr a]
 dictKeyDatumListExprs = concatMap go
  where
   go (DictMappingPair e1 e2) = [e1,e2]

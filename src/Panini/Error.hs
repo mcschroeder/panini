@@ -25,7 +25,6 @@ data Error
   | AbstractionImpossible Name Rel Rel
   | ConcretizationImpossible Name Base AValue
   | PythonFrontendError Python.Error PV
-  deriving stock (Show)
 
 instance HasProvenance Error where
   getPV = \case

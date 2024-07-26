@@ -131,8 +131,6 @@ data Definition
         , _reason       :: String
         }
 
-    deriving stock (Show)
-
 -------------------------------------------------------------------------------
 
 isFailed :: Definition -> Bool

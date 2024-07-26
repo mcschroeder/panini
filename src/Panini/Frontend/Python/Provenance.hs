@@ -1,7 +1,8 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE RecordWildCards #-}
-
 module Panini.Frontend.Python.Provenance where
 
+import Language.Python.Common.AST
 import Language.Python.Common.SrcLocation
 import Panini.Provenance
 import Prelude
@@ -25,3 +26,16 @@ pyLocToPV = \case
     file  = sl.sloc_filename
     begin = (sloc_row sl, sloc_column sl)
     end   = begin
+
+------------------------------------------------------------------------------
+
+instance (Annotated t, HasProvenance annot) => HasProvenance (t annot) where
+  getPV = getPV . annot
+  setPV _ = undefined -- TODO: remove once HasProvenance is only the getter
+
+instance HasProvenance SrcSpan where
+  getPV = pySpanToPV
+  setPV _ = undefined -- TODO: remove once HasProvenance is only the getter
+
+instance Annotated ((,) b) where 
+  annot = snd

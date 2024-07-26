@@ -16,22 +16,25 @@ import Text.PrettyPrint qualified as TPP
 
 ------------------------------------------------------------------------------
 
-instance Pretty IdentSpan where
+instance Pretty (Module annot) where
   pretty = pretty . TPP.render . Py.pretty
 
-instance Pretty ParameterSpan where
+instance Pretty (Ident annot) where
   pretty = pretty . TPP.render . Py.pretty
 
-instance Pretty StatementSpan where
+instance Pretty (Parameter annot) where
   pretty = pretty . TPP.render . Py.pretty
 
-instance Pretty ExprSpan where
+instance Pretty (Statement annot) where
   pretty = pretty . TPP.render . Py.pretty
 
-instance Pretty ExceptClauseSpan where
+instance Pretty (Expr annot) where
   pretty = pretty . TPP.render . Py.pretty
 
-instance Pretty OpSpan where
+instance Pretty (ExceptClause annot) where
+  pretty = pretty . TPP.render . Py.pretty
+
+instance Pretty (Op annot) where
   pretty = pretty . TPP.render . Py.pretty
 
 instance Pretty ParseError where

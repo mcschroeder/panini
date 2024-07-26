@@ -13,13 +13,11 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.String
 import Data.Text qualified as Text
-import Language.Python.Common.SrcLocation
 import Panini.Frontend.Python.AST hiding (Var)
 import Panini.Frontend.Python.AST qualified as Py
 import Panini.Frontend.Python.CFG hiding (Error)
 import Panini.Frontend.Python.DomTree
 import Panini.Frontend.Python.Error
-import Panini.Frontend.Python.Provenance
 import Panini.Frontend.Python.Strings
 import Panini.Panic
 import Panini.Pretty
@@ -35,7 +33,7 @@ import Prelude
 -- TODO: IDEA: use annot field of Python types to store Python type info
 -- TODO: IDEA: replace SrcSpan annot with Panini PV annot?
 
-transpile :: DomTree -> Either Error Program
+transpile :: HasProvenance a => DomTree a -> Either Error Program
 transpile dom = runExcept (evalStateT (transpileTopLevel dom) env0)
  where
   env0 = TranspilerEnv 
@@ -59,8 +57,8 @@ newVar = do
   modify' $ \env -> env { varSource = i + 1 }
   return $ Name (Text.pack $ "v" ++ show i) NoPV
 
-mangle :: IdentSpan -> Name
-mangle Ident{..} = Name (Text.pack ident_string) (pySpanToPV ident_annot)
+mangle :: HasProvenance annot => Ident annot -> Name
+mangle x = Name (Text.pack x.ident_string) (getPV x)
 
 typeOfVar :: Name -> Transpiler Base
 typeOfVar x = do
@@ -100,7 +98,7 @@ addTyping x b = do
 ------------------------------------------------------------------------------
 
 -- TODO
-transpileTopLevel :: DomTree -> Transpiler Program
+transpileTopLevel :: HasProvenance a => DomTree a -> Transpiler Program
 transpileTopLevel dom = go dom.root
  where
   go l = case dom.nodes ! l of
@@ -133,36 +131,32 @@ transpileTopLevel dom = go dom.root
 
 ------------------------------------------------------------------------------
 
-mkFunType :: [ParameterSpan] -> Maybe ExprSpan -> Transpiler Type
+mkFunType :: HasProvenance a => [Parameter a] -> Maybe (Py.Expr a) -> Transpiler Type
 mkFunType ps retm = do
   retBaseType <- maybe (pure TUnit) baseTypeFromHint retm
-  let retPV    = maybe NoPV (pySpanToPV . expr_annot) retm
+  let retPV    = maybe NoPV getPV retm
   let retType  = TBase dummyName retBaseType (Known PTrue) retPV  
   foldM go retType (reverse ps)
  where
   go t2 p = do
     (x,hint) <- requireOrdinaryHintedParam p
     b        <- baseTypeFromHint hint
-    let tpv   = pySpanToPV (annot hint)
     let v     = mangle x
-    let t1    = TBase v b Unknown tpv
-    let lpv   = pySpanToPV (annot p)
+    let t1    = TBase v b Unknown (getPV hint)
     addTyping v b  -- TODO
-    return    $ TFun v t1 t2 lpv
+    return    $ TFun v t1 t2 (getPV p)
 
-mkLambdas :: [ParameterSpan] -> Term -> Transpiler Term 
+mkLambdas :: HasProvenance a => [Parameter a] -> Term -> Transpiler Term 
 mkLambdas ps k0 = foldM go k0 (reverse ps)
  where  
   go k p = do
     (x,hint) <- requireOrdinaryHintedParam p
     b        <- baseTypeFromHint hint
-    let tpv   = pySpanToPV (annot hint)
-    let t     = TBase dummyName b (Known PTrue) tpv    
-    let lpv   = pySpanToPV (annot p)
+    let t     = TBase dummyName b (Known PTrue) (getPV hint)
     let v     = mangle x
-    return    $ Lam v t k lpv
+    return    $ Lam v t k (getPV p)
 
-requireOrdinaryHintedParam :: ParameterSpan -> Transpiler (IdentSpan, ExprSpan)
+requireOrdinaryHintedParam :: HasProvenance a => Parameter a -> Transpiler (Ident a, Py.Expr a)
 requireOrdinaryHintedParam p = case p of
   Param
     { param_name
@@ -179,7 +173,7 @@ requireOrdinaryHintedParam p = case p of
 
   _ -> lift $ throwE $ UnsupportedParameter p
 
-baseTypeFromHint :: ExprSpan -> Transpiler Base
+baseTypeFromHint :: HasProvenance a => Py.Expr a -> Transpiler Base
 baseTypeFromHint = \case
   IsVar "bool" -> return TBool
   IsVar "int"  -> return TInt
@@ -188,7 +182,7 @@ baseTypeFromHint = \case
 
 ------------------------------------------------------------------------------
 
-transpileFun :: DomTree -> Transpiler Term
+transpileFun :: HasProvenance a => DomTree a -> Transpiler Term
 transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
  where  
   goDom k l = case dom.phiVars ! l of
@@ -207,13 +201,10 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
   mkBody l = case dom.nodes ! l of
     FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" -- TODO
     Block{..} -> transpileStmts _stmts =<< mkCall _next
-    Branch{..} -> do      
+    Branch{..} -> withAtom _cond $ \c -> do
       kTrue  <- mkCall _nextTrue
       kFalse <- mkCall _nextFalse
-      v      <- newVar
-      let k   = If (Var v) kTrue kFalse NoPV
-      transpileStmts [mkAssignStmt v _cond] k
-    
+      return  $ If c kTrue kFalse NoPV
     BranchFor {} -> lift $ throwE $ OtherError $ "for..in not yet supported" -- TODO
     Exit -> return $ Val (Con (U NoPV))
 
@@ -225,10 +216,6 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
 -- TODO: provenance
 blockName :: Label -> Name
 blockName l = Name ("L" <> Text.pack (show l)) NoPV 
-
-mkAssignStmt :: Name -> ExprSpan -> StatementSpan
-mkAssignStmt (Name x _) e = 
-  Assign [Py.Var (Ident (Text.unpack x) SpanEmpty) SpanEmpty] e SpanEmpty
 
 mkPhiFunType :: [String] -> Transpiler Type
 mkPhiFunType xs = do
@@ -252,7 +239,7 @@ mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
     return  $ Lam v t k NoPV
 
 -- TODO: pass along context of all exceptions being caught in the current block
-transpileStmts :: [StatementSpan] -> Term -> Transpiler Term
+transpileStmts :: HasProvenance a => [Py.Statement a] -> Term -> Transpiler Term
 transpileStmts stmts k0 = go stmts
  where
   go []          = return k0
@@ -263,7 +250,7 @@ transpileStmts stmts k0 = go stmts
         b <- typeOfTerm e1
         addTyping v b
         k <- go rest
-        return $ Let v e1 k (pySpanToPV stmt_annot)
+        return $ Let v e1 k (getPV stmt)
 
     AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do
       b <- baseTypeFromHint ann_assign_annotation
@@ -273,19 +260,19 @@ transpileStmts stmts k0 = go stmts
         Nothing -> go rest
         Just ex -> withTerm ex $ \e1 -> do
             k <- go rest
-            return $ Let v e1 k (pySpanToPV stmt_annot)
+            return $ Let v e1 k (getPV stmt)
   
     -- TODO: technically, assert raises an AssertionError, which could be caught!
-    Assert { assert_exprs = [expr], .. } ->
+    Assert { assert_exprs = [expr] } ->
       withAtom expr $ \a -> do
         let f = mkApp "assert" [a]
         k <- go rest
-        return $ Let dummyName f k (pySpanToPV stmt_annot)
+        return $ Let dummyName f k (getPV stmt)
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
 
-withTerm :: ExprSpan -> (Term -> Transpiler Term) -> Transpiler Term
+withTerm :: HasProvenance a => Py.Expr a -> (Term -> Transpiler Term) -> Transpiler Term
 withTerm expr k = case expr of
   _ | isAtomic expr -> k =<< Val <$> transpileAtom expr
 
@@ -312,7 +299,7 @@ withTerm expr k = case expr of
 
   _ -> lift $ throwE $ UnsupportedExpression expr
 
-withAtom :: ExprSpan -> (Atom -> Transpiler Term) -> Transpiler Term
+withAtom :: HasProvenance a => Py.Expr a -> (Atom -> Transpiler Term) -> Transpiler Term
 withAtom expr k
   | isAtomic expr = transpileAtom expr >>= k
   | otherwise = do
@@ -323,7 +310,7 @@ withAtom expr k
         e2 <- k (Var v)
         return $ Let v e1 e2 NoPV
 
-withAtoms :: [ExprSpan] -> ([Atom] -> Transpiler Term) -> Transpiler Term
+withAtoms :: HasProvenance a => [Py.Expr a] -> ([Atom] -> Transpiler Term) -> Transpiler Term
 withAtoms xs0 k0 = go [] xs0
  where
   go ys []     = k0 (reverse ys)
@@ -334,7 +321,7 @@ mkApp f xs = foldl' (\e y -> App e y NoPV) (Val (Var f)) xs
 
 
 
-mkOpFun :: OpSpan -> Base -> Base -> Transpiler Name
+mkOpFun :: HasProvenance a => Op a -> Base -> Base -> Transpiler Name
 mkOpFun LessThan{}          TInt    TInt    = return "lt"
 mkOpFun GreaterThan{}       TInt    TInt    = return "gt"
 mkOpFun Equality{}          TInt    TInt    = return "eq"
@@ -353,23 +340,22 @@ mkSubscriptFun a b = lift $ throwE $ OtherError $ "unsupported subscript" ++ sho
 
 -- TODO: support global encoding declarations for strings
 -- expects expression to be atomic
-transpileAtom :: ExprSpan -> Transpiler Atom
+transpileAtom :: HasProvenance a => Py.Expr a -> Transpiler Atom
 transpileAtom expr = case expr of
   Py.Var         {..} -> return $ Var (mangle var_ident)
-  Int            {..} -> return $ Con (I int_value (pySpanToPV expr_annot))
-  LongInt        {..} -> return $ Con (I int_value (pySpanToPV expr_annot))
+  Int            {..} -> return $ Con (I int_value (getPV expr))
+  LongInt        {..} -> return $ Con (I int_value (getPV expr))
   Float          {}   -> unsupported  -- TODO
   Imaginary      {}   -> unsupported  -- TODO
-  Bool           {..} -> return $ Con (B bool_value (pySpanToPV expr_annot))
+  Bool           {..} -> return $ Con (B bool_value (getPV expr))
   None           {}   -> unsupported  -- TODO
   ByteStrings    {}   -> unsupported  -- TODO
   
   Strings {..} -> do 
-    let pv = pySpanToPV expr_annot
     case fmap concat $ sequence $ map decodeStringLiteral strings_strings of
       Nothing  -> lift $ throwE $ UnsupportedAtomicExpression expr
-      Just [c] -> return $ Con (C c pv)
-      Just cs  -> return $ Con (S (Text.pack cs) pv)
+      Just [c] -> return $ Con (C c (getPV expr))
+      Just cs  -> return $ Con (S (Text.pack cs) (getPV expr))
 
   UnicodeStrings {}   -> unsupported  -- TODO
   Paren          {..} -> transpileAtom paren_expr
@@ -378,7 +364,7 @@ transpileAtom expr = case expr of
   unsupported = lift $ throwE $ UnsupportedAtomicExpression expr
 
 
-isAtomic :: ExprSpan -> Bool
+isAtomic :: Py.Expr a -> Bool
 isAtomic = \case
   Py.Var         {}   -> True
   Int            {}   -> True

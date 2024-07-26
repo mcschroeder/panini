@@ -18,15 +18,15 @@ import Prelude hiding (succ)
 
 ------------------------------------------------------------------------------
 
-data DomTree = DomTree
+data DomTree a = DomTree
   { root     :: Label
-  , nodes    :: IntMap Node
+  , nodes    :: IntMap (Node a)
   , children :: IntMap [Label]
   , phiVars  :: IntMap [String]
   }
   deriving stock (Show)
 
-domTree :: CFG -> DomTree
+domTree :: CFG a -> DomTree a
 domTree cfg = DomTree {..}
  where
   root     = cfg.entry
@@ -54,7 +54,7 @@ domTree cfg = DomTree {..}
 
 ------------------------------------------------------------------------------
 
-variableAssignments :: CFG -> Map String LabelSet
+variableAssignments :: CFG a -> Map String LabelSet
 variableAssignments cfg = Map.fromListWith (<>) 
   [ (v, IntSet.singleton l) | (l,n) <- IntMap.assocs cfg.nodeMap
                             , Assigned v <- Set.toList (variables n)
