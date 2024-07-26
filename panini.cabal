@@ -81,6 +81,7 @@ library
     Panini.Frontend.Python.Error
     Panini.Frontend.Python.Pretty
     Panini.Frontend.Python.Provenance
+    Panini.Frontend.Python.Strings
     Panini.Frontend.Python.Transpiler
     Panini.Infer
     Panini.Modules

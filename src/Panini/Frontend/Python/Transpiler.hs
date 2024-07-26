@@ -6,7 +6,6 @@ import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
-import Data.Char
 import Data.Foldable
 import Data.IntMap.Strict ((!))
 import Data.Map.Strict (Map)
@@ -21,6 +20,7 @@ import Panini.Frontend.Python.CFG hiding (Error)
 import Panini.Frontend.Python.DomTree
 import Panini.Frontend.Python.Error
 import Panini.Frontend.Python.Provenance
+import Panini.Frontend.Python.Strings
 import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
@@ -351,6 +351,7 @@ mkSubscriptFun TString TInt = return "charAt"
 mkSubscriptFun a b = lift $ throwE $ OtherError $ "unsupported subscript" ++ showPretty a ++ " " ++ showPretty b
 
 
+-- TODO: support global encoding declarations for strings
 -- expects expression to be atomic
 transpileAtom :: ExprSpan -> Transpiler Atom
 transpileAtom expr = case expr of
@@ -362,68 +363,20 @@ transpileAtom expr = case expr of
   Bool           {..} -> return $ Con (B bool_value (pySpanToPV expr_annot))
   None           {}   -> unsupported  -- TODO
   ByteStrings    {}   -> unsupported  -- TODO
-  Strings        {}   -> transpileStringLiteral expr
+  
+  Strings {..} -> do 
+    let pv = pySpanToPV expr_annot
+    case fmap concat $ sequence $ map decodeStringLiteral strings_strings of
+      Nothing  -> lift $ throwE $ UnsupportedAtomicExpression expr
+      Just [c] -> return $ Con (C c pv)
+      Just cs  -> return $ Con (S (Text.pack cs) pv)
+
   UnicodeStrings {}   -> unsupported  -- TODO
   Paren          {..} -> transpileAtom paren_expr
   _                   -> panic $ "unexpected non-atomic expression:" <+> pretty expr
  where
   unsupported = lift $ throwE $ UnsupportedAtomicExpression expr
 
-
--- TODO: support triple-quoted strings
--- TODO: support global encoding declarations in source file
--- TODO: check that this really follows the spec
-transpileStringLiteral :: ExprSpan -> Transpiler Atom
-transpileStringLiteral expr@Strings{..} = do
-  let pv = pySpanToPV expr_annot
-  s <- concatMapM decode strings_strings  
-  case s of
-    [c] -> return $ Con (C c pv)
-    cs  -> return $ Con (S (Text.pack cs) pv)
- where  
-  decode ('r':cs) = unqote cs
-  decode ('R':cs) = unqote cs
-  decode (    cs) = unescape <$> unqote cs
-
-  unqote ('\"':'\"':'\"':_) = lift $ throwE $ UnsupportedAtomicExpression expr
-  unqote ('\"':cs) = pure $ init cs
-  unqote ('\'':cs) = pure $ init cs
-  unqote _         = panic $ "malformed string literal:" <+> pretty expr
-
-transpileStringLiteral expr =
-  panic $ "unexpected expression (not a string literal):" <+> pretty expr
-
--- TODO: support \N{name}
-unescape :: String -> String
-unescape ('\'':cs) = unescape cs
-unescape ('\"':cs) = unescape cs
-unescape ('\\':'\n':cs) = unescape cs
-unescape ('\\':'\\':cs) = '\\' : unescape cs
-unescape ('\\':'\'':cs) = '\'' : unescape cs
-unescape ('\\':'\"':cs) = '\"' : unescape cs
-unescape ('\\':'a':cs) = '\a' : unescape cs
-unescape ('\\':'b':cs) = '\b' : unescape cs
-unescape ('\\':'f':cs) = '\f' : unescape cs
-unescape ('\\':'n':cs) = '\n' : unescape cs
-unescape ('\\':'r':cs) = '\r' : unescape cs
-unescape ('\\':'t':cs) = '\t' : unescape cs
-unescape ('\\':'v':cs) = '\v' : unescape cs
-unescape ('\\':a:b:c:cs) | Just x <- readOctDigits [a,b,c] = x : unescape cs
-unescape ('\\':'x':a:b:cs) | Just x <- readHexDigits [a,b] = x : unescape cs
-unescape ('\\':'u':a:b:c:d:cs) | Just x <- readHexDigits [a,b,c,d] = x : unescape cs
-unescape ('\\':'U':a:b:c:d:e:f:g:h:cs) | Just x <- readHexDigits [a,b,c,d,e,f,g,h] = x : unescape cs
-unescape (c:cs) = c : unescape cs
-unescape [] = []
-
-readOctDigits :: [Char] -> Maybe Char
-readOctDigits cs = case readLitChar ("\\o" ++ cs) of
-  [(c,[])] -> Just c
-  _        -> Nothing
-
-readHexDigits :: [Char] -> Maybe Char
-readHexDigits cs = case readLitChar ("\\x" ++ cs) of
-  [(c,[])] -> Just c
-  _        -> Nothing
 
 isAtomic :: ExprSpan -> Bool
 isAtomic = \case
