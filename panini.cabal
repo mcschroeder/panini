@@ -83,6 +83,12 @@ library
     Panini.Frontend.Python.Provenance
     Panini.Frontend.Python.Strings
     Panini.Frontend.Python.Transpiler
+    Panini.Frontend.Python.Typing.Builtins
+    Panini.Frontend.Python.Typing.Infer
+    Panini.Frontend.Python.Typing.Monad
+    Panini.Frontend.Python.Typing.Pretty
+    Panini.Frontend.Python.Typing.PyType
+    Panini.Frontend.Python.Typing.TypeInfo
     Panini.Infer
     Panini.Modules
     Panini.Monad

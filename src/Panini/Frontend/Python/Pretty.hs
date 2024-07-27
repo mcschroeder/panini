@@ -16,32 +16,20 @@ import Text.PrettyPrint qualified as TPP
 
 ------------------------------------------------------------------------------
 
-instance Pretty (Module annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty (Ident annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty (Parameter annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty (Statement annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty (Expr annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty (ExceptClause annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty (Op annot) where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty ParseError where
-  pretty = pretty . TPP.render . Py.pretty
-
-instance Pretty Token where
-  pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Module       a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Ident        a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Parameter    a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Statement    a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Expr         a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (ExceptClause a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Argument     a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Op           a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (AssignOp     a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (Decorator    a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (ParamTuple   a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty (RaiseExpr    a) where pretty = pretty . TPP.render . Py.pretty
+instance Pretty ParseError       where pretty = pretty . TPP.render . Py.pretty
+instance Pretty Token            where pretty = pretty . TPP.render . Py.pretty
 
 ------------------------------------------------------------------------------
 

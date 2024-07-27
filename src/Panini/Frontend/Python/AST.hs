@@ -18,6 +18,7 @@ module Panini.Frontend.Python.AST
   , paramDefaults
   , sliceExprs
   , raiseExprs
+  , mapRaiseExprsM
   , yieldArgExpr
   , dictKeyDatumListExprs
   ) where
@@ -166,6 +167,12 @@ raiseExprs = \case
   RaiseV3 es -> unwrap2 es
   RaiseV2 es -> unwrap3 es
 
+mapRaiseExprsM 
+  :: Monad m => (Expr a -> m (Expr b)) -> RaiseExpr a -> m (RaiseExpr b)
+mapRaiseExprsM f = \case
+  RaiseV3 es -> RaiseV3 <$> wrap2 <$> mapM f (unwrap2 es)
+  RaiseV2 es -> RaiseV2 <$> wrap3 <$> mapM f (unwrap3 es)
+
 yieldArgExpr :: YieldArg a -> Expr a
 yieldArgExpr = \case
   YieldFrom e _ -> e  
@@ -188,3 +195,16 @@ unwrap3 :: Maybe (a, Maybe (a, Maybe a)) -> [a]
 unwrap3 = \case
   Nothing    -> []
   Just (a,b) -> a : unwrap2 b
+
+wrap2 :: [a] -> Maybe (a, Maybe a)
+wrap2 = \case  
+  a:b:_ -> Just (a, Just b)
+  a:_   -> Just (a, Nothing)
+  []    -> Nothing
+
+wrap3 :: [a] -> Maybe (a, Maybe (a, Maybe a))
+wrap3 = \case  
+  a:b:c:_ -> Just (a, Just (b, Just c))
+  a:b:_   -> Just (a, Just (b, Nothing))
+  a:_     -> Just (a, Nothing)
+  []      -> Nothing
