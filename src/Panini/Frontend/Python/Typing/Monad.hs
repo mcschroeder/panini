@@ -4,6 +4,7 @@ import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Either
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict (Map)
@@ -76,7 +77,12 @@ try act = do
   env <- lift get
   act `catchE` (\err -> lift (put env) >> throwE err)
 
-tryUntil :: [Infer a] -> Infer a
-tryUntil    []  = undefined -- TODO
-tryUntil (x:[]) = try x
-tryUntil (x:xs) = try x `catchE` (\_ -> tryUntil xs)
+-- | Tries all given 'Infer' actions, in order, returning the results of those
+-- that succeed without error.
+tryAll :: [Infer a] -> Infer [a]
+tryAll = go []
+ where
+  go ys    []  = return $ reverse ys
+  go ys (x:xs) = tryE (try x) >>= \case
+    Left  _ -> go    ys  xs
+    Right y -> go (y:ys) xs

@@ -13,52 +13,72 @@ import Prelude
 
 data PyType
   = Any_ (Maybe Int)  -- use 'Any' and 'MetaVar' patterns
-  | TypeVar String  -- TODO: constraints, bound, variance
   | Union_ [PyType]   -- use 'Union' smart constructor
-  | Callable [PyType] (PyType)
-  | None
-  | Bool
+  | TypeVar String  -- TODO: constraints, bound, variance
+  | Callable [PyType] (PyType)  
+
+  -- built-in types  
+  | Object
   | Int
   | Float
   | Complex
+  | Bool
+  | List PyType
+  | Tuple [PyType]
+  | Range
   | Str
   | Bytes
   | Bytearray
-  | Object
-  | List PyType
+  | Memoryview PyType
+  | Set PyType
+  | Frozenset PyType
   | Dict PyType PyType
-  | Tuple [PyType]
-  | Iterable PyType  
-  | Sequence PyType
-  | Collection PyType
-  | Mapping PyType PyType
-  | Number
-  | Buffer
-  | AnyStr
+  | Slice
+  | Enumerate PyType
+  | Ellipsis
+  | None
+  
+  -- ABCs (abstract base classes)
+  | Container PyType
   | Hashable
-  | SupportsAbs PyType
-  | SupportsRound PyType
-  | SupportsIndex
-  | SupportsComplex
-  | SupportsFloat  
+  | Iterable PyType
+  | Iterator PyType
+  | Reversible PyType
+  | Generator PyType PyType PyType
+  | Sized
+  | Collection PyType
+  | Sequence PyType
+  | MutableSequence PyType
+  | AbstractSet PyType
+  | MutableSet PyType
+  | Mapping PyType PyType
+  | MutableMapping PyType PyType
+  | MappingView PyType
+  | ItemsView PyType PyType
+  | KeysView PyType
+  | ValuesView PyType
+  | Awaitable PyType
+  | Coroutine PyType PyType PyType
   | AsyncIterable PyType
   | AsyncIterator PyType
-  | Slice
-  | Ellipsis
-  | Set PyType
-  | ConvertibleToInt
-  | ConvertibleToFloat
-  | ReadableBuffer
-  | Iterator PyType
+  | AsyncGenerator PyType PyType
+  | Buffer
+
+  -- protocols for structural subtyping (duck-typing)
+  | SupportsAbs PyType
+  | SupportsComplex
   | SupportsDivMod PyType PyType
-  | SupportsRDivMod PyType PyType
-  | NoReturn
+  | SupportsFloat
+  | SupportsInt
+  | SupportsTrunc
+  | SupportsIndex
   | SupportsIter PyType
   | SupportsNext PyType
-  | Sized
-  | Reversible
-  | MutableSequence PyType
-  | MutableSet PyType
+  | SupportsRDivMod PyType PyType
+  | SupportsRound PyType
+
+  -- miscellaneous
+  | NoReturn
   deriving stock (Eq, Ord, Show, Read, Data)
 
 -- | Meta variables are used by the type inference engine to defer inference of
@@ -85,8 +105,8 @@ pattern Any = Any_ Nothing
 pattern Union :: [PyType] -> PyType
 pattern Union xs <- Union_ xs where
   Union xs | null xs'   = error "empty union type"
-               | [x] <- xs' = x
-               | otherwise  = Union_ xs'
+           | [x] <- xs' = x
+           | otherwise  = Union_ xs'
    where
     xs' = Set.toAscList $ Set.fromList $ concatMap flatUnion xs
     flatUnion = \case

@@ -33,6 +33,17 @@ _KT = TypeVar "_KT"
 _VT = TypeVar "_KT"
 _SupportsNextT = TypeVar "_SupportsNextT" -- TODO: bound=SupportsNext[Any], covariant=True)
 
+pattern ReadableBuffer :: PyType
+pattern ReadableBuffer = Buffer
+
+pattern ConvertibleToInt :: PyType
+pattern ConvertibleToInt =
+  Union [Str, ReadableBuffer, SupportsInt, SupportsIndex, SupportsTrunc]
+
+pattern ConvertibleToFloat :: PyType
+pattern ConvertibleToFloat = 
+  Union [Str, ReadableBuffer, SupportsFloat, SupportsIndex]
+
 data ClassStub = ClassStub
   { constructors :: [(String, PyType)]
   , attributes   :: [(String, PyType)]
@@ -171,7 +182,7 @@ floatStub = ClassStub
     , ("__ceil__", Callable [Float] Int) -- >=(3,9)
     , ("__floor__", Callable [Float] Int) -- >=(3,9)
     , ("__round__", Callable [Float] Int)
-    , ("__round__", Callable [Float,SupportsIndex] Int)
+    , ("__round__", Callable [Float,SupportsIndex] Float)
     , ("__eq__", Callable [Float,Object] Bool)
     , ("__ne__", Callable [Float,Object] Bool)
     , ("__lt__", Callable [Float,Float] Bool)

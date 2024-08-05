@@ -29,6 +29,7 @@ import Prelude
 getReturnType :: PyType -> PyType
 getReturnType = \case
   PyType.Callable _ t -> t
+  PyType.Union ts     -> PyType.Union $ map getReturnType ts
   t                   -> panic $ "expected Callable instead of" <+> pretty t
 
 untyped :: Functor t => t a -> Typed t a
