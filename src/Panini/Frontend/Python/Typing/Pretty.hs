@@ -17,59 +17,35 @@ import Panini.Frontend.Python.Typing.TypeInfo
 import Panini.Pretty
 import Prelude
 import Prettyprinter qualified as PP
+import Data.Data
 
 ------------------------------------------------------------------------------
 
 instance Pretty PyType where
   pretty = \case
-    PyType.Any_ Nothing      -> "Any"
-    PyType.Any_ (Just i)     -> ann Highlight ("μ" <> pretty i)
-    PyType.TypeVar s         -> pretty s
-    PyType.Union_ ts         -> "Union" <> params ts
-    PyType.Callable xs y     -> "Callable[" <> params xs <> "," <> pretty y <> "]"
-    PyType.None              -> "None"
-    PyType.Bool              -> "bool"
-    PyType.Int               -> "int"
-    PyType.Float             -> "float"
-    PyType.Complex           -> "complex"
-    PyType.Str               -> "str"
-    PyType.Bytes             -> "bytes"
-    PyType.Bytearray         -> "bytearray"
-    PyType.Object            -> "object"
-    PyType.List t            -> "list" <> param t
-    PyType.Dict k v          -> "dict" <> params [k,v]
-    PyType.Tuple ts          -> "tuple" <> params ts
-    PyType.Iterable t        -> "Iterable" <> param t
-    PyType.Sequence t        -> "Sequence" <> param t
-    PyType.Collection t      -> "Collection" <> param t
-    PyType.Mapping k v       -> "Mapping" <> params [k,v]
-    PyType.Number            -> "Number"
-    PyType.Buffer            -> "Buffer"
-    PyType.AnyStr            -> "AnyStr"
-    PyType.Hashable          -> "Hashable"
-    PyType.SupportsAbs t     -> "SupportsAbs" <> param t
-    PyType.SupportsRound t   -> "SupportsRound" <> param t
-    PyType.SupportsIndex     -> "SupportsIndex"
-    PyType.SupportsComplex   -> "SupportsComplex"
-    PyType.SupportsFloat     -> "SupportsFloat"
-    PyType.AsyncIterable t   -> "AsyncIterable" <> param t
-    PyType.AsyncIterator t   -> "AsyncIterator" <> param t
-    PyType.Slice             -> "Slice"
-    PyType.Ellipsis          -> "Ellipsis"
-    PyType.Set t             -> "Set" <> param t
-    PyType.ConvertibleToInt  -> "ConvertibleToInt"
-    PyType.ConvertibleToFloat -> "ConvertibleToFloat"
-    PyType.ReadableBuffer    -> "ReadableBuffer"
-    PyType.Iterator t        -> "Iterator" <> param t
-    PyType.SupportsDivMod t1 t2 -> "SupportsDivMod" <> params [t1,t2]
-    PyType.SupportsRDivMod t1 t2 -> "SupportsRDivMod" <> params [t1,t2]
-    PyType.NoReturn          -> "NoReturn"
-    PyType.SupportsIter t    -> "SupportsIter" <> param t
-    PyType.SupportsNext t    -> "SupportsNext" <> param t
-    PyType.Sized             -> "Sized"
+    PyType.Any_ Nothing  -> "Any"
+    PyType.Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
+    PyType.TypeVar s     -> pretty s
+    PyType.Union_ ts     -> "Union"     <> params ts
+    PyType.Callable xs y -> "Callable[" <> params xs <> "," <> pretty y <> "]"
+    PyType.Tuple ts      -> "tuple"     <> params ts
+    PyType.List t        -> "list"      <> params [t]
+    PyType.Dict k v      -> "dict"      <> params [k,v]
+    PyType.Bool          -> "bool"
+    PyType.Int           -> "int"
+    PyType.Float         -> "float"
+    PyType.Complex       -> "complex"
+    PyType.Str           -> "str"
+    PyType.Bytes         -> "bytes"
+    PyType.Bytearray     -> "bytearray"
+    PyType.Object        -> "object"
+    t                    -> prettyConstr t <> paramList (gmapQ paramQ t)
    where
-    param  t  = "[" <> pretty t <> "]"
-    params ts = "[" <> mconcat (List.intersperse "," (map pretty ts)) <> "]"
+    params       = paramList . map pretty
+    paramList [] = mempty
+    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
+    prettyConstr = pretty . showConstr . toConstr    
+    paramQ t     = maybe undefined (pretty @PyType) (cast t)
 
 ------------------------------------------------------------------------------
 
