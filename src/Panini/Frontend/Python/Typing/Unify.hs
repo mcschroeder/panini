@@ -39,15 +39,19 @@ unify a b@(Union _) = unify b a
 unify (Callable as b) (Callable cs d) = 
   Callable <$> zipWithM unify as cs <*> unify b d
 
-unify a b = do
-  as <- tryAll $ map (unify b) (Set.toList $ superTypes a)
-  bs <- tryAll $ map (unify a) (Set.toList $ superTypes b)
-  case (null as, null bs) of
-    (False , _    ) -> return a
-    (_     , False) -> return b
-    (True  , True ) -> throwE $ CannotUnify a b
+unify a b
+  | b `Set.member` transitiveSuperTypes a = return a
+  | a `Set.member` transitiveSuperTypes b = return b
+  | otherwise                             = throwE $ CannotUnify a b
 
 ------------------------------------------------------------------------------
+
+-- | Return all transitive supertypes of a 'PyType', excluding 'Object'.
+transitiveSuperTypes :: PyType -> Set PyType
+transitiveSuperTypes = go . superTypes
+ where
+  go [] = []
+  go xs = xs <> go (Set.unions $ Set.map superTypes xs)
 
 -- | Return the immediate supertypes of a 'PyType', excluding 'Object' but
 -- including any abstract base classes and duck-typing protocols.
