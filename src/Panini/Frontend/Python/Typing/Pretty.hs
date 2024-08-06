@@ -8,6 +8,7 @@ produce valid Python source code!
 -}
 module Panini.Frontend.Python.Typing.Pretty where
 
+import Data.Data (gmapQ, showConstr, toConstr, cast)
 import Data.List qualified as List
 import Panini.Frontend.Python.AST as Py
 import Panini.Frontend.Python.Pretty ()
@@ -17,7 +18,6 @@ import Panini.Frontend.Python.Typing.TypeInfo
 import Panini.Pretty
 import Prelude
 import Prettyprinter qualified as PP
-import Data.Data
 
 ------------------------------------------------------------------------------
 
@@ -56,19 +56,25 @@ instance Pretty PyType where
 
 withT :: (Maybe PyType, a) -> Doc -> Doc
 withT (Nothing, _) d = d
-withT (Just ty, _) d = d <> ann Margin (":" <> pretty ty)
+withT (Just ty, _) d = d <> prettyT ty
 
 parensWithT :: (Maybe PyType, a) -> Doc -> Doc
 parensWithT (Nothing, _) d = d
-parensWithT (Just ty, _) d = (parens d) <> ann Margin (":" <> pretty ty)
+parensWithT (Just ty, _) d = (parens d) <> prettyT ty
 
 prettyWithT :: (Pretty (t a), Functor t, Annotated t) => Typed t a -> Doc
 prettyWithT e = case fst (annot e) of
-  Nothing -> pretty (eraseTypes e)
-  Just ty -> pretty (eraseTypes e) <> ann Margin (":" <> pretty ty)
+  Nothing -> prettyWithoutT e
+  Just ty -> prettyWithoutT e <> prettyT ty
+
+prettyWithoutT :: (Pretty (t a), Functor t) => Typed t a -> Doc
+prettyWithoutT = pretty . eraseTypes
 
 eraseTypes :: Functor t => Typed t a -> t a
 eraseTypes = fmap snd
+
+prettyT :: PyType -> Doc
+prettyT ty = ann Margin (":" <> pretty ty)
 
 ------------------------------------------------------------------------------
 
@@ -79,8 +85,8 @@ instance {-# OVERLAPPING #-} Pretty (Typed Module a) where
 
 instance {-# OVERLAPPING #-} Pretty (Typed Statement a) where
   pretty = \case   
-    e@Import     {} -> pretty (eraseTypes e)
-    e@FromImport {} -> pretty (eraseTypes e)
+    e@Import     {} -> prettyWithoutT e
+    e@FromImport {} -> prettyWithoutT e
     
     While {..} -> 
       "while" <+> pretty while_cond <> ":" 
@@ -94,7 +100,21 @@ instance {-# OVERLAPPING #-} Pretty (Typed Statement a) where
 
     AsyncFor{..} -> "async " <> pretty for_stmt
 
-    Fun {..} -> 
+    Fun {..}
+      | PyType.Callable _ r <- typeOf fun_name
+      , Nothing <- fun_result_annotation
+      -> "def" <+> prettyWithoutT fun_name <> parens (commaList fun_args)
+          <> ann Margin (" -> " <> pretty r) <> ":"
+          <\\> prettySuite fun_body
+
+      | PyType.Callable _ r <- typeOf fun_name
+      , Just resultHint <- fun_result_annotation
+      , typeOf resultHint == r
+      -> "def" <+> prettyWithoutT fun_name <> parens (commaList fun_args)
+          <> " -> " <> pretty resultHint <> ":"
+          <\\> prettySuite fun_body
+      
+    Fun {..} ->
       "def" <+> prettyWithT fun_name <> parens (commaList fun_args) 
       <> opt ((" -> " <>) . pretty) fun_result_annotation <> ":" 
       <\\> prettySuite fun_body
@@ -118,7 +138,11 @@ instance {-# OVERLAPPING #-} Pretty (Typed Statement a) where
     Assign {..} -> equalsList assign_to <+> PP.equals <+> pretty assign_expr
     
     AugmentedAssign {..} -> 
-      pretty aug_assign_to <+> pretty aug_assign_op <+> pretty aug_assign_expr
+      pretty aug_assign_to <+> prettyAssOp <+> pretty aug_assign_expr
+     where
+      prettyAssOp = case typeOf aug_assign_op of
+        PyType.Callable _ r -> prettyWithoutT aug_assign_op <> prettyT r
+        _                   -> pretty aug_assign_op
 
     AnnotatedAssign {..} -> 
       pretty ann_assign_to <+> ":" <+> pretty ann_assign_annotation 
@@ -183,6 +207,9 @@ instance {-# OVERLAPPING #-} Pretty (Typed Expr a) where
     e@Strings         {} -> prettyWithT e
     e@UnicodeStrings  {} -> prettyWithT e    
     
+    Call { call_fun = IsVar f, .. } -> 
+      withT expr_annot $ pretty f <> parens (commaList call_args)
+    
     Call {..} -> pretty call_fun <> parens (commaList call_args)
     
     Subscript {..} -> withT expr_annot $ 
@@ -196,8 +223,10 @@ instance {-# OVERLAPPING #-} Pretty (Typed Expr a) where
       <+> "if" <+> pretty ce_condition 
       <+> "else" <+> pretty ce_false_branch
       
-    BinaryOp {..} -> parensWithT expr_annot $
-      pretty left_op_arg <+> pretty operator <+> pretty right_op_arg
+    BinaryOp {..} -> 
+      pretty left_op_arg 
+      <+> withT expr_annot (prettyWithoutT operator)
+      <+> pretty right_op_arg
 
     UnaryOp {..} -> pretty operator <+> pretty op_arg  
 
@@ -287,7 +316,7 @@ instance {-# OVERLAPPING #-} Pretty (Typed Parameter a) where
     EndPositional {..} -> withT param_annot ("*") 
 
     UnPackTuple {..} -> 
-      withT param_annot (pretty (eraseTypes param_unpack_tuple)) 
+      withT param_annot (prettyWithoutT param_unpack_tuple)
       <> opt (("=" <>) . pretty) param_default
 
 instance {-# OVERLAPPING #-} Pretty (Typed Op a) where
