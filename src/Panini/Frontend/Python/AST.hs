@@ -81,7 +81,7 @@ stmtVars = \case
   Class           {}   -> []
   Conditional     {..} -> usedN (map fst cond_guards)
   Assign          {..} -> assdN assign_to <> used assign_expr
-  AugmentedAssign {..} -> assd aug_assign_to <> used aug_assign_expr
+  AugmentedAssign {..} -> assd aug_assign_to <> usedN [aug_assign_to, aug_assign_expr]
   AnnotatedAssign {..} -> assd ann_assign_to <> (usedM ann_assign_expr)
   Decorated       {}   -> undefined  -- TODO
   Return          {..} -> usedM return_expr
