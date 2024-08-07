@@ -244,21 +244,6 @@ addStatement ctx stmt next = case stmt of
   Break    {} -> return ctx.break
   Continue {} -> return ctx.continue
 
-  AugmentedAssign{..} -> do
-    let expr' = BinaryOp { operator     = assignOpToOp aug_assign_op
-                         , left_op_arg  = aug_assign_to
-                         , right_op_arg = aug_assign_expr
-                         , expr_annot   = stmt_annot
-                         }
-    let stmt' = Assign { assign_to   = [aug_assign_to]
-                       , assign_expr = expr'
-                       , stmt_annot
-                       }
-    addNode $ Block { _stmts  = [stmt']
-                    , _next   = next
-                    , _except = ctx.excepts
-                    }
-
   AsyncFor  {} -> lift $ throwE $ UnsupportedStatement stmt
   AsyncFun  {} -> lift $ throwE $ UnsupportedStatement stmt
   Class     {} -> lift $ throwE $ UnsupportedStatement stmt
