@@ -152,7 +152,8 @@ instance {-# OVERLAPPING #-} Pretty (Typed Statement a) where
       vcat (map pretty decorated_decorators) 
       <\\> pretty decorated_def
     
-    Return {..} -> "return" <+> pretty return_expr
+    Return { return_expr = Just expr } -> "return" <+> pretty expr
+    Return { return_expr = Nothing   } -> "return"
     
     Try {..} -> 
       "try:" 

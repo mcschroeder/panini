@@ -26,10 +26,10 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
-getReturnType :: PyType -> PyType
-getReturnType = \case
+getCallableReturnType :: PyType -> PyType
+getCallableReturnType = \case
   PyType.Callable _ t -> t
-  PyType.Union ts     -> PyType.Union $ map getReturnType ts
+  PyType.Union ts     -> PyType.Union $ map getCallableReturnType ts
   t                   -> panic $ "expected Callable instead of" <+> pretty t
 
 untyped :: Functor t => t a -> Typed t a
@@ -84,7 +84,6 @@ inferStmt = \case
                            <*> pure (Nothing, stmt_annot)
 
   -- TODO: support generics
-  -- TODO: infer None return type
   -- TODO: limit scope of variables
   Fun{..} -> do
     parameters <- mapM inferParam fun_args
@@ -92,9 +91,11 @@ inferStmt = \case
     returnType <- maybe newMetaVar (pure . typeOf) resultHint
     let funType = PyType.Callable (map typeOf parameters) returnType
     registerVar fun_name.ident_string funType
-    pushReturnType returnType
+    pushReturnType (Implicit returnType)
     body <- mapM inferStmt fun_body
-    void $ popReturnType
+    popReturnType >>= \case
+      Implicit returnType' -> void $ unify returnType' PyType.None
+      Explicit _           -> pure ()
     Fun <$> pure (setType fun_name funType)
         <*> pure parameters
         <*> pure resultHint
@@ -157,17 +158,18 @@ inferStmt = \case
                              <*> inferStmt decorated_def 
                              <*> pure (Nothing, stmt_annot)
   
-  Return { return_expr = Just expr, ..} -> do
-    returnType <- fromMaybe PyType.Any <$> peekReturnType
-    Return <$> (Just <$> checkExpr returnType expr) 
-           <*> pure (Nothing, stmt_annot)
+  Return { return_expr = Just e, ..} -> do
+    t  <- projReturnType <$> popReturnType
+    e' <- checkExpr t e
+    let t' = typeOf e'
+    pushReturnType (Explicit t')
+    return $ Return (Just e') (Nothing, stmt_annot)
 
   Return { return_expr = Nothing, ..} -> do
-    returnType <- fromMaybe PyType.Any <$> popReturnType
-    returnType' <- unify returnType PyType.None
-    pushReturnType returnType'
-    Return <$> pure Nothing 
-           <*> pure (Nothing, stmt_annot)
+    t  <- projReturnType <$> popReturnType
+    t' <- unify t PyType.None
+    pushReturnType (Explicit t')
+    return $ Return Nothing (Nothing, stmt_annot)
   
   Try{..} -> Try <$> mapM inferStmt try_body
                  <*> mapM inferHandler try_excepts
@@ -268,7 +270,7 @@ inferExpr = \case
     funArgs <- mapM inferArg call_args
     funType <- PyType.Callable (map typeOf funArgs) <$> newMetaVar
     funExpr <- checkExpr funType call_fun
-    let typ  = getReturnType $ typeOf funExpr
+    let typ  = getCallableReturnType $ typeOf funExpr
     return   $ Call 
       { call_fun   = funExpr
       , call_args  = funArgs
@@ -281,7 +283,7 @@ inferExpr = \case
     t1      <- PyType.Callable [typeOf subExpr, typeOf indExpr] <$> newMetaVar
     let t2   = typeOfBuiltinFunction "__getitem__"
     t3      <- unify t1 t2
-    let typ  = getReturnType t3
+    let typ  = getCallableReturnType t3
     return   $ Subscript 
       { subscriptee    = subExpr
       , subscript_expr = indExpr
@@ -297,7 +299,7 @@ inferExpr = \case
     t1      <- PyType.Callable [typeOf subExpr, iTy] <$> newMetaVar
     let t2   = typeOfBuiltinFunction "__getitem__"
     t3      <- unify t1 t2
-    let typ  = getReturnType t3
+    let typ  = getCallableReturnType t3
     return   $ SlicedExpr 
       { slicee     = subExpr
       , slices     = indExpr
@@ -323,7 +325,7 @@ inferExpr = \case
     t1     <- PyType.Callable [typeOf leExpr, typeOf riExpr] <$> newMetaVar
     let t2  = typeOfBinaryOp operator
     t3     <- unify t1 t2
-    let rt  = getReturnType t3
+    let rt  = getCallableReturnType t3
     return  $ BinaryOp 
       { operator     = setType operator t3
       , left_op_arg  = leExpr
@@ -336,7 +338,7 @@ inferExpr = \case
     t1     <- PyType.Callable [typeOf expr] <$> newMetaVar
     let t2  = typeOfUnaryOp operator
     t3     <- unify t1 t2
-    let rt  = getReturnType t3
+    let rt  = getCallableReturnType t3
     return  $ UnaryOp 
       { operator   = setType operator t3
       , op_arg     = expr

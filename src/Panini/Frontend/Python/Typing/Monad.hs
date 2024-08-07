@@ -12,6 +12,7 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Panini.Frontend.Python.Typing.Builtins
 import Panini.Frontend.Python.Typing.PyType
+import Panini.Panic
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -31,9 +32,17 @@ data Env = Env
   { metaVarCount   :: Int
   , metaVarContext :: IntMap PyType
   , varContext     :: Map String PyType
-  , returnTypeStack :: [PyType]
+  , returnTypeStack :: [ReturnType]
   }
   deriving stock (Show)
+
+data ReturnType = Implicit PyType | Explicit PyType
+  deriving stock (Show)
+
+projReturnType :: ReturnType -> PyType
+projReturnType = \case
+  Implicit t -> t
+  Explicit t -> t
 
 ------------------------------------------------------------------------------
 
@@ -57,19 +66,16 @@ registerVar :: String -> PyType -> Infer ()
 registerVar x t = lift $
   modify' $ \e -> e { varContext = Map.insert x t e.varContext }
 
-pushReturnType :: PyType -> Infer ()
+pushReturnType :: ReturnType -> Infer ()
 pushReturnType t = lift $ 
   modify' $ \e -> e { returnTypeStack = t : e.returnTypeStack }
 
-peekReturnType :: Infer (Maybe PyType)
-peekReturnType = lift $ listToMaybe <$> gets returnTypeStack
-
-popReturnType :: Infer (Maybe PyType)
+popReturnType :: Infer ReturnType
 popReturnType = lift $ gets returnTypeStack >>= \case
-  []     -> return Nothing
+  []     -> panic $ "empty return type stack"
   (x:ys) -> do
     modify' $ \e -> e { returnTypeStack = ys }
-    return $ Just x
+    return x
 
 -- | Restores the environment if the 'Infer' action fails.
 try :: Infer a -> Infer a
