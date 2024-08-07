@@ -76,3 +76,14 @@ readHexDigits :: [Char] -> Maybe Char
 readHexDigits cs = case readLitChar ("\\x" ++ cs) of
   [(c,[])] -> Just c
   _        -> Nothing
+
+
+isFString :: String -> Bool
+isFString = \case
+  'f':_     -> True
+  'F':_     -> True
+  'r':'f':_ -> True
+  'r':'F':_ -> True
+  'R':'f':_ -> True
+  'R':'F':_ -> True
+  _         -> False

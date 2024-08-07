@@ -15,11 +15,10 @@ data Error where
   UnsupportedExpression       :: HasProvenance a => (Expr a)      -> Error
   UnsupportedTypeHint         :: HasProvenance a => (Expr a)      -> Error
   UnsupportedDefaultParameter :: HasProvenance a => (Expr a)      -> Error
-  MissingParameterTypeHint    :: HasProvenance a => (Parameter a) -> Error
   UnsupportedParameter        :: HasProvenance a => (Parameter a) -> Error
   UnsupportedAtomicExpression :: HasProvenance a => (Expr a)      -> Error
   UnsupportedOperator         :: HasProvenance a => (Op a)        -> Error
-  OtherError                  :: String                           -> Error -- TODO: remove
+  OtherError                  :: String -> PV                     -> Error -- TODO: remove
 
 instance Pretty Error where
   pretty = \case
@@ -30,11 +29,10 @@ instance Pretty Error where
     UnsupportedExpression expr        -> "unsupported expression:" <\> pretty expr
     UnsupportedTypeHint expr          -> "unsupported type hint:" <\> pretty expr
     UnsupportedDefaultParameter expr  -> "unsupported default parameter value:" <\> pretty expr
-    MissingParameterTypeHint param    -> "missing type hint for parameter" <\> pretty param
     UnsupportedParameter param        -> "unsupported parameter:" <\> pretty param
     UnsupportedAtomicExpression expr  -> "unsupported atomic expression:" <\> pretty expr
     UnsupportedOperator op            -> "unsupported operator:" <\> pretty op
-    OtherError err                    -> pretty err
+    OtherError err _                  -> pretty err
 
 instance HasProvenance Error where
   getPV = \case
@@ -45,11 +43,10 @@ instance HasProvenance Error where
     UnsupportedExpression expr        -> getPV expr
     UnsupportedTypeHint expr          -> getPV expr
     UnsupportedDefaultParameter expr  -> getPV expr
-    MissingParameterTypeHint param    -> getPV param
     UnsupportedParameter param        -> getPV param
     UnsupportedAtomicExpression expr  -> getPV expr
     UnsupportedOperator op            -> getPV op
-    OtherError _                      -> NoPV
+    OtherError _ pv                   -> pv
   
   setPV _ = undefined -- TODO: remove
 
