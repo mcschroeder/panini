@@ -11,7 +11,6 @@ import Data.Generics.Uniplate.Operations as Uniplate
 import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict qualified as Map
 import Data.Maybe
-import Debug.Trace
 import Panini.Frontend.Python.AST as Py
 import Panini.Frontend.Python.Typing.Builtins
 import Panini.Frontend.Python.Typing.Monad
@@ -45,10 +44,6 @@ infer :: Module a -> Either Error (Typed Module a)
 infer (Module stmts) = runInfer $ do
   stmtsTyped    <- mapM inferStmt stmts
   stmtsResolved <- mapM resolveMetaVars stmtsTyped
-
-  ctx <- lift $ gets metaVarContext
-  traceM (show ctx)
-
   return         $ Module stmtsResolved
 
 resolveMetaVars :: Functor f => Typed f a -> Infer (Typed f a)
