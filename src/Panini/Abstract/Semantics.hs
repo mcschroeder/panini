@@ -299,8 +299,8 @@ pattern Range a b <- (AInt.intervals -> [AInt.In a b])
 -- | Try to resolve equality between an expression and an abstract relation.
 -- For example, @[1,∞] = {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] = Σ∖a@.
 tryEqARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
-tryEqARel a x _ = \case
-  _ | isSol a                       -> Nothing
+tryEqARel a x b = \case
+  r | ESol x1 b1 r1 <- a            -> tryEqARel2 (x1,b1,r1) (x,b,r)
   r | isConcrete a, x `notFreeIn` a -> Just $ subst a x r
   -----------------------------------------------------------
   EStrAt (EVar s) i :=: EChar  c pv -> Just $ EStrAt (EVar s) (subst a x i) :=: EChar  c pv
@@ -314,6 +314,54 @@ tryEqARel a x _ = \case
 -- For example, @[1,∞] || {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] ≠ Σ∖a@
 tryNeARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
 tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
+
+-- | Try to resolve equality between two abstract relations.
+tryEqARel2 :: (Name,Base,Rel) -> (Name,Base,Rel) -> Maybe Rel
+tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
+
+  -- TODO: generalize these hackily hardcoded rules
+  (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 1) == AInt.ge 1, (b ∧ AInt.ge 1) == AInt.ge 2
+   , let t1 = lit cb <> star anyChar <> lit ca
+   , let t2 = lit ca <> star anyChar <> lit cb <> anyChar
+   , let t3 = lit (ca ∧ cb) <> anyChar
+   , let t = star anyChar <> (t1 ∨ t2 ∨ t3) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+  
+  -- TODO: see above
+  (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 1) == AInt.ge 1, (b ∧ AInt.ge 1) == AInt.ge 1
+   , let t1 = lit cb <> star anyChar <> lit ca
+   , let t2 = lit ca <> star anyChar <> lit cb
+   , let t3 = lit (ca ∧ cb)
+   , let t = star anyChar <> (t1 ∨ t2 ∨ t3) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+  -- TODO: see above
+  (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 1) == AInt.ge 1, (b ∧ AInt.ge 1) == AInt.eq 1
+   , let t2 = lit ca <> star anyChar <> lit cb
+   , let t3 = lit (ca ∧ cb)
+   , let t = star anyChar <> (t2 ∨ t3) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+  -- TODO: see above
+  (EStrAt (EVar s1) (EVar y1 :+: EIntA a) :=: ECharA ca,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA b) :=: ECharA cb)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 0) == AInt.ge 0, (b ∧ AInt.ge 0) == AInt.ge 0   
+   , let t1 = lit (ca ∧ cb)
+   , let t2 = lit ca <> star anyChar <> lit cb
+   , let t = star anyChar <> (t1 ∨ t2) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+  _ -> Nothing
 
 -------------------------------------------------------------------------------
 
