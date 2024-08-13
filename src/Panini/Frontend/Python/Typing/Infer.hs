@@ -246,7 +246,7 @@ inferExpr = \case
         registerVar x t
         pure t
     return Var 
-      { var_ident = untyped var_ident
+      { var_ident = fmap (Just t,) var_ident
       , expr_annot = (Just t, expr_annot)
       }
   
@@ -453,7 +453,7 @@ inferParam = \case
     registerVar x paramType
 
     return Param
-      { param_name          = fmap (Nothing,) param_name
+      { param_name          = fmap (Just paramType,) param_name
       , param_py_annotation = typeHintExpr
       , param_default       = defaultExpr
       , param_annot         = (Just paramType, param_annot)
