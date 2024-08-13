@@ -11,7 +11,7 @@ assert : { b:𝔹 | b = true } → 𝟙
 
 parser = \s:𝕊.
     let n = length s in
-    rec go1 : ℤ → ℤ → 𝟙 = λi1:ℤ. λj1:ℤ.
+    rec go1 : {i1:ℤ|?} → {j1:ℤ|?} → 𝟙 = λi1:ℤ. λj1:ℤ.
       let p1 = lt i1 n in
       let x = charAt s i1 in
       let p2 = match x 'a' in
@@ -21,7 +21,7 @@ parser = \s:𝕊.
         let j2 = add j1 1 in 
         go1 i2 j2
       else
-        rec go2 : ℤ → ℤ → 𝟙 = λi3:ℤ. λk1:ℤ.
+        rec go2 : {i3:ℤ|?} → {k1:ℤ|?} → 𝟙 = λi3:ℤ. λk1:ℤ.
           let p4 = lt i3 n in
           let y = charAt s i3 in
           let p5 = match y 'b' in

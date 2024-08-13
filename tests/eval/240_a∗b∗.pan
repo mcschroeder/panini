@@ -3,7 +3,7 @@ import axioms
 f240 : {s:string|?} -> unit
 f240 = \s:string.
   let n = length s in
-  rec w1 : int -> int = \i:int.
+  rec w1 : {i:int|?} -> int = \i:int.
     let p1 = lt i n in
     if p1 then
       let c = charAt s i in
@@ -16,7 +16,7 @@ f240 = \s:string.
     else
       i
   in
-    rec w2 : int -> int = \i:int.
+    rec w2 : {i:int|?} -> int = \i:int.
       let p1 = lt i n in
       if p1 then
         let c = charAt s i in

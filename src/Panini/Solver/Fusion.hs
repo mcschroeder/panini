@@ -123,10 +123,10 @@ cutVars = go mempty . deps
 
     -- an adjacency list representation of the dependency set (cf. Data.Graph)
     adjList :: Set (KVar, KVar) -> [(KVar, Int, [Int])]
-    adjList = map (\(k@(KVar i _), is) -> (k, i, is))
+    adjList = map (\(k@(KVar i _ _), is) -> (k, i, is))
             . Map.toList
             . Map.fromAscListWith (++) 
-            . map (second (\(KVar i _) -> [i])) 
+            . map (second (\(KVar i _ _) -> [i])) 
             . Set.toAscList
 
     -- the first cyclic κ variable in a list of SCCs

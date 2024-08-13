@@ -3,7 +3,7 @@ import axioms
 f221 : {s:string|?} -> unit
 f221 = \s:string.
   let n = length s in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let m = sub n 1 in
     let p = lt i m in
     if p then

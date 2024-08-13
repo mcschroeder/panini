@@ -2,7 +2,7 @@ import axioms
 
 f460 : {s:string|?} -> unit
 f460 = \s:string.
-  rec w : int -> int = \j:int.
+  rec w : {i:int|?} -> int = \j:int.
     let n = length s in
     let q1 = ge j n  in
     if q1 then

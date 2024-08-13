@@ -4,7 +4,7 @@ lsb_check : {s:string|?} -> unit
 lsb_check = \s:string.
   let n1 = length s in
   let n2 = sub n1 1 in
-  rec w1 : int -> unit = \i1:int.
+  rec w1 : {i:int|?} -> unit = \i1:int.
     let p1 = lt i1 n2 in
     if p1 then
       let c1 = charAt s i1 in

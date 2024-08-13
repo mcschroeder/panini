@@ -8,7 +8,7 @@ lt : (a:int) -> (b:int) -> { c:bool | c = true <=> a < b }
 
 f = λs:𝕊.
   let n = length s in
-  rec w : int -> unit = \i:int.
+  rec w : {i:int|?} -> unit = \i:int.
     let p = lt i n in
     if p then
       let x = charAt s i in

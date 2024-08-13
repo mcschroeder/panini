@@ -37,10 +37,7 @@ data Value
   | I !Integer !PV  -- 0, -1, 1, ...
   | C !Char    !PV  -- 'a'
   | S !Text    !PV  -- "lorem ipsum"
-  deriving stock 
-    ( Ord -- ^ structural ordering
-    , Show, Read
-    )
+  deriving stock (Show, Read)
 
 -- | Equality between values ignores provenance.
 instance Eq Value where
@@ -50,6 +47,24 @@ instance Eq Value where
   C a _ == C b _ = a == b
   S a _ == S b _ = a == b
   _     == _     = False
+
+-- | Structural ordering between values; ignores provenance.
+instance Ord Value where
+  U   _ <= _     = True
+  B _ _ <= U   _ = False
+  B a _ <= B b _ = a <= b
+  B _ _ <= _     = True
+  I _ _ <= U   _ = False
+  I _ _ <= B _ _ = False
+  I a _ <= I b _ = a <= b
+  I _ _ <= _     = True
+  C _ _ <= U   _ = False
+  C _ _ <= B _ _ = False
+  C _ _ <= I _ _ = False
+  C a _ <= C b _ = a <= b
+  C _ _ <= _     = True
+  S a _ <= S b _ = a <= b
+  S _ _ <= _     = False
 
 -- | Hashing values ignores provenance.
 instance Hashable Value where

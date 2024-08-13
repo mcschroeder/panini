@@ -13,7 +13,8 @@ import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
--- TODO: update type rules in paper
+-- TODO: update type rules in paper; in particular: template generation / hole
+-- instantiation, which has gotten more complicated since the OOPSLA submission
 
 ------------------------------------------------------------------------------
 
@@ -32,7 +33,7 @@ type Context = Map Name Type
 check :: Context -> Term -> Type -> Pan (Type, Con)
 check g e t̃ = do
   (t,c) <- infer g e
-  t̂ <- fresh g t̃
+  t̂ <- fresh t̃
   ĉ <- sub t t̂
   return (t̂, c ∧ ĉ)
 
@@ -74,7 +75,7 @@ infer g = \case
   
   -- inf/lam ----------------------------------------------
   Lam x t̃₁ e pv -> do
-    t̂₁ <- fresh g (shape t̃₁)
+    t̂₁ <- fresh (shape t̃₁)
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
     let t = TFun x t̂₁ t₂ pv
     let c = cImpl x t̂₁ c₂
@@ -84,18 +85,18 @@ infer g = \case
   Let x e₁ e₂ pv -> do
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂ <- fresh g (shape t₂)    
+    t̂₂ <- fresh (shape t₂)    
     ĉ₂ <- sub t₂ t̂₂
     let c = c₁ ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁      <- fresh g (shape t̃₁)
+    t̂₁      <- fresh t̃₁
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
     ĉ₁      <- sub t₁ t̂₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂      <- fresh g (shape t₂)
+    t̂₂      <- fresh (shape t₂)
     ĉ₂      <- sub t₂ t̂₂
     let c    = (cImpl x t̂₁ (c₁ ∧ ĉ₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return   $ (t̂₂,c) `withPV` pv
@@ -104,7 +105,7 @@ infer g = \case
   If v e₁ e₂ pv -> do
     checkBool g v
     (t₁,c₁) <- infer g e₁
-    t̂       <- fresh g (shape t₁)
+    t̂       <- fresh (shape t₁)
     ĉ₁      <- sub t₁ t̂
     (t₂,c₂) <- infer g e₂
     ĉ₂      <- sub t₂ t̂
@@ -134,13 +135,13 @@ self x = \case
   t -> t
 
 -- | Hole instantiation (▷).
-fresh :: Context -> Type -> Pan Type
-fresh = go . const [] --Map.toList
+fresh :: Type -> Pan Type
+fresh = go []
   where
     -- ins/hole -------------------------------------------
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
-      κ <- freshK (b:ts)
+      κ <- freshK (b:ts) pv
       let v' = if v `elem` xs then freshName v xs else v
       let p = PAppK κ (map EVar (v':xs))
       return $ TBase v' b (Known p) (Derived pv "ins/hole")
@@ -154,16 +155,16 @@ fresh = go . const [] --Map.toList
       t̂ <- go ((x,s):g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
 
-freshK :: [Base] -> Pan KVar
-freshK ts = do
+freshK :: [Base] -> PV -> Pan KVar
+freshK ts pv = do
   i <- gets kvarCount
   modify $ \s -> s { kvarCount = i + 1}
-  return $ KVar i ts
+  return $ KVar i ts pv
 
 -- | Returns the non-refined version of a type.
 shape :: Type -> Type
-shape (TBase v b _ pv) = TBase v b Unknown pv
-shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) pv
+shape (TBase v b _ pv) = TBase v b Unknown (Derived pv "shape")
+shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) (Derived pv "shape")
 
 -- | Subtyping (⩽).
 sub :: Type -> Type -> Pan Con

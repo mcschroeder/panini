@@ -43,7 +43,7 @@ test,grammar,result,time,parser,reason
 112,"a*",OK,1050,straight,exact
 113,"a*",OK,1450,loop,exact
 114,"a*",FAIL,640,loop,empty
-115,"a*",FAIL,500,loop,empty
+115,"a*",OK,1410,loop,exact
 120,"a.*",OK,50,straight,exact
 121,"a.*",OK,60,straight,exact
 130,".*a",OK,100,straight,exact
@@ -67,10 +67,10 @@ test,grammar,result,time,parser,reason
 220,"a*b",FAIL,1720,loop,stuck
 221,"a*b",OK,1540,loop,exact
 222,"a*b",OK,3.490,loop,exact
-230,"ab*",FAIL,490,loop,empty
+230,"ab*",OK,1580,loop,exact
 240,"a*b*",FAIL,7.400,loop,stuck
 241,"a*b*",FAIL,360,loop,empty
-250,"(ab)*",FAIL,410,loop,stuck
+250,"(ab)*",FAIL,860,loop,under
 260,"a?b",OK,60,straight,exact
 261,"a?b",OK,150,cond,exact
 270,"ab?",OK,50,straight,exact
@@ -81,7 +81,7 @@ test,grammar,result,time,parser,reason
 291,"a?b?",OK,210,cond,exact
 300,"ab.*",OK,70,straight,exact
 310,".*ab",FAIL,140,straight,stuck
-310,".*ab",FAIL,590,loop,stuck
+311,".*ab",FAIL,590,loop,stuck
 320,"a.b",OK,100,straight,exact
 321,"a.b",OK,180,straight,exact
 322,"a.b",OK,130,cond,exact
@@ -98,7 +98,7 @@ test,grammar,result,time,parser,reason
 390,"[ab]?",OK,70,straight,exact
 391,"[ab]?",OK,140,cond,exact
 400,"a*|b*",FAIL,2.500,loop,empty
-401,"a*|b*",FAIL,3.000,loop,empty
+401,"a*|b*",FAIL,4760,loop,under
 402,"a*|b*",FAIL,3.700,loop,stuck
 410,"[ab]*",FAIL,490,loop,stuck
 411,"[ab]*",FAIL,750,loop,stuck

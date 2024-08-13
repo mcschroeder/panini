@@ -3,7 +3,7 @@ import axioms
 f500 : {s:string|?} -> unit
 f500 = \s:string.
   let n = length s in
-  rec w : int -> char -> int = \i:int. \c:char.
+  rec w : {i:int|?} -> {c:char|?} -> int = \i:int. \c:char.
     let p = lt i n in
     if p then
       let x = charAt s i in

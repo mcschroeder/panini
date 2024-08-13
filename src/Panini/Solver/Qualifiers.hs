@@ -1,46 +1,82 @@
 module Panini.Solver.Qualifiers (extractQualifiers) where
 
+import Data.Bifunctor
+import Data.Containers.ListUtils
+import Data.Foldable
 import Data.Generics.Uniplate.Operations
 import Data.List qualified as List
+import Data.Map (Map)
+import Data.Map qualified as Map
+import Data.Maybe
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
--- TODO: expand set of extracted qualifiers
 -- TODO: we assume kparams are always named z0,...,zn
--- TODO: we assume the first type is for z0 aka the value variable v
+-- TODO: normalize the candidate predicates before eliminating duplicates
+
+------------------------------------------------------------------------------
+
+-- | Given a constraint and a type signature b₁,b₂,…,bₙ, we extract candidate
+-- qualifiers for all subsequences of the type signature (i.e., we allow some
+-- parameters to be unassigned) based on the following heuristics:
+--
+--   1) We take all relations appearing in the constraint that contain free
+--      variables exactly matching (subsequences of) the given types.
+--
+--   2) For all singleton types, we form simple constant relations for all
+--      constant values appearing in the constraint.
+--
+-- The returned predicates are ready to be substituted for κ variables.
 extractQualifiers :: Con -> [Base] -> [Pred]
-extractQualifiers con 
-  = List.nub 
-  . concatMap (quals con)
-  . List.nub 
-  . filter ((0 ==) . fst . head)  -- only consider Qs involving v
-  . filter (not . null)
-  . List.subsequences 
-  . zip [0..]
-
--- TODO: improve brittleness of renaming etc.
-
-quals :: Con -> [(Int,Base)] -> [Pred]
-quals con = \case  
-  [(_, TUnit)] -> [PTrue]  
-  [(i, TInt)]  -> [PRel r | PRel (q1 (z i, TInt) -> Just r) <- universeBi con]
-                  ++ [PRel $ EMod (EVar (z i)) (EInt 2 NoPV) :=: EInt 0 NoPV]
-  [(i, b0)]    -> [PRel r | PRel (q1 (z i, b0) -> Just r) <- universeBi con]
-  _            -> []
+extractQualifiers c bs = nubOrd $
+  [ PRel r' | bs' <- List.subsequences (zip bs zs)
+            , not (null bs')
+            , r <- toList $ relationsOver (map fst bs') c
+            , let m = Map.fromListWith (++) $ map (second pure) bs'
+            , r' <- renameVars m r ]
+  ++ [ PRel $ Rel op (EVar z) a | (b,z) <- zip bs zs, (op,a) <- constants b ]
  where
-  z i = Name ("z" <> Text.pack (show i)) NoPV
+  zs = [Name ("z" <> Text.pack (show i)) NoPV | i <- [0..] :: [Int]]
+  constants = \case
+    TUnit   -> [ (Eq, EUnit    NoPV) ]
+    TBool   -> [ (Eq, EBool b  NoPV) | b <- [True,False] ]
+    TInt    -> [ (op, EInt  i  NoPV) | EInt  i  _ <- universeBi c, op <- [Eq,Ne,Gt,Ge,Lt,Le] ]
+    TChar   -> [ (Eq, EChar ch NoPV) | EChar ch _ <- universeBi c ]
+    TString -> [ (Eq, EStr  s  NoPV) | EStr  s  _ <- universeBi c ]
 
-q1 :: (Name,Base) -> Rel -> Maybe Rel
-q1 (z0,b0) = \case
-  EVar _ :=: e | possible e -> Just $ EVar z0 :=: e
-  EVar _ :≠: e | possible e -> Just $ EVar z0 :≠: e
-  EVar _ :<: e | possible e -> Just $ EVar z0 :<: e
-  EVar _ :≤: e | possible e -> Just $ EVar z0 :≤: e
-  EVar _ :>: e | possible e -> Just $ EVar z0 :>: e
-  EVar _ :≥: e | possible e -> Just $ EVar z0 :≥: e
-  _                              -> Nothing
+-- | Rename the variables in a relation according to a given (multi-)mapping
+-- based on type, exhausting all possibilities. Note: the given map is expected
+-- to cover all variable types appearing in the relation!
+renameVars :: Map Base [Name] -> Rel -> [Rel]
+renameVars m0 r0 = [ substN (map EVar zs) xs r0 
+                   | xzs <- renamings m0 (toList $ freeVarsWithTypes r0)
+                   , let (xs,zs) = unzip xzs
+                   ]
  where
-  possible e = typeOfExpr e == Just b0 && null (freeVars e)
+  renamings _        []  = [[]]
+  renamings m ((x,b):xs) = concatMap go $ fromJust $ Map.lookup b m
+   where 
+      go y = map ((x,y):) $ renamings (Map.adjust (List.\\ [y]) b m) xs    
+
+-- | Returns the free variables in a relation if they all have known types;
+-- otherwise, returns an empty set.
+freeVarsWithTypes :: Rel -> Set (Name,Base)
+freeVarsWithTypes r = maybe mempty Set.fromList 
+                    $ sequenceA 
+                    $ [ fmap (x,) (typeOfVarInRel x r) 
+                      | x <- Set.toList $ freeVars r ]
+
+-- | Extract all relations from a constraint that involve exactly the given
+-- types as free variables (in any order, with repetitions).
+relationsOver :: [Base] -> Con -> Set Rel
+relationsOver bs0 c = Set.fromList
+  [ r | PRel r <- universeBi c
+      , let rbs = List.sort $ map snd $ toList $ freeVarsWithTypes r
+      , rbs == bs
+  ] 
+ where bs = List.sort bs0

@@ -3,7 +3,7 @@ import axioms
 f220 : {s:string|?} -> unit
 f220 = \s:string.
   let n = length s in
-  rec w : int -> int = \i:int.
+  rec w : {i:int|?} -> int = \i:int.
     let p1 = ge i n in
     if p1 then
       let _ = assert false in 0

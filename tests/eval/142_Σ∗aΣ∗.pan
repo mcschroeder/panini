@@ -3,7 +3,7 @@ import axioms
 f142 : {s:string|?} -> unit
 f142 = \s:string.
   let n = length s in
-  rec w : int -> bool = \i:int.
+  rec w : {i:int|?} -> bool = \i:int.
     let p = lt i n in
     if p then
       let x = charAt s i in

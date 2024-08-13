@@ -12,6 +12,7 @@ import Control.Monad.Extra
 import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Maybe
+import Data.Set qualified as Set
 import Data.Text.IO qualified as Text
 import Panini.Environment
 import Panini.Error
@@ -100,8 +101,13 @@ define x e = do
       logData t1
       t2 <- simplifyType t1 § "Simplify type"      
       envExtend x $ Inferred x t0m e t2 vc
-      
-      ks_ex <- kvars t2 § "Find top-level type holes"
+            
+      -- TODO: less brittle way of identifying user holes
+      -- TODO: move into solver; this is pretty much just for Fusion
+      let isUserHole k | Derived _ "shape" <- getPV k = False
+                       | otherwise                    = True
+      ks_ex <- Set.filter isUserHole (kvars vc) § "Find user-defined type holes"
+      --ks_ex <- kvars t2 § "Find top-level type holes"
 
       logMessage "Solve VC"
       logData vc

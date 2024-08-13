@@ -37,7 +37,7 @@ solve cs qs = do
   logMessage $ "Construct initial solution" <+> sigma <> subscript 0
   -- TODO: we still assume free vars in qs to match the k param names (z0,...,zn)
   let s0 = Map.fromList
-         [ (k, q) | k@(KVar _ ts) <- Set.toList (kvars cs)
+         [ (k, q) | k@(KVar _ ts _) <- Set.toList (kvars cs)
          , let q = maybe PTrue meets (Map.lookup ts qs)
          ]
   logData $ sigma <> subscript 0 <+> symEq <+> pretty s0
@@ -66,10 +66,10 @@ solve cs qs = do
 fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
 fixpoint cs s = do
   logData $ sigma <+> symEq <+> pretty s
-  r <- take 1 <$> filterM ((not . isSat <$>) . smtCheckReversed . pure . apply s) cs
+  r <- filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
   case r of
-    [c] -> fixpoint cs =<< weaken s c
-    _   -> return s
+    []  -> return s
+    c:_ -> fixpoint cs =<< weaken s c
 
 -- | Weaken an assignment to satisfy a given constraint.
 weaken :: Assignment -> FlatCon -> Pan Assignment
@@ -78,7 +78,8 @@ weaken s (FAll xs p (PAppK k ys)) =
     Nothing -> panic $ "missing Horn assignment for" <+> pretty k
     Just q0 -> do
       let p' = apply s p
-      let keep q = isSat <$> smtCheckReversed [FAll xs p' (substN ys (kparams k) q)]
+      let keep q = do logMessage $ "Keep" <+> pretty q <+> "?"
+                      isSat <$> smtCheck [FAll xs p' (substN ys (kparams k) q)]
       qs' <- meets <$> filterM keep (explode q0)
       return $ Map.insert k qs' s
 
