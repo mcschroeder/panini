@@ -14,6 +14,8 @@ import Panini.Frontend.Common.Dom
 import Panini.Frontend.Common.SSA
 import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.CFG
+import Panini.Frontend.Python.Typing.PyType (PyType)
+import Panini.Frontend.Python.Typing.TypeInfo
 import Prelude hiding (succ)
 
 ------------------------------------------------------------------------------
@@ -22,11 +24,11 @@ data DomTree a = DomTree
   { root     :: Label
   , nodes    :: IntMap (Node a)
   , children :: IntMap [Label]
-  , phiVars  :: IntMap [String]
+  , phiVars  :: IntMap [(String, PyType)]
   }
   deriving stock (Show)
 
-domTree :: CFG a -> DomTree a
+domTree :: Typed CFG a -> Typed DomTree a
 domTree cfg = DomTree {..}
  where
   root     = cfg.entry
@@ -54,10 +56,10 @@ domTree cfg = DomTree {..}
 
 ------------------------------------------------------------------------------
 
-variableAssignments :: CFG a -> Map String LabelSet
+variableAssignments :: Typed CFG a -> Map (String,PyType) LabelSet
 variableAssignments cfg = Map.fromListWith (<>) 
   [ (v, IntSet.singleton l) | (l,n) <- IntMap.assocs cfg.nodeMap
                             , Assigned v <- Set.toList (variables f n)
   ]
  where
-  f = ident_string
+  f ident = (ident_string ident, typeOf ident)

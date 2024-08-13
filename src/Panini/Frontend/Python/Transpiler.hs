@@ -8,8 +8,6 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.IntMap.Strict ((!))
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.String
 import Data.Text qualified as Text
@@ -39,14 +37,12 @@ transpile dom = runExcept (evalStateT (transpileTopLevel dom) env0)
  where
   env0 = TranspilerEnv 
     { varSource   = 0
-    , typeContext = mempty
     }
 
 ------------------------------------------------------------------------------
 
 data TranspilerEnv = TranspilerEnv
   { varSource   :: Int
-  , typeContext :: Map Name Base
   }
   deriving stock (Show)
 
@@ -65,26 +61,6 @@ mangle x = Name (Text.pack x.ident_string) (getPV x)
 -- TODO: provenance
 blockName :: Label -> Name
 blockName l = Name ("L" <> Text.pack (show l)) NoPV 
-
-typeOfVar :: Name -> Transpiler Base
-typeOfVar x = do
-  ctx <- gets typeContext
-  case Map.lookup x ctx of
-    Just b -> return b
-    Nothing -> lift $ throwE $ OtherError ("missing type information for variable " ++ showPretty x) (getPV x)
-
-withContext :: [(Name,Base)] -> Transpiler a -> Transpiler a
-withContext g m = do
-  ctx <- gets typeContext
-  modify' $ \env -> env { typeContext = Map.union ctx (Map.fromList g) }
-  x <- m
-  
-  -- TODO: this just works incidentllay because of the name punning; if we
-  --didn't assign a rec lambda var to some let bound var of the same name, we'd
-  --never extend the type context for that var 
-  
-  -- modify' $ \env -> env { typeContext = ctx }
-  return x
 
 returnTypeOf :: (Annotated t, HasProvenance a) => Typed t a -> Transpiler PyType
 returnTypeOf a = case typeOf a of
@@ -109,8 +85,7 @@ transpileTopLevel dom = go dom.root
     FunDef{..} -> do
       funType <- mkFunType _name _args _result
       let ass  = Assume (mangle _name) funType
-      let ctx  = collectParams funType
-      k       <- withContext ctx $ transpileFun (domTree _body)
+      k       <- transpileFun (domTree _body)
       lam     <- mkLambdas _args k
       let def  = Define (mangle _name) lam
       rest    <- go _next
@@ -133,13 +108,6 @@ transpileTopLevel dom = go dom.root
   goImport = \case
     Py.Import{} -> return [] -- TODO: transpile imports and add to builder environment
     stmt        -> lift $ throwE $ OtherError ("UnsupportedTopLevel: " ++ showPretty stmt) (getPV stmt)
-
-collectParams :: Type -> [(Name,Base)]
-collectParams = \case
-  TBase _ _ _ _ -> []
-  TFun _ t1 t2 _ -> case t1 of
-    TBase v b _ _ -> (v,b) : collectParams t2
-    TFun _ _ _ _ -> collectParams t2
 
 mkFunType
   :: HasProvenance a 
@@ -208,28 +176,28 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
     BranchFor {} -> lift $ throwE $ OtherError "for..in not yet supported" NoPV -- TODO
     Exit -> return $ Val (Con (U NoPV))
 
-  mkCall l = case dom.phiVars ! l of
+  mkCall l = case map fst $ dom.phiVars ! l of
     [] -> return $ Val (Var (blockName l))
     vs -> return $ foldl' (\e v -> App e v NoPV) (Val (Var (blockName l))) (map (Var . fromString) vs)
 
-mkPhiFunType :: [String] -> Transpiler Type
+mkPhiFunType :: [(String,PyType)] -> Transpiler Type
 mkPhiFunType xs = do
   let retBaseType = TUnit -- TODO
   let retType     = TBase dummyName retBaseType (Known PTrue) NoPV
   foldM go retType (reverse xs)
  where
-  go t2 x = do
+  go t2 (x,xt) = do
     let v   = fromString x
-    b      <- typeOfVar v
+    b      <- baseTypeFromPyType xt
     let t1  = TBase v b Unknown NoPV
     return  $ TFun v t1 t2 NoPV
 
-mkPhiLambdas :: [String] -> Term -> Transpiler Term
+mkPhiLambdas :: [(String,PyType)] -> Term -> Transpiler Term
 mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
  where
-  go k x = do
+  go k (x,xt) = do
     let v   = fromString x
-    b      <- typeOfVar v
+    b      <- baseTypeFromPyType xt
     let t   = TBase dummyName b (Known PTrue) NoPV
     return  $ Lam v t k NoPV
 
@@ -244,20 +212,18 @@ transpileStmts stmts k0 = go stmts
     Assign { assign_to = [Py.Var x _], ..} ->
       withTerm assign_expr $ \e1 -> do
         let v   = mangle x
-        b      <- baseTypeFromPyType (typeOf assign_expr)
-        k      <- withContext [(v,b)] $ go rest
+        k      <- go rest
         return  $ Let v e1 k (getPV stmt)
 
-    AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do
-      let v = mangle x
-      b <- baseTypeFromPyType (typeOf x)
+    AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do      
       case ann_assign_expr of
-        Nothing -> withContext [(v,b)] $ go rest
+        Nothing -> go rest
         Just ex -> withTerm ex $ \e1 -> do
-          k <- withContext [(v,b)] $ go rest
+          let v   = mangle x
+          k      <- go rest
           return $ Let v e1 k (getPV stmt)
   
-    AugmentedAssign { aug_assign_to = to@(Py.Var x _), ..} -> do
+    AugmentedAssign { aug_assign_to = Py.Var x _, ..} -> do
       withAtom aug_assign_expr $ \rhs -> do
         let op = assignOpToOp aug_assign_op
         case axiomForOperator op of
@@ -266,8 +232,7 @@ transpileStmts stmts k0 = go stmts
             let f   = Name (fromString fn) (getPV aug_assign_op)        
             let v   = mangle x
             let e1  = mkApp f [Var v, rhs]
-            b      <- baseTypeFromPyType (typeOf to)
-            k      <- withContext [(v,b)] $ go rest
+            k      <- go rest
             return  $ Let v e1 k (getPV stmt)
 
     -- TODO: technically, assert raises an AssertionError, which could be caught!
@@ -325,8 +290,7 @@ withAtom expr k
   | otherwise = do
       withTerm expr $ \e1 -> do
         v  <- newVar
-        b  <- baseTypeFromPyType (typeOf expr)
-        e2 <- withContext [(v,b)] $ k (Var v)
+        e2 <- k (Var v)
         return $ Let v e1 e2 NoPV
 
 withAtoms :: HasProvenance a => [Typed Py.Expr a] -> ([Atom] -> Transpiler Term) -> Transpiler Term
