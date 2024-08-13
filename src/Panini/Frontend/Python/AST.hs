@@ -66,18 +66,18 @@ expectArgExprs = go []
 
 ------------------------------------------------------------------------------
 
-data VarMention = Assigned String | Used String
+data VarMention v = Assigned v | Used v
   deriving stock (Eq, Ord, Show)
 
-stmtVars :: Statement a -> Set VarMention
-stmtVars = \case
+stmtVars :: Ord v => (Ident a -> v) -> Statement a -> Set (VarMention v)
+stmtVars f = \case
   Import          {}   -> []
   FromImport      {}   -> []
   While           {..} -> used while_cond
   For             {..} -> assdN for_targets <> used for_generator
-  AsyncFor        {..} -> stmtVars for_stmt
+  AsyncFor        {..} -> stmtVars f for_stmt
   Fun             {..} -> usedN (paramDefaults fun_args)
-  AsyncFun        {..} -> stmtVars fun_def
+  AsyncFun        {..} -> stmtVars f fun_def
   Class           {}   -> []
   Conditional     {..} -> usedN (map fst cond_guards)
   Assign          {..} -> assdN assign_to <> used assign_expr
@@ -88,7 +88,7 @@ stmtVars = \case
   Try             {}   -> []
   Raise           {..} -> usedN (raiseExprs raise_expr)
   With            {..} -> Set.unions [used e <> assdM t | (e,t) <- with_context]
-  AsyncWith       {..} -> stmtVars with_stmt
+  AsyncWith       {..} -> stmtVars f with_stmt
   Pass            {}   -> []
   Break           {}   -> []
   Continue        {}   -> []
@@ -100,53 +100,53 @@ stmtVars = \case
   Print           {..} -> usedN print_exprs
   Exec            {..} -> usedN $ exec_expr : unwrap2 exec_globals_locals
  where
-  assd  = Set.map Assigned . exprVars
-  assdN = Set.map Assigned . exprVarsN
+  assd  = Set.map Assigned . exprVars f
+  assdN = Set.map Assigned . exprVarsN f
   assdM = maybe [] assd
-  used  = Set.map Used . exprVars
-  usedN = Set.map Used . exprVarsN
+  used  = Set.map Used . exprVars f
+  usedN = Set.map Used . exprVarsN f
   usedM = maybe [] used
 
 -- | All /free/ variables in the given expression.
-exprVars :: Expr a -> Set String
-exprVars = \case
-  Var        {..} -> [var_ident.ident_string]
-  Call       {..} -> exprVarsN (call_fun : map arg_expr call_args)
-  Subscript  {..} -> exprVarsN [subscriptee, subscript_expr]
-  SlicedExpr {..} -> exprVarsN (slicee : concatMap sliceExprs slices)
-  CondExpr   {..} -> exprVarsN [ce_true_branch, ce_condition, ce_false_branch]
-  BinaryOp   {..} -> exprVarsN [left_op_arg, right_op_arg]
-  UnaryOp    {..} -> exprVars op_arg
-  Dot        {..} -> exprVars dot_expr
-  Lambda     {..} -> (exprVars lambda_body \\ paramNames lambda_args)
-                      <> exprVarsN (paramDefaults lambda_args)
-  Tuple      {..} -> exprVarsN tuple_exprs
-  Yield      {..} -> maybe [] (exprVars . yieldArgExpr) yield_arg  
-  Await      {..} -> exprVars await_expr
+exprVars :: Ord v => (Ident a -> v) -> Expr a -> Set v
+exprVars f = \case
+  Var        {..} -> [f var_ident]
+  Call       {..} -> exprVarsN f (call_fun : map arg_expr call_args)
+  Subscript  {..} -> exprVarsN f [subscriptee, subscript_expr]
+  SlicedExpr {..} -> exprVarsN f (slicee : concatMap sliceExprs slices)
+  CondExpr   {..} -> exprVarsN f [ce_true_branch, ce_condition, ce_false_branch]
+  BinaryOp   {..} -> exprVarsN f [left_op_arg, right_op_arg]
+  UnaryOp    {..} -> exprVars f op_arg
+  Dot        {..} -> exprVars f dot_expr
+  Lambda     {..} -> (exprVars f lambda_body \\ paramNames f lambda_args)
+                      <> exprVarsN f (paramDefaults lambda_args)
+  Tuple      {..} -> exprVarsN f tuple_exprs
+  Yield      {..} -> maybe [] (exprVars f . yieldArgExpr) yield_arg  
+  Await      {..} -> exprVars f await_expr
   Generator  {}   -> undefined  -- TODO
   ListComp   {}   -> undefined  -- TODO
-  List       {..} -> exprVarsN list_exprs
-  Dictionary {..} -> exprVarsN (dictKeyDatumListExprs dict_mappings)
+  List       {..} -> exprVarsN f list_exprs
+  Dictionary {..} -> exprVarsN f (dictKeyDatumListExprs dict_mappings)
   DictComp   {}   -> undefined  -- TODO
-  Set        {..} -> exprVarsN set_exprs
+  Set        {..} -> exprVarsN f set_exprs
   SetComp    {}   -> undefined  -- TODO
-  Starred    {..} -> exprVars starred_expr
-  Paren      {..} -> exprVars paren_expr
-  StringConversion {..} -> exprVars backquoted_expr
+  Starred    {..} -> exprVars f starred_expr
+  Paren      {..} -> exprVars f paren_expr
+  StringConversion {..} -> exprVars f backquoted_expr
   _               -> []
 
-exprVarsN :: [Expr a] -> Set String
-exprVarsN = Set.unions . map exprVars
+exprVarsN :: Ord v => (Ident a -> v) -> [Expr a] -> Set v
+exprVarsN f = Set.unions . map (exprVars f)
 
-paramNames :: [Parameter a] -> Set String
-paramNames = Set.fromList . concatMap go
+paramNames :: Ord v => (Ident a -> v) -> [Parameter a] -> Set v
+paramNames f = Set.fromList . concatMap go
  where
-  go    Param          {..} = [param_name.ident_string]
-  go    VarArgsPos     {..} = [param_name.ident_string]
-  go    VarArgsKeyword {..} = [param_name.ident_string]
+  go    Param          {..} = [f param_name]
+  go    VarArgsPos     {..} = [f param_name]
+  go    VarArgsKeyword {..} = [f param_name]
   go    EndPositional  {}   = []
   go    UnPackTuple    {..} = goTup param_unpack_tuple  
-  goTup ParamTupleName {..} = [param_tuple_name.ident_string]
+  goTup ParamTupleName {..} = [f param_tuple_name]
   goTup ParamTuple     {..} = concatMap goTup param_tuple
 
 paramDefaults :: [Parameter a] -> [Expr a]

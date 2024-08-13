@@ -57,5 +57,7 @@ domTree cfg = DomTree {..}
 variableAssignments :: CFG a -> Map String LabelSet
 variableAssignments cfg = Map.fromListWith (<>) 
   [ (v, IntSet.singleton l) | (l,n) <- IntMap.assocs cfg.nodeMap
-                            , Assigned v <- Set.toList (variables n)
+                            , Assigned v <- Set.toList (variables f n)
   ]
+ where
+  f = ident_string

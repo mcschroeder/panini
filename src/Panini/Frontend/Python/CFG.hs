@@ -80,16 +80,16 @@ successors = \case
   BranchFor {..} -> _nextMore : _nextDone : map snd _except
   Exit           -> []
 
-variables :: Node a -> Set VarMention
-variables = Set.unions . \case
+variables :: Ord v => (Ident a -> v) -> Node a -> Set (VarMention v)
+variables f = Set.unions . \case
   FunDef    {}   -> []
-  Block     {..} -> map stmtVars _stmts
+  Block     {..} -> map (stmtVars f) _stmts
   Branch    {..} -> [used _cond]
   BranchFor {..} -> [assdN _targets] ++ [used _generator]
   Exit           -> []
  where
-  used  = Set.map Used . exprVars
-  assdN = Set.map Assigned . exprVarsN
+  used  = Set.map Used . exprVars f
+  assdN = Set.map Assigned . exprVarsN f
 
 ------------------------------------------------------------------------------
 
