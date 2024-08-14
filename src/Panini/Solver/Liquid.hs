@@ -53,7 +53,7 @@ solve cs qs = do
   logData $ sigma <> parens sym_csp <+> symEq <+> pretty csp2
 
   logMessage $ "Validate" <+> sigma <> parens sym_csp
-  smtCheckReversed csp2 >>= \case
+  smtCheck csp2 >>= \case
     Sat -> return $ Just s
     _   -> return Nothing
  

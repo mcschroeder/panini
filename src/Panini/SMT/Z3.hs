@@ -2,7 +2,6 @@
 module Panini.SMT.Z3 
   ( smtInit
   , smtCheck
-  , smtCheckReversed
   , Result(..)
   , isSat
   ) where
@@ -49,35 +48,10 @@ isSat :: Result -> Bool
 isSat Sat = True
 isSat _   = False
 
-smtCheck :: SMTLIB a => [a] -> Pan Result
-smtCheck cs = do
-  logMessage "Encode SMT-LIB query"
-  let foralls = map (Text.unpack . toSMTLIB) cs
-  let declares = []
-  let asserts = map (\f -> "(assert " ++ f ++ ")") foralls
-  let query = unlines $ declares ++ asserts ++ ["(check-sat)"]
-  logData query
-
-  timeout <- gets smtTimeout
-  let args = ["-T:" ++ show timeout]
-  logMessage $ "Check satisfiability" <+> pretty args    
-  (code, output, _) <- liftIO $ readProcessWithExitCode "z3" (["-smt2", "-in"] ++ args) query
-  logData output
-
-  case code of
-    ExitSuccess -> case dropWhileEnd isSpace output of
-      "sat"     -> return Sat
-      "unsat"   -> return Unsat
-      "unknown" -> return (Unknown "")
-      "timeout" -> return (Unknown "timeout")
-      x         -> throwError $ SolverError (Text.pack x) NoPV
-    ExitFailure _ -> throwError $ SolverError (Text.pack output) NoPV
-
-
 -- | Check the satisfiability of a list of reversed constraints
 -- | I.e. the implications are filpped from p => q to (p and not q) and the result needs to be unsat.
-smtCheckReversed :: (ReversableCon a) => [a] -> Pan Result
-smtCheckReversed cs = do
+smtCheck :: ReversableCon a => [a] -> Pan Result
+smtCheck cs = do
   logMessage "Reverse encoding SMT-LIB query"
   let (rc, constDeclares) = reverseConToResult cs
   let foralls = map (Text.unpack . toSMTLIB) rc

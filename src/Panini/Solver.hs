@@ -62,7 +62,7 @@ solve kst c0 = do
 
   logMessage "Phase 4: VERIFY — Validate final verification condition"
   vcs <- flat vc                         § "Flatten constraint"
-  res <- Z3.smtCheckReversed vcs
+  res <- Z3.smtCheck vcs
   case res of
     Z3.Sat       -> return (Valid s)
     Z3.Unknown u -> return (Unverified s u)
