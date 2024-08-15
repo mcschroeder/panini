@@ -14,6 +14,7 @@ import Data.Text qualified as Text
 import Panini.Frontend.Python.AST hiding (Var)
 import Panini.Frontend.Python.AST qualified as Py
 import Panini.Frontend.Python.Axioms
+import Panini.Frontend.Python.Pretty ()
 import Panini.Frontend.Python.CFG hiding (Error)
 import Panini.Frontend.Python.DomTree
 import Panini.Frontend.Python.Error
@@ -226,7 +227,9 @@ transpileStmts stmts k0 = go stmts
     AugmentedAssign { aug_assign_to = Py.Var x _, ..} -> do
       withAtom aug_assign_expr $ \rhs -> do
         let op = assignOpToOp aug_assign_op
-        case axiomForOperator op of
+        let fo = desugarBinaryOp op
+        let tr = typeOf aug_assign_expr
+        case axiomForFunction fo [tr,tr] tr of
           Nothing -> lift $ throwE $ UnsupportedOperator op
           Just fn -> do
             let f   = Name (fromString fn) (getPV aug_assign_op)        
@@ -256,23 +259,47 @@ withTerm expr k = case expr of
           let f = Name (fromString fn) (getPV fun)
           k $ mkApp f as
 
+  BinaryOp { operator = Py.NotIn {..}, .. } -> do
+    let expr' = BinaryOp { operator = Py.In {..}, .. }
+    withAtom expr' $ \e -> k $ mkApp "not" [e]
+
+  BinaryOp { operator = IsNot {..}, ..} -> do
+    let expr' = BinaryOp { operator = Is {..}, .. }
+    withAtom expr' $ \e -> k $ mkApp "not" [e]
+  
   BinaryOp {..} -> do
     withAtom left_op_arg $ \lhs -> do
       withAtom right_op_arg $ \rhs -> do
-        case axiomForOperator operator of
+        let fo = desugarBinaryOp operator
+        let tl = typeOf left_op_arg
+        let tr = typeOf right_op_arg
+        let te = typeOf expr
+        case axiomForFunction fo [tl,tr] te of
           Nothing -> lift $ throwE $ UnsupportedOperator operator
           Just fn -> do
             let f = Name (fromString fn) (getPV operator)
             k $ mkApp f [lhs,rhs]
   
+  UnaryOp {..} -> do
+    withAtom op_arg $ \a -> do
+      let fo = desugarUnaryOp operator
+      let ta = typeOf op_arg
+      let te = typeOf expr
+      case axiomForFunction fo [ta] te of
+        Nothing -> lift $ throwE $ UnsupportedOperator operator
+        Just fn -> do
+          let f = Name (fromString fn) (getPV operator)
+          k $ mkApp f [a]
+
   Subscript {..} -> do
     withAtom subscriptee $ \obj -> do
       withAtom subscript_expr $ \index -> do
+        let fo = "__getitem__"
         let ts = typeOf subscriptee
         let ti = typeOf subscript_expr
         let tr = typeOf expr
-        case axiomForSubscript ts ti tr of
-          Nothing -> lift $ throwE $ OtherError "unsupported subscript" (getPV expr)
+        case axiomForFunction fo [ts,ti] tr of
+          Nothing -> lift $ throwE $ UnsupportedExpression expr
           Just fn -> do
             let f = Name (fromString fn) (getPV expr)        
             k $ mkApp f [obj,index]
@@ -338,3 +365,41 @@ isAtomic = \case
   UnicodeStrings {}   -> True
   Paren          {..} -> isAtomic paren_expr
   _                   -> False
+
+------------------------------------------------------------------------------
+
+desugarBinaryOp :: Op a -> String
+desugarBinaryOp = \case
+  And               {} -> "and"
+  Or                {} -> "or"
+  Exponent          {} -> "__pow__"
+  LessThan          {} -> "__lt__"
+  GreaterThan       {} -> "__gt__"
+  Equality          {} -> "__eq__"
+  GreaterThanEquals {} -> "__ge__"
+  LessThanEquals    {} -> "__le__"
+  NotEquals         {} -> "__ne__"
+  NotEqualsV2       {} -> "__ne__"
+  Py.In             {} -> "__contains__"
+  Is                {} -> "is"
+  BinaryOr          {} -> "__or__"
+  Xor               {} -> "__xor__"
+  BinaryAnd         {} -> "__and__"
+  ShiftLeft         {} -> "__lshift__"
+  ShiftRight        {} -> "__rshift__"
+  Multiply          {} -> "__mul__"
+  Plus              {} -> "__add__"
+  Minus             {} -> "__sub__"
+  Divide            {} -> "__truediv__"
+  FloorDivide       {} -> "__floordiv__"
+  MatrixMult        {} -> "__matmul__"
+  Modulo            {} -> "__mod__"
+  op -> panic $ "desugarBinaryOp: unexpected operator:" <+> pretty op
+
+desugarUnaryOp :: Op a -> String
+desugarUnaryOp = \case
+  Plus   {} -> "__pos__"
+  Minus  {} -> "__neg__"
+  Invert {} -> "__invert__"
+  Not    {} -> "not"
+  op -> panic $ "desugarUnaryOp: unexpected operator:" <+> pretty op
