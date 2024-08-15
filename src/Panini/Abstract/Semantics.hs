@@ -275,6 +275,9 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   -----------------------------------------------------------
   (EStrFirstIndexOfChar s1 c :-: EIntA î) :=: EStrLen s2 -> normRel $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
   -----------------------------------------------------------
+  EStrSub s i1 i2 :=: EStrA t 
+    | i1 == i2, Just c <- AString.toChar (t ∧ anyChar) -> normRel $ EStrAt s i1 :=: ECharA c
+  -----------------------------------------------------------
   a :=: ESol x b r | Just r' <- tryEqARel a x b r -> normRel r'  
   a :≠: ESol x b r | Just r' <- tryNeARel a x b r -> normRel r'
   -----------------------------------------------------------
