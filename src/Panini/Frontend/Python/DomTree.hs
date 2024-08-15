@@ -16,6 +16,8 @@ import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.CFG
 import Panini.Frontend.Python.Typing.PyType (PyType)
 import Panini.Frontend.Python.Typing.TypeInfo
+import Panini.Pretty
+import Panini.Pretty.Graphviz as Graphviz
 import Prelude hiding (succ)
 
 ------------------------------------------------------------------------------
@@ -63,3 +65,27 @@ variableAssignments cfg = Map.fromListWith (<>)
   ]
  where
   f ident = (ident_string ident, typeOf ident)
+
+------------------------------------------------------------------------------
+
+-- for debug purposes only
+instance Graphviz (Typed DomTree a) where
+  dot = Digraph . go0 "_"
+   where
+    go0 prefix dom = go prefix dom dom.root
+    
+    go prefix dom l = case dom.nodes IntMap.! l of
+      FunDef{..} -> go2 prefix dom l ++
+        [ Subgraph ("cluster_" <> _name.ident_string) 
+            [ Label (pretty $ _name.ident_string)
+            , Graphviz.Style Dashed
+            ] 
+            (go0 _name.ident_string (domTree _body))
+        ]
+      _ -> go2 prefix dom l
+
+    go2 prefix dom l = 
+      let mkKey k = prefix <> show k in
+      [ Node (mkKey l) [Shape Circle, Label (pretty $ show l) ] ] 
+      ++ map (\r -> Edge (mkKey l) (mkKey r) []) (dom.children IntMap.! l)
+      ++ concatMap (go prefix dom) (dom.children IntMap.! l)
