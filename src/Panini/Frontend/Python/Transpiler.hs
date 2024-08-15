@@ -157,12 +157,12 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
   goDom k l = case dom.phiVars ! l of
     [] -> do
       body   <- mkBody l
-      e1     <- foldM goDom body (dom.children ! l)
+      e1     <- foldM goDom body (reverse $ dom.children ! l)
       return  $ Let (blockName l) e1 k NoPV
     
     vs -> do
       body   <- mkBody l
-      e1     <- foldM goDom body (dom.children ! l)
+      e1     <- foldM goDom body (reverse $ dom.children ! l)
       typ    <- mkPhiFunType vs
       lams   <- mkPhiLambdas vs e1
       return  $ Rec (blockName l) typ lams k NoPV
