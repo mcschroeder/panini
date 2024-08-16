@@ -192,8 +192,8 @@ inferStmt = \case
                              <*> pure (Nothing, stmt_annot)
 
   Pass{..} -> Pass <$> pure (Nothing, stmt_annot)
-  Break{..} -> Pass <$> pure (Nothing, stmt_annot)
-  Continue{..} -> Pass <$> pure (Nothing, stmt_annot)
+  Break{..} -> Break <$> pure (Nothing, stmt_annot)
+  Continue{..} -> Continue <$> pure (Nothing, stmt_annot)
 
   -- TODO: remove variables from scope
   Delete{..} -> Delete <$> mapM inferExpr del_exprs 
