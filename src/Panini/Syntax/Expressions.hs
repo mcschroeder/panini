@@ -201,7 +201,7 @@ typeOfVarInExpr x = \case
   _ :*: EVar y          | x == y -> Just TInt
   EMod (EVar y) _       | x == y -> Just TInt
   EMod _ (EVar y)       | x == y -> Just TInt
-  EStrLen (EVar y)      | x == y -> Just TInt
+  EStrLen (EVar y)      | x == y -> Just TString
   EStrAt (EVar y) _     | x == y -> Just TString
   EStrAt _ (EVar y)     | x == y -> Just TInt
   EStrSub (EVar y) _ _  | x == y -> Just TString
