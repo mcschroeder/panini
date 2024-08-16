@@ -16,6 +16,7 @@ import Prelude
 --import System.FilePath
 import Panini.Frontend.Python.Typing.Infer
 import Panini.Frontend.Python.Typing.Pretty ()
+import Panini.Frontend.Inliner
 
 loadPythonSource :: FilePath -> Pan ()
 loadPythonSource fp = do
@@ -42,4 +43,7 @@ loadPythonSource fp = do
 
               case transpile dom of
                 Left err2 -> throwError $ PythonFrontendError err2 (getPV err2)
-                Right prog -> logData $ pretty prog
+                Right prog -> do
+                  logData $ pretty prog
+                  let prog2 = inlineProgram prog
+                  logData $ pretty prog2

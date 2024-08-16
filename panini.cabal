@@ -74,6 +74,7 @@ library
     Panini.Events
     Panini.Frontend.Common.Dom
     Panini.Frontend.Common.SSA
+    Panini.Frontend.Inliner
     Panini.Frontend.Python
     Panini.Frontend.Python.AST
     Panini.Frontend.Python.CFG

@@ -152,14 +152,11 @@ mkLambdas ps k0 = foldM go k0 (reverse ps)
 ------------------------------------------------------------------------------
 
 transpileFun :: HasProvenance a => Typed DomTree a -> Transpiler Term
-transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
+transpileFun dom = do
+  k <- mkCall dom.root
+  goDom k dom.root
  where  
   goDom k l = case dom.phiVars ! l of
-    [] -> do
-      body   <- mkBody l
-      e1     <- foldM goDom body (reverse $ dom.children ! l)
-      return  $ Let (blockName l) e1 k NoPV
-    
     vs -> do
       body   <- mkBody l
       e1     <- foldM goDom body (reverse $ dom.children ! l)
@@ -168,18 +165,21 @@ transpileFun dom = goDom (Val (Var (blockName dom.root))) dom.root
       return  $ Rec (blockName l) typ lams k NoPV
   
   mkBody l = case dom.nodes ! l of
-    FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" NoPV -- TODO
     Block{..} -> transpileStmts _stmts =<< mkCall _next
+
     Branch{..} -> withAtom _cond $ \c -> do
       kTrue  <- mkCall _nextTrue
       kFalse <- mkCall _nextFalse
       return  $ If c kTrue kFalse NoPV
-    BranchFor {} -> lift $ throwE $ OtherError "for..in not yet supported" NoPV -- TODO
+
     Exit -> return $ Val (Con (U NoPV))
 
-  mkCall l = case map fst $ dom.phiVars ! l of
+    FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" NoPV -- TODO
+    BranchFor {} -> lift $ throwE $ OtherError "for..in not yet supported" NoPV -- TODO
+
+  mkCall l = case dom.phiVars ! l of
     [] -> return $ Val (Var (blockName l))
-    vs -> return $ foldl' (\e v -> App e v NoPV) (Val (Var (blockName l))) (map (Var . fromString) vs)
+    vs -> return $ mkApp (blockName l) (map (Var . fromString . fst) vs)
 
 mkPhiFunType :: [(String,PyType)] -> Transpiler Type
 mkPhiFunType xs = do

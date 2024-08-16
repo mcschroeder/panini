@@ -44,13 +44,72 @@ data Term
   | Let Name Term Term      PV  -- ^ binding @let x = e1 in e2@
   | Rec Name Type Term Term PV  -- ^ recursion @rec x : t = e1 in e2@
   | If Atom Term Term       PV  -- ^ branch @if v then e1 else e2@
-  deriving stock (Show, Read)
+  deriving stock 
+    ( Eq  -- ^ structural equality
+    , Show, Read
+    )
 
 -- | Atomic values are either constants @c@ or variables @x@.
 data Atom
   = Con Value  -- ^ constant value
   | Var Name   -- ^ variable
-  deriving stock (Show, Read)
+  deriving stock
+    ( Eq  -- ^ structural equality
+    , Show, Read
+    )
+
+instance Uniplate Term where
+  uniplate = \case
+    Val a             -> plate Val |- a
+    App e v pv        -> plate App |* e |- v |- pv
+    Lam x t e pv      -> plate Lam |- x |- t |* e |- pv
+    Let x e1 e2 pv    -> plate Let |- x |* e1 |* e2 |- pv
+    Rec x t e1 e2 pv  -> plate Rec |- x |- t |* e1 |* e2 |- pv
+    If v e1 e2 pv     -> plate If |- v |* e1 |* e2 |- pv
+
+-- see Panini.Syntax.Substitution
+instance Subable Term Atom where
+  subst x y = \case
+    Val (Var n) | y == n -> Val x
+    Val v                -> Val v
+
+    App e v pv -> App (subst x y e) (subst x y v) pv
+
+    Lam n t e pv
+      | y == n       -> Lam n  t            e   pv  -- (1)
+      | n `freeIn` x -> Lam n' t (subst x y e') pv  -- (2)
+      | otherwise    -> Lam n  t (subst x y e ) pv  -- (3)
+      where
+        e' = subst (Var n') n e
+        n' = freshName n ([y] <> freeVars e)
+    
+    Let n e1 e2 pv
+      | y == n       -> Let n  (subst x y e1)            e2   pv  -- (1)
+      | n `freeIn` x -> Let n' (subst x y e1) (subst x y e2') pv  -- (2)
+      | otherwise    -> Let n  (subst x y e1) (subst x y e2 ) pv  -- (3)
+      where
+        e2' = subst (Var n') n e2
+        n'  = freshName n ([y] <> freeVars e2)
+    
+    Rec n t e1 e2 pv
+      | y == n       -> Rec n  t            e1              e2   pv  -- (1)
+      | n `freeIn` x -> Rec n' t (subst x y e1') (subst x y e2') pv  -- (2)
+      | otherwise    -> Rec n  t (subst x y e1 ) (subst x y e2 ) pv  -- (3)
+      where
+        e1' = subst (Var n') n e1
+        e2' = subst (Var n') n e2
+        n'  = freshName n ([y] <> freeVars e1 <> freeVars e2)
+    
+    If v e1 e2 pv -> If (subst x y v) (subst x y e1) (subst x y e2) pv
+    
+  freeVars = \case
+    Val (Var x)     -> [x]
+    Val (Con _)     -> []
+    App e v _       -> freeVars e <> freeVars v
+    Lam x _ e _     -> freeVars e \\ [x]
+    Let x e1 e2 _   -> freeVars e1 <> (freeVars e2 \\ [x])
+    Rec x _ e1 e2 _ -> (freeVars e1 <> freeVars e2) \\ [x]
+    If v e1 e2 _    -> freeVars v <> freeVars e1 <> freeVars e2
 
 instance Pretty Term where
   pretty = \case

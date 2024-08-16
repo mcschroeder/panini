@@ -86,6 +86,8 @@ instance Graphviz (Typed DomTree a) where
 
     go2 prefix dom l = 
       let mkKey k = prefix <> show k in
-      [ Node (mkKey l) [Shape Circle, Label (pretty $ show l) ] ] 
+      [ Node (mkKey l) [Shape Circle, Label (pretty $ show l), XLabel (phis dom l) ] ] 
       ++ map (\r -> Edge (mkKey l) (mkKey r) []) (dom.children IntMap.! l)
       ++ concatMap (go prefix dom) (dom.children IntMap.! l)
+
+    phis dom l = pretty $ map fst $ dom.phiVars IntMap.! l
