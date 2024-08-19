@@ -9,6 +9,8 @@ import Control.Monad.Trans.State.Strict
 import Data.Foldable
 import Data.IntMap.Strict ((!))
 import Data.Maybe
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.String
 import Data.Text qualified as Text
 import Panini.Frontend.Python.AST hiding (Var)
@@ -34,16 +36,17 @@ import Prelude
 -- TODO: be explicit about the Python version that is supported (semantics!)
 
 transpile :: HasProvenance a => Typed DomTree a -> Either Error Program
-transpile dom = runExcept (evalStateT (transpileTopLevel dom) env0)
- where
-  env0 = TranspilerEnv 
-    { varSource   = 0
-    }
+transpile dom = runExcept $ do
+  let env0 = TranspilerEnv 0 mempty
+  (prog, env) <- runStateT (transpileTopLevel dom) env0
+  let preamble = [Assume (fromString f) t | (f,t) <- Set.toAscList env.axioms]
+  return $ preamble ++ prog
 
 ------------------------------------------------------------------------------
 
 data TranspilerEnv = TranspilerEnv
-  { varSource   :: Int
+  { varSource :: Int
+  , axioms    :: Set Axiom
   }
   deriving stock (Show)
 
@@ -54,6 +57,9 @@ newVar = do
   i <- gets varSource
   modify' $ \env -> env { varSource = i + 1 }
   return $ Name (Text.pack $ "v" ++ show i) NoPV
+
+addAxiom :: Axiom -> Transpiler ()
+addAxiom ax = modify' $ \env -> env { axioms = Set.insert ax env.axioms }
 
 mangle :: HasProvenance annot => Ident annot -> Name
 mangle x = Name (Text.pack x.ident_string) (getPV x)
@@ -231,7 +237,8 @@ transpileStmts stmts k0 = go stmts
         let tr = typeOf aug_assign_expr
         case axiomForFunction fo [tr,tr] tr of
           Nothing -> lift $ throwE $ UnsupportedOperator op
-          Just fn -> do
+          Just ax@(fn,_) -> do
+            addAxiom ax
             let f   = Name (fromString fn) (getPV aug_assign_op)        
             let v   = mangle x
             let e1  = mkApp f [Var v, rhs]
@@ -241,9 +248,16 @@ transpileStmts stmts k0 = go stmts
     -- TODO: technically, assert raises an AssertionError, which could be caught!
     Assert { assert_exprs = [expr] } ->
       withAtom expr $ \a -> do
-        let f   = mkApp "assert" [a]
-        k      <- go rest
-        return  $ Let dummyName f k (getPV stmt)
+        let ta = typeOf expr
+        let tr = PyType.None
+        case axiomForFunction "assert" [ta] tr of
+          Nothing -> lift $ throwE $ UnsupportedStatement stmt
+          Just ax@(fn,_) -> do
+            addAxiom ax
+            let f   = Name (fromString fn) (getPV stmt)
+            let e1  = mkApp f [a]
+            k      <- go rest
+            return  $ Let dummyName e1 k (getPV stmt)
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
@@ -255,7 +269,8 @@ withTerm expr k = case expr of
     withAtoms args $ \as -> do      
       case axiomForFunction fun.ident_string (map typeOf args) (typeOf expr) of
         Nothing -> k $ mkApp (mangle fun) as
-        Just fn -> do
+        Just ax@(fn,_) -> do
+          addAxiom ax
           let f = Name (fromString fn) (getPV fun)
           k $ mkApp f as
 
@@ -276,7 +291,8 @@ withTerm expr k = case expr of
         let te = typeOf expr
         case axiomForFunction fo [tl,tr] te of
           Nothing -> lift $ throwE $ UnsupportedOperator operator
-          Just fn -> do
+          Just ax@(fn,_) -> do
+            addAxiom ax
             let f = Name (fromString fn) (getPV operator)
             k $ mkApp f [lhs,rhs]
   
@@ -287,7 +303,8 @@ withTerm expr k = case expr of
       let te = typeOf expr
       case axiomForFunction fo [ta] te of
         Nothing -> lift $ throwE $ UnsupportedOperator operator
-        Just fn -> do
+        Just ax@(fn,_) -> do
+          addAxiom ax
           let f = Name (fromString fn) (getPV operator)
           k $ mkApp f [a]
 
@@ -300,7 +317,8 @@ withTerm expr k = case expr of
         let tr = typeOf expr
         case axiomForFunction fo [ts,ti] tr of
           Nothing -> lift $ throwE $ UnsupportedExpression expr
-          Just fn -> do
+          Just ax@(fn,_) -> do
+            addAxiom ax
             let f = Name (fromString fn) (getPV expr)        
             k $ mkApp f [obj,index]
 
