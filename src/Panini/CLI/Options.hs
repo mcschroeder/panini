@@ -22,6 +22,7 @@ data PanOptions = PanOptions
   , createGoldenFiles :: Bool
   , termWidth :: Maybe Int
   , smtTimeout :: Int
+  , pythonInput :: Bool
   }
   deriving stock (Show, Read)
 
@@ -95,4 +96,8 @@ opts = info
             metavar "SECONDS" <>
             help "SMT solver timeout (default: 10 seconds)" <>
             value 10
+          )
+      <*> (switch $
+            long "python" <>
+            help "Force input to be read as Python"
           )

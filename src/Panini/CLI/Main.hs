@@ -68,9 +68,9 @@ batchMain panOpts = do
     logMessage $ "Read" <+> pretty fp
     src <- tryIO NoPV $ maybe Text.getContents Text.readFile panOpts.inputFile
     let ext = maybe ".pan" takeExtension panOpts.inputFile
-    (module_, prog) <- case ext of
-      ".py" -> loadModulePython src fp
-      _     -> loadModule       src fp    
+    let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
+                 | otherwise                           = loadModule
+    (module_, prog) <- loadFunc src fp
     elaborate module_ prog
     vsep . map pretty . getSolvedTypes <$> gets environment
 
