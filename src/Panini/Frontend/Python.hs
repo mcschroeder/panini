@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedLists #-}
-module Panini.Frontend.Python (loadPythonSource) where
+module Panini.Frontend.Python where
 
 import Language.Python.Version3
 import Panini.Error
@@ -17,11 +17,14 @@ import Prelude
 import Panini.Frontend.Python.Typing.Infer
 import Panini.Frontend.Python.Typing.Pretty ()
 import Panini.Frontend.Inliner
+import Panini.Modules
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Panini.Syntax
 
-loadPythonSource :: FilePath -> Pan ()
-loadPythonSource fp = do
-  src <- tryIO NoPV $ readFile fp
-  case parseModule src fp of
+loadModulePython :: Text -> FilePath -> Pan (Module, Program)
+loadModulePython src fp = do
+  case parseModule (Text.unpack src) fp of
     Left err -> do
       let err' = Py.ParserError err
       throwError $ PythonFrontendError err' (getPV err')
@@ -47,3 +50,6 @@ loadPythonSource fp = do
                   logData $ pretty prog
                   let prog2 = inlineProgram prog
                   logData $ pretty prog2
+
+                  module_ <- liftIO $ getModule fp
+                  return (module_, prog2)

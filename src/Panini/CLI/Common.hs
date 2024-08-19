@@ -1,13 +1,27 @@
 module Panini.CLI.Common where
 
 import Control.Monad.Extra
+import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Events
+import Panini.Modules
+import Panini.Monad
+import Panini.Parser
 import Panini.Pretty as PP
+import Panini.Syntax
 import Prelude
 import System.FilePath
 import System.IO
+
+-------------------------------------------------------------------------------
+
+-- TODO: here may not be the right location for this
+loadModule :: Text -> FilePath -> Pan (Module, Program)
+loadModule src fp = do
+  module_ <- liftIO $ getModule fp
+  prog <- parseSource (moduleLocation module_) src
+  return (module_, prog)
 
 -------------------------------------------------------------------------------
 

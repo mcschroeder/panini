@@ -122,12 +122,7 @@ commands panOpts =
   [ ("help", const help)
   , ("load", loadFiles . words)
   , ("show", showEnv panOpts)
-  , ("python", loadPython . head . words)
   ]
-
-loadPython :: String -> InputT Pan ()
-loadPython f = lift $ continueOnError $ do
-  loadPythonSource f
 
 help :: InputT Pan ()
 help = outputStrLn "\
@@ -146,9 +141,12 @@ loadFiles = mapM_ loadFile
 
 loadFile :: FilePath -> InputT Pan ()
 loadFile f = lift $ continueOnError $ do
-  module_ <- tryIO NoPV $ getModule f
-  src <- tryIO NoPV $ Text.readFile $ moduleLocation module_
-  prog <- parseSource (moduleLocation module_) src
+  logMessage $ "Read" <+> pretty f
+  src <- tryIO NoPV $ Text.readFile f
+  let ext = takeExtension f
+  (module_, prog) <- case ext of
+    ".py" -> loadModulePython src f
+    _     -> loadModule       src f
   elaborate module_ prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
@@ -203,7 +201,6 @@ autocomplete = (sorted <$>) . fallbackCompletion completeCommands completeFiles
 
     completeFiles (r,s) = case splitCmd (reverse r) of
       (":load", _) -> completeFilename (r,s)
-      (":python",_) -> completeFilename (r,s)
       _            -> pure (r, [])
     
     splitCmd = bimap (map toLower) (dropWhile isSpace) . break isSpace

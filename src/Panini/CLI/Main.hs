@@ -2,7 +2,6 @@
 module Panini.CLI.Main where
 
 import Control.Monad.Extra
-import Control.Monad.IO.Class
 import Data.Function
 import Data.Maybe
 import Data.Text.IO qualified as Text
@@ -14,9 +13,8 @@ import Panini.CLI.Test
 import Panini.Elab
 import Panini.Environment
 import Panini.Events
-import Panini.Modules
+import Panini.Frontend.Python
 import Panini.Monad
-import Panini.Parser
 import Panini.Pretty as PP
 import Panini.Provenance
 import Panini.SMT.Z3
@@ -24,6 +22,7 @@ import Prelude
 import System.Console.ANSI
 import System.Environment
 import System.Exit
+import System.FilePath
 import System.IO
 
 -------------------------------------------------------------------------------
@@ -64,17 +63,17 @@ batchMain panOpts = do
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ do
-    smtInit
-    module_ <- maybe (pure stdinModule) (liftIO . getModule) panOpts.inputFile
-    logMessage $ "Read" <+> pretty module_
-    src <- if module_ == stdinModule
-      then tryIO NoPV $ Text.getContents
-      else tryIO NoPV $ Text.readFile $ moduleLocation module_
-    logData src
-    prog <- parseSource (moduleLocation module_) src
+    smtInit    
+    let fp = fromMaybe "<stdin>" panOpts.inputFile
+    logMessage $ "Read" <+> pretty fp
+    src <- tryIO NoPV $ maybe Text.getContents Text.readFile panOpts.inputFile
+    let ext = maybe ".pan" takeExtension panOpts.inputFile
+    (module_, prog) <- case ext of
+      ".py" -> loadModulePython src fp
+      _     -> loadModule       src fp    
     elaborate module_ prog
     vsep . map pretty . getSolvedTypes <$> gets environment
-  
+
   whenJust traceFile hClose
 
   case result of
@@ -86,6 +85,3 @@ batchMain panOpts = do
       if null $ getTypeErrors panState1.environment
         then exitSuccess
         else exitFailure
-
-
-
