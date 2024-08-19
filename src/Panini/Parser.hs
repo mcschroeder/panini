@@ -5,6 +5,7 @@ module Panini.Parser
   , parseProgram
   , parseStatement
   , parseTerm
+  , parseType
   , parseConstraint
   ) where
 
@@ -53,6 +54,9 @@ parseStatement = parseA statement
 
 parseTerm :: FilePath -> Text -> Either Error Term
 parseTerm = parseA term
+
+parseType :: FilePath -> Text -> Either Error Type
+parseType = parseA type_
 
 parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint

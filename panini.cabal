@@ -50,6 +50,7 @@ library
     , pretty
     , prettyprinter
     , process
+    , template-haskell
     , text
     , transformers
     , uniplate
@@ -131,6 +132,7 @@ library
     Panini.Syntax.Names
     Panini.Syntax.Predicates
     Panini.Syntax.Primitives
+    Panini.Syntax.QQ
     Panini.Syntax.Substitution
     Panini.Version
 
