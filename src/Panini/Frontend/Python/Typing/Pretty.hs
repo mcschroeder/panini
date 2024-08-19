@@ -176,7 +176,7 @@ instance {-# OVERLAPPING #-} Pretty (Typed Expr a) where
     Call { call_fun = IsVar f, .. } -> 
       withT expr_annot $ pretty f <> parens (commaList call_args)
     
-    Call {..} -> pretty call_fun <> parens (commaList call_args)
+    Call {..} -> withT expr_annot $ pretty call_fun <> parens (commaList call_args)
     
     Subscript {..} -> withT expr_annot $ 
       pretty subscriptee <> brackets (pretty subscript_expr)
@@ -196,8 +196,7 @@ instance {-# OVERLAPPING #-} Pretty (Typed Expr a) where
 
     UnaryOp {..} -> pretty operator <+> pretty op_arg  
 
-    Dot {..} -> parensWithT expr_annot $ 
-      pretty dot_expr <> "." <> pretty dot_attribute
+    Dot {..} -> pretty dot_expr <> "." <> pretty dot_attribute
 
     Lambda {..} -> parensWithT expr_annot $
       "lambda" <+> commaList lambda_args <> ":" <+> pretty lambda_body
