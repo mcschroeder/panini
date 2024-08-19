@@ -17,6 +17,7 @@ References:
 -}
 module Panini.Regex.POSIX.ERE where
 
+import Data.Data (Data)
 import Data.Hashable
 import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
@@ -40,12 +41,12 @@ import Panini.Pretty
 -- | Extended Regular Expression (ERE) as defined by the POSIX standard.
 data ERE
   = Alt (NonEmpty Con)  -- ^ alternation @x|y|z@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 -- | ERE concatenation.
 data Con
   = Con (NonEmpty Exp)  -- ^ concatenation @xyz@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 -- | ERE (sub)expressions.
 data Exp
@@ -56,7 +57,7 @@ data Exp
   | Dol          -- ^ dollar sign @$@ (matches end of string)
   | Grp ERE      -- ^ group @(x)@
   | Dup Exp Dup  -- ^ duplication @r*@, @r?@, @r{2,5}@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 -- | ERE duplication symbols.
 data Dup
@@ -66,7 +67,7 @@ data Dup
   | Exa Int      -- ^ exact number of occurrences @{m}@
   | Min Int      -- ^ minimum number of occurrences @{m,}@
   | Inv Int Int  -- ^ any number of occurrences within interval @{m,n}@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 instance Hashable ERE
 instance Hashable Con

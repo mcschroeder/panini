@@ -17,6 +17,7 @@ References:
 -}
 module Panini.Regex.POSIX.BE where
 
+import Data.Data (Data)
 import Data.Hashable
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
@@ -39,7 +40,7 @@ import Prelude
 data BE
   = Mat (NonEmpty Exp)  -- ^ matching expression @[abc]@
   | Non (NonEmpty Exp)  -- ^ non-matching expression @[^abc]@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 -- | BE (sub)expression.
 data Exp
@@ -48,7 +49,7 @@ data Exp
   -- | Cls         -- ^ character class @[:alpha:]@
   -- | Equ         -- ^ equivalence class @[=a=]@
   -- | Col         -- ^ collating symbol @[.ch.]@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 instance Hashable BE
 instance Hashable Exp

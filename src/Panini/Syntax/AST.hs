@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.AST where
 
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Set ((\\))
 import Panini.Pretty
@@ -212,7 +213,7 @@ instance Subable Atom Atom where
 data Type
   = TBase Name Base Reft PV  -- {v:b|r}
   | TFun Name Type Type PV   -- x:t₁ → t₂
-  deriving stock (Show, Read)
+  deriving stock (Show, Read, Data)
 
 -- | Syntactic equality, ignoring provenance.
 instance Eq Type where
@@ -323,7 +324,7 @@ isFun _              = False
 data Reft
   = Unknown     -- ?
   | Known Pred  -- p
-  deriving stock (Eq, Ord, Show, Read)
+  deriving stock (Eq, Ord, Show, Read, Data)
 
 instance Pretty Reft where
   pretty Unknown   = "?"

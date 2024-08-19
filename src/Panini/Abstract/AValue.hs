@@ -13,6 +13,7 @@ module Panini.Abstract.AValue
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text qualified as Text
@@ -37,7 +38,8 @@ data AValue
   deriving stock 
     ( Eq
     , Ord  -- ^ structural ordering
-    , Show, Read, Generic)
+    , Show, Read
+    , Generic, Data)
 
 instance Hashable AValue
 

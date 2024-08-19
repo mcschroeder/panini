@@ -1,5 +1,6 @@
 module Panini.Syntax.KVar where
 
+import Data.Data (Data)
 import Data.Hashable
 import Data.String
 import GHC.Generics (Generic)
@@ -25,7 +26,7 @@ import Prelude
 --
 -- In the literature, κ-variables are sometimes referred to as /Horn variables/.
 data KVar = KVar !Int ![Base] !PV
-  deriving stock (Ord, Eq, Show, Read, Generic)
+  deriving stock (Ord, Eq, Show, Read, Generic, Data)
 
 instance Hashable KVar
 

@@ -35,6 +35,7 @@ module Panini.Regex.Type
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Maybe
@@ -63,7 +64,8 @@ data Regex
   deriving stock 
     ( Eq   -- ^ structural equivalence
     , Ord  -- ^ structural ordering
-    , Show, Read, Generic
+    , Show, Read
+    , Generic, Data
     )
 
 -- | zero element (0), empty set (∅), bottom (⊥)

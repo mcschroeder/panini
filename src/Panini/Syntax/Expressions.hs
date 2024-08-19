@@ -2,6 +2,7 @@
 module Panini.Syntax.Expressions where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Foldable
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
@@ -37,7 +38,7 @@ data Expr
   | EReg !ERE                -- ^ regular expression @RE@
   | EAbs !AValue             -- ^ abstract value @α@
   | ESol !Name !Base !Rel    -- ^ abstract solution @⟨x|r⟩@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 instance Hashable Expr
 
@@ -309,10 +310,10 @@ instance Subable Expr Expr where
 
 -- | Relation between expressions.
 data Rel = Rel !Rop !Expr !Expr
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 data Rop = Eq | Ne | Lt | Le | Gt | Ge | In | NotIn
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 {-# COMPLETE (:=:), (:≠:), (:<:), (:≤:), (:>:), (:≥:), (:∈:), (:∉:) #-}
 pattern (:=:), (:≠:), (:<:), (:≤:), (:>:), (:≥:), (:∈:), (:∉:) :: Expr -> Expr -> Rel

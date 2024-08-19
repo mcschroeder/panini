@@ -4,6 +4,7 @@
 module Panini.Abstract.AString where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import Data.String
 import Data.Text (Text)
@@ -24,7 +25,7 @@ import Prelude hiding (length)
 ------------------------------------------------------------------------------
 
 newtype AString = MkAString Regex
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
   deriving newtype (Semigroup, Monoid, Hashable)
 
 -- | Based on total structural ordering of 'Regex'.

@@ -11,6 +11,7 @@ module Panini.Abstract.AChar
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
@@ -22,7 +23,7 @@ import Prelude
 
 -- | An abstract character.
 newtype AChar = AChar CharSet
-  deriving stock (Generic, Show, Read)
+  deriving stock (Generic, Show, Read, Data)
   deriving newtype 
     ( Eq, Ord
     , PartialOrder

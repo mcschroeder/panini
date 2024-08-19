@@ -1,5 +1,6 @@
 module Panini.Syntax.Primitives where
 
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
@@ -17,7 +18,7 @@ data Base
   | TInt
   | TChar
   | TString
-  deriving stock (Ord, Eq, Show, Read, Generic)
+  deriving stock (Ord, Eq, Show, Read, Generic, Data)
 
 instance Hashable Base
 
@@ -37,7 +38,7 @@ data Value
   | I !Integer !PV  -- 0, -1, 1, ...
   | C !Char    !PV  -- 'a'
   | S !Text    !PV  -- "lorem ipsum"
-  deriving stock (Show, Read)
+  deriving stock (Show, Read, Data)
 
 -- | Equality between values ignores provenance.
 instance Eq Value where

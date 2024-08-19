@@ -31,6 +31,7 @@ module Panini.Abstract.AInt
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import Data.List qualified as List
 import GHC.Generics
@@ -44,7 +45,7 @@ import Prelude hiding (minimum, maximum)
 
 -- | An abstract integer.
 newtype AInt = AInt IntervalSequence
-  deriving stock (Show, Read)
+  deriving stock (Show, Read, Data)
   deriving newtype 
     ( Eq, Ord
     , PartialOrder
@@ -276,7 +277,7 @@ holes _                                      = []
 
 -- | An integer interval @[a..b]@ where @a <= b@.
 data Interval = In !(Inf Integer) !(Inf Integer)
-  deriving stock (Eq, Generic, Show, Read)
+  deriving stock (Eq, Generic, Show, Read, Data)
 
 instance Hashable Interval
 
@@ -363,7 +364,7 @@ overlaps (In a b) (In c d) = a <= c && c <= b && b < d
 
 -- | A type extended with negative and positive infinity.
 data Inf a = NegInf | Fin !a | PosInf
-  deriving stock (Functor, Eq, Generic, Show, Read)
+  deriving stock (Functor, Eq, Generic, Show, Read, Data)
 
 instance Hashable a => Hashable (Inf a)
 

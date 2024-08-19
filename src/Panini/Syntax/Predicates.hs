@@ -2,6 +2,7 @@
 module Panini.Syntax.Predicates where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Set ((\\))
@@ -31,7 +32,8 @@ data Pred
   deriving stock 
     ( Eq
     , Ord -- ^ structural ordering
-    , Show, Read, Generic
+    , Show, Read
+    , Generic, Data
     )
 
 instance Hashable Pred

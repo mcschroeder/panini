@@ -6,6 +6,7 @@ module Panini.Abstract.ABool
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
@@ -18,7 +19,8 @@ data ABool = Bottom | False_ | True_ | Top
   deriving stock 
     ( Eq
     , Ord  -- ^ structural total ordering; different from 'PartialOrder'
-    , Generic, Show, Read
+    , Show, Read
+    , Generic, Data
     )
 
 instance Hashable ABool
