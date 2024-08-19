@@ -77,6 +77,7 @@ library
     Panini.Frontend.Inliner
     Panini.Frontend.Python
     Panini.Frontend.Python.AST
+    Panini.Frontend.Python.Axioms
     Panini.Frontend.Python.CFG
     Panini.Frontend.Python.DomTree
     Panini.Frontend.Python.Error
@@ -90,6 +91,7 @@ library
     Panini.Frontend.Python.Typing.Pretty
     Panini.Frontend.Python.Typing.PyType
     Panini.Frontend.Python.Typing.TypeInfo
+    Panini.Frontend.Python.Typing.Unify
     Panini.Infer
     Panini.Modules
     Panini.Monad
