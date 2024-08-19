@@ -71,6 +71,10 @@ updatePV f a = do
   pv' <- f pv
   return $ setPV pv' a
 
+instance HasProvenance PV where
+  getPV = id
+  setPV = const
+
 -------------------------------------------------------------------------------
 
 -- | Adds source lines to provenance information, if possible.
