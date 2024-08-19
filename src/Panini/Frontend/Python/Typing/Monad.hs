@@ -10,6 +10,8 @@ import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe
+import Panini.Frontend.Python.AST
+import Panini.Frontend.Python.Pretty ()
 import Panini.Frontend.Python.Typing.Builtins
 import Panini.Frontend.Python.Typing.PyType
 import Panini.Panic
@@ -26,14 +28,13 @@ runInfer m = evalState (runExceptT m) (Env 0 mempty builtinFunctions [])
 data TypeError 
   = InfiniteType PyType PyType
   | CannotUnify PyType PyType
-  | UnsupportedTypeHint -- TODO (Expr a)
-  deriving stock (Show)
+  | forall a. UnsupportedTypeHint (Expr a)
 
 instance Pretty TypeError where
   pretty = \case
     InfiniteType a b -> "infinite type:" <+> pretty a <+> "occurs in" <+> pretty b
     CannotUnify a b -> "cannot unify" <+> pretty a <+> "with" <+> pretty b
-    UnsupportedTypeHint -> "unsupported type hint"
+    UnsupportedTypeHint e -> "unsupported type hint:" <+> pretty e 
 
 data Env = Env
   { metaVarCount   :: Int

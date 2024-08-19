@@ -530,4 +530,4 @@ typifyHint e = case e of
   IsVar "bool" -> return $ setType e PyType.Bool
   IsVar "int"  -> return $ setType e PyType.Int
   IsVar "str"  -> return $ setType e PyType.Str
-  _ -> throwE $ UnsupportedTypeHint -- TODO: e
+  _ -> throwE $ UnsupportedTypeHint e

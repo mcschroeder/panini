@@ -16,10 +16,11 @@ import Data.Text qualified as Text
 import Panini.Frontend.Python.AST hiding (Var)
 import Panini.Frontend.Python.AST qualified as Py
 import Panini.Frontend.Python.Axioms
-import Panini.Frontend.Python.Pretty ()
 import Panini.Frontend.Python.CFG hiding (Error)
 import Panini.Frontend.Python.DomTree
 import Panini.Frontend.Python.Error
+import Panini.Frontend.Python.Pretty ()
+import Panini.Frontend.Python.Provenance ()
 import Panini.Frontend.Python.Strings
 import Panini.Frontend.Python.Typing.PyType (PyType)
 import Panini.Frontend.Python.Typing.PyType qualified as PyType
@@ -69,7 +70,7 @@ mangle x = Name (Text.pack x.ident_string) (getPV x)
 blockName :: Label -> Name
 blockName l = Name ("L" <> Text.pack (show l)) NoPV 
 
-returnTypeOf :: (Annotated t, HasProvenance a) => Typed t a -> Transpiler PyType
+returnTypeOf :: (Functor t, Annotated t, HasProvenance a) => Typed t a -> Transpiler PyType
 returnTypeOf a = case typeOf a of
   PyType.Callable _ r -> return r
   _ -> lift $ throwE $ OtherError "expected Callable type" (getPV a)

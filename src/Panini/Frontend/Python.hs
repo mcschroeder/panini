@@ -12,6 +12,7 @@ import Panini.Frontend.Python.Transpiler
 import Panini.Frontend.Python.Typing.Infer
 import Panini.Frontend.Python.Typing.Pretty ()
 import Panini.Modules
+import Panini.Frontend.Python.Provenance
 import Panini.Monad
 import Panini.Syntax
 import Prelude
@@ -19,15 +20,16 @@ import Prelude
 loadModulePython :: Text -> FilePath -> Pan (Module, Program)
 loadModulePython src fp = do
   let src'   = Text.unpack src
-  (pyMod,_) <- parseModule src' fp    ? paErr §§ "Parse Python source"
-  pyModTy   <- infer pyMod            ? tyErr §§ "Infer Python types"
-  cfg       <- CFG.fromModule pyModTy ? pyErr §§ "Construct Python CFG"
+  (pyMod,_) <- parseModule src' fp     ? paErr §§ "Parse Python source"
+  let pyModPV = convertProvenance pyMod
+  pyModTy   <- infer pyModPV           ? tyErr §§ "Infer Python types"
+  cfg       <- CFG.fromModule pyModTy  ? pyErr §§ "Construct Python CFG"
   let dom    = domTree cfg
-  prog      <- transpile dom          ? pyErr §§ "Transpile Python to Panini"
-  prog2     <- inlineProgram prog              § "Inline bindings"
+  prog      <- transpile dom           ? pyErr §§ "Transpile Python to Panini"
+  prog2     <- inlineProgram prog               § "Inline bindings"
   module_   <- liftIO $ getModule fp
   return     $ (module_, prog2)
  where
-  paErr = pyErr . Py.ParserError
+  paErr = \e -> pyErr $ Py.ParserError e (getParseErrorPV e)
   tyErr = pyErr . Py.TypeError
   pyErr = PythonFrontendError

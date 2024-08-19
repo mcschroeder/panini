@@ -1,17 +1,15 @@
 module Panini.Frontend.Python.Error where
 
 import Language.Python.Common.ParseError
-import Language.Python.Common.Token
 import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.Pretty ()
-import Panini.Frontend.Python.Provenance
 import Panini.Frontend.Python.Typing.Monad (TypeError)
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
 
 data Error where
-  ParserError                 :: ParseError                       -> Error
+  ParserError                 :: ParseError -> PV                 -> Error
   TypeError                   :: TypeError                        -> Error
   UnsupportedStatement        :: HasProvenance a => (Statement a) -> Error
   UnsupportedExpression       :: HasProvenance a => (Expr a)      -> Error
@@ -24,9 +22,9 @@ data Error where
 
 instance Pretty Error where
   pretty = \case
-    ParserError (UnexpectedToken t)   -> "unexpected token:" <\> pretty t
-    ParserError (UnexpectedChar c _)  -> "unexpected character:" <+> pretty c
-    ParserError (StrError str)        -> pretty str
+    ParserError (UnexpectedToken t)  _ -> "unexpected token:" <\> pretty t
+    ParserError (UnexpectedChar c _) _ -> "unexpected character:" <+> pretty c
+    ParserError (StrError str)       _ -> pretty str
     TypeError err                     -> "type error:" <+> pretty err
     UnsupportedStatement stmt         -> "unsupported statement:" <\> pretty stmt
     UnsupportedExpression expr        -> "unsupported expression:" <\> pretty expr
@@ -39,18 +37,25 @@ instance Pretty Error where
 
 instance HasProvenance Error where
   getPV = \case
-    ParserError (UnexpectedToken t)   -> pySpanToPV (token_span t)
-    ParserError (UnexpectedChar _ l)  -> pyLocToPV l
-    ParserError (StrError _)          -> NoPV
+    ParserError _ pv                  -> pv
     TypeError _                       -> NoPV -- TODO
-    UnsupportedStatement stmt         -> getPV stmt
-    UnsupportedExpression expr        -> getPV expr
-    UnsupportedTypeHint expr          -> getPV expr
-    UnsupportedDefaultParameter expr  -> getPV expr
-    UnsupportedParameter param        -> getPV param
-    UnsupportedAtomicExpression expr  -> getPV expr
-    UnsupportedOperator op            -> getPV op
+    UnsupportedStatement stmt         -> getPV $ annot stmt
+    UnsupportedExpression expr        -> getPV $ annot expr
+    UnsupportedTypeHint expr          -> getPV $ annot expr
+    UnsupportedDefaultParameter expr  -> getPV $ annot expr
+    UnsupportedParameter param        -> getPV $ annot param
+    UnsupportedAtomicExpression expr  -> getPV $ annot expr
+    UnsupportedOperator op            -> getPV $ annot op
     OtherError _ pv                   -> pv
   
-  setPV _ = undefined -- TODO: remove
-
+  setPV pv = \case
+    ParserError e                   _ -> ParserError e pv
+    TypeError _                       -> undefined -- TODO
+    UnsupportedStatement stmt         -> UnsupportedStatement        $ fmap (setPV pv) stmt
+    UnsupportedExpression expr        -> UnsupportedExpression       $ fmap (setPV pv) expr
+    UnsupportedTypeHint expr          -> UnsupportedTypeHint         $ fmap (setPV pv) expr
+    UnsupportedDefaultParameter expr  -> UnsupportedDefaultParameter $ fmap (setPV pv) expr
+    UnsupportedParameter param        -> UnsupportedParameter        $ fmap (setPV pv) param
+    UnsupportedAtomicExpression expr  -> UnsupportedAtomicExpression $ fmap (setPV pv) expr
+    UnsupportedOperator op            -> UnsupportedOperator         $ fmap (setPV pv) op
+    OtherError e _                    -> OtherError e pv

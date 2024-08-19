@@ -3,9 +3,16 @@
 module Panini.Frontend.Python.Provenance where
 
 import Language.Python.Common.AST
+import Language.Python.Common.ParseError
 import Language.Python.Common.SrcLocation
+import Language.Python.Common.Token
 import Panini.Provenance
 import Prelude
+
+------------------------------------------------------------------------------
+
+convertProvenance :: ModuleSpan -> Module PV
+convertProvenance (Module stmts) = Module $ map (fmap pySpanToPV) stmts
 
 ------------------------------------------------------------------------------
 
@@ -29,13 +36,17 @@ pyLocToPV = \case
 
 ------------------------------------------------------------------------------
 
-instance (Annotated t, HasProvenance annot) => HasProvenance (t annot) where
-  getPV = getPV . annot
-  setPV _ = undefined -- TODO: remove once HasProvenance is only the getter
+getParseErrorPV :: ParseError -> PV
+getParseErrorPV = \case
+  UnexpectedToken t  -> pySpanToPV (token_span t)
+  UnexpectedChar _ l -> pyLocToPV l
+  StrError _         -> NoPV
 
-instance HasProvenance SrcSpan where
-  getPV = pySpanToPV
-  setPV _ = undefined -- TODO: remove once HasProvenance is only the getter
+------------------------------------------------------------------------------
+
+instance (Functor t, Annotated t, HasProvenance annot) => HasProvenance (t annot) where
+  getPV = getPV . annot
+  setPV pv = fmap (setPV pv)
 
 instance Annotated ((,) b) where 
   annot = snd
