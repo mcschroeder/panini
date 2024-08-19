@@ -9,6 +9,8 @@ module Panini.Monad
   , catchError
   , tryError
   , continueOnError
+  , liftE
+  , (?)
   , liftIO
   , tryIO
   , logError
@@ -16,6 +18,7 @@ module Panini.Monad
   , logData
   , logEvent
   , (§)
+  , (§§)
   ) where
 
 import Control.Exception
@@ -89,6 +92,12 @@ tryError m = catchError (Right <$> m) (return . Left)
 continueOnError :: Pan () -> Pan ()
 continueOnError m = catchError m logError
 
+liftE :: (e -> Error) -> Either e a -> Pan a
+liftE f = either (throwError . f) return
+
+(?) :: Either e a -> (e -> Error) -> Pan a
+(?) = flip liftE
+
 -- TODO: remove PV argument (enrich PV with other functions)
 -- | Try an IO action, transforming any 'IOException' that occurs into a Panini
 -- 'IOError' with the given provenance.
@@ -104,6 +113,10 @@ tryIO pv m = do
 (§) :: HasCallStack => Pretty a => a -> Doc -> Pan a
 x § msg = withFrozenCallStack $ logMessage msg >> logData x >> return x
 infix 0 §
+
+(§§) :: HasCallStack => Pretty a => Pan a -> Doc -> Pan a
+m §§ msg = withFrozenCallStack $ logMessage msg >> m >>= \x -> logData x >> return x
+infix 0 §§
 
 logEvent :: Event -> Pan ()
 logEvent d = do

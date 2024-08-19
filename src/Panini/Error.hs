@@ -24,7 +24,7 @@ data Error
   | IOError String PV
   | AbstractionImpossible Name Rel Rel
   | ConcretizationImpossible Name Base AValue
-  | PythonFrontendError Python.Error PV
+  | PythonFrontendError Python.Error
 
 instance HasProvenance Error where
   getPV = \case
@@ -38,7 +38,7 @@ instance HasProvenance Error where
     IOError _ pv                   -> pv
     AbstractionImpossible x _r1 _  -> getPV x -- TODO: getPV r1
     ConcretizationImpossible x _ _ -> getPV x -- TODO: getPV a
-    PythonFrontendError _ pv       -> pv
+    PythonFrontendError e          -> getPV e
   
   setPV pv = \case
     AlreadyDefined x               -> AlreadyDefined (setPV pv x)
@@ -51,7 +51,7 @@ instance HasProvenance Error where
     IOError e _                    -> IOError e pv
     AbstractionImpossible x r1 r2  -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
     ConcretizationImpossible x b a -> ConcretizationImpossible (setPV pv x) b a -- TODO: setPV a
-    PythonFrontendError e _        -> PythonFrontendError e pv
+    PythonFrontendError e          -> PythonFrontendError (setPV pv e)
 
 -------------------------------------------------------------------------------
 
@@ -81,7 +81,7 @@ prettyErrorMessage = \case
   ConcretizationImpossible x b a ->
     "concretization impossible for" <+> pretty b <> ":" <\> 
     "⟦" <> pretty a <> "⟧↓" <> pretty x
-  PythonFrontendError e _ -> pretty e
+  PythonFrontendError e -> pretty e
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
 prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))
