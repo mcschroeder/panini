@@ -44,9 +44,7 @@ data Term
   | Let Name Term Term      PV  -- ^ binding @let x = e1 in e2@
   | Rec Name Type Term Term PV  -- ^ recursion @rec x : t = e1 in e2@
   | If Atom Term Term       PV  -- ^ branch @if v then e1 else e2@
-  deriving stock 
-    ( Show, Read
-    )
+  deriving stock (Show, Read)
 
 -- | Syntactic equality, ignoring provenance.
 instance Eq Term where
@@ -58,12 +56,23 @@ instance Eq Term where
   If v1 e1 f1     _ == If v2 e2 f2     _ = v1 == v2 && e1 == e2 && f1 == f2
   _                 == _                 = False
 
+-- | Structural ordering, ignoring provenance.
+instance Ord Term where
+  Val v1            <= Val v2            = v1 <= v2
+  App e1 v1       _ <= App e2 v2       _ = e1 <= e2 && v1 <= v2
+  Lam x1 t1 e1    _ <= Lam x2 t2 e2    _ = x1 <= x2 && t1 <= t2 && e1 <= e2
+  Let x1 e1 f1    _ <= Let x2 e2 f2    _ = x1 <= x2 && e1 <= e2 && f1 <= f2
+  Rec x1 t1 e1 f1 _ <= Rec x2 t2 e2 f2 _ = x1 <= x2 && t1 <= t2 && e1 <= e2 && f1 <= f2
+  If v1 e1 f1     _ <= If v2 e2 f2     _ = v1 <= v2 && e1 <= e2 && f1 <= f2
+  _                 <= _                 = False
+
 -- | Atomic values are either constants @c@ or variables @x@.
 data Atom
   = Con Value  -- ^ constant value
   | Var Name   -- ^ variable
   deriving stock
     ( Eq  -- ^ structural equality
+    , Ord -- ^ structural ordering
     , Show, Read
     )
 
@@ -211,6 +220,12 @@ instance Eq Type where
   TFun x1 s1 t1 _  == TFun x2 s2 t2 _  = x1 == x2 && s1 == s2 && t1 == t2
   _                == _                = False
 
+-- | Structural ordering, ignoring provenance.
+instance Ord Type where
+  TBase x1 b1 r1 _ <= TBase x2 b2 r2 _ = x1 <= x2 && b1 <= b2 && r1 <= r2
+  TFun x1 s1 t1 _  <= TFun x2 s2 t2 _  = x1 <= x2 && s1 <= s2 && t1 <= t2
+  _                <= _                = False
+
 -- | When pretty printing a type, we try to be as succinct as possible. 
 --
 -- We use the following notational equivalences, as long as this will not result
@@ -308,7 +323,7 @@ isFun _              = False
 data Reft
   = Unknown     -- ?
   | Known Pred  -- p
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Ord, Show, Read)
 
 instance Pretty Reft where
   pretty Unknown   = "?"
