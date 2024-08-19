@@ -45,9 +45,18 @@ data Term
   | Rec Name Type Term Term PV  -- ^ recursion @rec x : t = e1 in e2@
   | If Atom Term Term       PV  -- ^ branch @if v then e1 else e2@
   deriving stock 
-    ( Eq  -- ^ structural equality
-    , Show, Read
+    ( Show, Read
     )
+
+-- | Syntactic equality, ignoring provenance.
+instance Eq Term where
+  Val v1            == Val v2            = v1 == v2
+  App e1 v1       _ == App e2 v2       _ = e1 == e2 && v1 == v2
+  Lam x1 t1 e1    _ == Lam x2 t2 e2    _ = x1 == x2 && t1 == t2 && e1 == e2
+  Let x1 e1 f1    _ == Let x2 e2 f2    _ = x1 == x2 && e1 == e2 && f1 == f2
+  Rec x1 t1 e1 f1 _ == Rec x2 t2 e2 f2 _ = x1 == x2 && t1 == t2 && e1 == e2 && f1 == f2
+  If v1 e1 f1     _ == If v2 e2 f2     _ = v1 == v2 && e1 == e2 && f1 == f2
+  _                 == _                 = False
 
 -- | Atomic values are either constants @c@ or variables @x@.
 data Atom
