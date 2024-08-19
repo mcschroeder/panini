@@ -31,7 +31,9 @@ loadModulePython src fp = do
     Right (pyMod,_cmts) -> do
       logData $ pretty pyMod      
       case infer pyMod of
-        Left err -> error $ show err
+        Left err -> do
+          let err' = Py.TypeError err
+          throwError $ PythonFrontendError err' (getPV err')
         Right pyModTy -> do
           logData $ pretty pyModTy                    
           case CFG.fromModule pyModTy of

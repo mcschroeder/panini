@@ -13,20 +13,27 @@ import Data.Maybe
 import Panini.Frontend.Python.Typing.Builtins
 import Panini.Frontend.Python.Typing.PyType
 import Panini.Panic
+import Panini.Pretty
 import Prelude
 
 ------------------------------------------------------------------------------
 
-type Infer a = ExceptT Error (State Env) a
+type Infer a = ExceptT TypeError (State Env) a
 
-runInfer :: Infer a -> Either Error a
+runInfer :: Infer a -> Either TypeError a
 runInfer m = evalState (runExceptT m) (Env 0 mempty builtinFunctions [])
 
-data Error 
+data TypeError 
   = InfiniteType PyType PyType
   | CannotUnify PyType PyType
   | UnsupportedTypeHint -- TODO (Expr a)
   deriving stock (Show)
+
+instance Pretty TypeError where
+  pretty = \case
+    InfiniteType a b -> "infinite type:" <+> pretty a <+> "occurs in" <+> pretty b
+    CannotUnify a b -> "cannot unify" <+> pretty a <+> "with" <+> pretty b
+    UnsupportedTypeHint -> "unsupported type hint"
 
 data Env = Env
   { metaVarCount   :: Int

@@ -7,7 +7,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Bifunctor
-import Data.Generics.Uniplate.Operations as Uniplate
+import Data.Generics.Uniplate.DataOnly
 import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict qualified as Map
 import Data.Maybe
@@ -40,7 +40,7 @@ setType e t = fmap (Just t,) e
 
 ------------------------------------------------------------------------------
 
-infer :: Module a -> Either Error (Typed Module a)
+infer :: Module a -> Either TypeError (Typed Module a)
 infer (Module stmts) = runInfer $ do
   stmtsTyped    <- mapM inferStmt stmts
   stmtsResolved <- mapM resolveMetaVars stmtsTyped

@@ -3,14 +3,16 @@ module Panini.Frontend.Python.Error where
 import Language.Python.Common.ParseError
 import Language.Python.Common.Token
 import Panini.Frontend.Python.AST
-import Panini.Frontend.Python.Provenance
 import Panini.Frontend.Python.Pretty ()
-import Panini.Provenance
+import Panini.Frontend.Python.Provenance
+import Panini.Frontend.Python.Typing.Monad (TypeError)
 import Panini.Pretty
+import Panini.Provenance
 import Prelude
 
 data Error where
   ParserError                 :: ParseError                       -> Error
+  TypeError                   :: TypeError                        -> Error
   UnsupportedStatement        :: HasProvenance a => (Statement a) -> Error
   UnsupportedExpression       :: HasProvenance a => (Expr a)      -> Error
   UnsupportedTypeHint         :: HasProvenance a => (Expr a)      -> Error
@@ -25,6 +27,7 @@ instance Pretty Error where
     ParserError (UnexpectedToken t)   -> "unexpected token:" <\> pretty t
     ParserError (UnexpectedChar c _)  -> "unexpected character:" <+> pretty c
     ParserError (StrError str)        -> pretty str
+    TypeError err                     -> "type error:" <+> pretty err
     UnsupportedStatement stmt         -> "unsupported statement:" <\> pretty stmt
     UnsupportedExpression expr        -> "unsupported expression:" <\> pretty expr
     UnsupportedTypeHint expr          -> "unsupported type hint:" <\> pretty expr
@@ -39,6 +42,7 @@ instance HasProvenance Error where
     ParserError (UnexpectedToken t)   -> pySpanToPV (token_span t)
     ParserError (UnexpectedChar _ l)  -> pyLocToPV l
     ParserError (StrError _)          -> NoPV
+    TypeError _                       -> NoPV -- TODO
     UnsupportedStatement stmt         -> getPV stmt
     UnsupportedExpression expr        -> getPV expr
     UnsupportedTypeHint expr          -> getPV expr

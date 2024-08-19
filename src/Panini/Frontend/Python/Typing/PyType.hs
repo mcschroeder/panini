@@ -2,11 +2,13 @@
 module Panini.Frontend.Python.Typing.PyType where
 
 import Data.Data
-import Data.Generics.Uniplate.Data
+import Data.Generics.Uniplate.DataOnly
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
+import Data.List qualified as List
 import Data.Set qualified as Set
 import Data.String
+import Panini.Pretty hiding (Set)
 import Prelude
 
 -------------------------------------------------------------------------------
@@ -118,3 +120,36 @@ pattern Optional t = Union [t, None]
 
 metaVars :: PyType -> IntSet
 metaVars t = IntSet.fromList [i | MetaVar i <- universe t]
+
+-------------------------------------------------------------------------------
+
+instance Pretty PyType where
+  pretty = \case
+    Any_ Nothing  -> "Any"
+    Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
+    TypeVar s     -> pretty s
+    Union_ ts     -> "Union"      <> params ts
+    Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
+    Tuple ts      -> "tuple"      <> params ts
+    List t        -> "list"       <> params [t]
+    Memoryview t  -> "memoryview" <> params [t]
+    Set t         -> "set"        <> params [t]
+    Frozenset t   -> "frozenset"  <> params [t]
+    Dict k v      -> "dict"       <> params [k,v]    
+    Enumerate t   -> "enumerate"  <> params [t]
+    Int           -> "int"
+    Float         -> "float"
+    Complex       -> "complex"
+    Bool          -> "bool"
+    Str           -> "str"
+    Bytes         -> "bytes"
+    Bytearray     -> "bytearray"
+    Object        -> "object"
+    Slice         -> "slice"
+    t             -> prettyConstr t <> paramList (gmapQ paramQ t)
+   where
+    params       = paramList . map pretty
+    paramList [] = mempty
+    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
+    prettyConstr = pretty . showConstr . toConstr    
+    paramQ t     = maybe undefined (pretty @PyType) (cast t)

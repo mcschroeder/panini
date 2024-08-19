@@ -8,8 +8,6 @@ produce valid Python source code!
 -}
 module Panini.Frontend.Python.Typing.Pretty where
 
-import Data.Data (gmapQ, showConstr, toConstr, cast)
-import Data.List qualified as List
 import Panini.Frontend.Python.AST as Py
 import Panini.Frontend.Python.Pretty ()
 import Panini.Frontend.Python.Typing.PyType (PyType)
@@ -18,39 +16,6 @@ import Panini.Frontend.Python.Typing.TypeInfo
 import Panini.Pretty
 import Prelude
 import Prettyprinter qualified as PP
-
-------------------------------------------------------------------------------
-
-instance Pretty PyType where
-  pretty = \case
-    PyType.Any_ Nothing  -> "Any"
-    PyType.Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
-    PyType.TypeVar s     -> pretty s
-    PyType.Union_ ts     -> "Union"      <> params ts
-    PyType.Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
-    PyType.Tuple ts      -> "tuple"      <> params ts
-    PyType.List t        -> "list"       <> params [t]
-    PyType.Memoryview t  -> "memoryview" <> params [t]
-    PyType.Set t         -> "set"        <> params [t]
-    PyType.Frozenset t   -> "frozenset"  <> params [t]
-    PyType.Dict k v      -> "dict"       <> params [k,v]    
-    PyType.Enumerate t   -> "enumerate"  <> params [t]
-    PyType.Int           -> "int"
-    PyType.Float         -> "float"
-    PyType.Complex       -> "complex"
-    PyType.Bool          -> "bool"
-    PyType.Str           -> "str"
-    PyType.Bytes         -> "bytes"
-    PyType.Bytearray     -> "bytearray"
-    PyType.Object        -> "object"
-    PyType.Slice         -> "slice"
-    t                    -> prettyConstr t <> paramList (gmapQ paramQ t)
-   where
-    params       = paramList . map pretty
-    paramList [] = mempty
-    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
-    prettyConstr = pretty . showConstr . toConstr    
-    paramQ t     = maybe undefined (pretty @PyType) (cast t)
 
 ------------------------------------------------------------------------------
 
