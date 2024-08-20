@@ -17,6 +17,10 @@ inline = rewrite $ \case
   -- inline nullary rec bindings that occur as an artifact of transpilation
   Rec x (TBase _ TUnit _ _) e1 e2 _ 
     | let e2' = inlineTailCall x e1 e2, e2' /= e2 -> Just e2'
+  
+  -- reorder let bindings whose RHS is immediately another let-binding
+  Let x (Let y ey1 ey2 pvy) ex2 pvx 
+    -> Just $ Let y ey1 (Let x ey2 ex2 pvx) pvy
 
   _ -> Nothing
 

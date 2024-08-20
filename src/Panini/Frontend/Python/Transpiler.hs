@@ -231,34 +231,20 @@ transpileStmts stmts k0 = go stmts
           k      <- go rest
           return $ Let v e1 k (getPV stmt)
   
-    AugmentedAssign { aug_assign_to = Py.Var x _, ..} -> do
-      withAtom aug_assign_expr $ \rhs -> do
-        let op = assignOpToOp aug_assign_op
-        let fo = desugarBinaryOp op
-        let tr = typeOf aug_assign_expr
-        case axiomForFunction fo [tr,tr] tr of
-          Nothing -> lift $ throwE $ UnsupportedOperator op
-          Just ax@(fn,_) -> do
-            addAxiom ax
-            let f   = Name (fromString fn) (getPV aug_assign_op)        
-            let v   = mangle x
-            let e1  = mkApp f [Var v, rhs]
-            k      <- go rest
-            return  $ Let v e1 k (getPV stmt)
+    AugmentedAssign { aug_assign_to = to_expr@(Py.Var x _), ..} -> do
+      let op     = assignOpToOp aug_assign_op
+      let fun    = desugarBinaryOp op
+      let args   = [to_expr, aug_assign_expr]
+      let retTy  = typeOf aug_assign_expr
+      e1        <- applyAxiom fun args retTy (getPV aug_assign_op)
+      e2        <- go rest
+      return     $ Let (mangle x) e1 e2 (getPV stmt)
 
     -- TODO: technically, assert raises an AssertionError, which could be caught!
-    Assert { assert_exprs = [expr] } ->
-      withAtom expr $ \a -> do
-        let ta = typeOf expr
-        let tr = PyType.None
-        case axiomForFunction "assert" [ta] tr of
-          Nothing -> lift $ throwE $ UnsupportedStatement stmt
-          Just ax@(fn,_) -> do
-            addAxiom ax
-            let f   = Name (fromString fn) (getPV stmt)
-            let e1  = mkApp f [a]
-            k      <- go rest
-            return  $ Let dummyName e1 k (getPV stmt)
+    Assert { assert_exprs = [expr] } -> do
+      e1     <- applyAxiom "assert" [expr] PyType.None (getPV stmt)
+      e2     <- go rest
+      return  $ Let dummyName e1 e2 (getPV stmt)
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
@@ -266,64 +252,49 @@ withTerm :: HasProvenance a => Typed Py.Expr a -> (Term -> Transpiler Term) -> T
 withTerm expr k = case expr of
   _ | isAtomic expr -> k =<< Val <$> transpileAtom expr
 
-  Call { call_fun = Py.Var fun _, call_args = ArgExprs args } -> do
-    withAtoms args $ \as -> do      
-      case axiomForFunction fun.ident_string (map typeOf args) (typeOf expr) of
-        Nothing -> k $ mkApp (mangle fun) as
-        Just ax@(fn,_) -> do
-          addAxiom ax
-          let f = Name (fromString fn) (getPV fun)
-          k $ mkApp f as
-
+  Call { call_fun = Py.Var fun _, call_args = ArgExprs args } ->
+    k =<< applyAxiom fun.ident_string args (typeOf expr) (getPV fun)
+  
+  Call { call_fun = Dot {..}, call_args = ArgExprs args } -> do
+    let fn = dot_attribute.ident_string
+    let pv = getPV dot_attribute
+    k =<< applyAxiom fn (dot_expr : args) (typeOf expr) pv
+  
   BinaryOp { operator = Py.NotIn {..}, .. } -> do
     let expr' = BinaryOp { operator = Py.In {..}, .. }
-    withAtom expr' $ \e -> k $ mkApp "not" [e]
+    k =<< applyAxiom "not" [expr'] PyType.Bool (getPV expr)
 
   BinaryOp { operator = IsNot {..}, ..} -> do
     let expr' = BinaryOp { operator = Is {..}, .. }
-    withAtom expr' $ \e -> k $ mkApp "not" [e]
+    k =<< applyAxiom "not" [expr'] PyType.Bool (getPV expr)
   
   BinaryOp {..} -> do
-    withAtom left_op_arg $ \lhs -> do
-      withAtom right_op_arg $ \rhs -> do
-        let fo = desugarBinaryOp operator
-        let tl = typeOf left_op_arg
-        let tr = typeOf right_op_arg
-        let te = typeOf expr
-        case axiomForFunction fo [tl,tr] te of
-          Nothing -> lift $ throwE $ UnsupportedOperator operator
-          Just ax@(fn,_) -> do
-            addAxiom ax
-            let f = Name (fromString fn) (getPV operator)
-            k $ mkApp f [lhs,rhs]
+    let func = desugarBinaryOp operator
+    let args = [left_op_arg, right_op_arg]
+    k =<< applyAxiom func args (typeOf expr) (getPV operator)
   
   UnaryOp {..} -> do
-    withAtom op_arg $ \a -> do
-      let fo = desugarUnaryOp operator
-      let ta = typeOf op_arg
-      let te = typeOf expr
-      case axiomForFunction fo [ta] te of
-        Nothing -> lift $ throwE $ UnsupportedOperator operator
-        Just ax@(fn,_) -> do
-          addAxiom ax
-          let f = Name (fromString fn) (getPV operator)
-          k $ mkApp f [a]
+    let f = desugarUnaryOp operator
+    k =<< applyAxiom f [op_arg] (typeOf expr) (getPV operator)
 
   Subscript {..} -> do
-    withAtom subscriptee $ \obj -> do
-      withAtom subscript_expr $ \index -> do
-        let fo = "__getitem__"
-        let ts = typeOf subscriptee
-        let ti = typeOf subscript_expr
-        let tr = typeOf expr
-        case axiomForFunction fo [ts,ti] tr of
-          Nothing -> lift $ throwE $ UnsupportedExpression expr
-          Just ax@(fn,_) -> do
-            addAxiom ax
-            let f = Name (fromString fn) (getPV expr)        
-            k $ mkApp f [obj,index]
+    let args = [subscriptee, subscript_expr]
+    k =<< applyAxiom "__getitem__" args (typeOf expr) (getPV expr)
 
   _ -> lift $ throwE $ UnsupportedExpression expr
+
+applyAxiom 
+  :: HasProvenance a 
+  => String -> [Typed Py.Expr a] -> PyType -> PV 
+  -> Transpiler Term
+applyAxiom fun args retTy pv = do
+  let argTys = map typeOf args
+  case axiomForFunction fun argTys retTy of
+    Nothing -> lift $ throwE $ MissingAxiom fun argTys retTy pv
+    Just ax@(fn,_) -> do
+      addAxiom ax
+      let f = Name (fromString fn) pv
+      withAtoms args $ return . mkApp f
 
 mkApp :: Name -> [Atom] -> Term
 mkApp f xs = foldl' (\e y -> App e y NoPV) (Val (Var f)) xs

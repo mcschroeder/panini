@@ -1,9 +1,11 @@
 module Panini.Frontend.Python.Error where
 
+import Data.List qualified as List
 import Language.Python.Common.ParseError
 import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.Pretty ()
 import Panini.Frontend.Python.Typing.Monad (TypeError)
+import Panini.Frontend.Python.Typing.PyType (PyType)
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
@@ -18,6 +20,7 @@ data Error where
   UnsupportedParameter        :: HasProvenance a => (Parameter a) -> Error
   UnsupportedAtomicExpression :: HasProvenance a => (Expr a)      -> Error
   UnsupportedOperator         :: HasProvenance a => (Op a)        -> Error
+  MissingAxiom                :: String -> [PyType] -> PyType -> PV -> Error
   OtherError                  :: String -> PV                     -> Error -- TODO: remove
 
 instance Pretty Error where
@@ -33,6 +36,13 @@ instance Pretty Error where
     UnsupportedParameter param        -> "unsupported parameter:" <\> pretty param
     UnsupportedAtomicExpression expr  -> "unsupported atomic expression:" <\> pretty expr
     UnsupportedOperator op            -> "unsupported operator:" <\> pretty op
+    
+    MissingAxiom f argTys retTy _ -> 
+        "missing axiom for" 
+        <\> pretty f 
+        <> "(" <> mconcat (List.intersperse "," $ map pretty argTys) <> ")" 
+        <+> "->" <+> pretty retTy
+    
     OtherError err _                  -> pretty err
 
 instance HasProvenance Error where
@@ -46,6 +56,7 @@ instance HasProvenance Error where
     UnsupportedParameter param        -> getPV $ annot param
     UnsupportedAtomicExpression expr  -> getPV $ annot expr
     UnsupportedOperator op            -> getPV $ annot op
+    MissingAxiom _ _ _ pv             -> pv
     OtherError _ pv                   -> pv
   
   setPV pv = \case
@@ -58,4 +69,5 @@ instance HasProvenance Error where
     UnsupportedParameter param        -> UnsupportedParameter        $ fmap (setPV pv) param
     UnsupportedAtomicExpression expr  -> UnsupportedAtomicExpression $ fmap (setPV pv) expr
     UnsupportedOperator op            -> UnsupportedOperator         $ fmap (setPV pv) op
+    MissingAxiom f argTys retTy _     -> MissingAxiom f argTys retTy pv
     OtherError e _                    -> OtherError e pv
