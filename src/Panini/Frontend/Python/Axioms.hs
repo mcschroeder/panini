@@ -43,12 +43,15 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__ge__", [Int, Int], Bool) -> Just ("ge", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≥ b} |])
 
   -- container methods; see Note [Slicing via __getitem__]
-  ("__getitem__", [Str, Int       ], Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]} |])
-  ("__getitem__", [Str, Int , Int ], Str) -> Just ("slice", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {t:𝕊 | t = s[i..j]} |])
-  ("__getitem__", [Str, Int , None], Str) -> Just ("sliceFrom", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..|s|-1]} |])
-  ("__getitem__", [Str, None, Int ], Str) -> Just ("sliceTo", [panType| (s:𝕊) → {j:ℤ | j ≥ 0 ∧ j < |s|} → {t:𝕊 | t = s[0..j]} |])
-  ("__getitem__", [Str, None, None], Str) -> Just ("strId", [panType| (s:𝕊) → {t:𝕊 | t = s} |])
-  ("__len__"    , [Str]            , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])
+  ("__getitem__", [Str, Int]          , Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]} |])
+  ("__getitem__", [Str, Int, Int]     , Str) -> Just ("slice", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {t:𝕊 | t = s[i..j]} |])
+  ("__getitem__", [Str, Int, None]    , Str) -> Just ("sliceFrom", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..|s|-1]} |])
+  ("__getitem__", [Str, None, Int]    , Str) -> Just ("sliceTo", [panType| (s:𝕊) → {j:ℤ | j ≥ 0 ∧ j < |s|} → {t:𝕊 | t = s[0..j]} |])
+  ("__getitem__", [Str, None, None]   , Str) -> Just ("strId", [panType| (s:𝕊) → {t:𝕊 | t = s} |])
+  ("__len__"    , [Str]               , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])  
+  ("index"      , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i = firstIndexOfSubstring(s,t)} |])
+  ("index"      , [Str, Str, Int]     , Int) -> Just ("indexFrom", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {i:ℤ | i = firstIndexOfSubstring(s[i..|s|-1],t)} |])
+  ("index"      , [Str, Str, Int, Int], Int) -> Just ("indexFromTo", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {i:ℤ | i = firstIndexOfSubstring(s[i..j],t)} |])
 
   -- numeric methods
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])
