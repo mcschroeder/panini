@@ -83,6 +83,9 @@ pattern EStrComp s = EFun "str.comp" [s]
 pattern EStrFirstIndexOfChar :: Expr -> Expr -> Expr
 pattern EStrFirstIndexOfChar s c = EFun "firstIndexOfChar" [s,c]
 
+pattern EStrIndexOf :: Expr -> Expr -> Expr -> Expr
+pattern EStrIndexOf s t i = EFun "str_indexof" [s,t,i]
+
 ------------------------------------------------------------------------------
 
 -- | unit constant
