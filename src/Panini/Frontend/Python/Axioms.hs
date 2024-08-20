@@ -7,6 +7,22 @@ import Prelude
 import Panini.Syntax
 import Panini.Syntax.QQ
 
+{-
+Note [Slicing via __getitem__]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In reality, the __getitem__ method never takes more than two arguments,
+including self; here, we allow for additional arguments representing possible
+slice indexes. In Python, slicing of sequences is implemented via opaque slice
+objects: an expression like s[i:j] translates to __getitem__(s,slice(i,j)).
+Unfortunately, we cannot distinguish between slice objects with different
+attribute types or recognize missing/default attributes purely on the (Python)
+type level. But we need to implement different slice semantics based on the
+number of given parameters, e.g., s[i:] should slice s from i to len(s) and
+s[::2] should select every other item of s. To allow this, we simply "collapse"
+the slice objects into additional parameters of __getitem__, with missing slice
+attributes represented using the None type.
+-}
+
 type Axiom = (String, Type)
 
 axiomForFunction :: String -> [PyType] -> PyType -> Maybe Axiom
@@ -18,7 +34,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("not"    , [Bool, Bool], Bool) -> Just ("not", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∨ b = true)} |])
   ("or"     , [Bool, Bool], Bool) -> Just ("or", [panType| (a:𝔹) → {b:𝔹 | b = ¬a} |])
 
-  -- comparisong methods
+  -- comparison methods
   ("__lt__", [Int, Int], Bool) -> Just ("lt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a < b} |])
   ("__le__", [Int, Int], Bool) -> Just ("le", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≤ b} |])
   ("__eq__", [Int, Int], Bool) -> Just ("eq", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a = b} |])
@@ -26,10 +42,14 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__gt__", [Int, Int], Bool) -> Just ("gt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a > b} |])
   ("__ge__", [Int, Int], Bool) -> Just ("ge", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≥ b} |])
 
-  -- container methods
-  ("__getitem__", [Str, Int], Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]} |])
-  ("__len__"    , [Str]     , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])
-  
+  -- container methods; see Note [Slicing via __getitem__]
+  ("__getitem__", [Str, Int       ], Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]} |])
+  ("__getitem__", [Str, Int , Int ], Str) -> Just ("slice", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {t:𝕊 | t = s[i..j]} |])
+  ("__getitem__", [Str, Int , None], Str) -> Just ("sliceFrom", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..|s|-1]} |])
+  ("__getitem__", [Str, None, Int ], Str) -> Just ("sliceTo", [panType| (s:𝕊) → {j:ℤ | j ≥ 0 ∧ j < |s|} → {t:𝕊 | t = s[0..j]} |])
+  ("__getitem__", [Str, None, None], Str) -> Just ("strId", [panType| (s:𝕊) → {t:𝕊 | t = s} |])
+  ("__len__"    , [Str]            , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])
+
   -- numeric methods
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])
   ("__sub__", [Int, Int], Int) -> Just ("sub", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a - b} |])

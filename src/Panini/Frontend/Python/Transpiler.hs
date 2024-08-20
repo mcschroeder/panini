@@ -235,16 +235,17 @@ transpileStmts stmts k0 = go stmts
       let op     = assignOpToOp aug_assign_op
       let fun    = desugarBinaryOp op
       let args   = [to_expr, aug_assign_expr]
+      let tyArgs = map typeOf args
       let retTy  = typeOf aug_assign_expr
-      e1        <- applyAxiom fun args retTy (getPV aug_assign_op)
+      e1        <- applyAxiom fun args tyArgs retTy (getPV aug_assign_op)
       e2        <- go rest
       return     $ Let (mangle x) e1 e2 (getPV stmt)
 
     -- TODO: technically, assert raises an AssertionError, which could be caught!
     Assert { assert_exprs = [expr] } -> do
-      e1     <- applyAxiom "assert" [expr] PyType.None (getPV stmt)
-      e2     <- go rest
-      return  $ Let dummyName e1 e2 (getPV stmt)
+      e1 <- applyAxiom "assert" [expr] [typeOf expr] PyType.None (getPV stmt)
+      e2 <- go rest
+      return $ Let dummyName e1 e2 (getPV stmt)
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
@@ -252,43 +253,70 @@ withTerm :: HasProvenance a => Typed Py.Expr a -> (Term -> Transpiler Term) -> T
 withTerm expr k = case expr of
   _ | isAtomic expr -> k =<< Val <$> transpileAtom expr
 
-  Call { call_fun = Py.Var fun _, call_args = ArgExprs args } ->
-    k =<< applyAxiom fun.ident_string args (typeOf expr) (getPV fun)
+  Call { call_fun = Py.Var fun _, call_args = ArgExprs args } -> do
+    let tyArgs = map typeOf args
+    k =<< applyAxiom fun.ident_string args tyArgs (typeOf expr) (getPV fun)
   
   Call { call_fun = Dot {..}, call_args = ArgExprs args } -> do
-    let fn = dot_attribute.ident_string
-    let pv = getPV dot_attribute
-    k =<< applyAxiom fn (dot_expr : args) (typeOf expr) pv
+    let fun    = dot_attribute.ident_string
+    let args'  = dot_expr : args
+    let tyArgs = map typeOf args'
+    let pv     = getPV dot_attribute
+    k =<< applyAxiom fun args' tyArgs (typeOf expr) pv
   
   BinaryOp { operator = Py.NotIn {..}, .. } -> do
     let expr' = BinaryOp { operator = Py.In {..}, .. }
-    k =<< applyAxiom "not" [expr'] PyType.Bool (getPV expr)
+    k =<< applyAxiom "not" [expr'] [typeOf expr'] PyType.Bool (getPV expr)
 
   BinaryOp { operator = IsNot {..}, ..} -> do
     let expr' = BinaryOp { operator = Is {..}, .. }
-    k =<< applyAxiom "not" [expr'] PyType.Bool (getPV expr)
+    k =<< applyAxiom "not" [expr'] [typeOf expr'] PyType.Bool (getPV expr)
   
   BinaryOp {..} -> do
-    let func = desugarBinaryOp operator
-    let args = [left_op_arg, right_op_arg]
-    k =<< applyAxiom func args (typeOf expr) (getPV operator)
+    let opFun  = desugarBinaryOp operator
+    let args   = [left_op_arg, right_op_arg]
+    let tyArgs = map typeOf args
+    let tyExpr = typeOf expr
+    let pv     = getPV operator
+    k =<< applyAxiom opFun args tyArgs tyExpr pv
   
   UnaryOp {..} -> do
-    let f = desugarUnaryOp operator
-    k =<< applyAxiom f [op_arg] (typeOf expr) (getPV operator)
+    let opFun  = desugarUnaryOp operator
+    let arg    = [op_arg]
+    let tyArg  = [typeOf op_arg]
+    let tyExpr = typeOf expr
+    let pv     = getPV operator
+    k =<< applyAxiom opFun arg tyArg tyExpr pv
 
   Subscript {..} -> do
-    let args = [subscriptee, subscript_expr]
-    k =<< applyAxiom "__getitem__" args (typeOf expr) (getPV expr)
+    let args   = [subscriptee, subscript_expr]
+    let tyArgs = map typeOf args
+    k =<< applyAxiom "__getitem__" args tyArgs (typeOf expr) (getPV expr)
+
+  SlicedExpr { slices = [SliceProper{..}], .. } -> do
+    let tyObj    = typeOf slicee
+    let tyLower  = maybe PyType.None typeOf slice_lower
+    let tyUpper  = maybe PyType.None typeOf slice_upper
+    let tyStride = maybe [] (pure . maybe PyType.None typeOf) slice_stride
+    let tyArgs   = [tyObj, tyLower, tyUpper] ++ tyStride
+    let tyItem   = typeOf expr
+    let args     = slicee : catMaybes [slice_lower, slice_upper, join slice_stride]
+    k =<< applyAxiom "__getitem__" args tyArgs tyItem (getPV expr)
+
+  SlicedExpr { slices = [SliceExpr{..}], .. } -> do
+    let tyObj    = typeOf slicee
+    let tyArgs   = [tyObj, typeOf slice_expr]
+    let tyItem   = typeOf expr
+    let args     = [slicee, slice_expr]
+    k =<< applyAxiom "__getitem__" args tyArgs tyItem (getPV expr)
 
   _ -> lift $ throwE $ UnsupportedExpression expr
 
-applyAxiom 
+applyAxiom
   :: HasProvenance a 
-  => String -> [Typed Py.Expr a] -> PyType -> PV 
+  => String -> [Typed Py.Expr a] -> [PyType] -> PyType -> PV 
   -> Transpiler Term
-applyAxiom fun args retTy pv = do
-  let argTys = map typeOf args
+applyAxiom fun args argTys retTy pv = do
   case axiomForFunction fun argTys retTy of
     Nothing -> lift $ throwE $ MissingAxiom fun argTys retTy pv
     Just ax@(fn,_) -> do
