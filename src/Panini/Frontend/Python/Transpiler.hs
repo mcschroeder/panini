@@ -247,6 +247,10 @@ transpileStmts stmts k0 = go stmts
       e2 <- go rest
       return $ Let dummyName e1 e2 (getPV stmt)
 
+    Return {..} -> case return_expr of
+      Nothing -> return $ Val $ Con $ U $ getPV stmt
+      Just ex -> withTerm ex return
+
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
 withTerm :: HasProvenance a => Typed Py.Expr a -> (Term -> Transpiler Term) -> Transpiler Term
