@@ -31,7 +31,7 @@ instance Pretty Program where
 
 instance Pretty Statement where
   pretty = \case
-    Assume x t -> pretty x <+> ":" <+> pretty t
+    Assume x t -> pretty x <+> align (":" <+> pretty t)
     Define x e -> pretty x <+> "=" <+> pretty e
     Import m _ -> ann Keyword "import" <+> pretty m
 
@@ -238,22 +238,26 @@ instance Ord Type where
 --
 instance Pretty Type where
   pretty = \case
-    -- {_:b|true}
+    -- {_:b|true}  ≡  b
     TBase v b (Known PTrue) _ | isDummy v 
       -> pretty b
+
+    -- {v:b|true}  ≡  (v:b)
+    TBase v b (Known PTrue) _
+      -> parens $ v `col` pretty b
 
     -- {v:b|r}
     TBase v b r _ 
       -> ppBaseReft v b r
 
-    -- _:{_:b|true} → t₂
+    -- _:{_:b|true} → t₂  ≡  b → t₂
     TFun x (TBase v b (Known PTrue) _) t2 _ 
       | isDummy x, isDummy v, x `notElem` freeVars t2
       -> pretty b `arr` pretty t2
 
-    -- x:{x:b|r} → t₂
-    TFun x (TBase v b r _) t2 _ | x == v 
-      -> ppBaseReft v b r `arr` pretty t2
+    -- x:{x:b|r} → t₂  ≡  {x:b|r} → t₂
+    TFun x t1@(TBase v _ _ _) t2 _ | x == v 
+      -> pretty t1 `arr` pretty t2
     
     -- x:{v:b|r} → t₂
     TFun x t1@(TBase _ _ _ _) t2 _ 
@@ -263,13 +267,13 @@ instance Pretty Type where
     TFun x t1@(TFun _ _ _ _) t2 _ | isDummy x, x `notElem` freeVars t2
       -> parens (pretty t1) `arr` pretty t2
     
-    -- x:(s₁ → s₂) → t₁  ≡  x:(s₁ → s₂) → t₁
+    -- x:(s₁ → s₂) → t₁
     TFun x t1@(TFun _ _ _ _) t2 _ 
       -> x `col` parens (pretty t1) `arr` pretty t2
    
    where
     ppBaseReft v b r = braces $ v `col` pretty b <+> mid <+> pretty r    
-    arr a b = a <+> arrow <+> b
+    arr a b = group (a <\> arrow) <+> b
     col x a = pretty x <> colon <> a
 
 instance HasProvenance Type where

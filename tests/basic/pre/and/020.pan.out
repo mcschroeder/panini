@@ -1,6 +1,6 @@
 f20 : {x:𝔹 | x = false} → {y:𝔹 | y = true} → {z:𝔹 | z = false}
-f21 : {x:𝔹 | true} → {y:𝔹 | y = false} → {z:𝔹 | z = false}
-f22 : {x:𝔹 | x = false} → {y:𝔹 | true} → {z:𝔹 | z = false}
-f23 : {x:𝔹 | true} → {y:𝔹 | false} → {z:𝔹 | z = false}
+f21 : (x:𝔹) → {y:𝔹 | y = false} → {z:𝔹 | z = false}
+f22 : {x:𝔹 | x = false} → (y:𝔹) → {z:𝔹 | z = false}
+f23 : (x:𝔹) → {y:𝔹 | false} → {z:𝔹 | z = false}
 f24 : {x:𝔹 | x = false} → {y:𝔹 | y = x} → {z:𝔹 | z = false}
-f25 : {x:𝔹 | true} → {y:𝔹 | y ≠ x} → {z:𝔹 | z = false}
+f25 : (x:𝔹) → {y:𝔹 | y ≠ x} → {z:𝔹 | z = false}
