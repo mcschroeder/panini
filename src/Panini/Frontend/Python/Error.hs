@@ -61,7 +61,7 @@ instance HasProvenance Error where
   
   setPV pv = \case
     ParserError e                   _ -> ParserError e pv
-    TypeError _                       -> undefined -- TODO
+    TypeError e                       -> TypeError e  -- TODO: set provenance
     UnsupportedStatement stmt         -> UnsupportedStatement        $ fmap (setPV pv) stmt
     UnsupportedExpression expr        -> UnsupportedExpression       $ fmap (setPV pv) expr
     UnsupportedTypeHint expr          -> UnsupportedTypeHint         $ fmap (setPV pv) expr
