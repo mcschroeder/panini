@@ -260,7 +260,25 @@ inferExpr = \case
   e@ByteStrings    {} -> pure $ setType e PyType.Bytes
   e@Strings        {} -> pure $ setType e PyType.Str
   e@UnicodeStrings {} -> pure $ setType e PyType.Str
-    
+
+  Call { call_fun = dotExpr@Dot{}, .. } -> do
+    let funTy1  = typeOfBuiltinFunction dotExpr.dot_attribute.ident_string
+    objExpr    <- inferExpr dotExpr.dot_expr
+    funArgs    <- mapM inferArg call_args
+    let argTys  = typeOf objExpr : map typeOf funArgs
+    funTy2     <- PyType.Callable argTys <$> newMetaVar
+    funTy3     <- unify funTy1 funTy2
+    let retTy   = getCallableReturnType funTy3
+    return      $ Call
+      { call_fun = Dot 
+        { dot_expr = objExpr
+        , dot_attribute = fmap (Just funTy1,) dotExpr.dot_attribute
+        , expr_annot = (Just funTy1, dotExpr.expr_annot)
+        }
+      , call_args = funArgs
+      , expr_annot = (Just retTy, expr_annot)
+      }
+
   Call{..} -> do    
     funArgs <- mapM inferArg call_args
     funType <- PyType.Callable (map typeOf funArgs) <$> newMetaVar
@@ -341,10 +359,14 @@ inferExpr = \case
       }
   
   -- TODO: infer type based on attributes of known object types
-  Dot{..} ->
-    Dot <$> inferExpr dot_expr
-        <*> pure (untyped dot_attribute)
-        <*> pure (Just PyType.Any, expr_annot)
+  Dot{..} -> do
+    obj   <- inferExpr dot_expr
+    let t  = typeOfBuiltinFunction dot_attribute.ident_string
+    return $ Dot 
+      { dot_expr      = obj
+      , dot_attribute = setType dot_attribute t
+      , expr_annot    = (Just t, expr_annot)
+      }
   
   Lambda{..} -> do
     params <- mapM inferParam lambda_args
