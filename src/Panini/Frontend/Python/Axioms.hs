@@ -21,6 +21,13 @@ number of given parameters, e.g., s[i:] should slice s from i to len(s) and
 s[::2] should select every other item of s. To allow this, we simply "collapse"
 the slice objects into additional parameters of __getitem__, with missing slice
 attributes represented using the None type.
+
+Note [Slice bounds]
+~~~~~~~~~~~~~~~~~~~
+In Python, a slice s[i:j] is defined as the sequence of items with index k such
+that i <= k < j; in other words, the upper bound j is /exclusive/. This differs
+from the s[i..j] function of Panini's refinement logic, which has an /inclusive/
+upper bound.
 -}
 
 type Axiom = (String, Type)
@@ -42,16 +49,15 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__gt__", [Int, Int], Bool) -> Just ("gt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a > b} |])
   ("__ge__", [Int, Int], Bool) -> Just ("ge", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≥ b} |])
 
-  -- container methods; see Note [Slicing via __getitem__]
+  -- container methods; see Note [Slicing via __getitem__] and Note [Slice bounds]
   ("__getitem__", [Str, Int]          , Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]} |])
-  ("__getitem__", [Str, Int, Int]     , Str) -> Just ("slice", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {t:𝕊 | t = s[i..j]} |])
+  ("__getitem__", [Str, Int, Int]     , Str) -> Just ("slice", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {t:𝕊 | t = s[i..j-1]} |])
   ("__getitem__", [Str, Int, None]    , Str) -> Just ("sliceFrom", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..|s|-1]} |])
-  ("__getitem__", [Str, None, Int]    , Str) -> Just ("sliceTo", [panType| (s:𝕊) → {j:ℤ | j ≥ 0 ∧ j < |s|} → {t:𝕊 | t = s[0..j]} |])
+  ("__getitem__", [Str, None, Int]    , Str) -> Just ("sliceTo", [panType| (s:𝕊) → {j:ℤ | j ≥ 0 ∧ j < |s|} → {t:𝕊 | t = s[0..j-1]} |])
   ("__getitem__", [Str, None, None]   , Str) -> Just ("strId", [panType| (s:𝕊) → {t:𝕊 | t = s} |])
   ("__len__"    , [Str]               , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])  
-  ("index"      , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {k:ℤ | k = firstIndexOfSubstring(s,t)} |])
-  ("index"      , [Str, Str, Int]     , Int) -> Just ("indexFrom", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {k:ℤ | k = firstIndexOfSubstring(s[i..|s|-1],t) + i} |])
-  ("index"      , [Str, Str, Int, Int], Int) -> Just ("indexFromTo", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j < |s|} → {k:ℤ | k = firstIndexOfSubstring(s[i..j],t) + i} |])
+  ("index"      , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {k:ℤ | k = str_indexof(s,t,0)}|])
+  ("index"      , [Str, Str, Int]     , Int) -> Just ("indexFrom", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {k:ℤ | k = str_indexof(s,t,i)} |])
 
   -- numeric methods
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])
