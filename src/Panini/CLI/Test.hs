@@ -143,10 +143,17 @@ testMain globalOpts = assert globalOpts.testMode $ do
 -------------------------------------------------------------------------------
 
 findTests :: FilePattern -> IO [FilePath]
-findTests pat 
-  | not (hasExtension pat) = go $ map (pat </>) ["**/*.pan","**/*.py"]
-  | otherwise              = go [pat]
+findTests pat
+  | hasExtension pat = go [pat]
+  | otherwise        = go [ pat' ++ glob ++ ext 
+                          | let pat' = dropTrailingPathSeparator pat
+                          , glob <- ["*/**/*","*"]
+                          , ext <- testFileExtensions
+                          ]
  where
   go pats = do
     cwd <- getCurrentDirectory
     getDirectoryFiles cwd pats
+
+testFileExtensions :: [String]
+testFileExtensions = [".pan",".py"]
