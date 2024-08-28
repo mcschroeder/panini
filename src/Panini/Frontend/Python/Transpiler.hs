@@ -75,13 +75,13 @@ returnTypeOf a = case typeOf a of
   PyType.Callable _ r -> return r
   _ -> lift $ throwE $ OtherError "expected Callable type" (getPV a)
 
-baseTypeFromPyType :: PyType -> Transpiler Base
-baseTypeFromPyType = \case
+baseTypeFromPyType :: PV -> PyType -> Transpiler Base
+baseTypeFromPyType pv = \case
   PyType.Bool -> pure TBool
   PyType.Int  -> pure TInt
   PyType.Str  -> pure TString
   PyType.None -> pure TUnit
-  t -> lift $ throwE $ OtherError ("unsupported Python type: " ++ show t) NoPV
+  t -> lift $ throwE $ OtherError ("unsupported Python type: " ++ showPretty t) pv
 
 ------------------------------------------------------------------------------
 
@@ -126,14 +126,14 @@ mkFunType
   => Typed Ident a -> [Typed Parameter a] -> Maybe (Typed Py.Expr a) 
   -> Transpiler Type
 mkFunType name args result = do
-  retBaseType <- baseTypeFromPyType =<< returnTypeOf name
+  retBaseType <- baseTypeFromPyType (getPV name) =<< returnTypeOf name
   let retPV    = maybe (Derived NoPV "inferred") getPV result
   let retType  = TBase dummyName retBaseType (Known PTrue) retPV
   foldM go retType (reverse args)
  where
   go t2 p = case p of
     Param { param_default = Nothing, .. } -> do
-      b      <- baseTypeFromPyType (typeOf p)
+      b      <- baseTypeFromPyType (getPV p) (typeOf p)
       let v   = mangle param_name
       let pv  = maybe (Derived NoPV "inferred") getPV param_py_annotation
       let t1  = TBase v b Unknown pv
@@ -149,7 +149,7 @@ mkLambdas ps k0 = foldM go k0 (reverse ps)
  where
   go k p = case p of
     Param { param_default = Nothing, .. } -> do
-      b      <- baseTypeFromPyType (typeOf p)
+      b      <- baseTypeFromPyType (getPV p) (typeOf p)
       let v   = mangle param_name
       let pv  = maybe (Derived NoPV "inferred") getPV param_py_annotation
       let t   = TBase dummyName b (Known PTrue) pv
@@ -200,7 +200,7 @@ mkPhiFunType xs = do
  where
   go t2 (x,xt) = do
     let v   = fromString x
-    b      <- baseTypeFromPyType xt
+    b      <- baseTypeFromPyType NoPV xt
     let t1  = TBase v b Unknown NoPV
     return  $ TFun v t1 t2 NoPV
 
@@ -209,7 +209,7 @@ mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
  where
   go k (x,xt) = do
     let v   = fromString x
-    b      <- baseTypeFromPyType xt
+    b      <- baseTypeFromPyType NoPV xt
     let t   = TBase dummyName b (Known PTrue) NoPV
     return  $ Lam v t k NoPV
 
