@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python.Typing.Unify where
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Except
 import Data.IntSet qualified as IntSet
@@ -11,6 +12,8 @@ import Panini.Frontend.Python.Typing.PyType as PyType
 import Prelude
 
 ------------------------------------------------------------------------------
+
+-- TODO: distinguish between type variable unification and subtyping
 
 unify :: PyType -> PyType -> Infer PyType
 unify a b | a == b = return a
@@ -42,9 +45,24 @@ unify (Callable as b) (Callable cs d) =
 unify a b
   | b `Set.member` transitiveSuperTypes a = return a
   | a `Set.member` transitiveSuperTypes b = return b
+  | Just c <- commonSuperType a b         = return c
   | otherwise                             = throwE $ CannotUnify a b
 
 ------------------------------------------------------------------------------
+
+-- TODO: formulate the Python type hierarchy via some lattice construction
+-- and ensure that we have some notion of a least-upper bound, if possible
+
+-- | Returns a common supertype of two types, if it exists, excluding 'Object'.
+commonSuperType :: PyType -> PyType -> Maybe PyType
+commonSuperType a b
+  | not (null cs) = Just $ Union $ Set.toList cs
+  | otherwise     = asum $ [commonSuperType a  b' | b' <- Set.toList bs] ++ 
+                           [commonSuperType a' b  | a' <- Set.toList as]
+ where
+  as = superTypes a
+  bs = superTypes b
+  cs = Set.intersection as bs
 
 -- | Return all transitive supertypes of a 'PyType', excluding 'Object'.
 transitiveSuperTypes :: PyType -> Set PyType
