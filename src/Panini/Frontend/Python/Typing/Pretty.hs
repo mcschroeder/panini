@@ -194,7 +194,7 @@ instance {-# OVERLAPPING #-} Pretty (Typed Expr a) where
       <+> withT expr_annot (prettyWithoutT operator)
       <+> pretty right_op_arg
 
-    UnaryOp {..} -> pretty operator <+> pretty op_arg  
+    UnaryOp {..} -> withT expr_annot (prettyWithoutT operator) <+> pretty op_arg  
 
     Dot {..} -> pretty dot_expr <> "." <> pretty dot_attribute
 
