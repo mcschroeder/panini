@@ -100,7 +100,7 @@ transpileTopLevel dom = go dom.root
       return   $ ass : def : rest
 
     Block{..} -> do
-      imports <- concat <$> mapM goImport _stmts
+      imports <- concatMapM goImport $ filter (not . isDocstring) _stmts
       -- TODO: deal with other stmts
       rest    <- go _next
       return   $ imports ++ rest
@@ -116,6 +116,10 @@ transpileTopLevel dom = go dom.root
   goImport = \case
     Py.Import{} -> return [] -- TODO: transpile imports and add to builder environment
     stmt        -> lift $ throwE $ OtherError ("UnsupportedTopLevel: " ++ showPretty stmt) (getPV stmt)
+
+  isDocstring = \case
+    StmtExpr{stmt_expr = Strings{}} -> True
+    _                               -> False
 
 mkFunType
   :: HasProvenance a 
@@ -250,6 +254,9 @@ transpileStmts stmts k0 = go stmts
     Return {..} -> case return_expr of
       Nothing -> return $ Val $ Con $ U $ getPV stmt
       Just ex -> withTerm ex return
+    
+    -- strip docstrings and other free-standing string literals
+    StmtExpr { stmt_expr = Strings{} } -> go rest
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 

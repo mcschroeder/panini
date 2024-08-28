@@ -190,7 +190,7 @@ addStatement ctx stmt next = case stmt of
       }
 
   Fun{..} -> do
-    body <- lift $ except $ fromStatements (stripDocstring fun_body)
+    body <- lift $ except $ fromStatements fun_body
     addNode $ FunDef 
       { _name   = fun_name
       , _args   = fun_args
@@ -199,9 +199,6 @@ addStatement ctx stmt next = case stmt of
       , _next   = next
       , _except = ctx.excepts
       }
-   where
-    stripDocstring (StmtExpr{stmt_expr = Strings{}} : xs) = xs
-    stripDocstring                                    xs  = xs
 
   Conditional{..} -> do
     else_ <- addStatements ctx cond_else next
