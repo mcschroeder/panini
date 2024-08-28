@@ -45,7 +45,7 @@ unify (Callable as b) (Callable cs d) =
 unify a b
   | b `Set.member` transitiveSuperTypes a = return a
   | a `Set.member` transitiveSuperTypes b = return b
-  | Just c <- commonSuperType a b         = return c
+--  | Just c <- commonSuperType a b         = return c
   | otherwise                             = throwE $ CannotUnify a b
 
 ------------------------------------------------------------------------------
