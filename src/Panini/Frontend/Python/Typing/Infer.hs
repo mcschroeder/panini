@@ -8,6 +8,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
 import Data.Bifunctor
 import Data.Generics.Uniplate.DataOnly
+import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Map.Strict qualified as Map
 import Data.Maybe
@@ -20,16 +21,26 @@ import Panini.Frontend.Python.Typing.PyType qualified as PyType
 import Panini.Frontend.Python.Typing.TypeInfo
 import Panini.Frontend.Python.Typing.Unify
 import Panini.Panic
-import Panini.Pretty
 import Prelude
 
 ------------------------------------------------------------------------------
 
-getCallableReturnType :: PyType -> PyType
-getCallableReturnType = \case
-  PyType.Callable _ t -> t
-  PyType.Union ts     -> PyType.Union $ map getCallableReturnType ts
-  t                   -> panic $ "expected Callable instead of" <+> pretty t
+infer :: Module a -> Either TypeError (Typed Module a)
+infer (Module stmts) = runInfer $ do
+  stmtsTypedMeta <- mapM inferStmt stmts
+  constraints    <- lift $ gets subConstraints
+  metaVarContext <- unify constraints
+  let stmtsTyped  = map (resolveMetaVars metaVarContext) stmtsTypedMeta
+  return          $ Module stmtsTyped
+
+resolveMetaVars :: Functor f => IntMap PyType -> Typed f a -> Typed f a
+resolveMetaVars ctx = fmap (first (fmap resolve))
+ where
+  resolve = rewrite $ \case
+    PyType.MetaVar i -> IntMap.lookup i ctx
+    _                -> Nothing
+
+------------------------------------------------------------------------------
 
 untyped :: Functor t => t a -> Typed t a
 untyped = fmap (Nothing,)
@@ -37,22 +48,6 @@ untyped = fmap (Nothing,)
 -- | Note: this sets the type for the given expression and all sub-expressions!
 setType :: Functor t => t a -> PyType -> Typed t a
 setType e t = fmap (Just t,) e
-
-------------------------------------------------------------------------------
-
-infer :: Module a -> Either TypeError (Typed Module a)
-infer (Module stmts) = runInfer $ do
-  stmtsTyped    <- mapM inferStmt stmts
-  stmtsResolved <- mapM resolveMetaVars stmtsTyped
-  return         $ Module stmtsResolved
-
-resolveMetaVars :: Functor f => Typed f a -> Infer (Typed f a)
-resolveMetaVars x = do
-  ctx <- lift $ gets metaVarContext
-  let resolve = rewrite $ \case
-                  PyType.MetaVar i -> IntMap.lookup i ctx
-                  _                -> Nothing
-  return $ fmap (first (fmap resolve)) x
 
 ------------------------------------------------------------------------------
 
@@ -68,7 +63,7 @@ inferStmt = \case
                      <*> pure (Nothing, stmt_annot)
   
   For{..} -> do
-    generator <- inferExpr for_generator
+    generator <- inferExpr for_generator    
     For <$> checkAssignment (typeOf generator) for_targets 
         <*> pure generator 
         <*> mapM inferStmt for_body 
@@ -89,7 +84,7 @@ inferStmt = \case
     pushReturnType (Implicit returnType)
     body <- mapM inferStmt fun_body
     popReturnType >>= \case
-      Implicit returnType' -> void $ unify returnType' PyType.None
+      Implicit returnType' -> constrain $ returnType' :≤ PyType.None
       Explicit _           -> pure ()
     Fun <$> pure (setType fun_name funType)
         <*> pure parameters
@@ -121,32 +116,37 @@ inferStmt = \case
            <*> pure (Nothing, stmt_annot)
 
   AugmentedAssign{..} -> do
-    lhs    <- inferExpr aug_assign_to
-    rhs    <- inferExpr aug_assign_expr
-    let t1  = PyType.Callable [typeOf rhs, typeOf rhs] (typeOf lhs)
-    let t2  = typeOfBinaryOp $ assignOpToOp aug_assign_op
-    t3     <- unify t1 t2
+    lhs <- inferExpr aug_assign_to
+    rhs <- inferExpr aug_assign_expr
+    let t = PyType.Callable [typeOf rhs, typeOf rhs] (typeOf lhs)
+    let funType = typeOfBinaryOp $ assignOpToOp aug_assign_op
+    constrain $ funType :≤ t
     return  $ AugmentedAssign 
       { aug_assign_to   = lhs
-      , aug_assign_op   = fmap (Just t3,) aug_assign_op
+      , aug_assign_op   = fmap (Just t,) aug_assign_op
       , aug_assign_expr = rhs
       , stmt_annot      = (Nothing, stmt_annot)
       }
 
   AnnotatedAssign {ann_assign_expr = Just assign_expr, ..} -> do
     hint <- typifyHint ann_assign_annotation
-    from <- checkExpr (typeOf hint) assign_expr
+    from <- inferExpr assign_expr
+    constrain $ typeOf from :≤ typeOf hint
     AnnotatedAssign <$> pure hint
                     <*> checkAssignment1 (typeOf from) ann_assign_to
                     <*> pure (Just from)
                     <*> pure (Nothing, stmt_annot)
 
   AnnotatedAssign {ann_assign_expr = Nothing, ..} -> do
-    hint <- typifyHint ann_assign_annotation
-    AnnotatedAssign <$> pure hint
-                    <*> checkExpr (typeOf hint) ann_assign_to
-                    <*> pure Nothing
-                    <*> pure (Nothing, stmt_annot)
+    hint   <- typifyHint ann_assign_annotation
+    toExpr <- inferExpr ann_assign_to
+    constrain $ typeOf toExpr :≤ typeOf hint
+    return $ AnnotatedAssign
+      { ann_assign_annotation = hint
+      , ann_assign_to         = toExpr
+      , ann_assign_expr       = Nothing
+      , stmt_annot            = (Nothing, stmt_annot)
+      }
 
   -- TODO: properly support decorators
   Decorated{..} -> Decorated <$> pure (map untyped decorated_decorators) 
@@ -155,15 +155,15 @@ inferStmt = \case
   
   Return { return_expr = Just e, ..} -> do
     t  <- projReturnType <$> popReturnType
-    e' <- checkExpr t e
-    let t' = typeOf e'
-    pushReturnType (Explicit t')
+    e' <- inferExpr e
+    constrain $ typeOf e' :≤ t
+    pushReturnType (Explicit t)  -- TODO: this pop/push stuff now seems superfluous
     return $ Return (Just e') (Nothing, stmt_annot)
 
   Return { return_expr = Nothing, ..} -> do
-    t  <- projReturnType <$> popReturnType
-    t' <- unify t PyType.None
-    pushReturnType (Explicit t')
+    t <- projReturnType <$> popReturnType
+    constrain $ PyType.None :≤ t
+    pushReturnType (Explicit t)
     return $ Return Nothing (Nothing, stmt_annot)
   
   Try{..} -> Try <$> mapM inferStmt try_body
@@ -224,7 +224,8 @@ checkAssignment1 t e = head <$> checkAssignment t [e]
 -- TODO: properly implement target list typing
 checkAssignment :: PyType -> [Expr a] -> Infer [Typed Expr a]
 checkAssignment fromType [e] = do
-  e' <- checkExpr fromType e
+  e' <- inferExpr e
+  constrain $ fromType :≤ typeOf e'
   case e' of
     IsVar x -> registerVar x (typeOf e')
     _       -> pure ()
@@ -262,100 +263,102 @@ inferExpr = \case
   e@UnicodeStrings {} -> pure $ setType e PyType.Str
 
   Call { call_fun = dotExpr@Dot{}, .. } -> do
-    let funTy1  = typeOfBuiltinFunction dotExpr.dot_attribute.ident_string
-    objExpr    <- inferExpr dotExpr.dot_expr
-    funArgs    <- mapM inferArg call_args
-    let argTys  = typeOf objExpr : map typeOf funArgs
-    funTy2     <- PyType.Callable argTys <$> newMetaVar
-    funTy3     <- unify funTy1 funTy2
-    let retTy   = getCallableReturnType funTy3
-    return      $ Call
+    let funTy1 = typeOfBuiltinFunction dotExpr.dot_attribute.ident_string
+    objExpr <- inferExpr dotExpr.dot_expr
+    funArgs <- mapM inferArg call_args
+    let argTys = typeOf objExpr : map typeOf funArgs
+    μ <- newMetaVar
+    let funTy2 = PyType.Callable argTys μ
+    constrain $ funTy1 :≤ funTy2
+    return Call
       { call_fun = Dot 
         { dot_expr = objExpr
         , dot_attribute = fmap (Just funTy1,) dotExpr.dot_attribute
         , expr_annot = (Just funTy1, dotExpr.expr_annot)
         }
       , call_args = funArgs
-      , expr_annot = (Just retTy, expr_annot)
+      , expr_annot = (Just μ, expr_annot)
       }
 
   Call{..} -> do    
     funArgs <- mapM inferArg call_args
-    funType <- PyType.Callable (map typeOf funArgs) <$> newMetaVar
-    funExpr <- checkExpr funType call_fun
-    let typ  = getCallableReturnType $ typeOf funExpr
-    return   $ Call 
+    μ <- newMetaVar
+    let funType = PyType.Callable (map typeOf funArgs) μ
+    funExpr <- inferExpr call_fun
+    constrain $ typeOf funExpr :≤ funType
+    return Call 
       { call_fun   = funExpr
       , call_args  = funArgs
-      , expr_annot = (Just typ, expr_annot)
+      , expr_annot = (Just μ, expr_annot)
       }
 
   Subscript{..} -> do
-    subExpr <- inferExpr subscriptee
-    indExpr <- inferExpr subscript_expr 
-    t1      <- PyType.Callable [typeOf subExpr, typeOf indExpr] <$> newMetaVar
-    let t2   = typeOfBuiltinFunction "__getitem__"
-    t3      <- unify t1 t2
-    let typ  = getCallableReturnType t3
-    return   $ Subscript 
-      { subscriptee    = subExpr
-      , subscript_expr = indExpr
-      , expr_annot     = (Just typ, expr_annot)
-      }
+    e1 <- inferExpr subscriptee
+    e2 <- inferExpr subscript_expr 
+    μ <- newMetaVar
+    let t1 = PyType.Callable [typeOf e1, typeOf e2] μ
+    let t2 = typeOfBuiltinFunction "__getitem__"
+    constrain $ t2 :≤ t1
+    return Subscript { subscriptee    = e1
+                     , subscript_expr = e2
+                     , expr_annot     = (Just μ, expr_annot)
+                     }
   
   -- TODO: more sophisticated analysis of slice types?
   SlicedExpr{..} -> do
-    subExpr <- inferExpr slicee
-    indExpr <- mapM inferSlice slices
-    let iTy  = case indExpr of [x] -> typeOf x 
-                               xs  -> PyType.Tuple (map typeOf xs)
-    t1      <- PyType.Callable [typeOf subExpr, iTy] <$> newMetaVar
-    let t2   = typeOfBuiltinFunction "__getitem__"
-    t3      <- unify t1 t2
-    let typ  = getCallableReturnType t3
-    return   $ SlicedExpr 
-      { slicee     = subExpr
-      , slices     = indExpr
-      , expr_annot = (Just typ, expr_annot)
+    e1 <- inferExpr slicee
+    e2 <- mapM inferSlice slices
+    let sliceTy | [x] <- e2 = typeOf x
+                | otherwise = PyType.Tuple $ map typeOf e2
+    μ <- newMetaVar
+    let t1 = PyType.Callable [typeOf e1, sliceTy] μ
+    let t2 = typeOfBuiltinFunction "__getitem__"
+    constrain $ t2 :≤ t1
+    return SlicedExpr 
+      { slicee     = e1
+      , slices     = e2
+      , expr_annot = (Just μ, expr_annot)
       }
 
   -- TODO: bool heuristic for condition?
   CondExpr{..} -> do
     trueExpr <- inferExpr ce_true_branch
-    condExpr <- inferExpr ce_condition
+    condExpr <- inferExpr ce_condition    
     falsExpr <- inferExpr ce_false_branch
-    exprType <- unify (typeOf trueExpr) (typeOf falsExpr)
-    return $ CondExpr 
+    μ <- newMetaVar
+    constrain $ typeOf trueExpr :≤ μ
+    constrain $ typeOf falsExpr :≤ μ
+    return CondExpr 
       { ce_true_branch  = trueExpr
       , ce_condition    = condExpr
       , ce_false_branch = falsExpr
-      , expr_annot      = (Just exprType, expr_annot)
+      , expr_annot      = (Just μ, expr_annot)
       }
 
   BinaryOp{..} -> do
     leExpr <- inferExpr left_op_arg    
     riExpr <- inferExpr right_op_arg
-    t1     <- PyType.Callable [typeOf leExpr, typeOf riExpr] <$> newMetaVar
-    let t2  = typeOfBinaryOp operator
-    t3     <- unify t1 t2
-    let rt  = getCallableReturnType t3
-    return  $ BinaryOp 
-      { operator     = setType operator t3
+    μ <- newMetaVar
+    let t1 = PyType.Callable [typeOf leExpr, typeOf riExpr] μ
+    let t2 = typeOfBinaryOp operator
+    constrain $ t2 :≤ t1
+    return BinaryOp 
+      { operator     = setType operator t1
       , left_op_arg  = leExpr
       , right_op_arg = riExpr
-      , expr_annot   = (Just rt, expr_annot)
+      , expr_annot   = (Just μ, expr_annot)
       }
 
   UnaryOp{..} -> do
     expr <- inferExpr op_arg    
-    t1     <- PyType.Callable [typeOf expr] <$> newMetaVar
-    let t2  = typeOfUnaryOp operator
-    t3     <- unify t1 t2
-    let rt  = getCallableReturnType t3
-    return  $ UnaryOp 
-      { operator   = setType operator t3
+    μ <- newMetaVar
+    let t1 = PyType.Callable [typeOf expr] μ
+    let t2 = typeOfUnaryOp operator
+    constrain $ t2 :≤ t1
+    return UnaryOp 
+      { operator   = setType operator t1
       , op_arg     = expr
-      , expr_annot = (Just rt, expr_annot)
+      , expr_annot = (Just μ, expr_annot)
       }
   
   -- TODO: infer type based on attributes of known object types
@@ -398,10 +401,11 @@ inferExpr = \case
 
   List{..} -> do
     items <- mapM inferExpr list_exprs
-    let itemType = commonSupertype (map typeOf items)
+    μ <- newMetaVar
+    mapM_ (constrain . (:≤ μ)) (map typeOf items)
     return List
       { list_exprs = items
-      , expr_annot = (Just (PyType.List itemType), expr_annot)
+      , expr_annot = (Just (PyType.List μ), expr_annot)
       }
   
   -- TODO: infer more precise K/V types
@@ -413,17 +417,20 @@ inferExpr = \case
     
   Py.Set{..} -> do
     items <- mapM inferExpr set_exprs
-    let itemType = commonSupertype (map typeOf items)
+    μ <- newMetaVar
+    mapM_ (constrain . (:≤ μ)) (map typeOf items)
     return Py.Set
       { set_exprs = items
-      , expr_annot = (Just (PyType.Set itemType), expr_annot)
+      , expr_annot = (Just (PyType.Set μ), expr_annot)
       }
   
   Starred{..} -> do
-    e <- checkExpr (PyType.Iterable PyType.Any) starred_expr
+    e <- inferExpr starred_expr
+    let t = typeOf e
+    constrain $ t :≤ PyType.Iterable PyType.Any
     Starred 
       <$> pure e
-      <*> pure (Just (typeOf e), expr_annot)
+      <*> pure (Just t, expr_annot)
   
   Paren{..} -> do
     e <- inferExpr paren_expr
@@ -444,18 +451,6 @@ inferExpr = \case
 
   e -> return $ fmap (Just PyType.Any,) e
 
--- TODO: actually compute precise common supertype
-commonSupertype :: [PyType] -> PyType
-commonSupertype = \case
-  []                   -> PyType.Any
-  t:ts | all (== t) ts -> t
-       | otherwise     -> PyType.Any -- TODO
-
-checkExpr :: PyType -> Expr a -> Infer (Typed Expr a)
-checkExpr t e = do
-  e' <- inferExpr e
-  t' <- unify t (typeOf e')
-  return $ e' { expr_annot = (Just t', snd e'.expr_annot) }
 
 -- | Note: this will add the types of named parameters to the variable context!
 inferParam :: Parameter a -> Infer (Typed Parameter a)
@@ -465,15 +460,11 @@ inferParam = \case
     let hintedType = fmap typeOf typeHintExpr
     defaultExpr <- mapM inferExpr param_default
     let defaultType = fmap typeOf defaultExpr
-    paramType <- case (hintedType, defaultType) of
-      (Just t1, Just t2) -> unify t1 t2
-      (Just t1, Nothing) -> return t1
-      (Nothing, Just t2) -> return t2
-      (Nothing, Nothing) -> newMetaVar
-
+    paramType <- newMetaVar
+    mapM_ (constrain . (paramType :≤)) hintedType
+    mapM_ (constrain . (paramType :≤)) defaultType
     let x = param_name.ident_string
     registerVar x paramType
-
     return Param
       { param_name          = fmap (Just paramType,) param_name
       , param_py_annotation = typeHintExpr

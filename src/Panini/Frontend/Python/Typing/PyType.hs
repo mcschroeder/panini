@@ -121,6 +121,14 @@ pattern Optional t = Union [t, None]
 metaVars :: PyType -> IntSet
 metaVars t = IntSet.fromList [i | MetaVar i <- universe t]
 
+hasMetaVars :: PyType -> Bool
+hasMetaVars t = or [True | MetaVar _ <- universe t]
+
+substituteMetaVar :: Int -> PyType -> PyType -> PyType
+substituteMetaVar x t = transform $ \case
+  Any_ (Just y) | x == y -> t
+  s                      -> s
+
 -------------------------------------------------------------------------------
 
 instance Pretty PyType where

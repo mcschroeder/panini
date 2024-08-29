@@ -1,9 +1,33 @@
 {-# LANGUAGE OverloadedLists #-}
+
+{-|
+This module implements a solver for Python subtyping constraints, loosely based
+on Stephen Dolan's biunification algorithm and followup work.
+
+References:
+
+  * Dolan, Stephen. 2016. "Algebraic Subtyping." PhD diss. University of
+    Cambridge.
+    https://www.cs.tufts.edu/~nr/cs257/archive/stephen-dolan/thesis.pdf
+
+  * Dolan, Stephen and Alan Mycroft. 2017. "Polymorphism, Subtyping, and Type
+    Inference in MLsub." Proceedings of the 44th ACM SIGPLAN Symposium on
+    Principles of Programming Languages (POPL '17): 60-72.
+    https://doi.org/10.1145/3009837.3009882
+
+  * Parreaux, Lionel. 2020. "The Simple Essence of Algebraic Subtyping:
+    Principal Type Inference with Subtyping Made Easy (Functional Pearl)."
+    PACMPL 4, ICFP, Article 124 (August 2020). https://doi.org/10.1145/3409006
+  
+-}
 module Panini.Frontend.Python.Typing.Unify where
 
+import Algebra.Lattice
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Except
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet qualified as IntSet
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -13,58 +37,114 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
--- TODO: distinguish between type variable unification and subtyping
-
-unify :: PyType -> PyType -> Infer PyType
-unify a b | a == b = return a
-
-unify Any b = return b
-unify a Any = return a
-
-unify Object b = return b
-unify a Object = return a
-
-unify t1@(MetaVar a) b = do
-  when (a `IntSet.member` metaVars b) $ throwE $ InfiniteType t1 b
-  t <- maybe (return b) (unify b) =<< lookupMetaVar a
-  setMetaVar a t
-  return t
-
-unify a b@(MetaVar _) = unify b a
-
-unify t1@(Union as) b = do
-  cs <- tryAll $ map (unify b) as
-  when (null cs) $ throwE $ CannotUnify t1 b
-  return (Union cs)
-
-unify a b@(Union _) = unify b a
-
-unify (Tuple as) (Tuple bs) = Tuple <$> zipWithM unify as bs
-
-unify (Callable as b) (Callable cs d) = 
-  Callable <$> zipWithM unify as cs <*> unify b d
-
-unify a b
-  | b `Set.member` transitiveSuperTypes a = return a
-  | a `Set.member` transitiveSuperTypes b = return b
---  | Just c <- commonSuperType a b         = return c
-  | otherwise                             = throwE $ CannotUnify a b
+unify :: Set Constraint -> Infer (IntMap PyType)
+unify = coalesce <=< biunify
 
 ------------------------------------------------------------------------------
 
--- TODO: formulate the Python type hierarchy via some lattice construction
--- and ensure that we have some notion of a least-upper bound, if possible
-
--- | Returns a common supertype of two types, if it exists, excluding 'Object'.
-commonSuperType :: PyType -> PyType -> Maybe PyType
-commonSuperType a b
-  | not (null cs) = Just $ Union $ Set.toList cs
-  | otherwise     = asum $ [commonSuperType a  b' | b' <- Set.toList bs] ++ 
-                           [commonSuperType a' b  | a' <- Set.toList as]
+-- | Coalesce a collection of meta variable bounds into simple static types.
+coalesce :: IntMap (PyType, PyType) -> Infer (IntMap PyType)
+coalesce = go mempty . IntMap.toList
  where
-  as = superTypes a
-  bs = superTypes b
-  cs = Set.intersection as bs
+  go m []               = pure m
+  go m ((a,(lo,up)):cs) = case (lo, up, metaVars lo <> metaVars up) of
+    (Any, t  , [])            -> go (IntMap.insert a t  m) cs
+    (t  , Any, [])            -> go (IntMap.insert a t  m) cs
+    (t1 , t2 , []) | t1 == t2 -> go (IntMap.insert a t1 m) cs
+    
+    -- TODO: generalize
+    (Tuple ts1, Tuple ts2, []) | length ts1 == length ts2 -> do
+      vs <- replicateM (length ts1) newMetaVar
+      let proj (MetaVar i) = i; proj _ = undefined
+      let cs' = zip (map proj vs) (zip ts1 ts2)
+      let c' = (a,(Tuple vs, Tuple vs))
+      go m (cs ++ cs' ++ [c'])
+
+    (_  , _  , [])            -> throwE $ CannotCoalesce a lo up
+    (_  , _  , vs)            -> go m (cs ++ [(a,(lower',upper'))])
+     where
+      lower' = IntMap.foldrWithKey' substituteMetaVar lo finals
+      upper' = IntMap.foldrWithKey' substituteMetaVar up finals
+      finals = IntMap.restrictKeys m vs <> IntMap.fromSet (const Any) undefs
+      undefs = vs IntSet.\\ (IntMap.keysSet m <> IntSet.fromList (map fst cs))
+
+-- | Solve subtyping constraints via biunification, returning the lower and
+-- upper bounds of each meta variable (cf. Parreaux 2020). Note that these
+-- bounds might in turn contain meta variables.
+biunify :: Set Constraint -> Infer (IntMap (PyType, PyType))
+biunify = go mempty . Set.toList
+ where
+  go m []     = pure m
+  go m (c:cs) = case c of
+
+    Any :≤ _   -> go m cs
+    _   :≤ Any -> go m cs
+    
+    Callable s1 t1 :≤ Callable s2 t2 -> 
+      go m $ zipWith (:≤) s2 s1 ++ t1 :≤ t2 : cs
+    
+    MetaVar a :≤ t2 -> go m' (lo :≤ t2 : cs)
+     where
+      (lo,up) = IntMap.findWithDefault (Any,Any) a m
+      m'      = IntMap.insert a (lo, up ∧ t2) m
+
+    t1 :≤ MetaVar a -> go m' (t1 :≤ up : cs)
+     where
+      (lo,up) = IntMap.findWithDefault (Any,Any) a m
+      m'      = IntMap.insert a (lo ∨ t1, up) m
+
+    Union ts :≤ t2 -> do
+      r <- diverge m $ map (:≤ t2) ts
+      case r of
+        [] -> throwE $ CannotUnify (Union ts) t2
+        ms -> go (combine ms) cs
+
+    t1 :≤ Union ts -> do
+      r <- diverge m $ map (t1 :≤) ts
+      case r of
+        [] -> throwE $ CannotUnify t1 (Union ts)
+        ms -> go (combine ms) cs
+
+    t1 :≤ t2 | hasMetaVars t1 || hasMetaVars t2 -> do
+      let st1 = Set.toList $ superTypes t1
+      let st2 = Set.toList $ superTypes t2
+      r <- diverge m $ zipWith (:≤) st1 st2 ++ map (t1 :≤) st2 ++ map (:≤ t2) st1
+      case r of
+        [] -> throwE $ CannotUnify t1 t2
+        ms -> go (combine ms) cs
+      
+    t1 :≤ t2 | t1 ⊑ t2   -> go m cs
+             | otherwise -> throwE $ CannotUnify t1 t2
+  
+  diverge m = tryAll . map (go m . pure)
+  combine m = IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ∨ l2, u1 ∧ u2)) m
+
+
+-- TODO: move these into PyType module
+
+instance MeetSemilattice PyType where
+  Any ∧ b = b
+  a ∧ Any = a
+  a ∧ b | a ⊑ b = a
+        | b ⊑ a = b
+        | otherwise = Any
+
+instance JoinSemilattice PyType where
+  Any ∨ b = b
+  a ∨ Any = a
+  a ∨ b | a ⊑ b = b
+        | b ⊑ a = a
+        | otherwise = Union [a,b]
+
+instance PartialOrder PyType where
+  Any ⊑ _        = True
+  _   ⊑ Any      = True
+  _   ⊑ Object   = True
+  a   ⊑ Union bs = any (a ⊑) bs
+  a   ⊑ b        = a == b || b `elem` transitiveSuperTypes a
+
+
+------------------------------------------------------------------------------
 
 -- | Return all transitive supertypes of a 'PyType', excluding 'Object'.
 transitiveSuperTypes :: PyType -> Set PyType
