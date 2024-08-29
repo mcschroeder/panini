@@ -39,6 +39,8 @@ unify t1@(Union as) b = do
 
 unify a b@(Union _) = unify b a
 
+unify (Tuple as) (Tuple bs) = Tuple <$> zipWithM unify as bs
+
 unify (Callable as b) (Callable cs d) = 
   Callable <$> zipWithM unify as cs <*> unify b d
 
