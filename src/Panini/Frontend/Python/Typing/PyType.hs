@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python.Typing.PyType where
 
+import Algebra.Lattice
 import Data.Data
 import Data.Generics.Uniplate.DataOnly
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
 import Data.List qualified as List
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import Panini.Pretty hiding (Set)
@@ -172,3 +174,89 @@ prettyFancyCallable xs y =
 -- | Union type syntax based on PEP 604, official syntax as of Python 3.10.
 prettyFancyUnion :: [PyType] -> Doc
 prettyFancyUnion ts = mconcat $ List.intersperse " | " $ map pretty ts
+
+-------------------------------------------------------------------------------
+
+-- | The Python type hierarchy establishes a partial ordering of Python types.
+instance PartialOrder PyType where
+  Any ⊑ _        = True
+  _   ⊑ Any      = True
+  _   ⊑ Object   = True
+  a   ⊑ Union bs = any (a ⊑) bs
+  a   ⊑ b        = a == b || b `elem` transitiveSuperTypes a
+
+instance JoinSemilattice PyType where
+  Any ∨ b = b
+  a ∨ Any = a
+  a ∨ b | a ⊑ b = b
+        | b ⊑ a = a
+        | otherwise = Union [a,b]
+
+instance MeetSemilattice PyType where
+  Any ∧ b = b
+  a ∧ Any = a
+  a ∧ b | a ⊑ b = a
+        | b ⊑ a = b
+        | otherwise = Any
+
+------------------------------------------------------------------------------
+
+-- | Return all transitive supertypes of a 'PyType', excluding 'Object'.
+transitiveSuperTypes :: PyType -> Set PyType
+transitiveSuperTypes = go . superTypes
+ where
+  go [] = []
+  go xs = xs <> go (Set.unions $ Set.map superTypes xs)
+
+-- | Return the immediate supertypes of a 'PyType', excluding 'Object' but
+-- including any abstract base classes and duck-typing protocols.
+superTypes :: PyType -> Set PyType
+superTypes = \case
+  Int -> 
+    [ SupportsInt, SupportsIndex, SupportsFloat, SupportsTrunc
+    , SupportsAbs Int, SupportsDivMod Int Int, SupportsRDivMod Int Int
+    , SupportsRound Int
+    ]
+  Float -> 
+      [ SupportsInt, SupportsFloat, SupportsTrunc, SupportsAbs Float
+      , SupportsDivMod Float Float, SupportsRDivMod Float Float
+      , SupportsRound Int, SupportsRound Float
+      ]
+  Complex -> [SupportsComplex, SupportsAbs Float]  
+  Bool  -> [Int]   
+  
+  Str          -> [Sequence Str]
+  Bytes        -> [Sequence Int]
+  Bytearray    -> [MutableSequence Int]  
+  Memoryview i -> [Sequence i]
+  List a       -> [MutableSequence a]
+  Dict k v     -> [MutableMapping k v]
+  Set a        -> [MutableSet a]
+  Frozenset a  -> [AbstractSet a]
+  Enumerate a  -> [Iterator (Tuple [Int,a])]
+  Range        -> [Sequence Int]
+  
+  Tuple (t:ts) 
+    | all (== t) ts -> [Sequence t]
+    | otherwise     -> [Sequence Any]
+
+  AbstractSet a       -> [Collection a]
+  AsyncGenerator y _  -> [AsyncIterator y]  
+  AsyncIterator a     -> [AsyncIterable a]
+  Collection a        -> [Sized, Iterable a, Container a]
+  Coroutine _ _ r     -> [Awaitable r]
+  Generator y _ _     -> [Iterator y]
+  ItemsView k v       -> [MappingView (Tuple [k,v]), AbstractSet (Tuple [k,v])]
+  Iterable a          -> [SupportsIter a]
+  Iterator a          -> [SupportsNext a, Iterable a]
+  KeysView k          -> [MappingView k, AbstractSet k]
+  Mapping k _         -> [Collection k]
+  MappingView _       -> [Sized]
+  MutableMapping  k v -> [Mapping k v]
+  MutableSequence a   -> [Sequence a]
+  MutableSet a        -> [AbstractSet a]
+  Reversible a        -> [Iterable a]
+  Sequence a          -> [Reversible a, Collection a]
+  ValuesView v        -> [MappingView v, Collection v]
+  
+  _ -> []
