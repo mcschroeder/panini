@@ -104,13 +104,13 @@ biunify = go mempty . Set.toList
     Union ts :≤ t2 -> do
       r <- diverge m $ map (:≤ t2) ts
       case r of
-        [] -> throwE $ CannotUnify (Union ts) t2
+        [] -> throwE $ CannotSolve c
         ms -> go (combine ms) cs
 
     t1 :≤ Union ts -> do
       r <- diverge m $ map (t1 :≤) ts
       case r of
-        [] -> throwE $ CannotUnify t1 (Union ts)
+        [] -> throwE $ CannotSolve c
         ms -> go (combine ms) cs
 
     t1 :≤ t2 | hasMetaVars t1 || hasMetaVars t2 -> do
@@ -118,11 +118,11 @@ biunify = go mempty . Set.toList
       let st2 = Set.toList $ superTypes t2
       r <- diverge m $ zipWith (:≤) st1 st2 ++ map (t1 :≤) st2 ++ map (:≤ t2) st1
       case r of
-        [] -> throwE $ CannotUnify t1 t2
+        [] -> throwE $ CannotSolve c
         ms -> go (combine ms) cs
       
     t1 :≤ t2 | t1 ⊑ t2   -> go m cs
-             | otherwise -> throwE $ CannotUnify t1 t2
+             | otherwise -> throwE $ CannotSolve c
   
   diverge m = tryAll . map (go m . pure)
   combine m = IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ∨ l2, u1 ∧ u2)) m
