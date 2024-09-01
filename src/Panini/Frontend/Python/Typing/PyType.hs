@@ -128,8 +128,10 @@ instance Pretty PyType where
     Any_ Nothing  -> "Any"
     Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
     TypeVar s     -> pretty s
-    Union_ ts     -> "Union"      <> params ts
-    Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
+    --Union_ ts     -> "Union"      <> params ts
+    --Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
+    Union_ ts     -> prettyFancyUnion ts
+    Callable xs y -> prettyFancyCallable xs y
     Tuple ts      -> "tuple"      <> params ts
     List t        -> "list"       <> params [t]
     Memoryview t  -> "memoryview" <> params [t]
@@ -153,3 +155,12 @@ instance Pretty PyType where
     paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
     prettyConstr = pretty . showConstr . toConstr    
     paramQ t     = maybe undefined (pretty @PyType) (cast t)
+
+-- | Callable type syntax based on /rejected/ PEP 677.
+prettyFancyCallable :: [PyType] -> PyType -> Doc
+prettyFancyCallable xs y = 
+  parens (mconcat $ List.intersperse ", " $ map pretty xs) <+> "->" <+> pretty y
+
+-- | Union type syntax based on PEP 604, official syntax as of Python 3.10.
+prettyFancyUnion :: [PyType] -> Doc
+prettyFancyUnion ts = mconcat $ List.intersperse " | " $ map pretty ts
