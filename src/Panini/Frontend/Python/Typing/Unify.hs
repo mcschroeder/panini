@@ -20,7 +20,7 @@ References:
     PACMPL 4, ICFP, Article 124 (August 2020). https://doi.org/10.1145/3409006
   
 -}
-module Panini.Frontend.Python.Typing.Unify where
+module Panini.Frontend.Python.Typing.Unify (unify) where
 
 import Algebra.Lattice
 import Control.Applicative
@@ -33,6 +33,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Frontend.Python.Typing.Monad
 import Panini.Frontend.Python.Typing.PyType as PyType
+import Panini.Panic
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -47,26 +48,33 @@ coalesce :: IntMap (PyType, PyType) -> Infer (IntMap PyType)
 coalesce = go mempty . IntMap.toList
  where
   go m []               = pure m
-  go m ((a,(lo,up)):cs) = case (lo, up, metaVars lo <> metaVars up) of
-    (Any, t  , [])            -> go (IntMap.insert a t  m) cs
-    (t  , Any, [])            -> go (IntMap.insert a t  m) cs
-    (t1 , t2 , []) | t1 == t2 -> go (IntMap.insert a t1 m) cs
-    
-    -- TODO: generalize
-    (Tuple ts1, Tuple ts2, []) | length ts1 == length ts2 -> do
-      vs <- replicateM (length ts1) newMetaVar
-      let proj (MetaVar i) = i; proj _ = undefined
-      let cs' = zip (map proj vs) (zip ts1 ts2)
-      let c' = (a,(Tuple vs, Tuple vs))
-      go m (cs ++ cs' ++ [c'])
+  go m ((a,(lo,up)):cs) = case metaVars lo <> metaVars up of
+    [] -> case (lo,up) of
+      (Any, t  )            -> go (IntMap.insert a t  m) cs
+      (t  , Any)            -> go (IntMap.insert a t  m) cs
+      (t1 , t2 ) | t1 == t2 -> go (IntMap.insert a t1 m) cs
+      
+      (PyType x ts1, PyType y ts2) | x == y -> do
+        assertM  $ length ts1 == length ts2
+        (ts,vs) <- newMetaVars (length ts1)
+        let cs'  = zip vs (zip ts1 ts2)
+        let c'   = (a,(PyType x ts, PyType y ts))
+        go m     $ cs ++ cs' ++ [c']
 
-    (_  , _  , [])            -> throwE $ CannotCoalesce a lo up
-    (_  , _  , vs)            -> go m (cs ++ [(a,(lower',upper'))])
+      _ -> throwE $ CannotCoalesce a lo up
+    
+    vs -> go m (cs ++ [(a,(lower',upper'))])
      where
       lower' = IntMap.foldrWithKey' substituteMetaVar lo finals
       upper' = IntMap.foldrWithKey' substituteMetaVar up finals
       finals = IntMap.restrictKeys m vs <> IntMap.fromSet (const Any) undefs
       undefs = vs IntSet.\\ (IntMap.keysSet m <> IntSet.fromList (map fst cs))
+
+newMetaVars :: Int -> Infer ([PyType],[Int])
+newMetaVars n = do
+  ts <- replicateM n newMetaVar
+  let unwrap t@(MetaVar v) = (t,v); unwrap _ = impossible
+  return $ unzip $ map unwrap ts
 
 -- | Solve subtyping constraints via biunification, returning the lower and
 -- upper bounds of each meta variable (cf. Parreaux 2020). Note that these

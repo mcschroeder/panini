@@ -1,9 +1,11 @@
+{-# OPTIONS_GHC -Wno-missing-pattern-synonym-signatures #-}
+{-# OPTIONS_GHC -Wno-missing-exported-pattern-synonym-signatures #-}
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python.Typing.PyType where
 
 import Algebra.Lattice
 import Data.Data
-import Data.Generics.Uniplate.DataOnly
+import Data.Generics.Uniplate.Direct
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
 import Data.List qualified as List
@@ -15,75 +17,69 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
+-- | Type of Python types. 
+--
+-- Most Python types are represented using the 'PyType' constructor, which takes
+-- the name of the type and a (possibly empty) list of type parameters. For
+-- convenience and safety, we provide pattern synonyms for most built-in types.
+-- For example, the 'Str' pattern translates to @PyType "str" []@, which
+-- represents the Python @str@ type; the pattern application @'List' 'Int'@
+-- translates to @PyType "list" [PyType "int" []]@ and represents @list[int]@.
+--
+-- The 'Union' pattern is special: it is a smart constructor that additionally
+-- preserves certain invariants of Python type unions and ensures a unique
+-- representation.
+--
+-- The 'Any' and 'MetaVar' patterns translate to the 'Any_' constructor, which
+-- should not be used directly and represents both the Python @Any@ type and
+-- type system internal meta variables.
+--
+-- The 'Callable' constructor directly represents the Python @Callable@ type,
+-- equivalent to a function type. 
+--
+-- Finally, the 'TypeVar' constructor represents named Python type variables.
 data PyType
-  = Any_ (Maybe Int)  -- use 'Any' and 'MetaVar' patterns
-  | Union_ [PyType]   -- use 'Union' smart constructor
-  | TypeVar String  -- TODO: constraints, bound, variance
-  | Callable [PyType] (PyType)  
-
-  -- built-in types  
-  | Object
-  | Int
-  | Float
-  | Complex
-  | Bool
-  | List PyType
-  | Tuple [PyType]
-  | Range
-  | Str
-  | Bytes
-  | Bytearray
-  | Memoryview PyType
-  | Set PyType
-  | Frozenset PyType
-  | Dict PyType PyType
-  | Slice
-  | Enumerate PyType
-  | Ellipsis
-  | None
-  
-  -- ABCs (abstract base classes)
-  | Container PyType
-  | Hashable
-  | Iterable PyType
-  | Iterator PyType
-  | Reversible PyType
-  | Generator PyType PyType PyType
-  | Sized
-  | Collection PyType
-  | Sequence PyType
-  | MutableSequence PyType
-  | AbstractSet PyType
-  | MutableSet PyType
-  | Mapping PyType PyType
-  | MutableMapping PyType PyType
-  | MappingView PyType
-  | ItemsView PyType PyType
-  | KeysView PyType
-  | ValuesView PyType
-  | Awaitable PyType
-  | Coroutine PyType PyType PyType
-  | AsyncIterable PyType
-  | AsyncIterator PyType
-  | AsyncGenerator PyType PyType
-  | Buffer
-
-  -- protocols for structural subtyping (duck-typing)
-  | SupportsAbs PyType
-  | SupportsComplex
-  | SupportsDivMod PyType PyType
-  | SupportsFloat
-  | SupportsInt
-  | SupportsTrunc
-  | SupportsIndex
-  | SupportsIter PyType
-  | SupportsNext PyType
-  | SupportsRDivMod PyType PyType
-  | SupportsRound PyType
-
-  -- miscellaneous
-  | NoReturn
+  = PyType String [PyType]  -- ^ some indexed type; use patterns where possible
+  | Any_ (Maybe Int)         -- ^ use 'Any' and 'MetaVar' patterns
+  | Callable [PyType] (PyType)
+  | TypeVar String -- TODO: constraints, bound, variance  
   deriving stock (Eq, Ord, Show, Read, Data)
+
+instance Uniplate PyType where
+  uniplate = \case
+    Any_ v        -> plate Any_ |- v
+    TypeVar x     -> plate TypeVar |- x
+    Callable xs y -> plate Callable ||* xs |* y
+    Union ts      -> plate Union ||* ts  -- IMPORTANT: preserves invariants    
+    PyType x ts   -> plate PyType |- x ||* ts
+
+instance Pretty PyType where
+  pretty = \case
+    Any_ Nothing  -> "Any"
+    Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
+    TypeVar s     -> pretty s
+    --Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
+    Callable xs y -> prettyFancyCallable xs y
+    Union ts      -> prettyFancyUnion ts
+    PyType x ts   -> pretty x <> params ts
+   where
+    params       = paramList . map pretty
+    paramList [] = mempty
+    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
+
+-- | Callable type syntax based on /rejected/ PEP 677.
+prettyFancyCallable :: [PyType] -> PyType -> Doc
+prettyFancyCallable xs y = 
+  parens (mconcat $ List.intersperse ", " $ map pretty xs) <+> "->" <+> pretty y
+
+-- | Union type syntax based on PEP 604, official syntax as of Python 3.10.
+prettyFancyUnion :: [PyType] -> Doc
+prettyFancyUnion ts = mconcat $ List.intersperse " | " $ map pretty ts
+
+-------------------------------------------------------------------------------
+
+pattern Any :: PyType
+pattern Any = Any_ Nothing
 
 -- | Meta variables are used by the type inference engine to defer inference of
 -- unknown types to a later time. They are expected to be eventually unified
@@ -91,34 +87,6 @@ data PyType
 -- variables are simply equivalent to 'Any'.
 pattern MetaVar :: Int -> PyType
 pattern MetaVar i = Any_ (Just i)
-
-pattern Any :: PyType
-pattern Any = Any_ Nothing
-
--- | Union type @Union[X,Y]@ (or @X | Y@)
---
--- This smart constructor behaves similarly to Python's own @typing.Union@ and
--- ensures the following invariants:
---
---  1) Unions of unions are flattened.
---  2) Unions of a single argument vanish.
---  3) Redundant arguments are skipped.
---  4) When comparing unions, the argument order is ignored.
---
--- Note that this constructor will throw an error if the union is empty.
-pattern Union :: [PyType] -> PyType
-pattern Union xs <- Union_ xs where
-  Union xs | null xs'   = error "empty union type"
-           | [x] <- xs' = x
-           | otherwise  = Union_ xs'
-   where
-    xs' = Set.toAscList $ Set.fromList $ concatMap flatUnion xs
-    flatUnion = \case
-      Union ys -> ys
-      y            -> [y]
-
-pattern Optional :: PyType -> PyType
-pattern Optional t = Union [t, None]
 
 metaVars :: PyType -> IntSet
 metaVars t = IntSet.fromList [i | MetaVar i <- universe t]
@@ -133,47 +101,95 @@ substituteMetaVar x t = transform $ \case
 
 -------------------------------------------------------------------------------
 
-instance Pretty PyType where
-  pretty = \case
-    Any_ Nothing  -> "Any"
-    Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
-    TypeVar s     -> pretty s
-    --Union_ ts     -> "Union"      <> params ts
-    --Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
-    Union_ ts     -> prettyFancyUnion ts
-    Callable xs y -> prettyFancyCallable xs y
-    Tuple ts      -> "tuple"      <> params ts
-    List t        -> "list"       <> params [t]
-    Memoryview t  -> "memoryview" <> params [t]
-    Set t         -> "set"        <> params [t]
-    Frozenset t   -> "frozenset"  <> params [t]
-    Dict k v      -> "dict"       <> params [k,v]    
-    Enumerate t   -> "enumerate"  <> params [t]
-    Int           -> "int"
-    Float         -> "float"
-    Complex       -> "complex"
-    Bool          -> "bool"
-    Str           -> "str"
-    Bytes         -> "bytes"
-    Bytearray     -> "bytearray"
-    Object        -> "object"
-    Slice         -> "slice"
-    t             -> prettyConstr t <> paramList (gmapQ paramQ t)
+-- | Union type @Union[X,Y]@ (or @X | Y@)
+--
+-- This smart constructor behaves similarly to Python's own @typing.Union@ and
+-- ensures the following invariants:
+--
+--  1) Unions of unions are flattened.
+--  2) Unions of a single argument vanish.
+--  3) Redundant arguments are skipped.
+--  4) When comparing unions, the argument order is ignored.
+--
+-- Note that this constructor will throw an error if the union is empty.
+pattern Union :: [PyType] -> PyType
+pattern Union xs <- PyType "Union" xs where
+  Union xs | null xs'   = error "empty union type"
+           | [x] <- xs' = x
+           | otherwise  = PyType "Union" xs'
    where
-    params       = paramList . map pretty
-    paramList [] = mempty
-    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
-    prettyConstr = pretty . showConstr . toConstr    
-    paramQ t     = maybe undefined (pretty @PyType) (cast t)
+    xs' = Set.toAscList $ Set.fromList $ concatMap flatUnion xs
+    flatUnion = \case
+      Union ys -> ys
+      y        -> [y]
 
--- | Callable type syntax based on /rejected/ PEP 677.
-prettyFancyCallable :: [PyType] -> PyType -> Doc
-prettyFancyCallable xs y = 
-  parens (mconcat $ List.intersperse ", " $ map pretty xs) <+> "->" <+> pretty y
+pattern Optional :: PyType -> PyType
+pattern Optional t = Union [t, None]
 
--- | Union type syntax based on PEP 604, official syntax as of Python 3.10.
-prettyFancyUnion :: [PyType] -> Doc
-prettyFancyUnion ts = mconcat $ List.intersperse " | " $ map pretty ts
+-------------------------------------------------------------------------------
+
+-- built-in types  
+pattern Object                = PyType "object" []
+pattern Int                   = PyType "int" []
+pattern Float                 = PyType "float" []
+pattern Complex               = PyType "complex" []
+pattern Bool                  = PyType "bool" []
+pattern List t                = PyType "list" [t]
+pattern Tuple ts              = PyType "tuple" ts
+pattern Range                 = PyType "range" []
+pattern Str                   = PyType "str" []
+pattern Bytes                 = PyType "bytes" []
+pattern Bytearray             = PyType "bytearray" []
+pattern Memoryview t          = PyType "memoryview" [t]
+pattern Set t                 = PyType "set" [t]
+pattern Frozenset t           = PyType "frozenset" [t]
+pattern Dict k v              = PyType "dict" [k,v]
+pattern Slice                 = PyType "slice" []
+pattern Enumerate t           = PyType "enumerate" [t]
+pattern Ellipsis              = PyType "Ellipsis" []
+pattern None                  = PyType "None" []
+
+-- ABCs (abstract base classes)
+pattern Container t           = PyType "Container" [t]
+pattern Hashable              = PyType "Hashable" []
+pattern Iterable t            = PyType "Iterable" [t]
+pattern Iterator t            = PyType "Iterator" [t]
+pattern Reversible t          = PyType "Reversible" [t]
+pattern Generator y s r       = PyType "Generator" [y,s,r]
+pattern Sized                 = PyType "Sized" []
+pattern Collection t          = PyType "Collection" [t]
+pattern Sequence t            = PyType "Sequence" [t]
+pattern MutableSequence t     = PyType "MutableSequence" [t]
+pattern AbstractSet t         = PyType "AbstractSet" [t]
+pattern MutableSet t          = PyType "MutableSet" [t]
+pattern Mapping k v           = PyType "Mapping" [k,v]
+pattern MutableMapping k v    = PyType "MutableMapping" [k,v]
+pattern MappingView t         = PyType "MappingView" [t]
+pattern ItemsView k v         = PyType "ItemsView" [k,v]
+pattern KeysView t            = PyType "KeysView" [t]
+pattern ValuesView t          = PyType "ValuesView" [t]
+pattern Awaitable t           = PyType "Awaitable" [t]
+pattern Coroutine y s r       = PyType "Coroutine" [y,s,r]
+pattern AsyncIterable t       = PyType "AsyncIterable" [t]
+pattern AsyncIterator t       = PyType "AsyncIterator" [t]
+pattern AsyncGenerator y s    = PyType "AsyncGenerator" [y,s]
+pattern Buffer                = PyType "Buffer" []
+
+-- protocols for structural subtyping (duck-typing)
+pattern SupportsAbs t         = PyType "SupportsAbs" [t]
+pattern SupportsComplex       = PyType "SupportsComplex" []
+pattern SupportsDivMod t r    = PyType "SupportsDivMod" [t,r]
+pattern SupportsFloat         = PyType "SupportsFloat" []
+pattern SupportsInt           = PyType "SupportsInt" []
+pattern SupportsTrunc         = PyType "SupportsTrunc" []
+pattern SupportsIndex         = PyType "SupportsIndex" []
+pattern SupportsIter t        = PyType "SupportsIter" [t]
+pattern SupportsNext t        = PyType "SupportsNext" [t]
+pattern SupportsRDivMod t r   = PyType "SupportsRDivMod" [t,r]
+pattern SupportsRound t       = PyType "SupportsRound" [t]
+
+-- miscellaneous
+pattern NoReturn              = PyType "NoReturn" []
 
 -------------------------------------------------------------------------------
 
