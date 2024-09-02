@@ -35,6 +35,8 @@ import Panini.Frontend.Python.Typing.Monad
 import Panini.Frontend.Python.Typing.PyType as PyType
 import Panini.Panic
 import Prelude
+import Panini.Pretty
+import Data.Maybe
 
 ------------------------------------------------------------------------------
 
@@ -47,34 +49,38 @@ unify = coalesce <=< biunify
 coalesce :: IntMap (PyType, PyType) -> Infer (IntMap PyType)
 coalesce = go mempty . IntMap.toList
  where
-  go m []               = pure m
-  go m ((a,(lo,up)):cs) = case metaVars lo <> metaVars up of
-    [] -> case (lo,up) of
-      (Any, t  )            -> go (IntMap.insert a t  m) cs
-      (t  , Any)            -> go (IntMap.insert a t  m) cs
-      (t1 , t2 ) | t1 == t2 -> go (IntMap.insert a t1 m) cs
+  go m []             = pure m
+  go m ((a,(l,u)):cs) = case metaVars l <> metaVars u of
+    [] -> case (l,u) of
+      (Any, t)            -> go (IntMap.insert a t  m) cs
+      (t, Any)            -> go (IntMap.insert a t  m) cs
+      (t1, t2) | t1 == t2 -> go (IntMap.insert a t1 m) cs
       
       (PyType x ts1, PyType y ts2) | x == y -> do
-        assertM  $ length ts1 == length ts2
+        assertM $ length ts1 == length ts2
         (ts,vs) <- newMetaVars (length ts1)
-        let cs'  = zip vs (zip ts1 ts2)
-        let c'   = (a,(PyType x ts, PyType y ts))
-        go m     $ cs ++ cs' ++ [c']
+        let cs' = zip vs (zip ts1 ts2)
+        let c' = (a, (PyType x ts, PyType y ts))
+        go m $ cs ++ cs' ++ [c']
 
-      _ -> throwE $ CannotCoalesce a lo up
-    
-    vs -> go m (cs ++ [(a,(lower',upper'))])
+      (t1, t2) | t1 ⊑ t2   -> go (IntMap.insert a t1 m) cs
+               | otherwise -> impossibleBounds a (l,u)
+
+    vs -> go m (cs ++ [(a,(l',u'))])
      where
-      lower' = IntMap.foldrWithKey' substituteMetaVar lo finals
-      upper' = IntMap.foldrWithKey' substituteMetaVar up finals
-      finals = IntMap.restrictKeys m vs <> IntMap.fromSet (const Any) undefs
+      l' = IntMap.foldrWithKey' substituteMetaVar l ts
+      u' = IntMap.foldrWithKey' substituteMetaVar u ts
+      ts = IntMap.restrictKeys m vs <> IntMap.fromSet (const Any) undefs
       undefs = vs IntSet.\\ (IntMap.keysSet m <> IntSet.fromList (map fst cs))
+  
+  newMetaVars n = do
+    ts <- replicateM n newMetaVar
+    let unwrap t@(MetaVar v) = (t,v); unwrap _ = impossible
+    return $ unzip $ map unwrap ts
 
-newMetaVars :: Int -> Infer ([PyType],[Int])
-newMetaVars n = do
-  ts <- replicateM n newMetaVar
-  let unwrap t@(MetaVar v) = (t,v); unwrap _ = impossible
-  return $ unzip $ map unwrap ts
+  impossibleBounds a (l,u) = 
+    panic $ pretty l <+> "≤" <+> pretty (MetaVar a) <+> pretty u
+
 
 -- | Solve subtyping constraints via biunification, returning the lower and
 -- upper bounds of each meta variable (cf. Parreaux 2020). Note that these
@@ -87,19 +93,26 @@ biunify = go mempty . Set.toList
 
     Any :≤ _   -> go m cs
     _   :≤ Any -> go m cs
-    
-    Callable s1 t1 :≤ Callable s2 t2 -> 
-      go m $ zipWith (:≤) s2 s1 ++ t1 :≤ t2 : cs
-    
-    MetaVar a :≤ t2 -> go m' (lo :≤ t2 : cs)
-     where
-      (lo,up) = IntMap.findWithDefault (Any,Any) a m
-      m'      = IntMap.insert a (lo, up ∧ t2) m
 
-    t1 :≤ MetaVar a -> go m' (t1 :≤ up : cs)
+    MetaVar a :≤ t -> go m' cs'
      where
-      (lo,up) = IntMap.findWithDefault (Any,Any) a m
-      m'      = IntMap.insert a (lo ∨ t1, up) m
+      (l,u) = IntMap.findWithDefault (Any,Any) a m
+      u'    = u ⊓ t
+      m'    = IntMap.insert a (l,u') m
+      cs'   = l :≤ t : cs
+
+    t :≤ MetaVar a -> go m' cs'
+     where
+      (l,u) = IntMap.findWithDefault (Any,Any) a m
+      l'    = l ⊔ t
+      m'    = IntMap.insert a (l',u) m
+      cs'   = t :≤ u : cs
+
+    Callable s1 t1 :≤ Callable s2 t2 | length s1 == length s2 -> 
+      go m $ t1 :≤ t2 : zipWith (:≤) s2 s1 ++ cs
+
+    Sequence t :≤ Tuple xs -> go m $ map (t :≤) xs ++ cs
+    Tuple xs :≤ Sequence t -> go m $ map (:≤ t) xs ++ cs
 
     Union ts :≤ t2 -> do
       r <- diverge m $ map (:≤ t2) ts
@@ -113,6 +126,9 @@ biunify = go mempty . Set.toList
         [] -> throwE $ CannotSolve c
         ms -> go (combine ms) cs
 
+    PyType x ts1 :≤ PyType y ts2 | x == y ->
+      go m $ zipWith (:≤) ts1 ts2 ++ cs
+
     t1 :≤ t2 | hasMetaVars t1 || hasMetaVars t2 -> do
       let st1 = Set.toList $ superTypes t1
       let st2 = Set.toList $ superTypes t2
@@ -120,9 +136,22 @@ biunify = go mempty . Set.toList
       case r of
         [] -> throwE $ CannotSolve c
         ms -> go (combine ms) cs
-      
+
     t1 :≤ t2 | t1 ⊑ t2   -> go m cs
              | otherwise -> throwE $ CannotSolve c
   
   diverge m = tryAll . map (go m . pure)
-  combine m = IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ∨ l2, u1 ∧ u2)) m
+  combine m = IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ⊓ l2, u1 ⊔ u2)) m
+
+-- | A 'meet' for Python types that eliminates unknowns ('Any' and 'MetaVar') if
+-- possible; returns 'Any' if there is no greatest lower bound.
+(⊓) :: PyType -> PyType -> PyType
+Any_ _ ⊓ t      = t
+t      ⊓ Any_ _ = t
+t1     ⊓ t2     = fromMaybe Any (t1 ∧? t2)
+
+-- | A 'join' for Python types that eliminates unknowns ('Any' and 'MetaVar')
+(⊔) :: PyType -> PyType -> PyType
+Any_ _ ⊔ t      = t
+t      ⊔ Any_ _ = t
+t1     ⊔ t2     = t1 ∨ t2

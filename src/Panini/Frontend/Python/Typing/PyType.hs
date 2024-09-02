@@ -4,11 +4,13 @@
 module Panini.Frontend.Python.Typing.PyType where
 
 import Algebra.Lattice
+import Control.Applicative
 import Data.Data
 import Data.Generics.Uniplate.Direct
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
 import Data.List qualified as List
+import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
@@ -17,7 +19,7 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
--- | Type of Python types. 
+-- | Type of Python types.
 --
 -- Most Python types are represented using the 'PyType' constructor, which takes
 -- the name of the type and a (possibly empty) list of type parameters. For
@@ -39,45 +41,13 @@ import Prelude
 --
 -- Finally, the 'TypeVar' constructor represents named Python type variables.
 data PyType
-  = PyType String [PyType]  -- ^ some indexed type; use patterns where possible
-  | Any_ (Maybe Int)         -- ^ use 'Any' and 'MetaVar' patterns
+  = PyType String [PyType]
+  | Any_ (Maybe Int)
   | Callable [PyType] (PyType)
-  | TypeVar String -- TODO: constraints, bound, variance  
+  | TypeVar String  -- TODO: constraints, bound, variance
   deriving stock (Eq, Ord, Show, Read, Data)
 
-instance Uniplate PyType where
-  uniplate = \case
-    Any_ v        -> plate Any_ |- v
-    TypeVar x     -> plate TypeVar |- x
-    Callable xs y -> plate Callable ||* xs |* y
-    Union ts      -> plate Union ||* ts  -- IMPORTANT: preserves invariants    
-    PyType x ts   -> plate PyType |- x ||* ts
-
-instance Pretty PyType where
-  pretty = \case
-    Any_ Nothing  -> "Any"
-    Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
-    TypeVar s     -> pretty s
-    --Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
-    Callable xs y -> prettyFancyCallable xs y
-    Union ts      -> prettyFancyUnion ts
-    PyType x ts   -> pretty x <> params ts
-   where
-    params       = paramList . map pretty
-    paramList [] = mempty
-    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
-
--- | Callable type syntax based on /rejected/ PEP 677.
-prettyFancyCallable :: [PyType] -> PyType -> Doc
-prettyFancyCallable xs y = 
-  parens (mconcat $ List.intersperse ", " $ map pretty xs) <+> "->" <+> pretty y
-
--- | Union type syntax based on PEP 604, official syntax as of Python 3.10.
-prettyFancyUnion :: [PyType] -> Doc
-prettyFancyUnion ts = mconcat $ List.intersperse " | " $ map pretty ts
-
--------------------------------------------------------------------------------
-
+-- | An unknown type, a wildcard.
 pattern Any :: PyType
 pattern Any = Any_ Nothing
 
@@ -99,9 +69,7 @@ substituteMetaVar x t = transform $ \case
   Any_ (Just y) | x == y -> t
   s                      -> s
 
--------------------------------------------------------------------------------
-
--- | Union type @Union[X,Y]@ (or @X | Y@)
+-- | Union type (@Union[X,Y]@ or @X | Y@)
 --
 -- This smart constructor behaves similarly to Python's own @typing.Union@ and
 -- ensures the following invariants:
@@ -125,8 +93,6 @@ pattern Union xs <- PyType "Union" xs where
 
 pattern Optional :: PyType -> PyType
 pattern Optional t = Union [t, None]
-
--------------------------------------------------------------------------------
 
 -- built-in types  
 pattern Object                = PyType "object" []
@@ -194,28 +160,45 @@ pattern NoReturn              = PyType "NoReturn" []
 -------------------------------------------------------------------------------
 
 -- | The Python type hierarchy establishes a partial ordering of Python types.
+-- Note that 'Any' is not part of the type hierarchy: it represents an unknown
+-- static type. The common supertype and top element of the typing lattice is
+-- 'Object'. There is no universal least type.
 instance PartialOrder PyType where
-  Any ⊑ _        = True
-  _   ⊑ Any      = True
-  _   ⊑ Object   = True
-  a   ⊑ Union bs = any (a ⊑) bs
-  a   ⊑ b        = a == b || b `elem` transitiveSuperTypes a
+  _              ⊑ Object         = True  
+  a              ⊑ Union bs       = any (a ⊑) bs
+  Union as       ⊑ b              = all (⊑ b) as
+  Callable s1 t1 ⊑ Callable s2 t2 = and $ t1 ⊑ t2 : zipWith (⊑) s2 s1
+  a              ⊑ b              = a == b || b `elem` transitiveSuperTypes a
 
+-- | The least upper bound of two Python types is the "lowest" common supertype
+-- of both (including themselves). Either of the original types can be placed
+-- wherever this supertype is required. The 'Union' of two types is always a
+-- common supertype but not necessarily the lowest (although it is always lower
+-- than 'Object'). Eliminates 'Any'.
 instance JoinSemilattice PyType where
-  Any ∨ b = b
-  a ∨ Any = a
-  a ∨ b | a ⊑ b = b
-        | b ⊑ a = a
-        | otherwise = Union [a,b]
+  a ∨ b | a ⊑ b                         = b
+        | b ⊑ a                         = a
+        | Just c <- commonSuperType a b = c
+        | otherwise                     = Union [a,b]
 
-instance MeetSemilattice PyType where
-  Any ∧ b = b
-  a ∧ Any = a
-  a ∧ b | a ⊑ b = a
-        | b ⊑ a = b
-        | otherwise = Any
+-- | The greatest lower bound of two Python types is the "highest" common
+-- subtype of both (including themselves). This subtype can be placed wherever
+-- either of the two original types is required. It does not always exist!
+instance PartialMeetSemilattice PyType where
+  a ∧? b | a ⊑ b     = Just a
+         | b ⊑ a     = Just b
+         | otherwise = Nothing
 
-------------------------------------------------------------------------------
+-- | Returns a common supertype of two types, if it exists, excluding 'Object'.
+commonSuperType :: PyType -> PyType -> Maybe PyType
+commonSuperType a b
+  | not (null cs) = Just $ Union $ Set.toList cs
+  | otherwise     = asum $ [commonSuperType a  b' | b' <- Set.toList bs] ++ 
+                           [commonSuperType a' b  | a' <- Set.toList as]
+ where
+  as = superTypes a
+  bs = superTypes b
+  cs = Set.intersection as bs
 
 -- | Return all transitive supertypes of a 'PyType', excluding 'Object'.
 transitiveSuperTypes :: PyType -> Set PyType
@@ -276,3 +259,38 @@ superTypes = \case
   ValuesView v        -> [MappingView v, Collection v]
   
   _ -> []
+
+-------------------------------------------------------------------------------
+
+instance Uniplate PyType where
+  uniplate = \case
+    Any_ v        -> plate Any_ |- v
+    TypeVar x     -> plate TypeVar |- x
+    Callable xs y -> plate Callable ||* xs |* y
+    Union ts      -> plate Union ||* ts  -- IMPORTANT: preserves invariants    
+    PyType x ts   -> plate PyType |- x ||* ts
+
+-------------------------------------------------------------------------------
+
+instance Pretty PyType where
+  pretty = \case
+    Any_ Nothing  -> "Any"
+    Any_ (Just i) -> ann Highlight ("μ" <> pretty i)
+    TypeVar s     -> pretty s
+    --Callable xs y -> "Callable["  <> params xs <> "," <> pretty y <> "]"
+    Callable xs y -> prettyFancyCallable xs y
+    Union ts      -> prettyFancyUnion ts
+    PyType x ts   -> pretty x <> params ts
+   where
+    params       = paramList . map pretty
+    paramList [] = mempty
+    paramList ts = "[" <> mconcat (List.intersperse "," ts) <> "]"    
+
+-- | Callable type syntax based on /rejected/ PEP 677.
+prettyFancyCallable :: [PyType] -> PyType -> Doc
+prettyFancyCallable xs y = 
+  parens (mconcat $ List.intersperse ", " $ map pretty xs) <+> "->" <+> pretty y
+
+-- | Union type syntax based on PEP 604, official syntax as of Python 3.10.
+prettyFancyUnion :: [PyType] -> Doc
+prettyFancyUnion ts = mconcat $ List.intersperse " | " $ map pretty ts
