@@ -504,7 +504,7 @@ typeOfUnaryOp = \case
   Plus   {} -> typeOfBuiltinFunction "__pos__"
   Minus  {} -> typeOfBuiltinFunction "__neg__"
   Invert {} -> typeOfBuiltinFunction "__invert__"
-  Not    {} -> PyType.Callable [PyType.Any, PyType.Any] PyType.Bool
+  Not    {} -> PyType.Callable [PyType.Any] PyType.Bool
   _         -> impossible  -- all other operators are binary only
 
 typeOfBinaryOp :: Op a -> PyType
