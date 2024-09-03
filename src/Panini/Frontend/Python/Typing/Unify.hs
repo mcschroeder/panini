@@ -29,14 +29,13 @@ import Control.Monad.Trans.Except
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet qualified as IntSet
+import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Frontend.Python.Typing.Monad
 import Panini.Frontend.Python.Typing.PyType as PyType
 import Panini.Panic
 import Prelude
-import Panini.Pretty
-import Data.Maybe
 
 ------------------------------------------------------------------------------
 
@@ -64,7 +63,7 @@ coalesce = go mempty . IntMap.toList
         go m $ cs ++ cs' ++ [c']
 
       (t1, t2) | t1 ⊑ t2   -> go (IntMap.insert a t1 m) cs
-               | otherwise -> impossibleBounds a (l,u)
+               | otherwise -> throwE $ CannotCoalesce a l u
 
     vs -> go m (cs ++ [(a,(l',u'))])
      where
@@ -77,9 +76,6 @@ coalesce = go mempty . IntMap.toList
     ts <- replicateM n newMetaVar
     let unwrap t@(MetaVar v) = (t,v); unwrap _ = impossible
     return $ unzip $ map unwrap ts
-
-  impossibleBounds a (l,u) = 
-    panic $ pretty l <+> "≤" <+> pretty (MetaVar a) <+> pretty u
 
 
 -- | Solve subtyping constraints via biunification, returning the lower and

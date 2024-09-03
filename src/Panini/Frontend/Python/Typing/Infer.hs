@@ -497,7 +497,7 @@ inferParam = \case
       , param_annot         = (Just paramType, param_annot)
       }
   
-  _ -> undefined -- TODO
+  p -> throwE $ UnsupportedParam p
 
 inferArg :: Argument a -> Infer (Typed Argument a)
 inferArg = \case
@@ -507,8 +507,8 @@ inferArg = \case
       { arg_expr = expr
       , arg_annot = (Just $ typeOf expr, arg_annot)
       }
-  _ -> undefined -- TODO
 
+  a -> throwE $ UnsupportedArg a
 
 inferSlice :: Slice a -> Infer (Typed Slice a)
 inferSlice = \case

@@ -30,6 +30,8 @@ data TypeError
   | CannotSolve Constraint
   | CannotCoalesce Int PyType PyType
   | forall a. UnsupportedTypeHint (Expr a)
+  | forall a. UnsupportedParam (Parameter a)
+  | forall a. UnsupportedArg (Argument a)
 
 instance Pretty TypeError where
   pretty = \case
@@ -39,6 +41,8 @@ instance Pretty TypeError where
       "cannot coalesce bounds of meta variable:" <+> 
       pretty t1 <+> "≤" <+> pretty (MetaVar a) <+> "≤" <+> pretty t2
     UnsupportedTypeHint e -> "unsupported type hint:" <+> pretty e 
+    UnsupportedParam p -> "unsupported parameter:" <+> pretty p
+    UnsupportedArg a -> "unsupported argument:" <+> pretty a
 
 data Env = Env
   { metaVarCount    :: Int
