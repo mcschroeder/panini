@@ -224,7 +224,7 @@ superTypes = \case
   Complex -> [SupportsComplex, SupportsAbs Float]  
   Bool  -> [Int]   
   
-  Str          -> [Sequence Str]
+  Str          -> [Sequence Str, Hashable]
   Bytes        -> [Sequence Int]
   Bytearray    -> [MutableSequence Int]  
   Memoryview i -> [Sequence i]
@@ -249,7 +249,7 @@ superTypes = \case
   Iterable a          -> [SupportsIter a]
   Iterator a          -> [SupportsNext a, Iterable a]
   KeysView k          -> [MappingView k, AbstractSet k]
-  Mapping k _         -> [Collection k]
+  Mapping k v         -> [Collection (Tuple [k,v])]
   MappingView _       -> [Sized]
   MutableMapping  k v -> [Mapping k v]
   MutableSequence a   -> [Sequence a]
