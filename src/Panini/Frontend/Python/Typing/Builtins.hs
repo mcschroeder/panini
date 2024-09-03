@@ -51,7 +51,7 @@ data ClassStub = ClassStub
   }
 
 stubs :: [ClassStub]
-stubs = [objectStub,intStub,floatStub,complexStub,strStub]
+stubs = [objectStub,intStub,floatStub,complexStub,strStub,dictStub]
 
 objectStub :: ClassStub
 objectStub = ClassStub
@@ -333,6 +333,17 @@ strStub = ClassStub
     , ("__rmul__", Callable [Str,SupportsIndex] Str)
     , ("__getnewargs__", Callable [Str] (Tuple [Str]))
     ]
+  }
+
+dictStub :: ClassStub
+dictStub = ClassStub
+  { constructors = []  -- TODO
+  , attributes = []
+  , functions =
+    [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
+    , ("__contains__", Callable [Dict _KT _VT, Any] Bool)
+    -- TODO
+    ] 
   }
 
 globalFunctions :: [(String,PyType)]
