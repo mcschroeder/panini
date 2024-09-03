@@ -62,14 +62,29 @@ inferStmt = \case
                      <*> mapM inferStmt while_body 
                      <*> mapM inferStmt while_else 
                      <*> pure (Nothing, stmt_annot)
-  
-  For{..} -> do
-    generator <- inferExpr for_generator    
-    For <$> checkAssignment (typeOf generator) for_targets 
-        <*> pure generator 
-        <*> mapM inferStmt for_body 
-        <*> mapM inferStmt for_else 
-        <*> pure (Nothing, stmt_annot)
+
+  For {..} -> do
+    generator <- inferExpr for_generator
+    targets <- mapM inferExpr for_targets
+    let elemType = case map typeOf targets of
+                      []                     -> impossible
+                      [t]                    -> t
+                      (t:ts) | all (== t) ts -> PyType.Iterable t
+                             | otherwise     -> PyType.Iterable PyType.Any
+    constrain $ typeOf generator :≤ PyType.Iterable elemType
+    forM_ targets $ \target -> case target of
+      IsVar x -> registerVar x (typeOf target)
+      _       -> pure ()
+    body <- mapM inferStmt for_body
+    else_ <- mapM inferStmt for_else
+    -- TODO: unregister target vars
+    return For
+      { for_targets = targets
+      , for_generator = generator
+      , for_body = body
+      , for_else = else_
+      , stmt_annot = (Nothing, stmt_annot)
+      }
 
   AsyncFor{..} -> AsyncFor <$> inferStmt for_stmt 
                            <*> pure (Nothing, stmt_annot)
