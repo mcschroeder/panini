@@ -434,9 +434,10 @@ inferExpr = \case
   
   -- TODO: infer more precise K/V types
   Dictionary{..} -> do
+    valueType <- newMetaVar
     return Dictionary
       { dict_mappings = map untyped dict_mappings
-      , expr_annot = (Just (PyType.Dict PyType.Hashable PyType.Any), expr_annot)
+      , expr_annot = (Just (PyType.Dict PyType.Hashable valueType), expr_annot)
       }    
     
   Py.Set{..} -> do
