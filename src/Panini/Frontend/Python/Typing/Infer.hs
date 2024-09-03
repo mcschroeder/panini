@@ -10,6 +10,7 @@ import Data.Bifunctor
 import Data.Generics.Uniplate.DataOnly
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
+import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Panini.Frontend.Python.AST as Py
@@ -79,7 +80,7 @@ inferStmt = \case
     parameters <- mapM inferParam fun_args
     resultHint <- mapM typifyHint fun_result_annotation
     returnType <- maybe newMetaVar (pure . typeOf) resultHint
-    let funType = PyType.Callable (map typeOf parameters) returnType
+    let funType = mkFunType parameters returnType
     registerVar fun_name.ident_string funType
     pushReturnType (Implicit returnType)
     body <- mapM inferStmt fun_body
@@ -217,6 +218,14 @@ inferStmt = \case
 
   s@Exec{} -> pure (untyped s)
 
+
+mkFunType :: [Typed Parameter a] -> PyType -> PyType
+mkFunType params returnType = PyType.Union 
+  [ PyType.Callable (fixedTypes ++ possibleTypes) returnType
+  | let (fixedParams, optionalParams) = break hasDefaultValue params
+  , let fixedTypes = map typeOf fixedParams
+  , possibleTypes <- List.subsequences $ map typeOf optionalParams
+  ]
 
 checkAssignment1 :: PyType -> Expr a -> Infer (Typed Expr a)
 checkAssignment1 t e = head <$> checkAssignment t [e]

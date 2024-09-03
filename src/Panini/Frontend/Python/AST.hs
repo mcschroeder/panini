@@ -16,6 +16,7 @@ module Panini.Frontend.Python.AST
   , exprVarsN
   , paramNames
   , paramDefaults
+  , hasDefaultValue
   , sliceExprs
   , raiseExprs
   , mapRaiseExprsM
@@ -155,6 +156,12 @@ paramDefaults = catMaybes . concatMap go
   go Param       {..} = [param_default]
   go UnPackTuple {..} = [param_default]
   go _                = []
+
+hasDefaultValue :: Parameter a -> Bool
+hasDefaultValue = \case
+  Param       { param_default = Just _ } -> True
+  UnPackTuple { param_default = Just _ } -> True
+  _                                      -> False
 
 sliceExprs :: Slice a -> [Expr a]
 sliceExprs = \case
