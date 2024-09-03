@@ -545,10 +545,10 @@ typeOfBinaryOp = \case
   LessThanEquals    {} -> typeOfBuiltinFunction "__le__"
   NotEquals         {} -> typeOfBuiltinFunction "__ne__"
   NotEqualsV2       {} -> typeOfBuiltinFunction "__ne__"
-  In                {} -> typeOfBuiltinFunction "__contains__"
   Is                {} -> PyType.Callable [PyType.Object, PyType.Object] PyType.Bool
   IsNot             {} -> PyType.Callable [PyType.Object, PyType.Object] PyType.Bool
-  NotIn             {} -> typeOfBuiltinFunction "__contains__"
+  In                {} -> flipArgs $ typeOfBuiltinFunction "__contains__"
+  NotIn             {} -> flipArgs $ typeOfBuiltinFunction "__contains__"
   BinaryOr          {} -> typeOfBuiltinFunction "__or__"
   Xor               {} -> typeOfBuiltinFunction "__xor__"
   BinaryAnd         {} -> typeOfBuiltinFunction "__and__"
@@ -562,6 +562,11 @@ typeOfBinaryOp = \case
   MatrixMult        {} -> typeOfBuiltinFunction "__matmul__"
   Invert            {} -> impossible  -- unary only
   Modulo            {} -> typeOfBuiltinFunction "__mod__"
+ where
+  flipArgs = \case
+    PyType.Callable [a,b] c -> PyType.Callable [b,a] c
+    PyType.Union xs         -> PyType.Union (map flipArgs xs)
+    _                       -> impossible
 
 typifyHint :: Expr a -> Infer (Typed Expr a)
 typifyHint e = case e of
