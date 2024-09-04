@@ -86,6 +86,10 @@ pattern EStrFirstIndexOfChar s c = EFun "firstIndexOfChar" [s,c]
 pattern EStrIndexOf :: Expr -> Expr -> Expr -> Expr
 pattern EStrIndexOf s t i = EFun "str_indexof" [s,t,i]
 
+-- | string concatenation
+pattern EStrConc :: Expr -> Expr -> Expr
+pattern EStrConc a b = EFun "str.++" [a,b]
+
 ------------------------------------------------------------------------------
 
 -- | unit constant

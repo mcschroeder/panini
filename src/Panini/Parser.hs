@@ -432,6 +432,7 @@ pexprOps =
   , [ infixL (op "+") ((:+:))
     , infixL (op "-") ((:-:))
     ]
+  , [ infixR (op "++") EStrConc ]  
   ]
 
 opSubStr :: Parser (Expr -> Expr)
@@ -458,7 +459,7 @@ infixR p f = InfixR (f <$ p)
 op :: Text -> Parser ()
 op n = (void . lexeme . try) (string n <* notFollowedBy (satisfy isOpSym))
  where
-   isOpSym c = c `elem` ['=', '<', '>', '/', '\\']
+   isOpSym c = c `elem` ['=', '<', '>', '/', '\\', '+']
 
 -------------------------------------------------------------------------------
 

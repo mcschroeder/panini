@@ -101,6 +101,11 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrComp (EStrA s)                          -> normExpr $ EStrA $ neg s
   EStrComp (EStrComp e)                       -> normExpr $ e
   -----------------------------------------------------------
+  EStrConc (EStr  a _) (EStr  b _)            -> EStr (a <> b) NoPV
+  EStrConc (EStrA a  ) (EStr  b _)            -> EStrA (a <> AString.eq (Text.unpack b))
+  EStrConc (EStr  a _) (EStrA b  )            -> EStrA (AString.eq (Text.unpack a) <> b)
+  EStrConc (EStrA a  ) (EStrA b  )            -> EStrA (a <> b)  
+  -----------------------------------------------------------
   e | e' <- descend normExpr e, e' /= e       -> normExpr e'
     | otherwise                               -> e
 
