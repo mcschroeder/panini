@@ -271,7 +271,6 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   EStrComp a :≠: EStrComp b                   -> normRel $ a :≠: b
   EStrComp a :=: b                            -> normRel $ a :≠: b
   EStrComp a :≠: b                            -> normRel $ a :=: b
-  a          :=: EStrComp b                   -> normRel $ a :≠: b
   a          :≠: EStrComp b                   -> normRel $ a :=: b
   -----------------------------------------------------------
   (EStrFirstIndexOfChar s1 c :-: EIntA î) :=: EStrLen s2 -> normRel $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
