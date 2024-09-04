@@ -97,11 +97,11 @@ inferStmt = \case
     returnType <- maybe newMetaVar (pure . typeOf) resultHint
     let funType = mkFunType parameters returnType
     registerVar fun_name.ident_string funType
-    pushReturnType (Implicit returnType)
+    pushEmptyReturnTypeStackFrame
     body <- mapM inferStmt fun_body
-    popReturnType >>= \case
-      Implicit returnType' -> constrain $ returnType' :≤ PyType.None
-      Explicit _           -> pure ()
+    popReturnTypeStackFrame >>= \case
+      [] -> constrain $ PyType.None :≤ returnType
+      ts -> mapM_ constrain $ map (:≤ returnType) ts
     Fun <$> pure (setType fun_name funType)
         <*> pure parameters
         <*> pure resultHint
@@ -170,16 +170,12 @@ inferStmt = \case
                              <*> pure (Nothing, stmt_annot)
   
   Return { return_expr = Just e, ..} -> do
-    t  <- projReturnType <$> popReturnType
     e' <- inferExpr e
-    constrain $ typeOf e' :≤ t
-    pushReturnType (Explicit t)  -- TODO: this pop/push stuff now seems superfluous
+    addReturnTypeToStackFrame (typeOf e')
     return $ Return (Just e') (Nothing, stmt_annot)
 
   Return { return_expr = Nothing, ..} -> do
-    t <- projReturnType <$> popReturnType
-    constrain $ PyType.None :≤ t
-    pushReturnType (Explicit t)
+    addReturnTypeToStackFrame PyType.None
     return $ Return Nothing (Nothing, stmt_annot)
   
   Try{..} -> Try <$> mapM inferStmt try_body

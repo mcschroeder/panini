@@ -47,7 +47,7 @@ instance Pretty TypeError where
 data Env = Env
   { metaVarCount    :: Int
   , varContext      :: Map String PyType
-  , returnTypeStack :: [ReturnType]
+  , returnTypeStack :: [[PyType]]
   , subConstraints  :: Set Constraint
   }
   deriving stock (Show)
@@ -71,23 +71,21 @@ registerVar x t = lift $
 
 ------------------------------------------------------------------------------
 
-data ReturnType = Implicit PyType | Explicit PyType
-  deriving stock (Show)
+pushEmptyReturnTypeStackFrame :: Infer ()
+pushEmptyReturnTypeStackFrame = lift $
+  modify' $ \e -> e { returnTypeStack = [] : e.returnTypeStack }
 
-projReturnType :: ReturnType -> PyType
-projReturnType = \case
-  Implicit t -> t
-  Explicit t -> t
+addReturnTypeToStackFrame :: PyType -> Infer ()
+addReturnTypeToStackFrame t = lift $ gets returnTypeStack >>= \case
+  [] -> panic $ "empty return type stack"
+  (x:xs) -> do
+    modify' $ \e -> e { returnTypeStack = (t:x) : xs }
 
-pushReturnType :: ReturnType -> Infer ()
-pushReturnType t = lift $ 
-  modify' $ \e -> e { returnTypeStack = t : e.returnTypeStack }
-
-popReturnType :: Infer ReturnType
-popReturnType = lift $ gets returnTypeStack >>= \case
-  []     -> panic $ "empty return type stack"
-  (x:ys) -> do
-    modify' $ \e -> e { returnTypeStack = ys }
+popReturnTypeStackFrame :: Infer [PyType]
+popReturnTypeStackFrame = lift $ gets returnTypeStack >>= \case
+  [] -> panic $ "empty return type stack"
+  (x:xs) -> do
+    modify' $ \e -> e { returnTypeStack = xs }
     return x
 
 ------------------------------------------------------------------------------
