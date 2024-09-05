@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Frontend.Python.Typing.Infer (Typed, infer) where
 
-import Control.Monad
+import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
@@ -127,40 +127,49 @@ inferStmt = \case
 
   Assign{..} -> do
     from <- inferExpr assign_expr
-    Assign <$> checkAssignment (typeOf from) assign_to
-           <*> pure from
-           <*> pure (Nothing, stmt_annot)
+    targets <- mapM inferExpr assign_to
+    let targetType = case map typeOf targets of
+                      []                     -> impossible
+                      [t]                    -> t
+                      (t:ts) | all (== t) ts -> PyType.Iterable t
+                             | otherwise     -> PyType.Iterable PyType.Any
+    constrain $ typeOf from :≤ targetType
+    forM_ targets $ \target -> case target of
+      IsVar x -> registerVar x (typeOf target)
+      _       -> pure ()
+    return Assign
+      { assign_to   = targets
+      , assign_expr = from
+      , stmt_annot  = (Nothing, stmt_annot)
+      }
 
   AugmentedAssign{..} -> do
     lhs <- inferExpr aug_assign_to
     rhs <- inferExpr aug_assign_expr
     let t = PyType.Callable [typeOf rhs, typeOf rhs] (typeOf lhs)
     funType <- typeOfBinaryOp $ assignOpToOp aug_assign_op
-    constrain $ funType :≤ t
-    return  $ AugmentedAssign 
+    constrain $ funType :*≤ t
+    return AugmentedAssign 
       { aug_assign_to   = lhs
       , aug_assign_op   = fmap (Just t,) aug_assign_op
       , aug_assign_expr = rhs
       , stmt_annot      = (Nothing, stmt_annot)
       }
 
-  AnnotatedAssign {ann_assign_expr = Just assign_expr, ..} -> do
+  AnnotatedAssign{..} -> do
     hint <- typifyHint ann_assign_annotation
-    from <- inferExpr assign_expr
-    constrain $ typeOf from :≤ typeOf hint
-    AnnotatedAssign <$> pure hint
-                    <*> checkAssignment1 (typeOf from) ann_assign_to
-                    <*> pure (Just from)
-                    <*> pure (Nothing, stmt_annot)
-
-  AnnotatedAssign {ann_assign_expr = Nothing, ..} -> do
-    hint   <- typifyHint ann_assign_annotation
-    toExpr <- inferExpr ann_assign_to
-    constrain $ typeOf toExpr :≤ typeOf hint
-    return $ AnnotatedAssign
+    target <- inferExpr ann_assign_to
+    constrain $ typeOf target :≤ typeOf hint
+    from <- mapM inferExpr ann_assign_expr
+    whenJust from $ \e -> do
+      constrain $ typeOf target :≤ typeOf e
+      case e of
+        IsVar x -> registerVar x (typeOf e)
+        _       -> pure ()
+    return AnnotatedAssign
       { ann_assign_annotation = hint
-      , ann_assign_to         = toExpr
-      , ann_assign_expr       = Nothing
+      , ann_assign_to         = target
+      , ann_assign_expr       = from
       , stmt_annot            = (Nothing, stmt_annot)
       }
 
@@ -237,21 +246,6 @@ mkFunType params returnType = PyType.Union
   , let fixedTypes = map typeOf fixedParams
   , possibleTypes <- List.subsequences $ map typeOf optionalParams
   ]
-
-checkAssignment1 :: PyType -> Expr a -> Infer (Typed Expr a)
-checkAssignment1 t e = head <$> checkAssignment t [e]
-
--- TODO: properly implement target list typing
-checkAssignment :: PyType -> [Expr a] -> Infer [Typed Expr a]
-checkAssignment fromType [e] = do
-  e' <- inferExpr e
-  constrain $ fromType :≤ typeOf e'
-  case e' of
-    IsVar x -> registerVar x (typeOf e')
-    _       -> pure ()
-  return [e']
-
-checkAssignment _ es = pure (map untyped es) -- TODO
 
 -- TODO: also replace 'Any' w/ fresh metavars?
 typeOfBuiltinFunction :: String -> Infer PyType
