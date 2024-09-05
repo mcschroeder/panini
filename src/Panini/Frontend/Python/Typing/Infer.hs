@@ -133,7 +133,9 @@ inferStmt = \case
                       [t]                    -> t
                       (t:ts) | all (== t) ts -> PyType.Iterable t
                              | otherwise     -> PyType.Iterable PyType.Any
-    constrain $ typeOf from :≤ targetType
+    μ <- newMetaVar
+    constrain $ targetType :≤ μ
+    constrain $ typeOf from :≤ μ
     forM_ targets $ \target -> case target of
       IsVar x -> registerVar x (typeOf target)
       _       -> pure ()
@@ -162,7 +164,7 @@ inferStmt = \case
     constrain $ typeOf target :≤ typeOf hint
     from <- mapM inferExpr ann_assign_expr
     whenJust from $ \e -> do
-      constrain $ typeOf target :≤ typeOf e
+      constrain $ typeOf e :≤ typeOf hint
       case e of
         IsVar x -> registerVar x (typeOf e)
         _       -> pure ()
