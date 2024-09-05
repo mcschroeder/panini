@@ -30,7 +30,7 @@ _T = TypeVar "_T"
 _T_co = TypeVar "_T_co" -- TODO: covariant=true
 _T_contra = TypeVar "_T_contra" -- TODO: contravariant=true
 _KT = TypeVar "_KT"
-_VT = TypeVar "_KT"
+_VT = TypeVar "_VT"
 _SupportsNextT = TypeVar "_SupportsNextT" -- TODO: bound=SupportsNext[Any], covariant=True)
 
 pattern ReadableBuffer :: PyType
