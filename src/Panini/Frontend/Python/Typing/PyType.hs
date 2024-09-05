@@ -4,8 +4,8 @@
 module Panini.Frontend.Python.Typing.PyType where
 
 import Algebra.Lattice
-import Control.Applicative
 import Data.Data
+import Data.Function
 import Data.Generics.Uniplate.Direct
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
@@ -174,12 +174,13 @@ instance PartialOrder PyType where
 -- of both (including themselves). Either of the original types can be placed
 -- wherever this supertype is required. The 'Union' of two types is always a
 -- common supertype but not necessarily the lowest (although it is always lower
--- than 'Object'). Eliminates 'Any'.
+-- than 'Object').
 instance JoinSemilattice PyType where
-  a ∨ b | a ⊑ b                         = b
-        | b ⊑ a                         = a
-        | Just c <- commonSuperType a b = c
-        | otherwise                     = Union [a,b]
+  a ∨ b | a ⊑ b     = b
+        | b ⊑ a     = a
+        | otherwise = case commonSuperTypes a b of
+            [] -> Union [a,b]
+            cs -> Union $ Set.toList cs
 
 -- | The greatest lower bound of two Python types is the "highest" common
 -- subtype of both (including themselves). This subtype can be placed wherever
@@ -189,16 +190,20 @@ instance PartialMeetSemilattice PyType where
          | b ⊑ a     = Just b
          | otherwise = Nothing
 
--- | Returns a common supertype of two types, if it exists, excluding 'Object'.
-commonSuperType :: PyType -> PyType -> Maybe PyType
-commonSuperType a b
-  | not (null cs) = Just $ Union $ Set.toList cs
-  | otherwise     = asum $ [commonSuperType a  b' | b' <- Set.toList bs] ++ 
-                           [commonSuperType a' b  | a' <- Set.toList as]
+-- | Returns the lowest common supertypes of two types, if they exist, excluding
+-- 'Object' and themselves.
+commonSuperTypes :: PyType -> PyType -> Set PyType
+commonSuperTypes a0 b0 = case go (0 :: Int) a0 of
+  [] -> Set.empty
+  cs -> Set.fromList $ map snd
+                     $ head
+                     $ List.groupBy ((==) `on` fst)
+                     $ List.sortOn fst cs
  where
-  as = superTypes a
-  bs = superTypes b
-  cs = Set.intersection as bs
+  bs = Set.toList $ transitiveSuperTypes b0
+  go n a = case filter (a ==) bs of
+    [] -> concatMap (go (n + 1)) (superTypes a)
+    as -> map (n,) as
 
 -- | Return all transitive supertypes of a 'PyType', excluding 'Object'.
 transitiveSuperTypes :: PyType -> Set PyType
