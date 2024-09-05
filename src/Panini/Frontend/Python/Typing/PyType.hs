@@ -47,6 +47,13 @@ data PyType
   | TypeVar String  -- TODO: constraints, bound, variance
   deriving stock (Eq, Ord, Show, Read, Data)
 
+pyTypeName :: PyType -> String
+pyTypeName = \case
+  PyType x _   -> x
+  Any_ _       -> "Any"
+  Callable _ _ -> "Callable"
+  TypeVar v    -> v
+
 -- | An unknown type, a wildcard.
 pattern Any :: PyType
 pattern Any = Any_ Nothing

@@ -107,12 +107,12 @@ biunify = go mempty . Set.toList
     Callable s1 t1 :≤ Callable s2 t2 | length s1 == length s2 -> 
       go m $ t1 :≤ t2 : zipWith (:≤) s2 s1 ++ cs
 
-    Sequence t :≤ Tuple xs -> go m $ map (t :≤) xs ++ cs
-    Tuple xs :≤ Sequence t -> go m $ map (:≤ t) xs ++ cs
-
-
-    PyType x ts1 :≤ PyType y ts2 | x == y ->
+    PyType x ts1 :≤ PyType y ts2 | x == y, length ts1 == length ts2 -> 
       go m $ zipWith (:≤) ts1 ts2 ++ cs
+    
+    t1 :≤ t2@(PyType y _)
+      | [t] <- Set.filter ((y ==) . pyTypeName) $ transitiveSuperTypes t1
+      -> go m (t :≤ t2 : cs)
     
     t1 :≤ t2 | t1 ⊑ t2   -> go m cs
              | otherwise -> throwE $ CannotSolve c
