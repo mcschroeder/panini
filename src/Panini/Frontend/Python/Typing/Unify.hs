@@ -110,34 +110,21 @@ biunify = go mempty . Set.toList
     Sequence t :≤ Tuple xs -> go m $ map (t :≤) xs ++ cs
     Tuple xs :≤ Sequence t -> go m $ map (:≤ t) xs ++ cs
 
-    Union ts :≤ t2 -> do
-      r <- diverge m $ map (:≤ t2) ts
-      case r of
-        [] -> throwE $ CannotSolve c
-        ms -> go (combine ms) cs
-
-    t1 :≤ Union ts -> do
-      r <- diverge m $ map (t1 :≤) ts
-      case r of
-        [] -> throwE $ CannotSolve c
-        ms -> go (combine ms) cs
 
     PyType x ts1 :≤ PyType y ts2 | x == y ->
       go m $ zipWith (:≤) ts1 ts2 ++ cs
-
-    t1 :≤ t2 | hasMetaVars t1 || hasMetaVars t2 -> do
-      let st1 = Set.toList $ superTypes t1
-      let st2 = Set.toList $ superTypes t2
-      r <- diverge m $ zipWith (:≤) st1 st2 ++ map (t1 :≤) st2 ++ map (:≤ t2) st1
-      case r of
-        [] -> throwE $ CannotSolve c
-        ms -> go (combine ms) cs
-
+    
     t1 :≤ t2 | t1 ⊑ t2   -> go m cs
              | otherwise -> throwE $ CannotSolve c
-  
-  diverge m = tryAll . map (go m . pure)
-  combine m = IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ⊓ l2, u1 ⊔ u2)) m
+
+    [t1] :*≤ t2 -> go m (t1 :≤ t2 : cs)
+
+    -- TODO: this leads to a huge exponential explosion
+    ts :*≤ t -> do
+      r <- tryAll $ map (go m . (:cs)) $ map (:≤ t) ts
+      case r of
+        [] -> throwE $ CannotSolve c
+        ms -> pure $ IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ⊔ l2, u1 ⊓ u2)) ms
 
 -- | A 'meet' for Python types that eliminates unknowns ('Any' and 'MetaVar') if
 -- possible; returns 'Any' if there is no greatest lower bound.

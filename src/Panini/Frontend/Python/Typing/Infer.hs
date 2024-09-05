@@ -250,10 +250,10 @@ mkFunType params returnType = PyType.Union
   ]
 
 -- TODO: also replace 'Any' w/ fresh metavars?
-typeOfBuiltinFunction :: String -> Infer PyType
+typeOfBuiltinFunction :: String -> Infer [PyType]
 typeOfBuiltinFunction f = case Map.lookup f builtinFunctions of
-  Nothing -> newMetaVar
-  Just t0 -> evalStateT (go t0) mempty
+  Nothing -> List.singleton <$> newMetaVar
+  Just t0 -> evalStateT (mapM go t0) mempty
  where
   go = transformM $ \case
     PyType.TypeVar x -> Map.lookup x <$> get >>= \case
@@ -297,15 +297,27 @@ inferExpr = \case
     let argTys = typeOf objExpr : map typeOf funArgs
     μ <- newMetaVar
     let funTy2 = PyType.Callable argTys μ
-    constrain $ funTy1 :≤ funTy2
+    constrain $ funTy1 :*≤ funTy2
     return Call
       { call_fun = Dot 
         { dot_expr = objExpr
-        , dot_attribute = fmap (Just funTy1,) dotExpr.dot_attribute
-        , expr_annot = (Just funTy1, dotExpr.expr_annot)
+        , dot_attribute = fmap (Just funTy2,) dotExpr.dot_attribute
+        , expr_annot = (Just funTy2, dotExpr.expr_annot)
         }
       , call_args = funArgs
       , expr_annot = (Just μ, expr_annot)
+      }
+
+  Call { call_fun = funExpr@(IsVar x), .. } -> do
+    funTy1 <- typeOfBuiltinFunction x
+    funArgs <- mapM inferArg call_args
+    μ <- newMetaVar
+    let funTy2 = PyType.Callable (map typeOf funArgs) μ
+    constrain $ funTy1 :*≤ funTy2
+    return Call
+      { call_fun = untyped funExpr
+      , call_args = funArgs
+      , expr_annot = (Just μ, expr_annot) 
       }
 
   Call{..} -> do    
@@ -326,7 +338,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf e1, typeOf e2] μ
     t2 <- typeOfBuiltinFunction "__getitem__"
-    constrain $ t2 :≤ t1
+    constrain $ t2 :*≤ t1
     return Subscript { subscriptee    = e1
                      , subscript_expr = e2
                      , expr_annot     = (Just μ, expr_annot)
@@ -341,7 +353,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf e1, sliceTy] μ
     t2 <- typeOfBuiltinFunction "__getitem__"
-    constrain $ t2 :≤ t1
+    constrain $ t2 :*≤ t1
     return SlicedExpr 
       { slicee     = e1
       , slices     = e2
@@ -369,7 +381,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf leExpr, typeOf riExpr] μ
     t2 <- typeOfBinaryOp operator
-    constrain $ t2 :≤ t1
+    constrain $ t2 :*≤ t1
     return BinaryOp 
       { operator     = setType operator t1
       , left_op_arg  = leExpr
@@ -382,7 +394,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf expr] μ
     t2 <- typeOfUnaryOp operator
-    constrain $ t2 :≤ t1
+    constrain $ t2 :*≤ t1
     return UnaryOp 
       { operator   = setType operator t1
       , op_arg     = expr
@@ -390,14 +402,14 @@ inferExpr = \case
       }
   
   -- TODO: infer type based on attributes of known object types
-  Dot{..} -> do
-    obj <- inferExpr dot_expr
-    t <- typeOfBuiltinFunction dot_attribute.ident_string
-    return $ Dot 
-      { dot_expr      = obj
-      , dot_attribute = setType dot_attribute t
-      , expr_annot    = (Just t, expr_annot)
-      }
+  -- Dot{..} -> do
+  --   obj <- inferExpr dot_expr
+  --   t <- typeOfBuiltinFunction dot_attribute.ident_string
+  --   return $ Dot 
+  --     { dot_expr      = obj
+  --     , dot_attribute = setType dot_attribute t
+  --     , expr_annot    = (Just t, expr_annot)
+  --     }
   
   Lambda{..} -> do
     params <- mapM inferParam lambda_args
@@ -535,18 +547,18 @@ inferSlice = \case
   SliceEllipsis{..} -> 
     SliceEllipsis <$> pure (Just PyType.Ellipsis, slice_annot)
 
-typeOfUnaryOp :: Op a -> Infer PyType
+typeOfUnaryOp :: Op a -> Infer [PyType]
 typeOfUnaryOp = \case
   Plus   {} -> typeOfBuiltinFunction "__pos__"
   Minus  {} -> typeOfBuiltinFunction "__neg__"
   Invert {} -> typeOfBuiltinFunction "__invert__"
-  Not    {} -> pure $ PyType.Callable [PyType.Object] PyType.Bool
+  Not    {} -> pure $ [PyType.Callable [PyType.Object] PyType.Bool]
   _         -> impossible  -- all other operators are binary only
 
-typeOfBinaryOp :: Op a -> Infer PyType
+typeOfBinaryOp :: Op a -> Infer [PyType]
 typeOfBinaryOp = \case
-  And               {} -> pure $ PyType.Callable [PyType.Object, PyType.Object] PyType.Bool
-  Or                {} -> pure $ PyType.Callable [PyType.Object, PyType.Object] PyType.Bool
+  And               {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
+  Or                {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
   Not               {} -> impossible  -- unary only
   Exponent          {} -> typeOfBuiltinFunction "__pow__"
   LessThan          {} -> typeOfBuiltinFunction "__lt__"
@@ -556,10 +568,10 @@ typeOfBinaryOp = \case
   LessThanEquals    {} -> typeOfBuiltinFunction "__le__"
   NotEquals         {} -> typeOfBuiltinFunction "__ne__"
   NotEqualsV2       {} -> typeOfBuiltinFunction "__ne__"
-  Is                {} -> pure $ PyType.Callable [PyType.Object, PyType.Object] PyType.Bool
-  IsNot             {} -> pure $ PyType.Callable [PyType.Object, PyType.Object] PyType.Bool
-  In                {} -> flipArgs <$> typeOfBuiltinFunction "__contains__"
-  NotIn             {} -> flipArgs <$> typeOfBuiltinFunction "__contains__"
+  Is                {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
+  IsNot             {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
+  In                {} -> map flipArgs <$> typeOfBuiltinFunction "__contains__"
+  NotIn             {} -> map flipArgs <$> typeOfBuiltinFunction "__contains__"
   BinaryOr          {} -> typeOfBuiltinFunction "__or__"
   Xor               {} -> typeOfBuiltinFunction "__xor__"
   BinaryAnd         {} -> typeOfBuiltinFunction "__and__"

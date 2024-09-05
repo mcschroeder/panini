@@ -9,9 +9,9 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
-builtinFunctions :: Map String PyType
-builtinFunctions = Map.fromListWith (\a b -> Union [a,b]) 
-  $ globalFunctions
+builtinFunctions :: Map String [PyType]
+builtinFunctions = Map.fromListWith (++) $ map (\(k,v) -> (k,[v])) $ 
+  globalFunctions
   <> concatMap constructors stubs
   <> concatMap functions stubs
 

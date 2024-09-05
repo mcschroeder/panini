@@ -12,7 +12,6 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.Pretty ()
-import Panini.Frontend.Python.Typing.Builtins
 import Panini.Frontend.Python.Typing.PyType
 import Panini.Panic
 import Panini.Pretty
@@ -23,7 +22,7 @@ import Prelude
 type Infer a = ExceptT TypeError (State Env) a
 
 runInfer :: Infer a -> Either TypeError a
-runInfer m = evalState (runExceptT m) (Env 0 builtinFunctions [] mempty)
+runInfer m = evalState (runExceptT m) (Env 0 mempty [] mempty)
 
 data TypeError 
   = InfiniteType PyType PyType
@@ -36,9 +35,9 @@ data TypeError
 instance Pretty TypeError where
   pretty = \case
     InfiniteType a b -> "infinite type:" <+> pretty a <+> "occurs in" <+> pretty b
-    CannotSolve c -> "cannot solve constraint:" <+> pretty c
-    CannotCoalesce a t1 t2 -> 
-      "cannot coalesce bounds of meta variable:" <+> 
+    CannotSolve c -> group $ nest 2 $ "cannot solve constraint:" <\> pretty c
+    CannotCoalesce a t1 t2 -> group $ nest 2 $ 
+      "cannot coalesce bounds of meta variable:" <\> 
       pretty t1 <+> "≤" <+> pretty (MetaVar a) <+> "≤" <+> pretty t2
     UnsupportedTypeHint e -> "unsupported type hint:" <+> pretty e 
     UnsupportedParam p -> "unsupported parameter:" <+> pretty p
@@ -90,11 +89,12 @@ popReturnTypeStackFrame = lift $ gets returnTypeStack >>= \case
 
 ------------------------------------------------------------------------------
 
-data Constraint = PyType :≤ PyType
+data Constraint = PyType :≤ PyType | [PyType] :*≤ PyType
   deriving stock (Eq, Ord, Show, Read)
 
 instance Pretty Constraint where
   pretty (a :≤ b) = pretty a <+> "≤" <+> pretty b
+  pretty (a :*≤ b) = pretty a <+> "*≤" <+> pretty b 
 
 constrain :: Constraint -> Infer ()
 constrain c = do
