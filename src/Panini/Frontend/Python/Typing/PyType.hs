@@ -172,6 +172,7 @@ pattern NoReturn              = PyType "NoReturn" []
 -- 'Object'. There is no universal least type.
 instance PartialOrder PyType where
   _              ⊑ Object         = True  
+  Union as       ⊑ Union bs       = all (`elem` bs) as
   a              ⊑ Union bs       = any (a ⊑) bs
   Union as       ⊑ b              = all (⊑ b) as
   Callable s1 t1 ⊑ Callable s2 t2 = and $ t1 ⊑ t2 : zipWith (⊑) s2 s1
@@ -235,8 +236,8 @@ superTypes = \case
       ]
   Complex -> [SupportsComplex, SupportsAbs Float]  
   Bool  -> [Int]   
-  
-  Str          -> [Sequence Str, Hashable]
+
+  Str          -> [Sequence Str, Hashable, Dict Slice Str, Dict Int Str]
   Bytes        -> [Sequence Int]
   Bytearray    -> [MutableSequence Int]  
   Memoryview i -> [Sequence i]

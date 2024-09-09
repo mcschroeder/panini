@@ -27,7 +27,6 @@ runInfer m = evalState (runExceptT m) (Env 0 mempty [] mempty)
 data TypeError 
   = InfiniteType PyType PyType
   | CannotSolve Constraint
-  | CannotCoalesce Int PyType PyType
   | forall a. UnsupportedTypeHint (Expr a)
   | forall a. UnsupportedParam (Parameter a)
   | forall a. UnsupportedArg (Argument a)
@@ -36,9 +35,6 @@ instance Pretty TypeError where
   pretty = \case
     InfiniteType a b -> "infinite type:" <+> pretty a <+> "occurs in" <+> pretty b
     CannotSolve c -> group $ nest 2 $ "cannot solve constraint:" <\> pretty c
-    CannotCoalesce a t1 t2 -> group $ nest 2 $ 
-      "cannot coalesce bounds of meta variable:" <\> 
-      pretty t1 <+> "≤" <+> pretty (MetaVar a) <+> "≤" <+> pretty t2
     UnsupportedTypeHint e -> "unsupported type hint:" <+> pretty e 
     UnsupportedParam p -> "unsupported parameter:" <+> pretty p
     UnsupportedArg a -> "unsupported argument:" <+> pretty a

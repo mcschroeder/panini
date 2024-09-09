@@ -34,54 +34,65 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Frontend.Python.Typing.Monad
 import Panini.Frontend.Python.Typing.PyType as PyType
-import Panini.Panic
 import Prelude
 
 ------------------------------------------------------------------------------
 
 unify :: Set Constraint -> Infer (IntMap PyType)
-unify = coalesce <=< biunify
+unify = fmap coalesce . biunify
 
 ------------------------------------------------------------------------------
 
 -- | Coalesce a collection of meta variable bounds into simple static types.
-coalesce :: IntMap (PyType, PyType) -> Infer (IntMap PyType)
-coalesce = go mempty . IntMap.toList
+coalesce :: IntMap (Set PyType, Set PyType) -> IntMap PyType
+coalesce m0 = go mempty m0 mempty (IntMap.keys m0)
  where
-  go m []             = pure m
-  go m ((a,(l,u)):cs) = case metaVars l <> metaVars u of
-    [] -> case (l,u) of
-      (Any, t)            -> go (IntMap.insert a t  m) cs
-      (t, Any)            -> go (IntMap.insert a t  m) cs
-      (t1, t2) | t1 == t2 -> go (IntMap.insert a t1 m) cs
-      
-      (PyType x ts1, PyType y ts2) | x == y -> do
-        assertM $ length ts1 == length ts2
-        (ts,vs) <- newMetaVars (length ts1)
-        let cs' = zip vs (zip ts1 ts2)
-        let c' = (a, (PyType x ts, PyType y ts))
-        go m $ cs ++ cs' ++ [c']
-
-      (t1, t2) | t1 ⊑ t2   -> go (IntMap.insert a t1 m) cs
-               | otherwise -> throwE $ CannotCoalesce a l u
-
-    vs -> go m (cs ++ [(a,(l',u'))])
+  go f _ _ [] = f    
+  go f m s (a:rest) = case IntMap.lookup a m of
+    Nothing -> go f' m' s rest
      where
-      l' = IntMap.foldrWithKey' substituteMetaVar l ts
-      u' = IntMap.foldrWithKey' substituteMetaVar u ts
-      ts = IntMap.restrictKeys m vs <> IntMap.fromSet (const Any) undefs
-      undefs = vs IntSet.\\ (IntMap.keysSet m <> IntSet.fromList (map fst cs))
-  
-  newMetaVars n = do
-    ts <- replicateM n newMetaVar
-    let unwrap t@(MetaVar v) = (t,v); unwrap _ = impossible
-    return $ unzip $ map unwrap ts
+      f' = IntMap.insert a Any f
+      m' = IntMap.insert a ([],[]) m
+    Just (l,u) -> case IntSet.toList $ IntSet.unions $ Set.map metaVars $ l <> u of
+      [] -> go f' m' s rest
+       where
+        l1 = case coalesceLower l of [t] -> t; _ -> Any
+        u1 = case coalesceUpper u of Just [t] -> t; _ -> Any
+        l2 = if l1 == Any then u1 else l1
+        u2 = if u1 == Any then l1 else u1
+        m' = IntMap.map substVar m
+        f' = IntMap.insert a l2 f
+        substVar (lx,ux) = ( Set.map (substituteMetaVar a l2) lx
+                           , Set.map (substituteMetaVar a u2) ux )
+      vs -> case IntSet.member a s of
+        True -> undefined -- TODO: cycle!
+        False -> go f m (IntSet.insert a s) (vs ++ a:rest)
 
+coalesceLower :: Set PyType -> Set PyType
+coalesceLower = Set.fromList . go . Set.toList
+ where
+  go      []        = []
+  go (  y:[])       = [y]
+  go (x:y:zs)
+    | hasMetaVars x = x : go (    y : zs)
+    | hasMetaVars y = y : go (x     : zs)
+    | otherwise     =     go (x ∨ y : zs)
+
+coalesceUpper :: Set PyType -> Maybe (Set PyType)
+coalesceUpper = go mempty . Set.toList
+ where
+  go m      []         = Just m
+  go m (  y:[])        = Just $ Set.insert y m
+  go m (x:y:zs)
+    | hasMetaVars x    = go (Set.insert x m) (y:zs)
+    | hasMetaVars y    = go (Set.insert y m) (x:zs)
+    | Just z <- x ∧? y = go               m  (z:zs)
+    | otherwise        = Nothing
 
 -- | Solve subtyping constraints via biunification, returning the lower and
 -- upper bounds of each meta variable (cf. Parreaux 2020). Note that these
 -- bounds might in turn contain meta variables.
-biunify :: Set Constraint -> Infer (IntMap (PyType, PyType))
+biunify :: Set Constraint -> Infer (IntMap (Set PyType, Set PyType))
 biunify = go mempty . Set.toList
  where
   go m []     = pure m
@@ -90,19 +101,21 @@ biunify = go mempty . Set.toList
     Any :≤ _   -> go m cs
     _   :≤ Any -> go m cs
 
-    MetaVar a :≤ t -> go m' cs'
-     where
-      (l,u) = IntMap.findWithDefault (Any,Any) a m
-      u'    = u ⊓ t
-      m'    = IntMap.insert a (l,u') m
-      cs'   = l :≤ t : cs
+    MetaVar a :≤ t -> do
+      let (l,u) = IntMap.findWithDefault (mempty,mempty) a m
+      case coalesceUpper $ Set.insert t u of
+        Nothing -> throwE $ CannotSolve c
+        Just u' -> do
+          let m'    = IntMap.insert a (l,u') m
+          let cs'   = map (:≤ t) (Set.toList l) ++ cs          
+          go m' cs'
 
     t :≤ MetaVar a -> go m' cs'
      where
-      (l,u) = IntMap.findWithDefault (Any,Any) a m
-      l'    = l ⊔ t
+      (l,u) = IntMap.findWithDefault (mempty,mempty) a m
+      l'    = coalesceLower $ Set.insert t l
       m'    = IntMap.insert a (l',u) m
-      cs'   = t :≤ u : cs
+      cs'   = map (t :≤) (Set.toList u) ++ cs
 
     Callable s1 t1 :≤ Callable s2 t2 | length s1 == length s2 -> 
       go m $ t1 :≤ t2 : zipWith (:≤) s2 s1 ++ cs
@@ -124,17 +137,10 @@ biunify = go mempty . Set.toList
       r <- tryAll $ map (go m . (:cs)) $ map (:≤ t) ts
       case r of
         [] -> throwE $ CannotSolve c
-        ms -> pure $ IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 ⊔ l2, u1 ⊓ u2)) ms
-
--- | A 'meet' for Python types that eliminates unknowns ('Any' and 'MetaVar') if
--- possible; returns 'Any' if there is no greatest lower bound.
-(⊓) :: PyType -> PyType -> PyType
-Any_ _ ⊓ t      = t
-t      ⊓ Any_ _ = t
-t1     ⊓ t2     = fromMaybe Any (t1 ∧? t2)
-
--- | A 'join' for Python types that eliminates unknowns ('Any' and 'MetaVar')
-(⊔) :: PyType -> PyType -> PyType
-Any_ _ ⊔ t      = t
-t      ⊔ Any_ _ = t
-t1     ⊔ t2     = t1 ∨ t2
+        ms -> do
+          let m' = IntMap.unionsWith (\(l1,u1) (l2,u2) -> (l1 <> l2, u1 <> u2)) ms
+          fmap IntMap.fromList $ forM (IntMap.toList m') $ \(a,(l,u)) -> do
+            let l' = coalesceLower l
+            case coalesceUpper u of
+              Nothing -> throwE $ CannotSolve c
+              Just u' -> return (a, (l',u'))
