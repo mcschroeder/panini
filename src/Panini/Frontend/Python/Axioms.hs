@@ -47,6 +47,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__eq__", [Int, Int], Bool) -> Just ("eq", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a = b} |])
   ("__eq__", [Str, Str], Bool) -> Just ("match", [panType| (s:𝕊) → (t:𝕊) → {b:𝔹 | b = true ⟺ s = t} |])
   ("__ne__", [Int, Int], Bool) -> Just ("ne", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≠ b} |])
+  ("__ne__", [Str, Str], Bool) -> Just ("neStr", [panType| (a:𝕊) → (b:𝕊) → {c:𝔹 | c = true ⟺ a ≠ b} |])
   ("__gt__", [Int, Int], Bool) -> Just ("gt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a > b} |])
   ("__ge__", [Int, Int], Bool) -> Just ("ge", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≥ b} |])
 
