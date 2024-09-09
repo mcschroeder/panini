@@ -89,7 +89,7 @@ baseTypeFromPyType pv = \case
 transpileTopLevel :: HasProvenance a => Typed DomTree a -> Transpiler Program
 transpileTopLevel dom = go dom.root
  where
-  go l = case dom.nodes ! l of
+  go l = ensureNoExcept (dom.nodes ! l) >>= \case
     FunDef{..} -> do
       funType <- mkFunType _name _args _result
       let ass  = Assume (mangle _name) funType
@@ -120,6 +120,13 @@ transpileTopLevel dom = go dom.root
   isDocstring = \case
     StmtExpr{stmt_expr = Strings{}} -> True
     _                               -> False
+
+-- TODO
+ensureNoExcept :: Node a -> Transpiler (Node a)
+ensureNoExcept Exit = return Exit
+ensureNoExcept node = case _except node of
+  [] -> return node
+  _  -> lift $ throwE $ OtherError "except clauses not yet supported" NoPV
 
 mkFunType
   :: HasProvenance a 
@@ -175,7 +182,7 @@ transpileFun dom = do
       lams   <- mkPhiLambdas vs e1
       return  $ Rec (blockName l) typ lams k NoPV
   
-  mkBody l = case dom.nodes ! l of
+  mkBody l = ensureNoExcept (dom.nodes ! l) >>= \case
     Block{..} -> transpileStmts _stmts =<< mkCall _next
 
     Branch{..} -> withAtom _cond $ \c -> do
@@ -257,6 +264,10 @@ transpileStmts stmts k0 = go stmts
     
     -- strip docstrings and other free-standing string literals
     StmtExpr { stmt_expr = Strings{} } -> go rest
+
+    Raise {} -> do
+      let false_ = Py.Bool False (Nothing, NoPV)
+      applyAxiom "assert" [false_] [PyType.Bool] PyType.None (getPV stmt)
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
