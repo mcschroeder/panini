@@ -32,11 +32,19 @@ upper bound.
 
 type Axiom = (String, Type)
 
+assertWithType :: Base -> Axiom
+assertWithType = \case
+  TUnit   -> ("assert",      [panType| { b:𝔹 | b = true } → 𝟙 |])
+  TBool   -> ("assert_bool", [panType| { b:𝔹 | b = true } → 𝔹 |])
+  TInt    -> ("assert_int",  [panType| { b:𝔹 | b = true } → ℤ |])
+  TChar   -> ("assert_char", [panType| { b:𝔹 | b = true } → ℂ𝕙 |])
+  TString -> ("assert_str",  [panType| { b:𝔹 | b = true } → 𝕊 |])
+
 axiomForFunction :: String -> [PyType] -> PyType -> Maybe Axiom
 axiomForFunction fun args ret = case (fun,args,ret) of
   -- built-in functions
   ("and"    , [Bool, Bool], Bool) -> Just ("and", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∧ b = true)} |])
-  ("assert" , [Bool]      , None) -> Just ("assert", [panType| { b:𝔹 | b = true } → 𝟙 |])
+  ("assert" , [Bool]      , None) -> Just $ assertWithType TUnit
   ("len"    , _           , _   ) -> axiomForFunction "__len__" args ret
   ("not"    , [Bool], Bool) -> Just ("or", [panType| (a:𝔹) → {b:𝔹 | b = ¬a} |])
   ("or"     , [Bool, Bool], Bool) -> Just ("not", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∨ b = true)} |])

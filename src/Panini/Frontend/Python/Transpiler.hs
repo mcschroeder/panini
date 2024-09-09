@@ -83,6 +83,11 @@ baseTypeFromPyType pv = \case
   PyType.None -> pure TUnit
   t -> lift $ throwE $ OtherError ("unsupported Python type: " ++ showPretty t) pv
 
+finalBaseReturnType :: Type -> Base
+finalBaseReturnType = \case
+  TBase _ b _ _ -> b
+  TFun _ _ t _  -> finalBaseReturnType t
+
 ------------------------------------------------------------------------------
 
 -- TODO
@@ -93,7 +98,7 @@ transpileTopLevel dom = go dom.root
     FunDef{..} -> do
       funType <- mkFunType _name _args _result
       let ass  = Assume (mangle _name) funType
-      k       <- transpileFun (domTree _body)
+      k       <- transpileFun (finalBaseReturnType funType) (domTree _body)
       lam     <- mkLambdas _args k
       let def  = Define (mangle _name) lam
       rest    <- go _next
@@ -169,8 +174,8 @@ mkLambdas ps k0 = foldM go k0 (reverse ps)
 
 ------------------------------------------------------------------------------
 
-transpileFun :: HasProvenance a => Typed DomTree a -> Transpiler Term
-transpileFun dom = do
+transpileFun :: HasProvenance a => Base -> Typed DomTree a -> Transpiler Term
+transpileFun returnType dom = do
   k <- mkCall dom.root
   goDom k dom.root
  where  
@@ -183,7 +188,7 @@ transpileFun dom = do
       return  $ Rec (blockName l) typ lams k NoPV
   
   mkBody l = ensureNoExcept (dom.nodes ! l) >>= \case
-    Block{..} -> transpileStmts _stmts =<< mkCall _next
+    Block{..} -> transpileStmts returnType _stmts =<< mkCall _next
 
     Branch{..} -> withAtom _cond $ \c -> do
       kTrue  <- mkCall _nextTrue
@@ -223,8 +228,8 @@ mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
 ------------------------------------------------------------------------------
 
 -- TODO: pass along context of all exceptions being caught in the current block
-transpileStmts :: HasProvenance a => [Typed Py.Statement a] -> Term -> Transpiler Term
-transpileStmts stmts k0 = go stmts
+transpileStmts :: HasProvenance a => Base -> [Typed Py.Statement a] -> Term -> Transpiler Term
+transpileStmts returnType stmts k0 = go stmts
  where
   go []          = return k0
   go (stmt:rest) = case stmt of
@@ -266,8 +271,11 @@ transpileStmts stmts k0 = go stmts
     StmtExpr { stmt_expr = Strings{} } -> go rest
 
     Raise {} -> do
+      let ax@(fn,_) = assertWithType returnType
+      addAxiom ax
+      let f = Name (fromString fn) (getPV stmt)
       let false_ = Py.Bool False (Nothing, NoPV)
-      applyAxiom "assert" [false_] [PyType.Bool] PyType.None (getPV stmt)
+      withAtoms [false_] $ return . mkApp f
 
     _ -> lift $ throwE $ UnsupportedStatement stmt
 
