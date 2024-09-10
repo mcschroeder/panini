@@ -21,6 +21,7 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import GHC.Generics
+import Panini.Abstract.AString qualified as AString
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
@@ -31,6 +32,7 @@ import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import System.Time.Extra
 
 -------------------------------------------------------------------------------
 
@@ -136,16 +138,26 @@ abstractNNF :: Name -> Base -> Pred -> Pan AValue
 abstractNNF x b = \case
   PTrue   -> return $ topValue b
   PFalse  -> return $ botValue b
-  PRel r  -> abstractVar' x b r
+  PRel r  -> simplify' =<< abstractVar' x b r
   PAnd xs -> do vs <- mapM (abstractNNF x b) xs
-                let v = meets' b vs
+                v <- simplify' $ meets' b vs
                 logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
                 return v    
   POr xs  -> do vs <- mapM (abstractNNF x b) xs
-                let v = joins' b vs
+                v <- simplify' $ joins' b vs
                 logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
                 return v
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
+
+simplify' :: AValue -> Pan AValue
+simplify' (AString s) = do
+  t <- gets regexTimeout
+  r <- liftIO $ timeout t $ return $! AString.simplify s
+  case r of
+    Just s' -> return $ AString s'
+    Nothing -> return $ AString s
+
+simplify' a = pure a
 
 meets' :: Base -> [AValue] -> AValue
 meets' b xs = case b of

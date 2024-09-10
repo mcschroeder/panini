@@ -22,7 +22,8 @@ data PanOptions = PanOptions
   , createGoldenFiles :: Bool
   , termWidth :: Maybe Int
   , smtTimeout :: Int
-  , pythonInput :: Bool
+  , regexTimeout :: Double
+  , pythonInput :: Bool  
   }
   deriving stock (Show, Read)
 
@@ -96,6 +97,12 @@ opts = info
             metavar "SECONDS" <>
             help "SMT solver timeout (default: 10 seconds)" <>
             value 10
+          )
+      <*> (option auto $
+            long "regex-timeout" <>
+            metavar "SECONDS" <>
+            help "Regex simplifier timeout (default: 1 second)" <>
+            value 1
           )
       <*> (switch $
             long "python" <>

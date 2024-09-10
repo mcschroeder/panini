@@ -33,19 +33,19 @@ instance PartialOrder AString where
   (⊑) = (<=)
 
 instance JoinSemilattice AString where
-  MkAString r1 ∨ MkAString r2 = simplify $ MkAString $ Plus [r1,r2]
+  MkAString r1 ∨ MkAString r2 = MkAString $ Plus [r1,r2]
 
 instance BoundedJoinSemilattice AString where
   bot = MkAString Zero
 
 instance MeetSemilattice AString where
-  MkAString r1 ∧ MkAString r2 = simplify $ MkAString $ Regex.intersection r1 r2
+  MkAString r1 ∧ MkAString r2 = MkAString $ Regex.intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
   top = MkAString All
 
 instance ComplementedLattice AString where
-  neg (MkAString r) = simplify $ MkAString $ Regex.complement r
+  neg (MkAString r) = MkAString $ Regex.complement r
 
 instance Pretty AString where
   pretty (MkAString r) = ann (Literal AbstractLit) $ pretty r

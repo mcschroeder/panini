@@ -58,11 +58,13 @@ replMain panOpts = do
 
   let panState0 = defaultState 
         { eventHandler
-        , Panini.Monad.smtTimeout = panOpts.smtTimeout 
+        , Panini.Monad.smtTimeout = panOpts.smtTimeout
+        , Panini.Monad.regexTimeout = panOpts.regexTimeout
         }
 
   void $ runPan panState0 $ runInputT replConf $ do
     lift smtInit
+    lift logRegexInfo
     repl panOpts
 
   whenJust traceFile hClose

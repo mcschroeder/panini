@@ -17,6 +17,7 @@ module Panini.Monad
   , logMessage
   , logData
   , logEvent
+  , logRegexInfo
   , (§)
   , (§§)
   ) where
@@ -37,6 +38,7 @@ import Panini.Modules
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
+import System.Time.Extra
 
 -------------------------------------------------------------------------------
 
@@ -63,6 +65,7 @@ data PanState = PanState {
   , eventHandler :: Event -> IO ()
 
   , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
+  , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
   }
 
 defaultState :: PanState
@@ -72,6 +75,7 @@ defaultState = PanState
   , loadedModules = []
   , eventHandler = const (return ())
   , smtTimeout = 10
+  , regexTimeout = 1
   }
 
 -------------------------------------------------------------------------------
@@ -138,3 +142,8 @@ getPaniniModuleName :: CallStack -> String
 getPaniniModuleName cs =
   let loc = srcLocModule $ snd $ head $ getCallStack cs
   in fromMaybe loc $ List.stripPrefix "Panini." loc
+
+logRegexInfo :: Pan ()
+logRegexInfo = do
+  t <- showDuration <$> gets regexTimeout
+  logEvent $ LogMessage "Regex" $ "Simplifier timeout:" <+> pretty t

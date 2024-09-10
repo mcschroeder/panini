@@ -59,11 +59,13 @@ batchMain panOpts = do
   let panState0 = defaultState 
         { eventHandler
         , Panini.Monad.smtTimeout = panOpts.smtTimeout 
+        , Panini.Monad.regexTimeout = panOpts.regexTimeout
         }
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ do
-    smtInit    
+    smtInit
+    logRegexInfo
     let fp = fromMaybe "<stdin>" panOpts.inputFile
     logMessage $ "Read" <+> pretty fp
     src <- tryIO NoPV $ maybe Text.getContents Text.readFile panOpts.inputFile

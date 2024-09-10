@@ -69,10 +69,12 @@ testMain globalOpts = assert globalOpts.testMode $ do
               -- note how we don't log errors to stderr by default here
           
           , Panini.Monad.smtTimeout = globalOpts.smtTimeout
+          , Panini.Monad.regexTimeout = globalOpts.regexTimeout
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
-      smtInit      
+      smtInit
+      logRegexInfo
       let ext = takeExtension inFile
       let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
                    | otherwise                           = loadModule
