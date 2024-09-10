@@ -95,14 +95,14 @@ opts = info
       <*> (option auto $
             long "smt-timeout" <>
             metavar "SECONDS" <>
-            help "SMT solver timeout (default: 10 seconds)" <>
-            value 10
+            help "SMT solver timeout (default: 1 second)" <>
+            value 1
           )
       <*> (option auto $
             long "regex-timeout" <>
             metavar "SECONDS" <>
-            help "Regex simplifier timeout (default: 1 second)" <>
-            value 1
+            help "Regex simplifier timeout (default: 0.5 seconds)" <>
+            value 0.5
           )
       <*> (switch $
             long "python" <>

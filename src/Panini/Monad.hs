@@ -74,8 +74,8 @@ defaultState = PanState
   , kvarCount = 0
   , loadedModules = []
   , eventHandler = const (return ())
-  , smtTimeout = 10
-  , regexTimeout = 1
+  , smtTimeout = 1
+  , regexTimeout = 0.5
   }
 
 -------------------------------------------------------------------------------
