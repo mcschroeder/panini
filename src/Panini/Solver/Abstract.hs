@@ -271,9 +271,11 @@ simplifyRegex s = do
   r <- liftIO $ timeout t $ return $! AString.simplify s
   case r of
     Nothing -> do
-      logMessage $ "timeout trying to simplify" <+> pretty s
+      logMessage "Timeout trying to simplify regular expression"
+      logData s
       return s    
     Just s' -> do
-      when (s' /= s) $ 
-        logMessage $ pretty s <+> " ⇝ " <+> pretty s'
+      unless (s == s') $ do
+        logMessage "Simplified regular expression"
+        logData $ group $ pretty s <\> "  ⇝  " <\> pretty s'
       return s'
