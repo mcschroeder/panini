@@ -152,7 +152,7 @@ valueMeets b vs = do
 
 valueJoins :: Base -> [AValue] -> Pan AValue
 valueJoins b vs = do
-  let v = foldr1 join' (topValue b : vs)
+  let v = foldr1 join' (botValue b : vs)
   logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
   return v
  where
