@@ -75,7 +75,7 @@ defaultState = PanState
   , loadedModules = []
   , eventHandler = const (return ())
   , smtTimeout = 1
-  , regexTimeout = 0.5
+  , regexTimeout = 5
   }
 
 -------------------------------------------------------------------------------

@@ -101,8 +101,8 @@ opts = info
       <*> (option auto $
             long "regex-timeout" <>
             metavar "SECONDS" <>
-            help "Regex simplifier timeout (default: 0.5 seconds)" <>
-            value 0.5
+            help "Regex simplifier timeout (default: 5 seconds)" <>
+            value 5
           )
       <*> (switch $
             long "python" <>
