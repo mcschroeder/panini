@@ -19,6 +19,7 @@ import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
+import Data.Ord
 import Data.Set qualified as Set
 import GHC.Generics
 import Panini.Abstract.AString qualified as AString
@@ -137,26 +138,26 @@ abstractNNF x b = \case
   PTrue   -> return $ topValue b
   PFalse  -> return $ botValue b  
   PRel r  -> simplifyAValue =<< abstractVarToValue x b r
-  PAnd xs -> simplifyAValue =<< valueMeets b =<< mapM (abstractNNF x b) xs
-  POr  xs -> simplifyAValue =<< valueJoins b =<< mapM (abstractNNF x b) xs
+  PAnd xs -> valueMeets b =<< mapM (abstractNNF x b) xs
+  POr  xs -> valueJoins b =<< mapM (abstractNNF x b) xs
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
 valueMeets :: Base -> [AValue] -> Pan AValue
 valueMeets b vs = do
-  let v = foldr1 meet' (topValue b : vs)
+  v <- foldrM meet' (topValue b) $ List.sortBy (comparing Down) vs
   logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
   return v
  where
-  meet' x y = fromMaybe err (partialMeet x y)
+  meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
   err = panic $ "valueMeets" <+> pretty b <+> pretty vs
 
 valueJoins :: Base -> [AValue] -> Pan AValue
 valueJoins b vs = do
-  let v = foldr1 join' (botValue b : vs)
+  v <- foldrM join' (botValue b) $ List.sortBy (comparing Down) vs
   logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
   return v
  where
-  join' x y = fromMaybe err (partialJoin x y)
+  join' x y = simplifyAValue $ fromMaybe err (partialJoin x y)
   err = panic $ "valueJoins" <+> pretty b <+> pretty vs
 
 -------------------------------------------------------------------------------
