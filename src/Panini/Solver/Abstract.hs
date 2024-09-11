@@ -140,11 +140,11 @@ abstractNNF x b = \case
   PFalse  -> return $ botValue b
   PRel r  -> simplify' =<< abstractVar' x b r
   PAnd xs -> do vs <- mapM (abstractNNF x b) xs
-                v <- simplify' $ meets' b vs
+                v <- simplify' $ valueMeets b vs
                 logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
                 return v    
   POr xs  -> do vs <- mapM (abstractNNF x b) xs
-                v <- simplify' $ joins' b vs
+                v <- simplify' $ valueJoins b vs
                 logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
                 return v
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
@@ -159,41 +159,17 @@ simplify' (AString s) = do
 
 simplify' a = pure a
 
-meets' :: Base -> [AValue] -> AValue
-meets' b xs = case b of
-  TUnit   -> AUnit   $ meets $ map unsafeUnwrapAUnit xs
-  TBool   -> ABool   $ meets $ map unsafeUnwrapABool xs
-  TInt    -> AInt    $ meets $ map unsafeUnwrapAInt xs
-  TChar   -> AChar   $ meets $ map unsafeUnwrapAChar xs  
-  TString -> AString $ meets $ map unsafeUnwrapAString xs
+valueMeets :: Base -> [AValue] -> AValue
+valueMeets b vs = foldr1 meet' (topValue b : vs)
+ where
+  meet' x y = fromMaybe err (partialMeet x y)
+  err = panic $ "valueMeets" <+> pretty b <+> pretty vs
 
-joins' :: Base -> [AValue] -> AValue
-joins' b xs = case b of
-  TUnit   -> AUnit   $ joins $ map unsafeUnwrapAUnit xs
-  TBool   -> ABool   $ joins $ map unsafeUnwrapABool xs
-  TInt    -> AInt    $ joins $ map unsafeUnwrapAInt xs
-  TChar   -> AChar   $ joins $ map unsafeUnwrapAChar xs
-  TString -> AString $ joins $ map unsafeUnwrapAString xs
-
-unsafeUnwrapAUnit :: AValue -> AUnit
-unsafeUnwrapAUnit (AUnit a) = a
-unsafeUnwrapAUnit a = panic $ "unsafeUnwrapAUnit: unexpected" <+> pretty a
-
-unsafeUnwrapABool :: AValue -> ABool
-unsafeUnwrapABool (ABool a) = a
-unsafeUnwrapABool a = panic $ "unsafeUnwrapABool: unexpected" <+> pretty a
-
-unsafeUnwrapAInt :: AValue -> AInt
-unsafeUnwrapAInt (AInt a) = a
-unsafeUnwrapAInt a = panic $ "unsafeUnwrapAInt: unexpected" <+> pretty a
-
-unsafeUnwrapAChar :: AValue -> AChar
-unsafeUnwrapAChar (AChar a) = a
-unsafeUnwrapAChar a = panic $ "unsafeUnwrapAChar: unexpected" <+> pretty a
-
-unsafeUnwrapAString :: AValue -> AString
-unsafeUnwrapAString (AString a) = a
-unsafeUnwrapAString a = panic $ "unsafeUnwrapAString: unexpected" <+> pretty a
+valueJoins :: Base -> [AValue] -> AValue
+valueJoins b vs = foldr1 join' (topValue b : vs)
+ where
+  join' x y = fromMaybe err (partialJoin x y)
+  err = panic $ "valueJoins" <+> pretty b <+> pretty vs
 
 -------------------------------------------------------------------------------
 

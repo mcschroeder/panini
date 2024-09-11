@@ -70,6 +70,14 @@ instance PartialMeetSemilattice AValue where
   AString a ∧? AString b = Just $ AString (a ∧ b)
   _         ∧? _         = Nothing
 
+instance PartialJoinSemilattice AValue where
+  AUnit   a ∨? AUnit   b = Just $ AUnit   (a ∨ b)
+  ABool   a ∨? ABool   b = Just $ ABool   (a ∨ b)
+  AInt    a ∨? AInt    b = Just $ AInt    (a ∨ b)
+  AChar   a ∨? AChar   b = Just $ AChar   (a ∨ b)
+  AString a ∨? AString b = Just $ AString (a ∨ b)
+  _         ∨? _         = Nothing
+
 hasTop :: AValue -> Bool
 hasTop = \case
   AUnit   a -> isTop a
