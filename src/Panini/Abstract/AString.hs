@@ -15,8 +15,7 @@ import Panini.Abstract.AChar qualified as AChar
 import Panini.Abstract.AInt (AInt)
 import Panini.Abstract.AInt qualified as AInt
 import Panini.Pretty
-import Panini.Regex.Operations qualified as Regex
-import Panini.Regex.Simplify qualified as Regex
+import Panini.Regex qualified as Regex
 import Panini.Regex.SMT qualified as Regex
 import Panini.Regex.Type
 import Panini.SMT.RegLan (RegLan)

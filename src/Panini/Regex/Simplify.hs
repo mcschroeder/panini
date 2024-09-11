@@ -15,7 +15,7 @@ import Data.Function
 import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Operations
+import Panini.Regex.Equivalence
 import Panini.Regex.Type
 import Prelude
 

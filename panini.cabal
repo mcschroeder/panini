@@ -108,6 +108,7 @@ library
     Panini.Provenance
     Panini.Regex
     Panini.Regex.CharSet
+    Panini.Regex.Equivalence
     Panini.Regex.Operations
     Panini.Regex.POSIX.BE
     Panini.Regex.POSIX.ERE

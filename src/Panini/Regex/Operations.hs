@@ -1,7 +1,7 @@
 {-|
-This module implements 'intersection', 'complement', and 'equivalence' of
-regular expressions and it does so entirely algebraically, without intermediate
-translation into automata.
+This module implements 'intersection' and 'complement' of regular expressions
+and it does so entirely algebraically, without intermediate translation into
+automata.
 
 References:
 
@@ -39,7 +39,6 @@ import Data.Map.Strict qualified as Map
 import Data.Semigroup hiding (All)
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.String
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Type
@@ -78,19 +77,6 @@ complement = solve $ \r ->
            , Just c <- [CS.choose p]
            ]
   in (Plus [c0,c1], Map.fromListWith (\a b -> Plus [a,b]) cx)
-
--------------------------------------------------------------------------------
-
--- TODO: implement equivalence checking more directly/efficiently
-
--- | Semantic equivalence of two regular expressions, i.e., language equality.
-equivalence :: Regex -> Regex -> Bool
-equivalence r1 r2 =
-  Plus [intersection r1 (complement r2), intersection (complement r1) r2] == Zero
-
--- | Is a certain string contained in the language described by a certain regex?
-membership :: String -> Regex -> Bool
-membership s r = intersection (fromString s) r /= Zero
 
 -------------------------------------------------------------------------------
 
