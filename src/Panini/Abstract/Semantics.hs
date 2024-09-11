@@ -396,15 +396,16 @@ tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
 -------------------------------------------------------------------------------
 
-abstractVar' :: Name -> Base -> Rel -> Pan AValue
-abstractVar' x b r0 = do
+abstractVarToValue :: Name -> Base -> Rel -> Pan AValue
+abstractVarToValue x b r0 = do
   let r = normRel r0
   let e = abstract x b r
-  logMessage $ "⟦" <> pretty r0 <> "⟧↑↑" <> pretty x <+> "≐" <+> pretty e
+  unless (isNothing e) $
+    logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
   case e of
-    Just (ECon c) -> return (fromValue c)
+    Just (ECon c) -> return $ fromValue c
     Just (EAbs a) -> return a
-    _             -> throwError $ AbstractionImpossible x r0 r
+    _             -> throwError $ AbstractionImpossible x r
 
 abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r0 = do

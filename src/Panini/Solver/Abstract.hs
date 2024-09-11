@@ -127,46 +127,34 @@ solve1 = \case
 
   PreCon x b _ c -> do
     c1 <- qelim c
-    c2 <- nnf c1 § "Convert to NNF"
-    c3 <- simplifyPred c2 § "Simplify predicate"
-    logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
-    q <- abstractNNF x b c3
-    logData q
+    c2 <- nnf c1               § "Convert to NNF"
+    c3 <- simplifyPred c2      § "Simplify predicate"
+    q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
     return q
 
 abstractNNF :: Name -> Base -> Pred -> Pan AValue
 abstractNNF x b = \case
   PTrue   -> return $ topValue b
-  PFalse  -> return $ botValue b
-  PRel r  -> simplify' =<< abstractVar' x b r
-  PAnd xs -> do vs <- mapM (abstractNNF x b) xs
-                v <- simplify' $ valueMeets b vs
-                logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
-                return v    
-  POr xs  -> do vs <- mapM (abstractNNF x b) xs
-                v <- simplify' $ valueJoins b vs
-                logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
-                return v
+  PFalse  -> return $ botValue b  
+  PRel r  -> simplifyAValue =<< abstractVarToValue x b r
+  PAnd xs -> simplifyAValue =<< valueMeets b =<< mapM (abstractNNF x b) xs
+  POr  xs -> simplifyAValue =<< valueJoins b =<< mapM (abstractNNF x b) xs
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
-simplify' :: AValue -> Pan AValue
-simplify' (AString s) = do
-  t <- gets regexTimeout
-  r <- liftIO $ timeout t $ return $! AString.simplify s
-  case r of
-    Just s' -> return $ AString s'
-    Nothing -> return $ AString s
-
-simplify' a = pure a
-
-valueMeets :: Base -> [AValue] -> AValue
-valueMeets b vs = foldr1 meet' (topValue b : vs)
+valueMeets :: Base -> [AValue] -> Pan AValue
+valueMeets b vs = do
+  let v = foldr1 meet' (topValue b : vs)
+  logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
+  return v
  where
   meet' x y = fromMaybe err (partialMeet x y)
   err = panic $ "valueMeets" <+> pretty b <+> pretty vs
 
-valueJoins :: Base -> [AValue] -> AValue
-valueJoins b vs = foldr1 join' (topValue b : vs)
+valueJoins :: Base -> [AValue] -> Pan AValue
+valueJoins b vs = do
+  let v = foldr1 join' (topValue b : vs)
+  logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
+  return v
  where
   join' x y = fromMaybe err (partialJoin x y)
   err = panic $ "valueJoins" <+> pretty b <+> pretty vs
@@ -175,9 +163,8 @@ valueJoins b vs = foldr1 join' (topValue b : vs)
 
 qelim :: Con -> Pan Pred
 qelim c0 = do
-  c1 <- elimAll c0 § "Eliminate ∀"
-  c2 <- elimExists c1
-  logData c2
+  c1 <- elimAll c0      § "Eliminate ∀"
+  c2 <- elimExists c1  §§ "Eliminate ∃"
   return c2
  where
   elimAll :: Con -> Pred
@@ -247,7 +234,8 @@ qelim1 x b φ = do
   logMessage $ divider symDivH Nothing
   logMessage $ "qelim1" <+> pretty x <+> pretty b
   logMessage $ "φ ←" <+> pretty φ  
-  ξ <- mapM (abstractVar x b) [r | r <- φ, x `elem` freeVars r]
+  let rs = [r | r <- φ, x `elem` freeVars r]
+  ξ <- mapM (simplifyExpr <=< abstractVar x b) rs
   logMessage $ "ξ ←" <+> pretty ξ  
   let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
   let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
@@ -264,3 +252,28 @@ normRelM r = do
   let r' = normRel r
   unless (r' == r) $ logMessage $ pretty r <+> " ⇝ " <+> pretty r'
   return r'
+
+-------------------------------------------------------------------------------
+
+simplifyAValue :: AValue -> Pan AValue
+simplifyAValue = \case
+  AString s -> AString <$> simplifyRegex s
+  a         -> pure a
+
+simplifyExpr :: Expr -> Pan Expr
+simplifyExpr = \case
+  EStrA s -> EStrA <$> simplifyRegex s
+  e       -> pure e
+
+simplifyRegex :: AString -> Pan AString
+simplifyRegex s = do
+  t <- gets regexTimeout
+  r <- liftIO $ timeout t $ return $! AString.simplify s
+  case r of
+    Nothing -> do
+      logMessage $ "timeout trying to simplify" <+> pretty s
+      return s    
+    Just s' -> do
+      when (s' /= s) $ 
+        logMessage $ pretty s <+> " ⇝ " <+> pretty s'
+      return s'
