@@ -64,9 +64,9 @@ coalesce m0 = go mempty m0 mempty (IntMap.keys m0)
         f' = IntMap.insert a l2 f
         substVar (lx,ux) = ( Set.map (substituteMetaVar a l2) lx
                            , Set.map (substituteMetaVar a u2) ux )
-      vs -> case IntSet.member a s of
-        True -> undefined -- TODO: cycle!
-        False -> go f m (IntSet.insert a s) (vs ++ a:rest)
+      
+      vs | IntSet.member a s -> go (IntMap.insert a Any f) m s rest         
+         | otherwise         -> go f m (IntSet.insert a s) (vs ++ a:rest)         
 
 coalesceLower :: Set PyType -> Set PyType
 coalesceLower = Set.fromList . go . Set.toList
