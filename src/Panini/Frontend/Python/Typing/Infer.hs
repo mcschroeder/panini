@@ -24,11 +24,15 @@ import Panini.Frontend.Python.Typing.Unify
 import Panini.Panic
 import Prelude
 
+--import Debug.Trace
+--import Panini.Pretty
+
 ------------------------------------------------------------------------------
 
 infer :: Module a -> Either TypeError (Typed Module a)
 infer (Module stmts) = runInfer $ do
   stmtsTypedMeta <- mapM inferStmt stmts
+  --traceM $ showPretty stmtsTypedMeta
   constraints    <- lift $ gets subConstraints
   metaVarContext <- unify constraints
   let stmtsTyped  = map (resolveMetaVars metaVarContext) stmtsTypedMeta

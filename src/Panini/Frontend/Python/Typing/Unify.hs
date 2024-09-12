@@ -36,10 +36,26 @@ import Panini.Frontend.Python.Typing.Monad
 import Panini.Frontend.Python.Typing.PyType as PyType
 import Prelude
 
+--import Debug.Trace
+--import Panini.Pretty
+
 ------------------------------------------------------------------------------
 
 unify :: Set Constraint -> Infer (IntMap PyType)
 unify = fmap coalesce . biunify
+-- unify cs = do
+--   traceM "--------------------"
+--   forM_ cs $ traceM . showPretty
+--   traceM "--------------------"
+--   xs <- biunify cs
+--   traceM "--------------------"
+--   forM_ (IntMap.toList xs) $ traceM . showPretty
+--   traceM "--------------------"
+--   let ys = coalesce xs
+--   traceM "--------------------"
+--   forM_ (IntMap.toList ys) $ traceM . showPretty
+--   traceM "--------------------"
+--   return ys
 
 ------------------------------------------------------------------------------
 
@@ -49,6 +65,7 @@ coalesce m0 = go mempty m0 mempty (IntMap.keys m0)
  where
   go f _ _ [] = f    
   go f m s (a:rest) = case IntMap.lookup a m of
+  --go f m s (a:rest) = trace (showPretty a) $ case IntMap.lookup a m of
     Nothing -> go f' m' s rest
      where
       f' = IntMap.insert a Any f
@@ -97,6 +114,7 @@ biunify = go mempty . Set.toList
  where
   go m []     = pure m
   go m (c:cs) = case c of
+  --go m (c:cs) = trace (showPretty c) $ case c of
 
     Any :≤ _   -> go m cs
     _   :≤ Any -> go m cs
