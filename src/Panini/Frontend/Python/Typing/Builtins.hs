@@ -58,7 +58,7 @@ objectStub = ClassStub
   { constructors = []
   , attributes = []
   , functions =
-    [ ("__setattr__", Callable [Object,Str,Any] None)
+    [ ("__setattr__", Callable [Object,Str,Object] None)
     , ("__delattr__", Callable [Object,Str] None)
     , ("__eq__", Callable [Object,Object] Bool)
     , ("__ne__", Callable [Object,Object] Bool)
@@ -66,7 +66,7 @@ objectStub = ClassStub
     , ("__repr__", Callable [Object] Str)
     , ("__hash__", Callable [Object] Int)
     , ("__format__", Callable [Object,Str] Str)
-    , ("__getattribute__", Callable [Object,Str] Any)
+    , ("__getattribute__", Callable [Object,Str] Object)
     , ("__sizeof__", Callable [Object] Int)
     , ("__getstate__", Callable [Object] Object)  -- >= (3,11)
     , ("__dir__", Callable [Object] (Iterable Str))
@@ -327,7 +327,7 @@ strStub = ClassStub
     , ("__le__", Callable [Str,Str] Bool)
     , ("__len__", Callable [Str] Int)
     , ("__lt__", Callable [Str,Str] Bool)
-    , ("__mod__", Callable [Str,Any] Str)
+    , ("__mod__", Callable [Str,Object] Str)
     , ("__mul__", Callable [Str,SupportsIndex] Str)
     , ("__ne__", Callable [Str,Object] Bool)
     , ("__rmul__", Callable [Str,SupportsIndex] Str)
@@ -341,7 +341,7 @@ dictStub = ClassStub
   , attributes = []
   , functions =
     [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
-    , ("__contains__", Callable [Dict _KT _VT, Any] Bool)
+    , ("__contains__", Callable [Dict _KT _VT, Object] Bool)
     -- TODO
     ] 
   }
@@ -361,9 +361,9 @@ globalFunctions =
   , ("divmod", Callable [SupportsDivMod _T_contra _T_co, _T_contra] _T_co)
   , ("divmod", Callable [_T_contra, SupportsRDivMod _T_contra _T_co] _T_co)
   , ("exit", Callable [] NoReturn)
-  , ("exit", Callable [Any] NoReturn)
-  , ("getattr", Callable [Object,Str] Any)
-  , ("globals", Callable [] (Dict Str Any))
+  , ("exit", Callable [Object] NoReturn)
+  , ("getattr", Callable [Object,Str] Object)
+  , ("globals", Callable [] (Dict Str Object))
   , ("hasattr", Callable [Object,Str] Bool)
   , ("hash", Callable [Object] Int)
   , ("hex", Callable [Union [Int,SupportsIndex]] Str)
@@ -374,7 +374,7 @@ globalFunctions =
   , ("iter", Callable [Callable [] (Optional _T), None] (Iterator _T))
   , ("iter", Callable [Callable [] _T, Object] (Iterator _T))
   , ("len", Callable [Sized] Int)
-  , ("locals", Callable [] (Dict Str Any))
+  , ("locals", Callable [] (Dict Str Object))
   , ("max", Callable [_T,_T] _T)
   , ("max", Callable [Iterable _T] _T)
   , ("min", Callable [_T,_T] _T)
@@ -390,7 +390,7 @@ globalFunctions =
   , ("pow", Callable [Float,Complex] (Union [Float,Complex]))
   , ("pow", Callable [Complex,Complex] Complex)
   , ("quit", Callable [] NoReturn)
-  , ("quit", Callable [Any] NoReturn)
+  , ("quit", Callable [Object] NoReturn)
   , ("repr", Callable [Object] Str)
   , ("round", Callable [SupportsRound _T] _T)
   , ("round", Callable [SupportsRound _T, SupportsIndex] _T)
@@ -400,7 +400,7 @@ globalFunctions =
   , ("sorted", Callable [Iterable _T,Callable [_T] Object,Bool] (List _T))
   , ("sum", Callable [Iterable (Union [Bool,Int])] Int)
   , ("sum", Callable [Iterable (Union [Bool,Int]),Int] Int)
-  , ("sum", Callable [Iterable Any] Any)
-  , ("vars", Callable [] (Dict Str Any))
-  , ("vars", Callable [Any] (Dict Str Any))
+  , ("sum", Callable [Iterable Object] Object)
+  , ("vars", Callable [] (Dict Str Object))
+  , ("vars", Callable [Object] (Dict Str Object))
   ]
