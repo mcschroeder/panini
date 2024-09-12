@@ -73,4 +73,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])
   ("__sub__", [Int, Int], Int) -> Just ("sub", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a - b} |])
   
+  -- string methods
+  ("__add__", [Str, Str], Str) -> Just ("concat", [panType| (a:𝕊) → (b:𝕊) → {c:𝕊 | c = a ++ b} |])
+
   _ -> Nothing
