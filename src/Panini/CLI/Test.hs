@@ -70,6 +70,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
           
           , Panini.Monad.smtTimeout = globalOpts.smtTimeout
           , Panini.Monad.regexTimeout = globalOpts.regexTimeout
+          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do

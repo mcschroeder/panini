@@ -23,7 +23,8 @@ data PanOptions = PanOptions
   , termWidth :: Maybe Int
   , smtTimeout :: Int
   , regexTimeout :: Double
-  , pythonInput :: Bool  
+  , pythonInput :: Bool
+  , debugTraceFrontendGraph :: Bool
   }
   deriving stock (Show, Read)
 
@@ -107,4 +108,8 @@ opts = info
       <*> (switch $
             long "python" <>
             help "Force input to be read as Python"
+          )
+      <*> (switch $
+            long "debug-trace-frontend-graph" <>
+            hidden
           )

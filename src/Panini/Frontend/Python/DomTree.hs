@@ -7,6 +7,7 @@ import Data.Bifunctor
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet qualified as IntSet
+import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
@@ -70,24 +71,75 @@ variableAssignments cfg = Map.fromListWith (<>)
 
 -- for debug purposes only
 instance Graphviz (Typed DomTree a) where
-  dot = Digraph . go0 "_"
+  dot dom0 = Digraph $ go dom0 "_" dom0.root
    where
-    go0 prefix dom = go prefix dom dom.root
+    go dom p k = case dom.nodes IntMap.! k of
+      FunDef{..} -> 
+        let label = "def" <+> pretty _name <> prettyTuple _args 
+                    <> maybe mempty (\r -> " ->" <+> pretty r) _result 
+                    <> ": ..."
+        in 
+          [ node dom p k label
+          , conEdge p k _next ""
+          , cluster _name.ident_string (domTree _body)
+          ] ++ map (excEdge p k) _except
+            ++ goChildren dom p k
+
+      Block{..} -> 
+        let label = mconcat $ map (<> "\\l") $ map pretty _stmts
+        in
+          [ node dom p k label
+          , conEdge p k _next ""
+          ] ++ map (excEdge p k) _except
+            ++ goChildren dom p k        
     
-    go prefix dom l = case dom.nodes IntMap.! l of
-      FunDef{..} -> go2 prefix dom l ++
-        [ Subgraph ("cluster_" <> _name.ident_string) 
-            [ Label (pretty $ _name.ident_string)
-            , Graphviz.Style Dashed
-            ] 
-            (go0 _name.ident_string (domTree _body))
-        ]
-      _ -> go2 prefix dom l
+      Branch{..} -> 
+        let label = "if" <+> pretty _cond
+        in
+          [ node dom p k label
+          , conEdge p k _nextTrue "true"
+          , conEdge p k _nextFalse "false"
+          ] ++ map (excEdge p k) _except
+            ++ goChildren dom p k
+    
+      BranchFor{..} -> 
+        let label = "for" <+> prettyTuple' _targets 
+                    <+> "in" <+> pretty _generator
+        in
+          [ node dom p k label
+          , conEdge p k _nextMore "more"
+          , conEdge p k _nextDone "done"
+          ] ++ map (excEdge p k) _except
+            ++ goChildren dom p k
 
-    go2 prefix dom l = 
-      let mkKey k = prefix <> show k in
-      [ Node (mkKey l) [Shape Circle, Label (pretty $ show l), XLabel (phis dom l) ] ] 
-      ++ map (\r -> Edge (mkKey l) (mkKey r) []) (dom.children IntMap.! l)
-      ++ concatMap (go prefix dom) (dom.children IntMap.! l)
+      Exit -> [node dom p k "exit"] ++ goChildren dom p k
 
-    phis dom l = pretty $ map fst $ dom.phiVars IntMap.! l
+    goChildren dom p k = 
+      let ks = dom.children IntMap.! k
+      in map (domEdge p k) ks ++ concatMap (go dom p) ks
+
+    node d p k s = Node (p <> show k) 
+      [ Shape Box, Label (phis d k <> s)
+      , XLabel (pretty k), Other "nojustify" "true"
+      ]
+  
+    conEdge p a b s = Edge (p <> show a) (p <> show b) 
+      [Other "color" "blue", Label s, Other "fontcolor" "blue"]
+    
+    domEdge p a b = Edge (p <> show a) (p <> show b) 
+      [Other "arrowhead" "none"]
+    
+    excEdge p a (e,b) = Edge (p <> show a) (p <> show b) 
+      [Other "color" "red", Label $ pretty e]
+
+    cluster k dom = Subgraph ("cluster_" <> k) 
+      [Label (pretty k), Graphviz.Style Dashed]
+      (go dom k dom.root)
+
+    phis dom l = case dom.phiVars IntMap.! l of
+      [] -> ""
+      vs -> (mconcat $ List.intersperse ", " $ map (pretty . fst) vs) 
+            <> " ← Φ \\l"
+
+    prettyTuple' [x] = pretty x
+    prettyTuple' xs  = prettyTuple xs

@@ -60,6 +60,7 @@ replMain panOpts = do
         { eventHandler
         , Panini.Monad.smtTimeout = panOpts.smtTimeout
         , Panini.Monad.regexTimeout = panOpts.regexTimeout
+        , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
         }
 
   void $ runPan panState0 $ runInputT replConf $ do

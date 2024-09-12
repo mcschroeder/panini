@@ -66,6 +66,8 @@ data PanState = PanState {
 
   , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
   , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
+  
+  , debugTraceFrontendGraph :: Bool
   }
 
 defaultState :: PanState
@@ -76,6 +78,7 @@ defaultState = PanState
   , eventHandler = const (return ())
   , smtTimeout = 1
   , regexTimeout = 5
+  , debugTraceFrontendGraph = False
   }
 
 -------------------------------------------------------------------------------

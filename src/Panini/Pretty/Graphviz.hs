@@ -42,6 +42,7 @@ data Statement
   = Node Id [Attribute]
   | Edge Id Id [Attribute]
   | Subgraph Id [Attribute] [Statement]
+  | Attribute Attribute
 
 type Id = String
 
@@ -90,6 +91,7 @@ stmtStr = \case
                         foldMap (\a -> attrStr a <> ";\n") as <> 
                         foldMap stmtStr xs <> 
                       "}\n"
+  Attribute a -> attrStr a <> ";\n"
  where
   id_ = LB.fromString
 
