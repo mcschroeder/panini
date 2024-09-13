@@ -72,6 +72,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   -- numeric methods
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])
   ("__sub__", [Int, Int], Int) -> Just ("sub", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a - b} |])
+  ("__neg__", [Int], Int) -> Just ("neg", [panType| (a:ℤ) → {c:ℤ | c = 0-a } |])
   
   -- string methods
   ("__add__", [Str, Str], Str) -> Just ("concat", [panType| (a:𝕊) → (b:𝕊) → {c:𝕊 | c = a ++ b} |])

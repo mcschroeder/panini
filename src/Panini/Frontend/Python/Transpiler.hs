@@ -310,6 +310,9 @@ withTerm expr k = case expr of
     let pv     = getPV operator
     k =<< applyAxiom opFun args tyArgs tyExpr pv
   
+  UnaryOp { operator = op@(Minus {}), op_arg = Int {..} } ->
+    k $ Val (Con (I (- int_value) (getPV op)))
+
   UnaryOp {..} -> do
     let opFun  = desugarUnaryOp operator
     let arg    = [op_arg]
