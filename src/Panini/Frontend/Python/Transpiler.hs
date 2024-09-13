@@ -183,7 +183,7 @@ transpileFun returnType dom = do
     vs -> do
       body   <- mkBody l
       e1     <- foldM goDom body (reverse $ dom.children ! l)
-      typ    <- mkPhiFunType vs
+      typ    <- mkPhiFunType vs returnType
       lams   <- mkPhiLambdas vs e1
       return  $ Rec (blockName l) typ lams k NoPV
   
@@ -195,7 +195,13 @@ transpileFun returnType dom = do
       kFalse <- mkCall _nextFalse
       return  $ If c kTrue kFalse NoPV
 
-    Exit -> return $ Val (Con (U NoPV))
+    -- TODO: there should be a more elegant way to solve this
+    Exit -> case returnType of
+      TUnit -> return $ Val (Con (U NoPV))
+      TBool -> return $ Val (Con (B False NoPV))
+      TInt  -> return $ Val (Con (I 0 NoPV))
+      TChar -> return $ Val (Con (C '\NUL' NoPV))
+      TString -> return $ Val (Con (S "" NoPV))
 
     FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" NoPV -- TODO
     BranchFor {} -> lift $ throwE $ OtherError "for..in not yet supported" NoPV -- TODO
@@ -204,10 +210,9 @@ transpileFun returnType dom = do
     [] -> return $ Val (Var (blockName l))
     vs -> return $ mkApp (blockName l) (map (Var . fromString . fst) vs)
 
-mkPhiFunType :: [(String,PyType)] -> Transpiler Type
-mkPhiFunType xs = do
-  let retBaseType = TUnit -- TODO
-  let retType     = TBase dummyName retBaseType (Known PTrue) NoPV
+mkPhiFunType :: [(String,PyType)] -> Base -> Transpiler Type
+mkPhiFunType xs retBaseType = do
+  let retType = TBase dummyName retBaseType (Known PTrue) NoPV
   foldM go retType (reverse xs)
  where
   go t2 (x,xt) = do

@@ -15,11 +15,11 @@ inline = rewrite $ \case
   Let x (Val v) e2 _ -> Just $ subst v x e2
 
   -- inline nullary rec bindings that occur as an artifact of transpilation
-  Rec x (TBase _ TUnit _ _) e1 e2 _ 
+  Rec x (TBase _ _ _ _) e1 e2 _ 
     | let e2' = inlineTailCall x e1 e2, e2' /= e2 -> Just e2'
 
-  -- remove unused unit rec bindings (artifact of transpiling return statements)
-  Rec x (TBase _ TUnit _ _) (Val (Con (U _))) e2 _
+  -- remove unused rec bindings (artifact of transpiling return statements)
+  Rec x (TBase _ _ _ _) (Val (Con _)) e2 _
     | x `notElem` freeVars e2 -> Just e2
   
   -- reorder let bindings whose RHS is immediately another let-binding
