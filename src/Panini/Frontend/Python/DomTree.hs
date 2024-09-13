@@ -55,7 +55,8 @@ domTree cfg = DomTree {..}
   tree = dominatorTree idom
   frnt = dominanceFrontiers succ tree idom
   vars = Map.map (IntSet.map toVertex) (variableAssignments cfg)
-  phis = phiPlacements vars frnt
+  live = Map.map (IntSet.map toVertex) (liveVariables cfg (Map.keys vars))
+  phis = phiPlacements vars live frnt
 
 ------------------------------------------------------------------------------
 
@@ -66,6 +67,38 @@ variableAssignments cfg = Map.fromListWith (<>)
   ]
  where
   f ident = (ident_string ident, typeOf ident)
+
+-- TODO: improve performance
+liveVariables :: Typed CFG a -> [(String,PyType)] -> Map (String,PyType) LabelSet
+liveVariables cfg allVars = Map.fromListWith (<>) 
+  [ (v, IntSet.singleton l) | l <- IntMap.keys cfg.nodeMap
+                            , v <- allVars
+                            , live [] v l
+  ]
+ where
+  f ident = (ident_string ident, typeOf ident)
+
+  live ls v l | l `elem` ls         = False
+              | useBeforeAssign v n = True
+              | assigned        v n = False
+              | otherwise           = any (live (l:ls) v) (successors n)
+   where
+    n = (IntMap.!) cfg.nodeMap l
+  
+  assigned v = not . null . Set.filter (== Assigned v) . variables f
+  
+  useBeforeAssign v = \case
+    Exit           -> False
+    FunDef    {..} -> v `elem` (exprVarsN f $ paramDefaults _args)
+    Branch    {..} -> v `elem` (exprVars f _cond)
+    BranchFor {..} -> v `elem` (exprVars f _generator)
+    Block     {..} -> go _stmts
+     where
+      go []          = False
+      go (stmt:rest) = case stmtVars f stmt of
+        mentions | Set.member (Used v) mentions     -> True
+                 | Set.member (Assigned v) mentions -> False
+                 | otherwise                        -> go rest
 
 ------------------------------------------------------------------------------
 

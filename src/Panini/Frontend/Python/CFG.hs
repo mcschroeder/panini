@@ -82,13 +82,14 @@ successors = \case
 
 variables :: Ord v => (Ident a -> v) -> Node a -> Set (VarMention v)
 variables f = Set.unions . \case
-  FunDef    {}   -> []
+  FunDef    {..} -> [usedN $ paramDefaults _args]
   Block     {..} -> map (stmtVars f) _stmts
   Branch    {..} -> [used _cond]
   BranchFor {..} -> [assdN _targets] ++ [used _generator]
   Exit           -> []
  where
   used  = Set.map Used . exprVars f
+  usedN = Set.map Used . exprVarsN f
   assdN = Set.map Assigned . exprVarsN f
 
 ------------------------------------------------------------------------------

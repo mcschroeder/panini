@@ -10,7 +10,9 @@ References:
     Zadeck. 1991. "Efficiently Computing Static Single Assignment Form and the
     Control Dependence Graph." TOPLAS 13, no. 4 (October 1991): 451-490.
     https://doi.org/10.1145/115372.115320
-
+  
+  * Choi, Jong-Deok, Ron Cytron, and Jeanne Ferrante. 1990. "Automatic construction of
+    sparse data flow evaluation graphs." POPL'91. https://doi.org/10.1145/99583.99594
 -}
 module Panini.Frontend.Common.SSA where
 
@@ -39,21 +41,27 @@ import Prelude hiding (pred)
 --      assignment statement. Note that the variable type is entirely opaque; it
 --      merely needs to admit some kind of ordering (via 'Ord').
 --
---   2. The dominance frontiers of all vertices (see 'dominanceFrontiers').
+--   2. The live locations of all variables, i.e., a mapping from variables to
+--      sets of flowgraph vertices where the respective variable is alive when
+--      entering that vertex.
+--
+--   3. The dominance frontiers of all vertices (see 'dominanceFrontiers').
 --
 -- The output array maps each vertex of the input graph to the (possibly empty)
 -- set of variables for which ϕ-functions have to be placed at the entrance of
 -- that vertex.
 --
--- This is an implementation of the algorithm by Cytron et al. (1991, Fig 11).
--- The runtime is effectively linear in the size of original variable
--- assignments in the input graph.
+-- This is an implementation of the algorithm by Cytron et al. (1991, Fig 11),
+-- with the modifications to avoid placements of dead ϕ-functions described by
+-- Choi et al. (1990. Fig. 10). The runtime is effectively linear in the size of
+-- original variable assignments in the input graph.
 phiPlacements 
   :: Ord v 
   => Map v VertexSet         -- ^ locations of variable assignments
-  -> Array Vertex VertexSet  -- ^ dominance frontiers
+  -> Map v VertexSet         -- ^ locations of live variables
+  -> Array Vertex VertexSet  -- ^ dominance frontiers  
   -> Array Vertex (Set v)    -- ^ placements of ϕ-functions
-phiPlacements a df = runSTArray $ do
+phiPlacements a live df = runSTArray $ do
   let (m,n) = bounds df
   assertM (m == 1)
 
@@ -62,6 +70,8 @@ phiPlacements a df = runSTArray $ do
   work       <- newArray (1,n) 0 :: ST s (STUArray s Vertex Int)
   w          <- newSTRef []
   phiFuncs   <- newArray (1,n) []
+
+  let liveNode v y = maybe False (IntSet.member y) (Map.lookup v live)
 
   forM_ (Map.keys a) $ \v -> do
     modifySTRef' iterCount (+ 1)
@@ -78,7 +88,7 @@ phiPlacements a df = runSTArray $ do
           writeSTRef w w'
           forM_ (IntSet.toList $ df ! x) $ \y -> do
             hasAlreadyY <- readArray hasAlready y
-            when (hasAlreadyY < i) $ do
+            when (hasAlreadyY < i && liveNode v y) $ do
               modifyArray' phiFuncs y (Set.insert v)
               writeArray hasAlready y i
               workY <- readArray work y
