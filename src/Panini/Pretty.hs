@@ -25,6 +25,8 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.IntMap (IntMap)
 import Data.IntMap qualified as IntMap
+import Data.IntSet (IntSet)
+import Data.IntSet qualified as IntSet
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -60,6 +62,9 @@ instance {-# OVERLAPPABLE #-} Pretty a => Pretty [a] where
 
 instance Pretty a => Pretty (Set a) where
   pretty = prettySet . Set.toAscList
+
+instance Pretty IntSet where
+  pretty = prettySet . IntSet.toAscList
 
 instance Pretty a => Pretty (HashSet a) where
   pretty = prettySet . HashSet.toList
