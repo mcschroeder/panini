@@ -137,9 +137,7 @@ inferStmt = \case
                       [t]                    -> t
                       (t:ts) | all (== t) ts -> PyType.Iterable t
                              | otherwise     -> PyType.Iterable PyType.Any
-    μ <- newMetaVar
-    constrain $ targetType :≤ μ
-    constrain $ typeOf from :≤ μ
+    constrain $ typeOf from :≤ targetType
     forM_ targets $ \target -> case target of
       IsVar x -> registerVar x (typeOf target)
       _       -> pure ()
@@ -165,10 +163,10 @@ inferStmt = \case
   AnnotatedAssign{..} -> do
     hint <- typifyHint ann_assign_annotation
     target <- inferExpr ann_assign_to
-    constrain $ typeOf target :≤ typeOf hint
+    constrain $ typeOf hint :≤ typeOf target
     from <- mapM inferExpr ann_assign_expr
     whenJust from $ \e -> do
-      constrain $ typeOf e :≤ typeOf hint
+      constrain $ typeOf e :≤ typeOf target
       case e of
         IsVar x -> registerVar x (typeOf e)
         _       -> pure ()
@@ -513,8 +511,8 @@ inferParam = \case
     defaultExpr <- mapM inferExpr param_default
     let defaultType = fmap typeOf defaultExpr
     paramType <- newMetaVar
-    mapM_ (constrain . (paramType :≤)) hintedType
-    mapM_ (constrain . (paramType :≤)) defaultType
+    mapM_ (constrain . (:≤ paramType)) hintedType
+    mapM_ (constrain . (:≤ paramType)) defaultType
     let x = param_name.ident_string
     registerVar x paramType
     return Param
