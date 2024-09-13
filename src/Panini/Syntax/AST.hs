@@ -136,6 +136,10 @@ instance Pretty Term where
     
     App e x _ -> pretty e <+> pretty x  
     
+    Lam x t e@(Lam _ _ _ _) _ ->
+      lambda <> pretty x <> ":" <> parensIf (isFun t) (pretty t) <> dot <+>
+        pretty e
+
     Lam x t e _ -> nest 2 $ group $ 
       lambda <> pretty x <> ":" <> parensIf (isFun t) (pretty t) <> dot <\>
         pretty e
@@ -149,6 +153,12 @@ instance Pretty Term where
     Let x e1 e2 _ -> 
       kw "let" <+> pretty x <+> symEq <+> pretty e1 <+> kw "in" <\\>
       pretty e2
+    
+    Rec x t e1 e2 _ | isBinding e1 ->
+      nest 2 (kw "rec" <+> pretty x <+> ":" <+> pretty t <+> symEq <\\> 
+        pretty e1) <\\> 
+      nest 2 (kw "in" <\\> 
+        pretty e2)
   
     Rec x t e1 e2 _ ->
       kw "rec" <+> pretty x <+> ":" <+> pretty t <+> symEq <+> pretty e1 <\\> 
