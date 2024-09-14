@@ -82,6 +82,11 @@ infer g = \case
     return (t, c)
   
   -- inf/let ----------------------------------------------
+  Let x e₁ e₂ pv | x `elem` freeVars e₁ -> do
+    let x' = freshName x (freeVars e₂)
+    let e₂' = subst (Var x') x e₂
+    infer g $ Let x' e₁ e₂' pv
+
   Let x e₁ e₂ pv -> do
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
