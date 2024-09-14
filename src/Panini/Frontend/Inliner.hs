@@ -16,7 +16,8 @@ inline = rewrite $ \case
 
   -- inline nullary rec bindings that occur as an artifact of transpilation
   Rec x (TBase _ _ _ _) e1 e2 _ 
-    | let e2' = inlineTailCall x e1 e2, e2' /= e2 -> Just e2'
+    | x `notElem` freeVars e1
+    , let e2' = inlineTailCall x e1 e2, e2' /= e2 -> Just e2'
 
   -- remove unused rec bindings (artifact of transpiling return statements)
   Rec x (TBase _ _ _ _) (Val (Con _)) e2 _
