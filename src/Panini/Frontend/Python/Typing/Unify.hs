@@ -141,6 +141,8 @@ biunify = go mempty . Set.toList
     PyType x ts1 :≤ PyType y ts2 | x == y, length ts1 == length ts2 -> 
       go m $ zipWith (:≤) ts1 ts2 ++ cs
     
+    Str :≤ Tuple ts -> go m $ map (Str :≤) ts ++ cs
+
     t1 :≤ t2@(PyType y _)
       | [t] <- Set.filter ((y ==) . pyTypeName) $ transitiveSuperTypes t1
       -> go m (t :≤ t2 : cs)
