@@ -1,0 +1,4 @@
+def f314(s: str):
+  i = len(s)-2
+  assert s.index("a", i) == i
+  assert s.index("b", i+1) == i+1

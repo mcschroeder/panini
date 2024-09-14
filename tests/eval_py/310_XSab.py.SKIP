@@ -1,0 +1,5 @@
+def f310(s: str):
+  assert s[len(s)-2] == "a"
+  assert s[len(s)-1] == "b"
+
+# TODO: this creates an absolute monster of a regex; investigate
