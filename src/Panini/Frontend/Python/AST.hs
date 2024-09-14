@@ -8,6 +8,7 @@ helpful utility functions and types.
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
   , pattern IsVar
+  , expectVars
   , assignOpToOp
   , pattern ArgExprs
   , VarMention(..)
@@ -34,6 +35,13 @@ import Prelude
 
 pattern IsVar :: String -> Expr annot
 pattern IsVar name <- Var { var_ident = Ident { ident_string = name }}
+
+expectVars :: [Expr a] -> Maybe [Ident a]
+expectVars = go []
+ where
+  go xs []            = Just (reverse xs)
+  go xs (Var x _: es) = go (x:xs) es
+  go _  _             = Nothing
 
 ------------------------------------------------------------------------------
 

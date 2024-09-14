@@ -243,6 +243,24 @@ transpileStmts returnType stmts k0 = go stmts
         let v   = mangle x
         k      <- go rest
         return  $ Let v e1 k (getPV stmt)
+    
+    Assign { assign_to = [Tuple (expectVars -> Just xs) _], ..}
+      | typeOf assign_expr == PyType.Str
+      , all (== PyType.Str) (map typeOf xs) -> do
+        withAtom assign_expr $ \str -> do
+          withAssertStringLength str (length xs) (getPV stmt) $ do
+            let vs = map mangle xs
+            k <- go rest
+            foldrM (mkSubscriptChain str) k (zip vs [0..])
+     where
+      mkSubscriptChain str (v,i) e2 = do
+        let argTys  = [PyType.Str, PyType.Int]
+        let retTy   = PyType.Str
+        let pv      = getPV stmt
+        strAt      <- getAxiom "__getitem__" argTys retTy pv
+        let index   = Con (I i (getPV stmt))
+        let e1      = mkApp strAt [str,index]
+        return      $ Let v e1 e2 (getPV stmt)
 
     AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do      
       case ann_assign_expr of
@@ -355,15 +373,35 @@ applyAxiom
   => String -> [Typed Py.Expr a] -> [PyType] -> PyType -> PV 
   -> Transpiler Term
 applyAxiom fun args argTys retTy pv = do
+  f <- getAxiom fun argTys retTy pv
+  withAtoms args $ return . mkApp f
+
+getAxiom :: String -> [PyType] -> PyType -> PV -> Transpiler Name
+getAxiom fun argTys retTy pv = do
   case axiomForFunction fun argTys retTy of
     Nothing -> lift $ throwE $ MissingAxiom fun argTys retTy pv
     Just ax@(fn,_) -> do
       addAxiom ax
-      let f = Name (fromString fn) pv
-      withAtoms args $ return . mkApp f
+      return $ Name (fromString fn) pv
 
 mkApp :: Name -> [Atom] -> Term
 mkApp f xs = foldl' (\e y -> App e y NoPV) (Val (Var f)) xs
+
+-- TODO: raises AssertionError, which could be caught
+withAssertStringLength 
+  :: Integral a 
+  => Atom -> a -> PV -> Transpiler Term -> Transpiler Term
+withAssertStringLength str n pv k = do  
+  assertFun <- getAxiom "assert" [PyType.Bool] PyType.None pv
+  lengthFun <- getAxiom "len" [PyType.Str] PyType.Int pv
+  eqFun     <- getAxiom "__eq__" [PyType.Int,PyType.Int] PyType.Bool pv
+  strLength <- newVar
+  predicate <- newVar
+  let expN   = Con (I (fromIntegral n) pv)
+  e4        <- k
+  let e3     = Let dummyName (mkApp assertFun [Var predicate]) e4 pv
+  let e2     = Let predicate (mkApp eqFun [Var strLength, expN]) e3 pv
+  return     $ Let strLength (mkApp lengthFun [str]) e2 pv
 
 ------------------------------------------------------------------------------
 
