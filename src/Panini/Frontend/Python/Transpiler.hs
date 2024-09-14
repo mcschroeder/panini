@@ -30,6 +30,7 @@ import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax
 import Prelude
+import Algebra.Lattice ((∧))
 
 ------------------------------------------------------------------------------
 
@@ -178,7 +179,7 @@ transpileFun :: HasProvenance a => Base -> Typed DomTree a -> Transpiler Term
 transpileFun returnType dom = do
   k <- mkCall dom.root
   goDom k dom.root
- where  
+ where
   goDom k l = case dom.phiVars ! l of
     vs -> do
       body   <- mkBody l
@@ -204,6 +205,14 @@ transpileFun returnType dom = do
       TString -> return $ Val (Con (S "" NoPV))
 
     FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" NoPV -- TODO
+    
+    -- TODO: idk if this is the right approach;
+    -- we would need to rewrite goDom, make sure children of BranchFor are handled specially
+    -- OR we transform these simple for..in loops during CFG generation
+    BranchFor { _targets = [Py.Var cVar _], ..} 
+      | typeOf cVar == PyType.Str, typeOf _generator == PyType.Str      
+      -> transpileForCharInString returnType cVar _generator _nextMore _nextDone
+
     BranchFor {} -> lift $ throwE $ OtherError "for..in not yet supported" NoPV -- TODO
 
   mkCall l = case dom.phiVars ! l of
@@ -229,6 +238,50 @@ mkPhiLambdas xs k0 = foldM go k0 (reverse xs)
     b      <- baseTypeFromPyType NoPV xt
     let t   = TBase dummyName b (Known PTrue) NoPV
     return  $ Lam v t k NoPV
+
+------------------------------------------------------------------------------
+
+transpileForCharInString 
+  :: HasProvenance a
+  => Base
+  -> Typed Py.Ident a
+  -> Typed Py.Expr a
+  -> Label
+  -> Label
+  -> Transpiler (Term)
+transpileForCharInString returnType cVar sExpr moreL doneL = do
+  len_ <- getAxiom "len"         [PyType.Str]             PyType.Int  NoPV
+  lt_  <- getAxiom "__lt__"      [PyType.Int, PyType.Int] PyType.Bool NoPV
+  get_ <- getAxiom "__getitem__" [PyType.Str, PyType.Int] PyType.Str  NoPV
+  add_ <- getAxiom "__add__"     [PyType.Int, PyType.Int] PyType.Int  NoPV
+  withAtom sExpr $ \s -> do
+    let retTy = TBase dummyName returnType (Known PTrue) NoPV
+    let inv1  = PRel (EVar "i" :≥: EInt 0 NoPV)
+    let lenEx = case s of 
+                  Var sVar    -> EStrLen (EVar sVar)
+                  Con (S t _) -> EInt (toInteger $ Text.length t) NoPV
+                  _           -> impossible
+    let inv2  = PRel (EVar "i" :<: lenEx)
+    let inv   = inv1 ∧ inv2
+    let recTy = TFun "i" (TBase "i" TInt (Known inv) NoPV) retTy NoPV
+    
+    kDone <- return $ Val $ Con (U NoPV)
+    kMore <- return $ Val $ Con (U NoPV)
+
+    let c = mangle cVar
+    n <- newVar
+    p <- newVar
+    i <- newVar    
+    let e1 = Let n (mkApp len_ [s]) e2 NoPV
+        e2 = Let p (mkApp lt_ [Var i, Var n]) e3 NoPV
+        e3 = If (Var p) e4 kDone NoPV
+        e4 = Let c (mkApp get_ [s, Var i]) e5 NoPV
+        e5 = Let i (mkApp add_ [Var i, Con (I 1 NoPV)]) kMore NoPV        
+
+    let lams   = Lam i (TBase dummyName TInt (Known PTrue) NoPV) e1 NoPV
+    recFn     <- newVar
+    let first  = mkApp recFn [Con (I 0 NoPV)]
+    return     $ Rec recFn recTy lams first NoPV
 
 ------------------------------------------------------------------------------
 
