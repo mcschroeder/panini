@@ -33,7 +33,7 @@ import Prelude
 --
 -- The returned predicates are ready to be substituted for κ variables.
 extractQualifiers :: Con -> [Base] -> [Pred]
-extractQualifiers c bs = nubOrd $
+extractQualifiers c bs = nubOrd $ map normPred $
   [ PRel r' | bs' <- List.subsequences (zip bs zs)
             , not (null bs')
             , r <- toList $ relationsOver (map fst bs') c
@@ -48,6 +48,14 @@ extractQualifiers c bs = nubOrd $
     TInt    -> [ (op, EInt  i  NoPV) | EInt  i  _ <- universeBi c, op <- [Eq,Ne,Gt,Ge,Lt,Le] ]
     TChar   -> [ (Eq, EChar ch NoPV) | EChar ch _ <- universeBi c ]
     TString -> [ (Eq, EStr  s  NoPV) | EStr  s  _ <- universeBi c ]
+
+-- TODO: normalize qualifiers more aggressively to avoid redundancies
+normPred :: Pred -> Pred
+normPred = \case
+  PRel (EVar x :>: EInt i pv) -> PRel (EVar x :≥: EInt (i + 1) pv)
+  PRel (EVar x :<: EInt i pv) -> PRel (EVar x :≤: EInt (i - 1) pv)
+  PRel (EVar x :≠: EBool b pv) -> PRel (EVar x :=: EBool (not b) pv)
+  p -> p
 
 -- | Rename the variables in a relation according to a given (multi-)mapping
 -- based on type, exhausting all possibilities. Note: the given map is expected
