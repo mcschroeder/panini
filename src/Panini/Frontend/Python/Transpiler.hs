@@ -175,40 +175,36 @@ mkLambdas ps k0 = foldM go k0 (reverse ps)
 ------------------------------------------------------------------------------
 
 transpileFun :: HasProvenance a => Base -> Typed DomTree a -> Transpiler Term
-transpileFun returnType dom = do
-  k <- mkCall dom.root
-  goDom k dom.root
- where  
-  goDom k l = case dom.phiVars ! l of
-    vs -> do
-      body   <- mkBody l
-      e1     <- foldM goDom body (reverse $ dom.children ! l)
-      typ    <- mkPhiFunType vs returnType
-      lams   <- mkPhiLambdas vs e1
-      return  $ Rec (blockName l) typ lams k NoPV
+transpileFun returnType dom = go dom.root (mkCall dom.root)
+ where
+  go l k = ensureNoExcept (dom.nodes ! l) >>= \case
+    Block{..} -> do
+      let nextK = mkCall _next
+      childrenK <- foldrM go nextK (dom.children ! l)
+      recBody <- transpileStmts returnType _stmts childrenK
+      mkRec l k recBody
+
+    Branch{..} -> do
+      let trueK  = mkCall _nextTrue
+      let falsK  = mkCall _nextFalse
+      branchK   <- withAtom _cond $ \c -> return $ If c trueK falsK NoPV
+      recBody   <- foldrM go branchK (dom.children ! l)
+      mkRec l k recBody 
+          
+    Exit -> mkRec l k (Val (Con (U NoPV)))
+
+    FunDef    {} -> lift $ throwE $ OtherError "unsupported: nested functions" NoPV -- TODO
+    BranchFor {} -> lift $ throwE $ OtherError "unsupported: for..in" NoPV -- TODO
   
-  mkBody l = ensureNoExcept (dom.nodes ! l) >>= \case
-    Block{..} -> transpileStmts returnType _stmts =<< mkCall _next
-
-    Branch{..} -> withAtom _cond $ \c -> do
-      kTrue  <- mkCall _nextTrue
-      kFalse <- mkCall _nextFalse
-      return  $ If c kTrue kFalse NoPV
-
-    -- TODO: there should be a more elegant way to solve this
-    Exit -> case returnType of
-      TUnit -> return $ Val (Con (U NoPV))
-      TBool -> return $ Val (Con (B False NoPV))
-      TInt  -> return $ Val (Con (I 0 NoPV))
-      TChar -> return $ Val (Con (C '\NUL' NoPV))
-      TString -> return $ Val (Con (S "" NoPV))
-
-    FunDef{} -> lift $ throwE $ OtherError "nested functions not supported" NoPV -- TODO
-    BranchFor {} -> lift $ throwE $ OtherError "for..in not yet supported" NoPV -- TODO
+  mkRec l k recBody = do
+    let phis  = dom.phiVars ! l
+    recType  <- mkPhiFunType phis returnType
+    recLams  <- mkPhiLambdas phis recBody
+    return    $ Rec (blockName l) recType recLams k NoPV
 
   mkCall l = case dom.phiVars ! l of
-    [] -> return $ Val (Var (blockName l))
-    vs -> return $ mkApp (blockName l) (map (Var . fromString . fst) vs)
+    [] -> Val (Var (blockName l))
+    vs -> mkApp (blockName l) (map (Var . fromString . fst) vs)
 
 mkPhiFunType :: [(String,PyType)] -> Base -> Transpiler Type
 mkPhiFunType xs retBaseType = do
