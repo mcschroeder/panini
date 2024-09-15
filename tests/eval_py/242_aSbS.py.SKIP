@@ -10,3 +10,5 @@ def f242(s: str):
   while i < len(sb):
     assert sb[i] == "b"
     i += 1
+
+# TODO: this takes very long (>2m); investigate
