@@ -79,7 +79,8 @@ testMain globalOpts = assert globalOpts.testMode $ do
       let ext = takeExtension inFile
       let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
                    | otherwise                           = loadModule
-      (module_, prog) <- loadFunc src inFile      
+      (module_, prog) <- loadFunc src inFile
+      maybeSavePanFile panOpts module_ prog
       elaborate module_ prog
       (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
       return $ vsep $ (map pretty es) ++ (map pretty ts)

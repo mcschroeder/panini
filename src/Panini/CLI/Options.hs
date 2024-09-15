@@ -25,6 +25,7 @@ data PanOptions = PanOptions
   , regexTimeout :: Double
   , pythonInput :: Bool
   , debugTraceFrontendGraph :: Bool
+  , savePanFile :: Bool
   }
   deriving stock (Show, Read)
 
@@ -112,4 +113,8 @@ opts = info
       <*> (switch $
             long "debug-trace-frontend-graph" <>
             hidden
+          )
+      <*> (switch $
+            long "save-pan" <>
+            help "Save the transpiled source as a .pan file"
           )

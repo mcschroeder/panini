@@ -23,6 +23,23 @@ loadModule src fp = do
   prog <- parseSource (moduleLocation module_) src
   return (module_, prog)
 
+maybeSavePanFile :: PanOptions -> Module -> Program -> Pan ()
+maybeSavePanFile panOpts module_ prog
+  | not panOpts.savePanFile = return ()
+  | inputIsPan = logMessage $ "Warning:" <+> warnIgnore      
+  | otherwise = do
+      let pan = mkPanFile
+      let opt = RenderOptions Nothing True Nothing
+      let src = renderDoc opt $ pretty prog
+      logMessage $ "Writing transpiled source to" <+> pretty pan
+      liftIO $ Text.writeFile pan src
+ where
+  inputIsPan = takeExtension (moduleLocation module_) == ".pan"
+  warnIgnore = "ignoring --save-pan option; input is already a .pan file"
+  mkPanFile | module_ == replModule = "repl.pan"
+            | module_ == stdinModule = "stdin.pan"
+            | otherwise = replaceExtension (moduleLocation module_) ".pan"
+
 -------------------------------------------------------------------------------
 
 openLogFileFor :: FilePath -> IO Handle

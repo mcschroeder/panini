@@ -74,6 +74,7 @@ batchMain panOpts = do
     let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
                  | otherwise                           = loadModule
     (module_, prog) <- loadFunc src fp
+    maybeSavePanFile panOpts module_ prog
     elaborate module_ prog
     vsep . map pretty . getSolvedTypes <$> gets environment
 

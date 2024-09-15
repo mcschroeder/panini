@@ -148,6 +148,7 @@ loadFile panOpts f = lift $ continueOnError $ do
   let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
                | otherwise                           = loadModule
   (module_, prog) <- loadFunc src f
+  maybeSavePanFile panOpts module_ prog
   elaborate module_ prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
