@@ -4,3 +4,4 @@ def f341(s: str):
     a,x,b = s[i:i+3]
     assert a == "a"
     assert b == "b"
+    i += 1

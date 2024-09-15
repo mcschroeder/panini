@@ -4,3 +4,5 @@ def f094(s: str):
     assert t == "a"
     assert len(s) == 1
     return t
+  else:
+    return s
