@@ -1,0 +1,1 @@
+f530 : {s:𝕊 | s ∈ ([^a]|ab)*} → 𝟙  -- UNVERIFIED (timeout)
