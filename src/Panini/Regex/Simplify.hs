@@ -484,6 +484,7 @@ selfStarEq r = equivalence r (Star r)
 --     (1)  x* ⋅ y ⋅ (x* ⋅ y)* = (x + y)* ⋅ y
 --     (2) a(bc*a)*bc* = abc*(abc*)*
 --     (3) a(bc*a)*b = ab(c*ab)*
+--     (4) (y*x)*y* = (x+y)*
 --
 lookupSequence :: [Regex] -> Regex
 lookupSequence = Times . go
@@ -499,6 +500,10 @@ lookupSequence = Times . go
   go (a : Star (Times [b, Star c, a2]) : b2 : zs)  -- (3)
     | a == a2, b == b2
     = go $ a <> b <> Star (Star c <> a <> b) : zs
+
+  go (Star (Times (Star y : x)) : Star y2 : zs)  -- (4)
+    | y == y2
+    = go $ Star (Plus [Times x, y]) : zs
 
   go (y:ys) = y : go ys
   go [] = []
@@ -536,19 +541,19 @@ lookupOpt = \case
 -- | Apply known syntactic replacements of starred expressions.
 --
 --    (1)  (x + (y ⋅ (x + y)*))* = (x + y)*
---    (2)  (x + (y ⋅ x*))* = (y* ⋅ x*)*
---    (3)  (x + y ⋅ (x* + y)*)* = (y* ⋅ x*)*
+--    (2)  (x + (y ⋅ x*))* = (x + y)*
+--    (3)  (x + y ⋅ (x* + y)*)* = (x + y)*
 --
 lookupStar :: Regex -> Regex
 lookupStar = \case
   Plus [x1, Times (unsnoc -> Just (y1, Star (Plus [x2, Times y2])))]  -- (1)
     | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
   
-  Plus [x1, Times (unsnoc -> Just (y, Star x2))]  -- (2)
-    | x1 == x2 -> Star (Star (Times y) <> Star x1)
+  Plus [x1, Times (unsnoc -> Just (y1, Star x2))]  -- (2)
+    | x1 == x2 -> Star (Plus [x1, Times y1])
 
   Plus [x1, Times (unsnoc -> Just (y1, Star (Times (Star x2 : y2))))]  -- (3)
-    | x1 == x2, y1 == y2 -> Star (Star (Times y1) <> Star x1)
+    | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
 
   x -> Star x
 
