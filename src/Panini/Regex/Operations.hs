@@ -36,6 +36,7 @@ import Control.Exception
 import Control.Monad.Trans.State.Strict
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe
 import Data.Semigroup hiding (All)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -69,14 +70,34 @@ intersection = curry $ solve $ \(r1,r2) ->
 --
 -- See the 'intersection' operation for notes on the implementation.
 complement :: Regex -> Regex
-complement = solve $ \r ->
-  let c0 = if nullable r then Zero else One
-      c1 = Lit (neg $ joins $ next r) <> All
-      cx = [ (derivative c r, Lit p)
-           | p <- Set.toList $ next r
-           , Just c <- [CS.choose p]
-           ]
-  in (Plus [c0,c1], Map.fromListWith (\a b -> Plus [a,b]) cx)
+complement r0 = case lookupComplement r0 of
+  Just r' -> r'
+  Nothing -> solve f r0
+ where
+  f r =
+    let c0 = if nullable r then Zero else One
+        c1 = Lit (neg $ joins $ next r) <> All
+        cx = [ (derivative c r, Lit p)
+             | p <- Set.toList $ next r
+             , Just c <- [CS.choose p]
+           ]  
+    in (Plus [c0,c1], Map.fromListWith (\a b -> Plus [a,b]) cx)
+
+lookupComplement :: Regex -> Maybe Regex
+lookupComplement = \case
+  -- ¬(Σ*abΣ*)  =  ((Σ∖a) + a(Σ∖b))*a?
+  Times [Star AnyChar, Lit a, Lit b, Star AnyChar]
+    -> Just $ Star (Plus [Lit a <> Lit (neg b), Lit (neg a)]) <> Opt (Lit a)
+  
+  -- ¬(Σ*a)  =  (Σ*(Σ∖a))?
+  Times [Star AnyChar, Lit a] 
+    -> Just $ Opt (Star AnyChar <> Lit (neg a))
+  
+  -- ¬(Σ*aΣ?)  =  ((Σ*(Σ∖a))?(Σ∖a))?
+  Times [Star AnyChar, Lit a, Opt AnyChar]
+    -> Just $ Opt (Opt (Star AnyChar <> Lit (neg a)) <> Lit (neg a))
+
+  _ -> Nothing
 
 -------------------------------------------------------------------------------
 
