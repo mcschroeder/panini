@@ -543,6 +543,7 @@ lookupOpt = \case
 --    (1)  (x + (y ⋅ (x + y)*))* = (x + y)*
 --    (2)  (x + (y ⋅ x*))* = (x + y)*
 --    (3)  (x + y ⋅ (x* + y)*)* = (x + y)*
+--    (4)  (x + x*y)* = (x+y)*
 --
 lookupStar :: Regex -> Regex
 lookupStar = \case
@@ -554,6 +555,9 @@ lookupStar = \case
 
   Plus [x1, Times (unsnoc -> Just (y1, Star (Times (Star x2 : y2))))]  -- (3)
     | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
+  
+  Plus [x1, Times (Star x2 : y)]
+    | x1 == x2 -> Star (Plus [x1, Times y])
 
   x -> Star x
 
