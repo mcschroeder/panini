@@ -23,6 +23,7 @@ data Error
   | Unsolvable Name Con
   | IOError String PV
   | AbstractionImpossible Name Rel
+  | AbstractionToValueImpossible Name Rel Expr
   | ConcretizationImpossible Name Base AValue
   | PythonFrontendError Python.Error
 
@@ -37,6 +38,7 @@ instance HasProvenance Error where
     Unsolvable x _                 -> getPV x
     IOError _ pv                   -> pv
     AbstractionImpossible x _r1    -> getPV x -- TODO: getPV r1
+    AbstractionToValueImpossible x _r1 _ -> getPV x -- TODO: getPV r1
     ConcretizationImpossible x _ _ -> getPV x -- TODO: getPV a
     PythonFrontendError e          -> getPV e
   
@@ -50,6 +52,7 @@ instance HasProvenance Error where
     Unsolvable x vc                -> Unsolvable (setPV pv x) vc
     IOError e _                    -> IOError e pv
     AbstractionImpossible x r1     -> AbstractionImpossible (setPV pv x) r1     -- TODO: setPV r1
+    AbstractionToValueImpossible x r1 e  -> AbstractionToValueImpossible (setPV pv x) r1 e     -- TODO: setPV r1
     ConcretizationImpossible x b a -> ConcretizationImpossible (setPV pv x) b a -- TODO: setPV a
     PythonFrontendError e          -> PythonFrontendError (setPV pv e)
 
@@ -78,6 +81,9 @@ prettyErrorMessage = \case
   IOError e _          -> pretty $ Text.pack e  
   AbstractionImpossible x r -> 
     "abstraction impossible:" <\> "⟦" <> pretty r <> "⟧↑" <> pretty x
+  AbstractionToValueImpossible x r e ->
+    "abstraction to value impossible:" <\> 
+    "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
   ConcretizationImpossible x b a ->
     "concretization impossible for" <+> pretty b <> ":" <\> 
     "⟦" <> pretty a <> "⟧↓" <> pretty x

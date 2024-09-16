@@ -405,7 +405,8 @@ abstractVarToValue x b r0 = do
   case e of
     Just (ECon c) -> return $ fromValue c
     Just (EAbs a) -> return a
-    _             -> throwError $ AbstractionImpossible x r
+    Just e'       -> throwError $ AbstractionToValueImpossible x r e'
+    Nothing       -> throwError $ AbstractionImpossible x r
 
 abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r0 = do
