@@ -339,6 +339,9 @@ tryEqARel a x b = \case
   EStrAt (EVar s) i :≠: EChar  c _  -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA (AChar.ne c)
   EStrAt (EVar s) i :≠: ECharA ĉ    -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA (neg ĉ)
   -----------------------------------------------------------
+  EVar x1 :≠: e | x == x1, x `notFreeIn` e -> Just $ a :≠: e
+  (EVar x1 :-: EInt k pv) :≠: e | x == x1, x `notFreeIn` e -> Just $ (a :-: EInt k pv) :≠: e
+  -----------------------------------------------------------
   _                                 -> Nothing
 
 -- | Try to resolve inequality between an expressions and an abstract relation.
@@ -460,12 +463,12 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EVar _ :≠: e | b == TBool                   -> Just $ normExpr $ ENot e
   -----------------------------------------------------------
   EVar _ :≠: EInt c _                         -> Just $ EIntA (AInt.ne c)
+  EVar _ :≠: EIntA c                          -> Just $ EIntA (neg c)
   EVar _ :<: EInt c _                         -> Just $ EIntA (AInt.lt c)
   EVar _ :≤: EInt c _                         -> Just $ EIntA (AInt.le c)
   EVar _ :>: EInt c _                         -> Just $ EIntA (AInt.gt c)
   EVar _ :≥: EInt c _                         -> Just $ EIntA (AInt.ge c)
   -----------------------------------------------------------
-  EVar _ :≠: e | b == TInt                    -> Just $ normExpr $ e :+: EIntA (AInt.ne 0)
   EVar _ :<: e                                -> Just $ normExpr $ e :-: EIntA (AInt.ge 1)
   EVar _ :≤: e                                -> Just $ normExpr $ e :-: EIntA (AInt.ge 0)
   EVar _ :>: e                                -> Just $ normExpr $ e :+: EIntA (AInt.ge 1)
