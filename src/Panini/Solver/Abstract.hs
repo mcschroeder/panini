@@ -236,17 +236,39 @@ qelim1 x b φ = do
   logMessage $ "qelim1" <+> pretty x <+> pretty b
   logMessage $ "φ ←" <+> pretty φ  
   let rs = [r | r <- φ, x `elem` freeVars r]
-  ξ <- mapM (simplifyExpr <=< abstractVar x b) rs
-  logMessage $ "ξ ←" <+> pretty ξ  
-  let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
-  let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
-  ψ <- filter (taut /=) <$> nubOrd <$> mapM normRelM (ψ₁ ++ ψ₂)
-  logMessage $ "ψ ←" <+> pretty ψ
-  if any (== cont) ψ then do
+  ξ <- meetValueExprs b =<< mapM (simplifyExpr <=< abstractVar x b) rs  
+  logMessage $ "ξ ←" <+> pretty ξ
+  if any isBotValue ξ then do
     logMessage "↯"
     return PFalse
-  else
-    return $ meets $ map PRel ψ
+  else do
+    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
+    let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
+    ψ <- filter (taut /=) <$> nubOrd <$> mapM normRelM (ψ₁ ++ ψ₂)
+    logMessage $ "ψ ←" <+> pretty ψ
+    if any (== cont) ψ then do
+      logMessage "↯"
+      return PFalse
+    else
+      return $ meets $ map PRel ψ
+
+meetValueExprs :: Base -> [Expr] -> Pan [Expr]
+meetValueExprs b es0 = case List.partition isVal es0 of
+  ( [], es) -> return es
+  ([a], es) -> return (a:es)
+  ( as, es) -> do a <- valueMeets b (map unVal as)
+                  return (EAbs a : es)
+ where
+  isVal (ECon _) = True
+  isVal (EAbs _) = True
+  isVal _        = False
+  unVal (ECon c) = fromValue c
+  unVal (EAbs a) = a
+  unVal _        = impossible  
+
+isBotValue :: Expr -> Bool
+isBotValue (EAbs a) = hasBot a
+isBotValue _        = False
 
 normRelM :: Rel -> Pan Rel
 normRelM r = do
