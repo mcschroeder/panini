@@ -360,6 +360,12 @@ tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
    , let t = star anyChar <> lit (AChar.eq c1) <> lit c2 <> star anyChar
    -> Just $ EVar s1 :=: EStrA t
 
+  (EStrAt (EVar s1) (EVar i1) :=: EChar c1 _,
+   EStrAt (EVar s2) (EVar i2 :+: EInt 2 _) :=: ECharA c2  )
+   | b1 == b2, x1 == i1, x2 == i2
+   , s1 == s2
+   , let t = star anyChar <> lit (AChar.eq c1) <> anyChar <> lit c2 <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
 
   -- TODO: generalize these hackily hardcoded rules
   (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
