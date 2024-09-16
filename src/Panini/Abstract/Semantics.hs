@@ -353,6 +353,14 @@ tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
 tryEqARel2 :: (Name,Base,Rel) -> (Name,Base,Rel) -> Maybe Rel
 tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
+  (EStrAt (EVar s1) (EVar i1) :=: EChar c1 _,
+   EStrAt (EVar s2) (EVar i2 :+: EInt 1 _) :=: ECharA c2  )
+   | b1 == b2, x1 == i1, x2 == i2
+   , s1 == s2
+   , let t = star anyChar <> lit (AChar.eq c1) <> lit c2 <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+
   -- TODO: generalize these hackily hardcoded rules
   (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
    EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
@@ -517,6 +525,7 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA î  ) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev î ĉ
   EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :=: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev TOP (AChar.eq c)
   EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev TOP ĉ
+  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA î  ) :=: c          | x == s1, x == s2 -> abstract x b $ EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA (AInt.sub (AInt.eq 0) î)) :=: c
   -----------------------------------------------------------
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :≠: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev (AInt.eq i) (AChar.eq c)
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :≠: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev (AInt.eq i) ĉ
