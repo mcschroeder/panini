@@ -433,8 +433,10 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
   -----------------------------------------------------------
   -- TODO: this kind of reordering should happen during normRel, no?
-  (EStrLen s2 :+: EIntA î) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
-  (EStrLen s2 :-: EIntA î) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA î) :=: EStrLen s2
+  (EStrLen s2 :+: EInt  i _) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) (AInt.eq i))) :=: EStrLen s2
+  (EStrLen s2 :+: EIntA î  ) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0)          î )) :=: EStrLen s2
+  (EStrLen s2 :-: EInt  i _) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (                      AInt.eq i )) :=: EStrLen s2
+  (EStrLen s2 :-: EIntA î  ) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA                                î  ) :=: EStrLen s2
   -----------------------------------------------------------
   (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) (AInt.eq i)
   (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ (AInt.eq i)
