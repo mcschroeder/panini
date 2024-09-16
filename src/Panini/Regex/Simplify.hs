@@ -16,6 +16,7 @@ import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Equivalence
+import Panini.Regex.Operations
 import Panini.Regex.Type
 import Prelude
 
@@ -29,6 +30,7 @@ simplify = goFree
              | r' <- factorSuffixes xs     , r' /= r -> goFree r'
              | r' <- liftChoices xs        , r' /= r -> goFree r'
              | r' <- lookupChoices xs      , r' /= r -> goFree r'
+             | r' <- subsumeChoices xs     , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
     Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
@@ -519,6 +521,18 @@ lookupOpt = \case
   Plus [x1, Times [Opt x2, y]] | x1 == x2 -> Opt x1 <> Opt y  -- (1)
   Plus [y1, Times [x, Opt y2]] | y1 == y2 -> Opt x <> Opt y1  -- (2)
   x                                       -> Opt x
+
+-------------------------------------------------------------------------------
+
+subsumeChoices :: [Regex] -> Regex
+subsumeChoices = go []
+ where
+  go ys []                        = Plus ys
+  go ys (x:xs)
+    | any (subsumes x) (xs ++ ys) = go ys xs
+    | otherwise                   = go (x:ys) xs
+  
+  subsumes x y = x == simplify (intersection x y)
 
 -------------------------------------------------------------------------------
 
