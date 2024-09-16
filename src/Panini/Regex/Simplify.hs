@@ -37,7 +37,8 @@ simplify = goFree
              | r' <- pressSequence xs      , r' /= r -> goFree r'
              | r' <- lookupSequence xs     , r' /= r -> goFree r'
              | r' <- Times (map goFree xs) , r' /= r -> goFree r'
-    Star  x  | r' <- Star (goStar x)       , r' /= r -> goFree r'    
+    Star  x  | r' <- lookupStar x          , r' /= r -> goFree r'
+             | r' <- Star (goStar x)       , r' /= r -> goFree r'    
     Opt   x  | r' <- lookupOpt x           , r' /= r -> goFree r' 
              | r' <- Opt (goOpt x)         , r' /= r -> goFree r'
     _                                                -> r  
@@ -521,6 +522,13 @@ lookupOpt = \case
   Plus [x1, Times [Opt x2, y]] | x1 == x2 -> Opt x1 <> Opt y  -- (1)
   Plus [y1, Times [x, Opt y2]] | y1 == y2 -> Opt x <> Opt y1  -- (2)
   x                                       -> Opt x
+
+-- | Apply known syntactic replacements of starred expressions.
+lookupStar :: Regex -> Regex
+lookupStar = \case
+  Plus [x1, Times (unsnoc -> Just (y1, Star (Plus [x2, Times y2])))]
+    | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
+  x -> Star x
 
 -------------------------------------------------------------------------------
 
