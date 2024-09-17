@@ -149,31 +149,31 @@ factorPrefix r1 r2
 
 -- | Factorize two choices using a special case of the left-distributive law.
 --
---    a?⋅x + a⋅y = x + a⋅(x+y)
---    a⋅x + a?⋅y = y + a⋅(x+y)
+--    (a⋅b)?⋅x + a⋅y = x + a⋅(b⋅x + y)
+--    a⋅x + (a⋅b)?⋅y = y + a⋅(x + b⋅y)
 --
 factorPrefixOpt :: Regex -> Regex -> Regex
 factorPrefixOpt r1 r2
   -----------------------------------------------------------------------
-  | Opt a1 : x1 <- flatTimes r1
-  , ax          <- flatTimes a1 ++ x1
-  , ay          <- flatTimes r2
-  , axy         <- splitPrefix ax ay
-  , (a,x,y)     <- map3 Times axy
+  | Opt ab : x1 <- flatTimes r1
+  , abx         <- flatTimes ab ++ x1
+  , ay          <- flatTimes r2  
+  , (a,bx,y)    <- map3 Times $ splitPrefix abx ay
+  , x           <- Times x1
   , a /= One
-  , x /= One
-  , size a + 1 >= size x                      = Plus [x, a <> Plus [x,y]]
+  , bx /= One
+  , size a + 1 >= size x                     = Plus [x, a <> Plus [bx,y]]
   -----------------------------------------------------------------------
-  | Opt a1 : y1 <- flatTimes r2
-  , ay          <- flatTimes a1 ++ y1
+  | Opt ab : y1 <- flatTimes r2
+  , aby         <- flatTimes ab ++ y1
   , ax          <- flatTimes r1
-  , axy         <- splitPrefix ax ay
-  , (a,x,y)     <- map3 Times axy
+  , (a,x,by)    <- map3 Times $ splitPrefix ax aby
+  , y           <- Times y1
   , a /= One
-  , y /= One
-  , size a + 1 >= size y                      = Plus [y, a <> Plus [x,y]]
+  , by /= One
+  , size a + 1 >= size y                     = Plus [y, a <> Plus [x,by]]
   -----------------------------------------------------------------------
-  | otherwise                                 = Plus [r1,r2]
+  | otherwise                                = Plus [r1,r2]
   -----------------------------------------------------------------------
 
 -- | Factorize two choices using a special case of the left-distributive law.
@@ -270,33 +270,33 @@ factorSuffix r1 r2
 
 -- | Factorize two choices using a special case of the right-distributive law.
 --
---    x⋅b? + y⋅b = x + (x+y)⋅b
---    x⋅b + y⋅b? = y + (x+y)⋅b
+--    x⋅(a⋅b)? + y⋅b = x + (x⋅a + y)⋅b
+--    x⋅b + y⋅(a⋅b)? = y + (x + y⋅a)⋅b
 --
 factorSuffixOpt :: Regex -> Regex -> Regex
 factorSuffixOpt r1 r2
   -----------------------------------------------------------------------
-  | xb1               <- flatTimes r1
-  , Just (x1, Opt b1) <- unsnoc xb1
-  , xb                <- x1 ++ flatTimes b1
+  | Just (x1, Opt ab) <- unsnoc $ flatTimes r1
+  , xab               <- x1 ++ flatTimes ab
   , yb                <- flatTimes r2
-  , xyb               <- splitSuffix xb yb
-  , (x,y,b)           <- map3 Times xyb
+  , xayb              <- splitSuffix xab yb
+  , (xa,y,b)          <- map3 Times xayb
+  , x                 <- Times x1
   , b /= One
-  , x /= One  
-  , size b + 1 >= size x                      = Plus [x, Plus [x,y] <> b]
+  , xa /= One  
+  , size b + 1 >= size x                     = Plus [x, Plus [xa,y] <> b]
   -----------------------------------------------------------------------
-  | yb1               <- flatTimes r2
-  , Just (y1, Opt b1) <- unsnoc yb1
-  , yb                <- y1 ++ flatTimes b1
+  | Just (y1, Opt ab) <- unsnoc $ flatTimes r2
+  , yab               <- y1 ++ flatTimes ab
   , xb                <- flatTimes r1
-  , xyb               <- splitSuffix xb yb
-  , (x,y,b)           <- map3 Times xyb
+  , xyab              <- splitSuffix xb yab
+  , (x,ya,b)          <- map3 Times xyab
+  , y                 <- Times y1
   , b /= One
-  , y /= One
-  , size b + 1 >= size y                      = Plus [y, Plus [x,y] <> b]
+  , ya /= One
+  , size b + 1 >= size y                     = Plus [y, Plus [x,ya] <> b]
   -----------------------------------------------------------------------
-  | otherwise                                 = Plus [r1,r2]
+  | otherwise                                = Plus [r1,r2]
   -----------------------------------------------------------------------
 
 -- | Factorize two choices using a special case of the right-distributive law.
