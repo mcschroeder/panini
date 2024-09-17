@@ -582,7 +582,7 @@ subsumeChoices = go []
     | any (subsumes x) (xs ++ ys) = go ys xs
     | otherwise                   = go (x:ys) xs
   
-  subsumes x y = x == simplify (intersection x y)
+  subsumes x y = equivalence x (intersection x y)
 
 -------------------------------------------------------------------------------
 
