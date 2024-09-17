@@ -531,11 +531,22 @@ lookupChoices = (Plus .) $ go $ \case
 --
 --    (1)  (x + x?y)? = x?y?
 --    (2)  (y + xy?)? = x?y?
+--    (3)  (x(y*z+y*))? = (xy*z?)?
 --
 lookupOpt :: Regex -> Regex
 lookupOpt = \case
-  Plus [x1, Times [Opt x2, y]] | x1 == x2 -> Opt x1 <> Opt y  -- (1)
-  Plus [y1, Times [x, Opt y2]] | y1 == y2 -> Opt x <> Opt y1  -- (2)
+  Plus [x1, Times [Opt x2, y]]  -- (1)
+    | x1 == x2 
+    -> Opt x1 <> Opt y
+  
+  Plus [y1, Times (unsnoc -> Just (x, Opt y2))]  -- (2)
+    | y1 == y2 
+    -> Opt (Times x) <> Opt y1
+  
+  Times [x, Plus [Times (Star y1 : z), Star y2]]  -- (3)
+    | y1 == y2 
+    -> Opt (x <> Star y1 <> Opt (Times z))
+
   x                                       -> Opt x
 
 -- | Apply known syntactic replacements of starred expressions.
