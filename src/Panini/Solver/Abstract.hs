@@ -143,22 +143,28 @@ abstractNNF x b = \case
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
 valueMeets :: Base -> [AValue] -> Pan AValue
-valueMeets b vs = do
-  v <- foldrM meet' (topValue b) $ List.sortBy (comparing Down) vs
-  logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
+valueMeets b vs0 = do  
+  logMessage "Meet values"
+  let vs = List.sortBy (comparing Down) vs0
+  logData $ "⋀" <> pretty vs
+  v <- foldrM meet' (topValue b) vs
+  logData $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
   return v
  where
   meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
-  err = panic $ "valueMeets" <+> pretty b <+> pretty vs
+  err = panic $ "valueMeets" <+> pretty b <+> pretty vs0
 
 valueJoins :: Base -> [AValue] -> Pan AValue
-valueJoins b vs = do
-  v <- foldrM join' (botValue b) $ List.sortBy (comparing Down) vs
-  logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
+valueJoins b vs0 = do
+  logMessage "Join values"
+  let vs = List.sortBy (comparing Down) vs0
+  logData $ "⋁" <> pretty vs
+  v <- foldrM join' (botValue b) vs
+  logData $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
   return v
  where
   join' x y = simplifyAValue $ fromMaybe err (partialJoin x y)
-  err = panic $ "valueJoins" <+> pretty b <+> pretty vs
+  err = panic $ "valueJoins" <+> pretty b <+> pretty vs0
 
 -------------------------------------------------------------------------------
 
@@ -290,6 +296,7 @@ simplifyExpr = \case
 
 simplifyRegex :: AString -> Pan AString
 simplifyRegex s = do
+  logMessage "Simplify regular expression"
   t <- gets regexTimeout
   r <- liftIO $ timeout t $ return $! AString.simplify s
   case r of
@@ -299,6 +306,5 @@ simplifyRegex s = do
       return s    
     Just s' -> do
       unless (s == s') $ do
-        logMessage "Simplified regular expression"
         logData $ group $ pretty s <\> "  ⇝  " <\> pretty s'
       return s'
