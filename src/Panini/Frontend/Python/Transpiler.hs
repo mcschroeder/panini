@@ -258,6 +258,17 @@ transpileStmts returnType stmts k0 = go stmts
         let e1      = mkApp strAt [str,index]
         return      $ Let v e1 e2 (getPV stmt)
 
+    Assign 
+      { assign_to = [Tuple (expectVars -> Just xs) _]
+      , assign_expr = Tuple {..}
+      } | length xs == length tuple_exprs -> do 
+            k <- go rest
+            foldrM mkAssign k (zip xs tuple_exprs)
+     where
+      mkAssign (x,expr) e2 = withTerm expr $ \e1 -> do
+        let v = mangle x
+        return $ Let v e1 e2 (getPV stmt)
+
     AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do      
       case ann_assign_expr of
         Nothing -> go rest
