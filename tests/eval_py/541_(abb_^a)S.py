@@ -1,0 +1,10 @@
+def f540(s: str):
+  i = 0
+  while i < len(s):
+    if s[i] == "a":
+      if s[i+1] == "b" and s[i+2] == "b":
+        i += 3
+      else:
+        raise AssertionError
+    else:
+      i += 1
