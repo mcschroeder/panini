@@ -349,23 +349,42 @@ tryEqARel a x b = \case
 tryNeARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
 tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
 
+pattern ECharA' :: AChar -> Expr
+pattern ECharA' c <- (exprToAChar -> Just c)
+
+exprToAChar :: Expr -> Maybe AChar
+exprToAChar (EChar  c _) = Just $ AChar.eq c
+exprToAChar (ECharA c  ) = Just c
+exprToAChar _            = Nothing
+
 -- | Try to resolve equality between two abstract relations.
 tryEqARel2 :: (Name,Base,Rel) -> (Name,Base,Rel) -> Maybe Rel
 tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
-  (EStrAt (EVar s1) (EVar i1) :=: EChar c1 _,
-   EStrAt (EVar s2) (EVar i2 :+: EInt 1 _) :=: ECharA c2  )
-   | b1 == b2, x1 == i1, x2 == i2
-   , s1 == s2
-   , let t = star anyChar <> lit (AChar.eq c1) <> lit c2 <> star anyChar
-   -> Just $ EVar s1 :=: EStrA t
+  (EStrAt (EVar s1) (EVar i1             ) :=: ECharA' c1,
+   EStrAt (EVar s2) (EVar i2 :+: EInt n _) :=: ECharA' c2)
+   | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
+   , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
+           | n < 0 = star anyChar <> lit c2 <> rep anyChar (n-1) <> lit c1 <> star anyChar
+           | otherwise = star anyChar <> lit (c1 ∧ c2) <> star anyChar
+    -> Just $ EVar s1 :=: EStrA t
 
-  (EStrAt (EVar s1) (EVar i1) :=: EChar c1 _,
-   EStrAt (EVar s2) (EVar i2 :+: EInt 2 _) :=: ECharA c2  )
-   | b1 == b2, x1 == i1, x2 == i2
-   , s1 == s2
-   , let t = star anyChar <> lit (AChar.eq c1) <> anyChar <> lit c2 <> star anyChar
-   -> Just $ EVar s1 :=: EStrA t
+  (EStrAt (EVar s1) (EVar i1 :+: EInt n _) :=: ECharA' c1,
+   EStrAt (EVar s2) (EVar i2             ) :=: ECharA' c2)
+   | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
+   , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
+           | n < 0 = star anyChar <> lit c2 <> rep anyChar (n-1) <> lit c1 <> star anyChar
+           | otherwise = star anyChar <> lit (c1 ∧ c2) <> star anyChar
+    -> Just $ EVar s1 :=: EStrA t
+
+  (EStrAt (EVar s1) (EVar i1 :+: EInt n1 _) :=: ECharA' c1,
+   EStrAt (EVar s2) (EVar i2 :+: EInt n2 _) :=: ECharA' c2)
+   | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
+   , let n = n2 - n1
+   , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
+           | n < 0 = star anyChar <> lit c2 <> rep anyChar (n-1) <> lit c1 <> star anyChar
+           | otherwise = star anyChar <> lit (c1 ∧ c2) <> star anyChar
+    -> Just $ EVar s1 :=: EStrA t
 
   -- TODO: generalize these hackily hardcoded rules
   (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
