@@ -100,10 +100,10 @@ flatNullable = \case
 --    (x*x)? = (x*)?
 --
 fuseOptSequence :: [Regex] -> Regex
-fuseOptSequence = \case
-  [x1, Star x2] | x1 == x2 -> Star x2
-  [Star x1, x2] | x1 == x2 -> Star x1
-  xs -> Times xs
+fuseOptSequence xs
+  | Star x1 : x2 <- xs, x1 == Times x2              = Star x1
+  | Just (x1, Star x2) <- unsnoc xs, x2 == Times x1 = Star x2
+  | otherwise                                       = Times xs
 
 -- | Apply fusion rules within an optional list of choices.
 --
