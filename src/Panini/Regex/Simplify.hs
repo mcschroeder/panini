@@ -26,7 +26,7 @@ simplify :: Regex -> Regex
 simplify = goFree
  where
   goFree r = case r of
-    _        | r' <- lookupRegex r         , r' /= r -> r'
+    _        | r' <- lookupRegex r         , r' /= r -> goFree r'
     Plus  xs | r' <- lookupChoices xs      , r' /= r -> goFree r'
              | r' <- factorPrefixes xs     , r' /= r -> goFree r'
              | r' <- factorSuffixes xs     , r' /= r -> goFree r'
@@ -541,6 +541,14 @@ lookupSequence = Times . go
     , Lit b' <- b̄1, b' == CS.complement b
     = go $ All : zs
 
+  -- (x⋅y*⋅z)*⋅x⋅y*  =  x⋅(y + z⋅x)*
+  go (Star (Times xyz) : xy_rest)
+    | Just (x1, y1, z) <- splitAtStar xyz
+    , Just (x2, y2, rest) <- splitAtStar xy_rest
+    , x1 == x2, y1 == y2
+    , let zx = Times (z ++ x1)
+    = go $ x1 ++ Star (Plus [y1, zx]) : rest
+
   go (y:ys) = y : go ys
   go [] = []
 
@@ -619,7 +627,41 @@ lookupStar = \case
   Plus [x1, Times (Star x2 : y)]
     | x1 == x2 -> Star (Plus [x1, Times y])
 
+  -- (x + y⋅(z⋅x*⋅y)*⋅z)*  =  (x + y⋅z)*
+  Plus [x1, Times yzxyz]
+    | Just (y1, Times zxy, z2) <- splitAtStar yzxyz
+    , Just (z1, x2, y2) <- splitAtStar zxy
+    , x1 == x2, y1 == y2, z1 == z2
+    -> Star (Plus [x1, Times y1 <> Times z1])
+
+  -- (x⋅(x*⋅y)? + y⋅(y + x)*)*  =  (x + y)*
+  Plus [Times xxy, Times yyx]
+    | Just (x1, Opt xy) <- unsnoc xxy
+    , Times (Star x2 : y1) <- xy
+    , Just (y2, Star yx) <- unsnoc yyx
+    , Plus [y3, x3] <- yx
+    , x <- Times x1
+    , y <- Times y1
+    , x == x2, x2 == x3
+    , y1 == y2, y == y3
+    -> Star (Plus [x,y])
+
+  -- (x + y⋅(x + y)*)*  =  (x + y)*
+  Plus [x, Times yxy]
+    | Just (y1, Star xy) <- unsnoc yxy
+    , Plus [z1,z2] <-xy
+    , let y = Times y1
+    , (x == z1 && y == z2) || (x == z2 && y == z1)
+    -> Star (Plus [x,y])
+
   x -> Star x
+
+splitAtStar :: [Regex] -> Maybe ([Regex], Regex, [Regex])
+splitAtStar = go []
+ where
+  go _            []  = Nothing
+  go ys (Star x : xs) = Just (reverse ys, x, xs)
+  go ys (     x : xs) = go (x:ys) xs
 
 -------------------------------------------------------------------------------
 
