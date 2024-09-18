@@ -606,6 +606,11 @@ lookupOpt = \case
     | b == b2, a == a2, ā == CS.complement a
     -> Star (Lit b <> All <> Opt (Lit a))
 
+  -- ((x+y)⋅x*)?  =  y?⋅x*
+  Times [Plus [z1,z2], Star x]
+    | z1 == x -> Opt z2 <> Star x
+    | z2 == x -> Opt z1 <> Star x
+
   x                                       -> Opt x
 
 -- | Apply known syntactic replacements of starred expressions.
