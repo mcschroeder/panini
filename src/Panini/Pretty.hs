@@ -57,6 +57,9 @@ instance Pretty Int     where pretty = PP.pretty
 instance (Pretty a, Pretty b) => Pretty (a,b) where
   pretty (a,b) = listed lparen rparen [pretty a, pretty b]
 
+instance (Pretty a, Pretty b, Pretty c) => Pretty (a,b,c) where
+  pretty (a,b,c) = listed lparen rparen [pretty a, pretty b, pretty c]
+
 instance {-# OVERLAPPABLE #-} Pretty a => Pretty [a] where
   pretty xs = prettyList xs
 
