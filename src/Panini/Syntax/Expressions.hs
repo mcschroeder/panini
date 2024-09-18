@@ -93,6 +93,9 @@ pattern EStrConc a b = EFun "str.++" [a,b]
 pattern EStrStar :: Expr -> Expr
 pattern EStrStar s = EFun "re_star" [s]
 
+pattern EStrContains :: Expr -> Expr -> Expr
+pattern EStrContains s t = EFun "str_contains" [s,t]
+
 ------------------------------------------------------------------------------
 
 -- | unit constant
@@ -196,6 +199,7 @@ typeOfExpr = \case
   EStrFirstIndexOfChar _ _ -> Just TInt
   EStrConc _ _ -> Just TString
   EStrStar _ -> Just TString
+  EStrContains _ _ -> Just TBool
   EFun _ es     -> asum $ map typeOfExpr es
   ECon c        -> Just $ typeOfValue c
   EReg _        -> Just TString
@@ -225,6 +229,8 @@ typeOfVarInExpr x = \case
   EStrStar (EVar y) | x == y -> Just TString
   EStrConc (EVar y) _ | x == y -> Just TString
   EStrConc _ (EVar y) | x == y -> Just TString
+  EStrContains (EVar y) _ | x == y -> Just TString
+  EStrContains _ (EVar y) | x == y -> Just TString  
   ESol y _ _            | x == y -> Nothing
   ESol _ _ r                     -> typeOfVarInRel x r
   EFun _ es                      -> asum $ map (typeOfVarInExpr x) es

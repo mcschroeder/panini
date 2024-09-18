@@ -101,13 +101,16 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrComp (EStrA s)                          -> normExpr $ EStrA $ neg s
   EStrComp (EStrComp e)                       -> normExpr $ e
   -----------------------------------------------------------
-  EStrConc (EStr  a _) (EStr  b _)            -> EStr (a <> b) NoPV
-  EStrConc (EStrA a  ) (EStr  b _)            -> EStrA (a <> AString.eq (Text.unpack b))
-  EStrConc (EStr  a _) (EStrA b  )            -> EStrA (AString.eq (Text.unpack a) <> b)
-  EStrConc (EStrA a  ) (EStrA b  )            -> EStrA (a <> b)  
+  EStrConc (EStr  a _) (EStr  b _)            -> normExpr $ EStr (a <> b) NoPV
+  EStrConc (EStrA a  ) (EStr  b _)            -> normExpr $ EStrA (a <> AString.eq (Text.unpack b))
+  EStrConc (EStr  a _) (EStrA b  )            -> normExpr $ EStrA (AString.eq (Text.unpack a) <> b)
+  EStrConc (EStrA a  ) (EStrA b  )            -> normExpr $ EStrA (a <> b)  
   -----------------------------------------------------------
-  EStrStar (EStr  s _)                        -> EStrA $ star (AString.eq (Text.unpack s))
-  EStrStar (EStrA s  )                        -> EStrA $ star s
+  EStrStar (EStr  s _)                        -> normExpr $ EStrA $ star (AString.eq (Text.unpack s))
+  EStrStar (EStrA s  )                        -> normExpr $ EStrA $ star s
+  -----------------------------------------------------------
+  EStrContains (EStr s _) (EStr t _)          -> EBool (t `Text.isInfixOf` s) NoPV
+  EStrContains (EStr s _) (EStrA t )          -> EBool (AString.member (Text.unpack s) t) NoPV
   -----------------------------------------------------------
   e | e' <- descend normExpr e, e' /= e       -> normExpr e'
     | otherwise                               -> e
@@ -609,6 +612,13 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
     , let ĉ1 = AChar.eq c1, let c̄1 = AChar.ne c1
     , let ĉ2 = AChar.eq c2
     -> Just $ EStrA $ rep anyChar i <> star (lit c̄1) <> lit ĉ1 <> rep anyChar (n - 1) <> lit ĉ2 <> star anyChar
+  -----------------------------------------------------------
+  EStrContains (EVar _) (EStr s _) :=: EBool doesContain _
+    | doesContain -> Just $ EStrA $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
+    | otherwise   -> Just $ EStrA $ neg $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
+  EStrContains (EVar _) (EStrA s ) :=: EBool doesContain _
+    | doesContain -> Just $ EStrA $ star anyChar <> s <> star anyChar
+    | otherwise   -> Just $ EStrA $ neg $ star anyChar <> s <> star anyChar
   -----------------------------------------------------------
   _                                           -> Nothing
 

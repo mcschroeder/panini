@@ -102,6 +102,7 @@ instance SMTLIB Expr where
     EStrFirstIndexOfChar s c -> sexpr ["str.indexof", encode s, encode c, "0"]
     EStrIndexOf s t i -> sexpr ["str.indexof", encode s, encode t, encode i]
     EStrStar s -> sexpr ["re.*", sexpr ["str.to_re", encode s]]
+    EStrContains s t -> sexpr ["str.contains", encode s, encode t]
     EFun f es        -> sexpr (encode f : map encode es)
     ECon c           -> encode c
     EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r
