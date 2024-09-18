@@ -106,6 +106,9 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrConc (EStr  a _) (EStrA b  )            -> EStrA (AString.eq (Text.unpack a) <> b)
   EStrConc (EStrA a  ) (EStrA b  )            -> EStrA (a <> b)  
   -----------------------------------------------------------
+  EStrStar (EStr  s _)                        -> EStrA $ star (AString.eq (Text.unpack s))
+  EStrStar (EStrA s  )                        -> EStrA $ star s
+  -----------------------------------------------------------
   e | e' <- descend normExpr e, e' /= e       -> normExpr e'
     | otherwise                               -> e
 
@@ -516,6 +519,7 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)
   EVar _ :≠: e | b == TString                 -> Just $ EStrComp e
   -----------------------------------------------------------
+  e :∈: EStrA s                               -> abstract x b $ e :=: EStrA s
   e :∈: EReg ere                              -> abstract x b $ e :=: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   e :∉: EReg ere                              -> abstract x b $ e :≠: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   -----------------------------------------------------------
