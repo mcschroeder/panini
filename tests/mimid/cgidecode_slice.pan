@@ -5,9 +5,6 @@ lt : (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⇔ a < b}
 match : (s:𝕊) → (t:𝕊) → {b:𝔹 | b = true ⇔ s = t}
 slice1 : (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]}
 
-
--- hex_values : {c:𝕊 | c ∈ [0123456789ABCDEFabcdef]} → ℤ
--- hex_values : {c:𝕊 |  c = "0" ∨ c = "1" ∨ c = "2" ∨ c = "3" ∨ c = "4" ∨ c = "5" ∨ c = "6" ∨ c = "7" ∨ c = "8" ∨ c = "9" ∨ c = "A" ∨ c = "B" ∨ c = "C" ∨ c = "D" ∨ c = "E" ∨ c = "F" ∨ c = "a" ∨ c = "b" ∨ c = "c" ∨ c = "d" ∨ c = "e" ∨ c = "f"} → ℤ
 hex_values : {c:string|?} -> int
 hex_values = \c:string.
   let p0   = match c "0" in if p0   then 0  else
