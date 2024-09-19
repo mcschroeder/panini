@@ -1,0 +1,5 @@
+def f112(s: str):
+  for c in s:
+    assert c == "a"
+
+# skipped because for..in not yet supported by Python frontend

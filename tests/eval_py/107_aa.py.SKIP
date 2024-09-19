@@ -8,3 +8,5 @@ def f107(s: str):
     i += 1
   if i < 1:
     raise Exception
+
+# skipped because for..in not yet supported by Python frontend
