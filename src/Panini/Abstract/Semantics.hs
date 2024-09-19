@@ -97,9 +97,11 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrSub (EStr s _) (EInt  i _) (EIntA j  )  -> normExpr $ EStrA $ strSub s (AInt.eq i) j
   EStrSub s1 (EInt 0 _) (EStrLen s2 :-: EInt 1 _) | s1 == s2 -> normExpr s1
   -----------------------------------------------------------
-  EStrComp (EStr s _)                         -> normExpr $ EStrA (neg $ AString.eq $ Text.unpack s)
-  EStrComp (EStrA s)                          -> normExpr $ EStrA $ neg s
-  EStrComp (EStrComp e)                       -> normExpr $ e
+  -- NOTE: We want to defer resolution of EStrComp as long as possible, 
+  -- in order to exploit opportunities for double-negation cancellation!   
+  -- EStrComp (EStr s _)                      -> normExpr $ EStrA (neg $ AString.eq $ Text.unpack s) 
+  -- EStrComp (EStrA s)                       -> normExpr $ EStrA $ neg s
+  EStrComp (EStrComp e)                       -> normExpr $ e  
   -----------------------------------------------------------
   EStrConc (EStr  a _) (EStr  b _)            -> normExpr $ EStr (a <> b) NoPV
   EStrConc (EStrA a  ) (EStr  b _)            -> normExpr $ EStrA (a <> AString.eq (Text.unpack b))
@@ -498,6 +500,8 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   e1 :≥: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
   -- NOTE: below here, x occurs only on the LHS (possibly more than once)
   -----------------------------------------------------------
+  EVar _ :=: EStrComp (EStr  s _)             -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
+  EVar _ :=: EStrComp (EStrA s )              -> Just $ EStrA (neg s)
   EVar _ :=: e                                -> Just e
   -----------------------------------------------------------
   EVar _ :≠: EBool c pv                       -> Just $ EBool (not c) pv
@@ -519,7 +523,7 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EVar _ :≠: ECharA c                         -> Just $ ECharA (neg c)
   -----------------------------------------------------------
   EVar _ :≠: EStr s _                         -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
-  EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)
+  EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)  
   EVar _ :≠: e | b == TString                 -> Just $ EStrComp e
   -----------------------------------------------------------
   e :∈: EStrA s                               -> abstract x b $ e :=: EStrA s
@@ -615,10 +619,10 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -----------------------------------------------------------
   EStrContains (EVar _) (EStr s _) :=: EBool doesContain _
     | doesContain -> Just $ EStrA $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
-    | otherwise   -> Just $ EStrA $ neg $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
+    | otherwise   -> Just $ EStrComp $ EStrA $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
   EStrContains (EVar _) (EStrA s ) :=: EBool doesContain _
     | doesContain -> Just $ EStrA $ star anyChar <> s <> star anyChar
-    | otherwise   -> Just $ EStrA $ neg $ star anyChar <> s <> star anyChar
+    | otherwise   -> Just $ EStrComp $ EStrA $ star anyChar <> s <> star anyChar
   -----------------------------------------------------------
   _                                           -> Nothing
 
