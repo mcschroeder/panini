@@ -4,3 +4,5 @@ def f102(s: str):
     assert s[i] == "a"
     i += 1
   assert i == 2
+
+# needs loop invariant

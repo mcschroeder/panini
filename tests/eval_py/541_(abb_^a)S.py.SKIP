@@ -8,3 +8,5 @@ def f540(s: str):
         raise AssertionError
     else:
       i += 1
+
+# skipped for .pan file because it needs manual loop invariant
