@@ -95,7 +95,7 @@ rangeChunks = foldr go []
   go x (Ran y z       : cs) | y `succeeds` x                 = Ran x z : cs
   go x                  cs                                   = Ord x : cs
   
-  succeeds x y = x /= maxBound && y == succ x
+  succeeds y x = x /= maxBound && y == succ x
 
 -- | Construct a 'CharSet' from a 'BE'.
 toCharSet :: BE -> CharSet
