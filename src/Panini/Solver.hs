@@ -34,7 +34,9 @@ data Result
       --   the string gives the reason why (e.g., "timeout")
 
 solve :: Set KVar -> Con -> Pan Result
-solve kst c0 = do
+solve kst c00 = do
+  c0  <- uniquifyBoundVariables c00      § "Ensure uniqueness of bound variables"
+
   logMessage "Phase 1: FUSION — Eliminate local acyclic variables"
   c1  <- simplifyCon c0                  § "Simplify constraint"
   c2  <- Fusion.solve kst c1
@@ -74,3 +76,38 @@ solve kst c0 = do
   allGrammarVars  = Set.filter (([TString] ==) . ktypes) . allPreConKVars
   qualifiers c ks = Map.fromSet (extractQualifiers c) (Set.map ktypes ks)
   solution0 qs ks = Map.fromSet (maybe PTrue meets . flip Map.lookup qs . ktypes) ks
+
+
+-- | Ensure that ∀ and ∃ don't shadow other bound variables.
+uniquifyBoundVariables :: Con -> Con
+uniquifyBoundVariables = go mempty
+ where
+  go xs = \case  
+    CHead p       -> CHead (goP xs p)
+    CAnd c1 c2    -> CAnd (go xs c1) (go xs c2)
+    CAll x b p c
+      | Set.member x xs
+      , let x'  = freshName x xs
+      , let xs' = Set.insert x' xs
+      , let p'  = subst (EVar x') x p
+      , let c'  = subst (EVar x') x c
+                  -> CAll x' b (goP xs' p') (go xs' c')
+      | let xs' = Set.insert x xs 
+                  -> CAll x  b (goP xs' p ) (go xs' c )  
+  goP xs = \case
+    PTrue         -> PTrue
+    PFalse        -> PFalse
+    PAnd ps       -> PAnd $ map (goP xs) ps
+    POr ps        -> POr $ map (goP xs) ps
+    PImpl p q     -> PImpl (goP xs p) (goP xs q)
+    PIff p q      -> PIff (goP xs p) (goP xs q)
+    PNot p        -> PNot (goP xs p)
+    PRel r        -> PRel r
+    PAppK k ys    -> PAppK k ys
+    PExists x b p
+      | Set.member x xs
+      , let x'  = freshName x xs
+      , let xs' = Set.insert x' xs
+      , let p'  = subst (EVar x') x p
+                  -> PExists x' b (goP xs' p')
+      | otherwise -> PExists x b (goP xs p)
