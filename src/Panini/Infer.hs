@@ -74,6 +74,11 @@ infer g = \case
         return $ (t, c) `withPV` pv
   
   -- inf/lam ----------------------------------------------
+  Lam x t̃₁ e pv | x `elem` Map.keys g -> do
+    let x' = freshName x (Map.keys g)
+    let e' = subst (Var x') x e
+    infer g $ Lam x' t̃₁ e' pv
+
   Lam x t̃₁ e pv -> do
     t̂₁ <- fresh g (shape t̃₁)
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
@@ -82,8 +87,8 @@ infer g = \case
     return (t, c)
   
   -- inf/let ----------------------------------------------
-  Let x e₁ e₂ pv | x `elem` freeVars e₁ -> do
-    let x' = freshName x (freeVars e₂)
+  Let x e₁ e₂ pv | x `elem` Map.keys g -> do
+    let x' = freshName x (Map.keys g)
     let e₂' = subst (Var x') x e₂
     infer g $ Let x' e₁ e₂' pv
 
@@ -96,6 +101,12 @@ infer g = \case
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
+  Rec x t̃₁ e₁ e₂ pv | x `elem` Map.keys g -> do
+    let x' = freshName x (Map.keys g)
+    let e₁' = subst (Var x') x e₁
+    let e₂' = subst (Var x') x e₂
+    infer g $ Rec x' t̃₁ e₁' e₂' pv
+
   Rec x t̃₁ e₁ e₂ pv -> do
     t̂₁      <- fresh g t̃₁
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
