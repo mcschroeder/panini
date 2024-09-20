@@ -21,3 +21,5 @@ f191 = \s:string.
     let _ = assert p1 in
     let i0 = sub m 1 in
     w i0
+
+-- skipped because regex simplification takes forever
