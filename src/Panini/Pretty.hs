@@ -119,7 +119,7 @@ prettySet :: Pretty a => [a] -> Doc
 prettySet = listed lbrace rbrace . map pretty
 
 prettySetTight :: Pretty a => [a] -> Doc
-prettySetTight = PP.encloseSep lbrace rbrace comma . map pretty
+prettySetTight = braces . mconcat . List.intersperse comma . map pretty
 
 prettyMap :: (Pretty a, Pretty b) => [(a,b)] -> Doc
 prettyMap = PP.align . listed lbrace rbrace . map (\(a,b) -> pretty a <+> mapsTo <+> pretty b)
