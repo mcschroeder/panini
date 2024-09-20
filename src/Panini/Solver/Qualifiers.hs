@@ -1,6 +1,5 @@
-module Panini.Solver.Qualifiers (extractQualifiers, extractQualifiers2) where
+module Panini.Solver.Qualifiers (extractQualifiers) where
 
-import Algebra.Lattice
 import Data.Bifunctor
 import Data.Containers.ListUtils
 import Data.Foldable
@@ -13,7 +12,6 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Panini.Provenance
-import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
@@ -42,6 +40,9 @@ extractQualifiers c bs = nubOrd $ map normPred $
             , let m = Map.fromListWith (++) $ map (second pure) bs'
             , r' <- renameVars m r ]
   ++ [ PRel $ Rel op (EVar z) a | (b,z) <- zip bs zs, (op,a) <- constants b ]
+  ++ [ PRel r | (TInt, i) <- zip bs zs
+              , (TString, s) <- zip bs zs
+              , let r = EVar i :≤: EStrLen (EVar s) ]
  where
   zs = [Name ("z" <> Text.pack (show i)) NoPV | i <- [0..] :: [Int]]
   constants = \case
@@ -90,27 +91,3 @@ relationsOver bs0 c = Set.fromList
       , rbs == bs
   ] 
  where bs = List.sort bs0
-
--- TODO: systematize and unify qualifier extraction heuristics
-
--- TODO: maybe this should be done on the list of FlatCons?
-extractQualifiers2 :: Con -> Assignment
-extractQualifiers2 c = Map.fromList
-  [ (k, meets [ PRel $ EVar "z0" :≤: EStrLen (EVar x)
-              , PRel $ EVar "z0" :<: EStrLen (EVar x) ])
-  | k@(KVar _ [TInt] _) <- Set.toList $ kvars c
-  , (x, TString) <- collectVarsInScopeOfKVar k c  
-  ]
-
-collectVarsInScopeOfKVar :: KVar -> Con -> [(Name,Base)]
-collectVarsInScopeOfKVar k = Set.toList . go mempty
- where
-  go vs = \case
-    CAnd c1 c2 -> go vs c1 `Set.intersection` go vs c2
-    CAll x b p c 
-      | containsK p -> Set.insert (x,b) vs
-      | otherwise -> go (Set.insert (x,b) vs) c
-    CHead p | containsK p -> vs
-            | otherwise -> mempty
-
-  containsK p = or [True | PAppK x _ <- universe p, x == k]

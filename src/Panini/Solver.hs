@@ -48,8 +48,7 @@ solve kst c0 = do
   cs5 <- flat c5                         § "Flatten constraint"
   csk <- filter horny cs5                § "Gather Horn-headed constraints"
   s0  <- solution0 qs (kvars csk)        § "Construct initial solution"
-  s0' <- expandSol0 s0 c5                § "Expand initial solution"
-  sl  <- Liquid.fixpoint csk s0'
+  sl  <- Liquid.fixpoint csk s0
   c6  <- c3                              § "Restore grammar variables"
   c7  <- apply sl c6                     § "Apply Liquid solution"
   c8  <- simplifyCon c7                  § "Simplify constraint"
@@ -75,4 +74,3 @@ solve kst c0 = do
   allGrammarVars  = Set.filter (([TString] ==) . ktypes) . allPreConKVars
   qualifiers c ks = Map.fromSet (extractQualifiers c) (Set.map ktypes ks)
   solution0 qs ks = Map.fromSet (maybe PTrue meets . flip Map.lookup qs . ktypes) ks
-  expandSol0 s c  = Map.unionWith meet s (extractQualifiers2 c)
