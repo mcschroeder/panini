@@ -6,7 +6,10 @@ module Panini.Pretty
   , PP.align, PP.hang, PP.group, PP.nest
   , PP.viaShow
   , concatWithOp
-  , prettyTuple, prettyList, prettySet, prettySetTight, prettyMap
+  , prettyTuple, prettyTupleTight
+  , prettyList
+  , prettySet, prettySetTight
+  , prettyMap
   , parensIf
   , prettyL, prettyR
   , divider
@@ -111,6 +114,9 @@ concatWithOp op = PP.fillSep . List.intersperse op
 
 prettyTuple :: Pretty a => [a] -> Doc
 prettyTuple = listed lparen rparen . map pretty
+
+prettyTupleTight :: Pretty a => [a] -> Doc
+prettyTupleTight = parens . mconcat . List.intersperse comma . map pretty
 
 prettyList :: Pretty a => [a] -> Doc
 prettyList = PP.align . listed lbracket rbracket . map pretty
