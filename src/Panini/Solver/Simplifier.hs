@@ -90,15 +90,17 @@ simplifyPred = rewrite $ \case
   PIff p PFalse -> Just $ PNot p
   PIff PFalse p -> Just $ PNot p
 
-  -- ∃x:b. P(x) ∧ y = x   ≡   P(y)
-  PExists x1 _ (PAnd (List.unsnoc -> Just (xs, PRel (y :=: EVar x2)))) 
-    | x1 == x2, x1 `notElem` freeVars y
-    -> Just $ meets $ map (subst y x1) xs
+  PExists x _ p | x `notElem` freeVars p -> Just p
 
-  -- ∃x:b. P(x) ∧ x = y   ≡   P(y)
-  PExists x1 _ (PAnd (List.unsnoc -> Just (xs, PRel (EVar x2 :=: y)))) 
-    | x1 == x2, x1 `notElem` freeVars y
-    -> Just $ meets $ map (subst y x1) xs
+  -- ∃x:b. … ∧ x = y ∧ …   ≡   ∃x:b. P[x/y]
+  PExists x1 b p0@(PAnd ps0) | Just y <- findAssignment ps0
+    -> Just $ PExists x1 b $ subst y x1 p0
+   where
+    findAssignment (PRel (e1 :=: e2) : _ ) 
+      | EVar x2 <- e1, x1 == x2, x1 `notFreeIn` e2 = Just e2
+      | EVar x2 <- e2, x1 == x2, x1 `notFreeIn` e1 = Just e1      
+    findAssignment (_                : ps)         = findAssignment ps
+    findAssignment                     []          = Nothing
 
   -- ∃x:ℤ. x ⋈ c   ≡   ⊤    where c ∈ ℤ, ⋈ ∈ {=,≠,>,≥,<,≤}
   PExists x1 TInt (PRel (Rel _ (EVar x2) (EInt _ _)))
