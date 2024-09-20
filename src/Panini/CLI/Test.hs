@@ -32,6 +32,8 @@ testMain :: PanOptions -> IO ()
 testMain globalOpts = assert globalOpts.testMode $ do
   whenJust globalOpts.outputFile $ \_ ->
       putStrLn $ "Warning: --output ignored in test mode"
+  
+  hSetBuffering stdout NoBuffering
 
   testFiles <- findTests $ fromMaybe "tests" globalOpts.inputFile
   results <- mapM (runTest globalOpts) $ List.sort testFiles
