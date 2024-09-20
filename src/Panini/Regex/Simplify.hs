@@ -507,6 +507,13 @@ lookupRegex = \case
     , let x = Plus [Times [a1, Plus [b̄1, Times [Star a1, b1]]], Times [b1, Star b̄1]]
     -> Plus [Times [Star ā1, Opt (Times [a1, (Plus [Times [ā1, Star x, Star a1], Star (Times [a1, Star (Times [b1, Star x])])])])], Star (Times [ā1, Star a1])]
 
+  -- ({a,b,c}+a(c+bc?)+bc)?  =  a?b?c
+  Opt (Plus [Lit abc, Times [Lit a1, (Plus [Lit c1, Times [Lit b1, Opt (Lit c2)]])], Times [Lit b2, Lit c3]])
+    | b1 == b2, c1 == c2, c2 == c3
+    , abc == a1 `CS.union` b1 `CS.union` c1
+    -> Times [Opt (Lit a1), Opt (Lit b1), Opt (Lit c1)]
+
+
   r -> r
 
 -- | Apply known syntactic replacements of sequences.
