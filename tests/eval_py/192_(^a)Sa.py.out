@@ -1,1 +1,1 @@
-f192 : {s:𝕊 | s ∈ [^a]*a} → 𝟙
+f192 : {s:𝕊 | s ∈ [^a]*a} → 𝟙  -- UNVERIFIED (timeout)

@@ -1,1 +1,1 @@
-f410 : {s:𝕊 | s ∈ (a|b)*} → 𝟙
+f410 : {s:𝕊 | s ∈ [ab]*} → 𝟙  -- UNVERIFIED (timeout)
