@@ -33,7 +33,7 @@ type Context = Map Name Type
 check :: Context -> Term -> Type -> Pan (Type, Con)
 check g e t̃ = do
   (t,c) <- infer g e
-  t̂ <- fresh mempty t̃
+  t̂ <- fresh g t̃
   ĉ <- sub t t̂
   return (t̂, c ∧ ĉ)
 
@@ -97,7 +97,7 @@ infer g = \case
 
   -- inf/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁      <- fresh mempty t̃₁
+    t̂₁      <- fresh g t̃₁
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
     ĉ₁      <- sub t₁ t̂₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
