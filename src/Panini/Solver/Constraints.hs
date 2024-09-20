@@ -136,4 +136,4 @@ instance Pretty FlatCon where
     , pretty p <+> symImplies <+> pretty q
     ]
    where
-    binders = prettyTuple . map (\(x,b) -> pretty x <> colon <> pretty b)
+    binders = prettyTupleTight . map (\(x,b) -> pretty x <> colon <> pretty b)
