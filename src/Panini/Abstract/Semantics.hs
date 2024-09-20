@@ -365,28 +365,32 @@ exprToAChar (EChar  c _) = Just $ AChar.eq c
 exprToAChar (ECharA c  ) = Just c
 exprToAChar _            = Nothing
 
+pattern EqChar :: Expr -> AChar -> Rel
+pattern EqChar e c <- (relToEqChar -> Just (e,c))
+
+relToEqChar :: Rel -> Maybe (Expr, AChar)
+relToEqChar = \case
+   e :=: EChar  c _ -> Just (e, AChar.eq c)
+   e :=: ECharA c   -> Just (e, c)
+   e :≠: EChar  c _ -> Just (e, AChar.ne c)
+   e :≠: ECharA c   -> Just (e, neg c)
+   _ -> Nothing
+
+pattern VarPlusN :: Name -> Integer -> Expr
+pattern VarPlusN x n <- (exprToVarPlusN -> Just (x,n))
+
+exprToVarPlusN :: Expr -> Maybe (Name, Integer)
+exprToVarPlusN = \case
+  EVar x -> Just (x, 0)
+  EVar x :+: EInt n _ -> Just (x, n)
+  _ -> Nothing
+
 -- | Try to resolve equality between two abstract relations.
 tryEqARel2 :: (Name,Base,Rel) -> (Name,Base,Rel) -> Maybe Rel
 tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
-  (EStrAt (EVar s1) (EVar i1             ) :=: ECharA' c1,
-   EStrAt (EVar s2) (EVar i2 :+: EInt n _) :=: ECharA' c2)
-   | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
-   , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
-           | n < 0 = star anyChar <> lit c2 <> rep anyChar (n-1) <> lit c1 <> star anyChar
-           | otherwise = star anyChar <> lit (c1 ∧ c2) <> star anyChar
-    -> Just $ EVar s1 :=: EStrA t
-
-  (EStrAt (EVar s1) (EVar i1 :+: EInt n _) :=: ECharA' c1,
-   EStrAt (EVar s2) (EVar i2             ) :=: ECharA' c2)
-   | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
-   , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
-           | n < 0 = star anyChar <> lit c2 <> rep anyChar (n-1) <> lit c1 <> star anyChar
-           | otherwise = star anyChar <> lit (c1 ∧ c2) <> star anyChar
-    -> Just $ EVar s1 :=: EStrA t
-
-  (EStrAt (EVar s1) (EVar i1 :+: EInt n1 _) :=: ECharA' c1,
-   EStrAt (EVar s2) (EVar i2 :+: EInt n2 _) :=: ECharA' c2)
+  (EStrAt (EVar s1) (VarPlusN i1 n1) `EqChar` c1, 
+   EStrAt (EVar s2) (VarPlusN i2 n2) `EqChar` c2)
    | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
    , let n = n2 - n1
    , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
