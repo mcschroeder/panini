@@ -1,0 +1,2 @@
+hex_values : {c:𝕊 | c ∈ [0-9A-Fa-f]} → ℤ
+cgi_decode : {s:𝕊 | s ∈ ([^%]|%[0-9A-Fa-f][0-9A-Fa-f])*} → 𝟙  -- UNVERIFIED (timeout)
