@@ -372,6 +372,8 @@ withTerm expr k = case expr of
     let tyItem   = typeOf expr
     let args     = [slicee, slice_expr]
     k =<< applyAxiom "__getitem__" args tyArgs tyItem (getPV expr)
+  
+  Paren {..} -> withTerm paren_expr k
 
   _ -> lift $ throwE $ UnsupportedExpression expr
 
