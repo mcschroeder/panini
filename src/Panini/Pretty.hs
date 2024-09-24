@@ -6,7 +6,10 @@ module Panini.Pretty
   , PP.align, PP.hang, PP.group, PP.nest
   , PP.viaShow
   , concatWithOp
-  , prettyTuple, prettyList, prettySet, prettySetTight, prettyMap
+  , prettyTuple, prettyTupleTight
+  , prettyList
+  , prettySet, prettySetTight
+  , prettyMap
   , parensIf
   , prettyL, prettyR
   , divider
@@ -23,6 +26,10 @@ import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.IntMap (IntMap)
+import Data.IntMap qualified as IntMap
+import Data.IntSet (IntSet)
+import Data.IntSet qualified as IntSet
 import Data.Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -53,17 +60,26 @@ instance Pretty Int     where pretty = PP.pretty
 instance (Pretty a, Pretty b) => Pretty (a,b) where
   pretty (a,b) = listed lparen rparen [pretty a, pretty b]
 
+instance (Pretty a, Pretty b, Pretty c) => Pretty (a,b,c) where
+  pretty (a,b,c) = listed lparen rparen [pretty a, pretty b, pretty c]
+
 instance {-# OVERLAPPABLE #-} Pretty a => Pretty [a] where
   pretty xs = prettyList xs
 
 instance Pretty a => Pretty (Set a) where
   pretty = prettySet . Set.toAscList
 
+instance Pretty IntSet where
+  pretty = prettySet . IntSet.toAscList
+
 instance Pretty a => Pretty (HashSet a) where
   pretty = prettySet . HashSet.toList
 
 instance (Pretty a, Pretty b) => Pretty (Map a b) where
   pretty = prettyMap . Map.toAscList
+
+instance (Pretty a) => Pretty (IntMap a) where
+  pretty = prettyMap . IntMap.toAscList
 
 instance Pretty a => Pretty (Maybe a) where
   pretty Nothing = "Nothing"
@@ -99,6 +115,9 @@ concatWithOp op = PP.fillSep . List.intersperse op
 prettyTuple :: Pretty a => [a] -> Doc
 prettyTuple = listed lparen rparen . map pretty
 
+prettyTupleTight :: Pretty a => [a] -> Doc
+prettyTupleTight = parens . mconcat . List.intersperse comma . map pretty
+
 prettyList :: Pretty a => [a] -> Doc
 prettyList = PP.align . listed lbracket rbracket . map pretty
 
@@ -106,7 +125,7 @@ prettySet :: Pretty a => [a] -> Doc
 prettySet = listed lbrace rbrace . map pretty
 
 prettySetTight :: Pretty a => [a] -> Doc
-prettySetTight = PP.encloseSep lbrace rbrace comma . map pretty
+prettySetTight = braces . mconcat . List.intersperse comma . map pretty
 
 prettyMap :: (Pretty a, Pretty b) => [(a,b)] -> Doc
 prettyMap = PP.align . listed lbrace rbrace . map (\(a,b) -> pretty a <+> mapsTo <+> pretty b)

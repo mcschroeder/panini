@@ -17,6 +17,8 @@ References:
 -}
 module Panini.Regex.POSIX.BE where
 
+import Data.Data (Data)
+import Data.Char
 import Data.Hashable
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
@@ -39,7 +41,7 @@ import Prelude
 data BE
   = Mat (NonEmpty Exp)  -- ^ matching expression @[abc]@
   | Non (NonEmpty Exp)  -- ^ non-matching expression @[^abc]@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 -- | BE (sub)expression.
 data Exp
@@ -48,7 +50,7 @@ data Exp
   -- | Cls         -- ^ character class @[:alpha:]@
   -- | Equ         -- ^ equivalence class @[=a=]@
   -- | Col         -- ^ collating symbol @[.ch.]@
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 instance Hashable BE
 instance Hashable Exp
@@ -82,9 +84,18 @@ printBE = \case
 fromCharSet :: CharSet -> Maybe BE
 fromCharSet (CharSet b s) = case (b, NE.nonEmpty $ CS.intSetToCharList s) of
   (True,  Nothing) -> Nothing
-  (True,  Just xs) -> Just $ Mat $ NE.map Ord xs
+  (True,  Just xs) -> Just $ Mat $ NE.fromList $ rangeChunks $ NE.toList xs
   (False, Nothing) -> Just $ Mat $ NE.singleton $ Ran '\NUL' (maxBound @Char)
   (False, Just xs) -> Just $ Non $ NE.map Ord xs
+
+rangeChunks :: [Char] -> [Exp]
+rangeChunks = foldr go []
+ where  
+  go x (Ord y : Ord z : cs) | y `succeeds` x, z `succeeds` y = Ran x z : cs
+  go x (Ran y z       : cs) | y `succeeds` x                 = Ran x z : cs
+  go x                  cs                                   = Ord x : cs
+  
+  succeeds y x = x /= maxBound && y == succ x
 
 -- | Construct a 'CharSet' from a 'BE'.
 toCharSet :: BE -> CharSet

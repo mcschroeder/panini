@@ -27,6 +27,7 @@ module Panini.Regex.CharSet
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
@@ -38,7 +39,7 @@ import Prelude hiding (null)
 
 -- | A set of Unicode characters.
 data CharSet = CharSet !Bool !IntSet
-  deriving stock (Generic, Show, Read)
+  deriving stock (Generic, Show, Read, Data)
 
 instance Hashable CharSet
 

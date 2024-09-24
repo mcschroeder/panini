@@ -81,12 +81,14 @@ instance SMTLIB Rel where
     e1 :≤: e2 -> sexpr ["<=", encode e1, encode e2]
     e1 :>: e2 -> sexpr [">", encode e1, encode e2]
     e1 :≥: e2 -> sexpr [">=", encode e1, encode e2]
-    e1 :∈: e2@(EReg _) -> sexpr ["str.in.re", encode e1, encode e2]
+    e1 :∈: e2@(EReg _) -> sexpr ["str.in_re", encode e1, encode e2]
+    e1 :∈: e2@(EStrA _) -> sexpr ["str.in_re", encode e1, encode e2]
+    e1 :∈: e2 | Just TString <- typeOfExpr e2 -> sexpr ["str.in_re", encode e1, encode e2]
     r -> panic $ "SMTLIB: unencondable relation:" <+> pretty r
 
 instance SMTLIB RegLan where
   encode = \case
-    ToRe s    -> sexpr ["str.to.re", fromShow s]
+    ToRe s    -> sexpr ["str.to_re", fromShow s]
     None      -> "re.none"
     All       -> "re.all"
     AllChar   -> "re.allchar"    
@@ -106,6 +108,9 @@ instance SMTLIB Expr where
     EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
     -- TODO: our built-in might not exactly match the semantics of SMT-LIB !
     EStrFirstIndexOfChar s c -> sexpr ["str.indexof", encode s, encode c, "0"]
+    EStrIndexOf s t i -> sexpr ["str.indexof", encode s, encode t, encode i]
+    EStrStar s -> sexpr ["re.*", sexpr ["str.to_re", encode s]]
+    EStrContains s t -> sexpr ["str.contains", encode s, encode t]
     EFun f es        -> sexpr (encode f : map encode es)
     ECon c           -> encode c
     EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r

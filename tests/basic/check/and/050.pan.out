@@ -1,2 +1,2 @@
-f50 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | z = true ⇔ x = true ∧ y = true}
-f51 : {x:𝔹 | true} → {y:𝔹 | true} → {z:𝔹 | z = true ⇔ x = true ∧ y = true}
+f50 : (x:𝔹) → (y:𝔹) → {z:𝔹 | z = true ⇔ x = true ∧ y = true}
+f51 : (x:𝔹) → (y:𝔹) → {z:𝔹 | z = true ⇔ x = true ∧ y = true}

@@ -1,0 +1,12 @@
+def f480(s: str):
+  i = 0
+  if len(s) > 0 and s[i] == "1":
+    i += 1
+  while i < len(s):
+    if s[i] == "1":
+      assert i > 0
+      if i < len(s)-1:       
+        assert s[i+1] == "0"
+    else:
+      assert s[i] == "0"
+    i += 1

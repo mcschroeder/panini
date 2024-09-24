@@ -13,9 +13,8 @@ import Panini.CLI.Common
 import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
-import Panini.Modules
+import Panini.Frontend.Python
 import Panini.Monad
-import Panini.Parser
 import Panini.Pretty
 import Panini.SMT.Z3
 import Prelude
@@ -33,9 +32,11 @@ testMain :: PanOptions -> IO ()
 testMain globalOpts = assert globalOpts.testMode $ do
   whenJust globalOpts.outputFile $ \_ ->
       putStrLn $ "Warning: --output ignored in test mode"
+  
+  hSetBuffering stdout NoBuffering
 
   testFiles <- findTests $ fromMaybe "tests" globalOpts.inputFile
-  results <- mapM runTest $ List.sort testFiles
+  results <- mapM (runTest globalOpts) $ List.sort testFiles
 
   let total = length results
   let fails = total - sum (map fromEnum results)
@@ -51,14 +52,14 @@ testMain globalOpts = assert globalOpts.testMode $ do
   testName :: String -> Doc
   testName inFile = pretty @String $ printf "%-50s " inFile
 
-  runTest :: FilePath -> IO Bool
-  runTest inFile = do
+  runTest :: PanOptions -> FilePath -> IO Bool
+  runTest panOpts inFile = do
     putDoc $ testName inFile
-    execPan inFile >>= compareResult inFile
+    execPan panOpts inFile >>= compareResult inFile
 
   -- TODO: read local options from inFile header comment
-  execPan :: FilePath -> IO (Seconds, Text)
-  execPan inFile = do
+  execPan :: PanOptions -> FilePath -> IO (Seconds, Text)
+  execPan panOpts inFile = do
     src <- Text.readFile inFile
 
     traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)
@@ -70,12 +71,18 @@ testMain globalOpts = assert globalOpts.testMode $ do
               -- note how we don't log errors to stderr by default here
           
           , Panini.Monad.smtTimeout = globalOpts.smtTimeout
+          , Panini.Monad.regexTimeout = globalOpts.regexTimeout
+          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
       smtInit
-      module_ <- liftIO $ getModule inFile
-      prog <- parseSource (moduleLocation module_) src
+      logRegexInfo
+      let ext = takeExtension inFile
+      let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
+                   | otherwise                           = loadModule
+      (module_, prog) <- loadFunc src inFile
+      maybeSavePanFile panOpts module_ prog
       elaborate module_ prog
       (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
       return $ vsep $ (map pretty es) ++ (map pretty ts)
@@ -142,7 +149,17 @@ testMain globalOpts = assert globalOpts.testMode $ do
 -------------------------------------------------------------------------------
 
 findTests :: FilePattern -> IO [FilePath]
-findTests pat | not (hasExtension pat) = findTests $ pat </> "**/*.pan"
-findTests pat = do
-  cwd <- getCurrentDirectory
-  getDirectoryFiles cwd [pat]
+findTests pat
+  | hasExtension pat = go [pat]
+  | otherwise        = go [ pat' ++ glob ++ ext 
+                          | let pat' = dropTrailingPathSeparator pat
+                          , glob <- ["*/**/*","*"]
+                          , ext <- testFileExtensions
+                          ]
+ where
+  go pats = do
+    cwd <- getCurrentDirectory
+    getDirectoryFiles cwd pats
+
+testFileExtensions :: [String]
+testFileExtensions = [".pan",".py"]

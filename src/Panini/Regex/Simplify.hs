@@ -15,6 +15,7 @@ import Data.Function
 import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
+import Panini.Regex.Equivalence
 import Panini.Regex.Operations
 import Panini.Regex.Type
 import Prelude
@@ -25,17 +26,20 @@ simplify :: Regex -> Regex
 simplify = goFree
  where
   goFree r = case r of
-    Plus  xs | r' <- factorPrefixes xs     , r' /= r -> goFree r'
+    _        | r' <- lookupRegex r         , r' /= r -> goFree r'
+    Plus  xs | r' <- lookupChoices xs      , r' /= r -> goFree r'
+             | r' <- factorPrefixes xs     , r' /= r -> goFree r'
              | r' <- factorSuffixes xs     , r' /= r -> goFree r'
-             | r' <- liftChoices xs        , r' /= r -> goFree r'
-             | r' <- lookupChoices xs      , r' /= r -> goFree r'
+             | r' <- liftChoices xs        , r' /= r -> goFree r'             
+             | r' <- subsumeChoices xs     , r' /= r -> goFree r'
              | r' <- Plus (map goFree xs)  , r' /= r -> goFree r'
-    Times xs | r' <- fuseSequence xs       , r' /= r -> goFree r'
+    Times xs | r' <- lookupSequence xs     , r' /= r -> goFree r'
+             | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
-             | r' <- pressSequence xs      , r' /= r -> goFree r'
-             | r' <- lookupSequence xs     , r' /= r -> goFree r'
+             | r' <- pressSequence xs      , r' /= r -> goFree r'             
              | r' <- Times (map goFree xs) , r' /= r -> goFree r'
-    Star  x  | r' <- Star (goStar x)       , r' /= r -> goFree r'    
+    Star  x  | r' <- lookupStar x          , r' /= r -> goFree r'
+             | r' <- Star (goStar x)       , r' /= r -> goFree r'    
     Opt   x  | r' <- lookupOpt x           , r' /= r -> goFree r' 
              | r' <- Opt (goOpt x)         , r' /= r -> goFree r'
     _                                                -> r  
@@ -96,10 +100,10 @@ flatNullable = \case
 --    (x*x)? = (x*)?
 --
 fuseOptSequence :: [Regex] -> Regex
-fuseOptSequence = \case
-  [x1, Star x2] | x1 == x2 -> Star x2
-  [Star x1, x2] | x1 == x2 -> Star x1
-  xs -> Times xs
+fuseOptSequence xs
+  | Star x1 : x2 <- xs, x1 == Times x2              = Star x1
+  | Just (x1, Star x2) <- unsnoc xs, x2 == Times x1 = Star x2
+  | otherwise                                       = Times xs
 
 -- | Apply fusion rules within an optional list of choices.
 --
@@ -146,31 +150,31 @@ factorPrefix r1 r2
 
 -- | Factorize two choices using a special case of the left-distributive law.
 --
---    a?⋅x + a⋅y = x + a⋅(x+y)
---    a⋅x + a?⋅y = y + a⋅(x+y)
+--    (a⋅b)?⋅x + a⋅y = x + a⋅(b⋅x + y)
+--    a⋅x + (a⋅b)?⋅y = y + a⋅(x + b⋅y)
 --
 factorPrefixOpt :: Regex -> Regex -> Regex
 factorPrefixOpt r1 r2
   -----------------------------------------------------------------------
-  | Opt a1 : x1 <- flatTimes r1
-  , ax          <- flatTimes a1 ++ x1
-  , ay          <- flatTimes r2
-  , axy         <- splitPrefix ax ay
-  , (a,x,y)     <- map3 Times axy
+  | Opt ab : x1 <- flatTimes r1
+  , abx         <- flatTimes ab ++ x1
+  , ay          <- flatTimes r2  
+  , (a,bx,y)    <- map3 Times $ splitPrefix abx ay
+  , x           <- Times x1
   , a /= One
-  , x /= One
-  , size a + 1 >= size x                      = Plus [x, a <> Plus [x,y]]
+  , bx /= One
+  , size a + 1 >= size x                     = Plus [x, a <> Plus [bx,y]]
   -----------------------------------------------------------------------
-  | Opt a1 : y1 <- flatTimes r2
-  , ay          <- flatTimes a1 ++ y1
+  | Opt ab : y1 <- flatTimes r2
+  , aby         <- flatTimes ab ++ y1
   , ax          <- flatTimes r1
-  , axy         <- splitPrefix ax ay
-  , (a,x,y)     <- map3 Times axy
+  , (a,x,by)    <- map3 Times $ splitPrefix ax aby
+  , y           <- Times y1
   , a /= One
-  , y /= One
-  , size a + 1 >= size y                      = Plus [y, a <> Plus [x,y]]
+  , by /= One
+  , size a + 1 >= size y                     = Plus [y, a <> Plus [x,by]]
   -----------------------------------------------------------------------
-  | otherwise                                 = Plus [r1,r2]
+  | otherwise                                = Plus [r1,r2]
   -----------------------------------------------------------------------
 
 -- | Factorize two choices using a special case of the left-distributive law.
@@ -267,33 +271,33 @@ factorSuffix r1 r2
 
 -- | Factorize two choices using a special case of the right-distributive law.
 --
---    x⋅b? + y⋅b = x + (x+y)⋅b
---    x⋅b + y⋅b? = y + (x+y)⋅b
+--    x⋅(a⋅b)? + y⋅b = x + (x⋅a + y)⋅b
+--    x⋅b + y⋅(a⋅b)? = y + (x + y⋅a)⋅b
 --
 factorSuffixOpt :: Regex -> Regex -> Regex
 factorSuffixOpt r1 r2
   -----------------------------------------------------------------------
-  | xb1               <- flatTimes r1
-  , Just (x1, Opt b1) <- unsnoc xb1
-  , xb                <- x1 ++ flatTimes b1
+  | Just (x1, Opt ab) <- unsnoc $ flatTimes r1
+  , xab               <- x1 ++ flatTimes ab
   , yb                <- flatTimes r2
-  , xyb               <- splitSuffix xb yb
-  , (x,y,b)           <- map3 Times xyb
+  , xayb              <- splitSuffix xab yb
+  , (xa,y,b)          <- map3 Times xayb
+  , x                 <- Times x1
   , b /= One
-  , x /= One  
-  , size b + 1 >= size x                      = Plus [x, Plus [x,y] <> b]
+  , xa /= One  
+  , size b + 1 >= size x                     = Plus [x, Plus [xa,y] <> b]
   -----------------------------------------------------------------------
-  | yb1               <- flatTimes r2
-  , Just (y1, Opt b1) <- unsnoc yb1
-  , yb                <- y1 ++ flatTimes b1
+  | Just (y1, Opt ab) <- unsnoc $ flatTimes r2
+  , yab               <- y1 ++ flatTimes ab
   , xb                <- flatTimes r1
-  , xyb               <- splitSuffix xb yb
-  , (x,y,b)           <- map3 Times xyb
+  , xyab              <- splitSuffix xb yab
+  , (x,ya,b)          <- map3 Times xyab
+  , y                 <- Times y1
   , b /= One
-  , y /= One
-  , size b + 1 >= size y                      = Plus [y, Plus [x,y] <> b]
+  , ya /= One
+  , size b + 1 >= size y                     = Plus [y, Plus [x,ya] <> b]
   -----------------------------------------------------------------------
-  | otherwise                                 = Plus [r1,r2]
+  | otherwise                                = Plus [r1,r2]
   -----------------------------------------------------------------------
 
 -- | Factorize two choices using a special case of the right-distributive law.
@@ -476,31 +480,108 @@ selfStarEq r = equivalence r (Star r)
 
 -------------------------------------------------------------------------------
 
+-- TODO: read syntactic replacements from a file
+
+-- | Apply known syntactic replacements of regexes.
+lookupRegex :: Regex -> Regex
+lookupRegex = \case
+  -- (ā(ā((ā)*(ā + aΣ*))? + aΣ*)? + a(b(bΣ*)?)?)?  =  (a(b(b(b̄)*)*)? + (āa*)*)
+  Opt (Plus [Times [ā1, Opt (Plus [Times [ā2, Opt (Times [Star ā3, (Plus [ā4, Times [a1, All]])])], Times [a2, All]])], Times [a3, Opt (Times [b1, Opt (Times [b2, All])])]])
+    | ā1 == ā2, ā2 == ā3, ā3 == ā4, a1 == a2, a2 == a3, b1 == b2
+    , Lit a <- a1
+    , Lit b <- b1
+    , Lit a' <- ā1, a' == CS.complement a
+    , let b̄1 = Lit (CS.complement b)
+    -> Plus [Times [a1, Opt (Times [b1, Star (Times [b1, Star b̄1])])], Star (Times [ā1, Star a1])]
+  
+  -- (āΣ* + (ā)*(a(ā(a(b̄ + a*b) + b(b̄)*)*a* + (a(b(a(b̄ + a*b) + b(b̄)*)*)*)*))?)  =  ((ā)*(a(ā(a(b̄ + a*b) + b(b̄)*)*a* + (a(b(a(b̄ + a*b) + b(b̄)*)*)*)*))? + (āa*)*)
+  Plus [Times [ā1, All], Times [Star ā2, Opt (Times [a1, (Plus [Times [ā3, Star (Plus [Times [a2, (Plus [b̄1, Times [Star a3, b1]])], Times [b2, Star b̄2]]), Star a4], Star (Times [a5, Star (Times [b3, Star (Plus [Times [a6, Plus [b̄3, Times [Star a7, b4]]], Times [b5, Star b̄4]])])])])])]]
+    | all (ā1 ==) [ā2,ā3]
+    , all (a1 ==) [a2,a3,a4,a5,a6,a7]
+    , all (b̄1 ==) [b̄2,b̄3,b̄4]
+    , all (b1 ==) [b2,b3,b4,b5]
+    , Lit a <- a1
+    , Lit b <- b1
+    , Lit a' <- ā1, a' == CS.complement a
+    , Lit b' <- b̄1, b' == CS.complement b
+    , let x = Plus [Times [a1, Plus [b̄1, Times [Star a1, b1]]], Times [b1, Star b̄1]]
+    -> Plus [Times [Star ā1, Opt (Times [a1, (Plus [Times [ā1, Star x, Star a1], Star (Times [a1, Star (Times [b1, Star x])])])])], Star (Times [ā1, Star a1])]
+
+  -- ({a,b,c}+a(c+bc?)+bc)?  =  a?b?c
+  Opt (Plus [Lit abc, Times [Lit a1, (Plus [Lit c1, Times [Lit b1, Opt (Lit c2)]])], Times [Lit b2, Lit c3]])
+    | b1 == b2, c1 == c2, c2 == c3
+    , abc == a1 `CS.union` b1 `CS.union` c1
+    -> Times [Opt (Lit a1), Opt (Lit b1), Opt (Lit c1)]
+
+
+  r -> r
+
 -- | Apply known syntactic replacements of sequences.
---
---     (1)  x* ⋅ y ⋅ (x* ⋅ y)* = (x + y)* ⋅ y
---
 lookupSequence :: [Regex] -> Regex
 lookupSequence = Times . go
  where
-  go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs)  -- (1)
+  -- x*⋅y⋅(x*⋅y)*  =  (x + y)* ⋅ y
+  go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs)
     | x1 == x2, y1 == y2 
     = go $ Star (Plus [x1,y1]) <> y1 : zs
   
+  -- a(bc*a)*bc*  =  abc*(abc*)*
+  go (a : Star (Times [b, Star c, a2]) : b2 : Star c2 : zs)
+    | a == a2, b == b2, c == c2
+    = go $ a <> b <> Star c <> Star (a <> b <> Star c) : zs
+  
+  -- a(bc*a)*b  =  ab(c*ab)*
+  go (a : Star (Times [b, Star c, a2]) : b2 : zs)
+    | a == a2, b == b2
+    = go $ a <> b <> Star (Star c <> a <> b) : zs
+
+  -- (y*x)*y*  =  (x+y)*
+  go (Star (Times (Star y : x)) : Star y2 : zs)
+    | y == y2
+    = go $ Star (Plus [Times x, y]) : zs
+
+  -- b̄*⋅(a(b̄ + a*b) + bb̄* + a*b)* = Σ*
+  go (Star b̄1 : Star (Plus [Times [a1, Plus [b̄2, Times [Star a2, b1]]], Times [b2, Star b̄3], Times [Star a3, b3]]) : zs)
+    | b̄1 == b̄2, b̄2 == b̄3, a1 == a2, a2 == a3, b1 == b2, b2 == b3
+    , Lit _ <- a1
+    , Lit b <- b1
+    , Lit b' <- b̄1, b' == CS.complement b
+    = go $ All : zs
+
+  -- (x⋅y*⋅z)*⋅x⋅y*  =  x⋅(y + z⋅x)*
+  go (Star (Times xyz) : xy_rest)
+    | Just (x1, y1, z) <- splitAtStar xyz
+    , Just (x2, y2, rest) <- splitAtStar xy_rest
+    , x1 == x2, y1 == y2
+    , let zx = Times (z ++ x1)
+    = go $ x1 ++ Star (Plus [y1, zx]) : rest
+
   go (y:ys) = y : go ys
   go [] = []
 
 -- | Apply known syntactic replacements of choices.
--- 
---     (1)  x⋅Σ* + x* = (x⋅Σ*)?
---     (2)  [ab] + ab = a?b?
---
 lookupChoices :: [Regex] -> Regex
 lookupChoices = (Plus .) $ go $ \case
-  (Times [x1, All], Star x2) | x1 == x2 -> Just $ Opt (Times [x1, All])  -- (1)
+  -- x⋅Σ* + x*  =  (x⋅Σ*)?
+  (Times [x1, All], Star x2) | x1 == x2 -> Just $ Opt (Times [x1, All])
+
+  -- [ab] + ab  =  a?b?
   (Lit cs, Times [Lit a, Lit b]) 
-    | cs == CS.union a b -> Just $ Opt (Lit a) <> Opt (Lit b) -- (2)
-  _ -> Nothing 
+    | cs == CS.union a b -> Just $ Opt (Lit a) <> Opt (Lit b)
+
+  -- (b*a(āb*a)*(āb*)? + b*)  =  (b+aā)*(ab*)?
+  (Times [Star b1, a1, Star (Times [ā1, Star b2, a2]), Opt (Times [ā2, Star b3])], Star b4)
+    | b1 == b2, b2 == b3, b3 == b4, a1 == a2, ā1 == ā2
+    , Lit a  <- a1
+    , Lit a' <- ā1, a' == CS.complement a
+    -> Just $ Star (Plus [b1, a1 <> ā1]) <> Opt (a1 <> Star b1)
+
+  -- b + a(ba)*bb  =  (ab)*b
+  (b, Times [a, Star (Times [b2,a2]), b3, b4])
+    | b == b2, b2 == b3, b3 == b4, a == a2
+    -> Just $ Star (a <> b) <> b
+
+  _ -> Nothing
  where
   go _ []     = []
   go f (x:xs) = go1 xs []
@@ -510,15 +591,101 @@ lookupChoices = (Plus .) $ go $ \case
     go1 (y:ys) zs                      = go1 ys (y:zs)
 
 -- | Apply known syntactic replacements of optionals.
---
---    (1)  (x + x?y)? = x?y?
---    (2)  (y + xy?)? = x?y?
---
 lookupOpt :: Regex -> Regex
 lookupOpt = \case
-  Plus [x1, Times [Opt x2, y]] | x1 == x2 -> Opt x1 <> Opt y  -- (1)
-  Plus [y1, Times [x, Opt y2]] | y1 == y2 -> Opt x <> Opt y1  -- (2)
+  -- (x + x?y)?  =  x?y?
+  Plus [x1, Times [Opt x2, y]]
+    | x1 == x2 
+    -> Opt x1 <> Opt y
+  
+  -- (y + xy?)?  =  x?y?
+  Plus [y1, Times (unsnoc -> Just (x, Opt y2))]
+    | y1 == y2 
+    -> Opt (Times x) <> Opt y1
+  
+  -- (x(y*z+y*))?  =  (xy*z?)?
+  Times [x, Plus [Times (Star y1 : z), Star y2]]
+    | y1 == y2 
+    -> Opt (x <> Star y1 <> Opt (Times z))
+
+  -- (b(ā + ab)*a?)?  =  (bΣ*a?)*
+  Times [Lit b, Star (Plus [Lit ā, Times [Lit a, Lit b2]]), Opt (Lit a2)]
+    | b == b2, a == a2, ā == CS.complement a
+    -> Star (Lit b <> All <> Opt (Lit a))
+
+  -- ((x+y)⋅x*)?  =  y?⋅x*
+  Times [Plus [z1,z2], Star x]
+    | z1 == x -> Opt z2 <> Star x
+    | z2 == x -> Opt z1 <> Star x
+
   x                                       -> Opt x
+
+-- | Apply known syntactic replacements of starred expressions.
+lookupStar :: Regex -> Regex
+lookupStar = \case
+  -- (x + (y ⋅ (x + y)*))*  =  (x + y)*
+  Plus [x1, Times (unsnoc -> Just (y1, Star (Plus [x2, Times y2])))]
+    | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
+  
+  -- (x + (y ⋅ x*))*  =  (x + y)*
+  Plus [x1, Times (unsnoc -> Just (y1, Star x2))]
+    | x1 == x2 -> Star (Plus [x1, Times y1])
+
+  -- (x + y ⋅ (x* + y)*)*  =  (x + y)*
+  Plus [x1, Times (unsnoc -> Just (y1, Star (Times (Star x2 : y2))))]
+    | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
+  
+  -- (x + x*y)*  =  (x+y)*
+  Plus [x1, Times (Star x2 : y)]
+    | x1 == x2 -> Star (Plus [x1, Times y])
+
+  -- (x + y⋅(z⋅x*⋅y)*⋅z)*  =  (x + y⋅z)*
+  Plus [x1, Times yzxyz]
+    | Just (y1, Times zxy, z2) <- splitAtStar yzxyz
+    , Just (z1, x2, y2) <- splitAtStar zxy
+    , x1 == x2, y1 == y2, z1 == z2
+    -> Star (Plus [x1, Times y1 <> Times z1])
+
+  -- (x⋅(x*⋅y)? + y⋅(y + x)*)*  =  (x + y)*
+  Plus [Times xxy, Times yyx]
+    | Just (x1, Opt xy) <- unsnoc xxy
+    , Times (Star x2 : y1) <- xy
+    , Just (y2, Star yx) <- unsnoc yyx
+    , Plus [y3, x3] <- yx
+    , x <- Times x1
+    , y <- Times y1
+    , x == x2, x2 == x3
+    , y1 == y2, y == y3
+    -> Star (Plus [x,y])
+
+  -- (x + y⋅(x + y)*)*  =  (x + y)*
+  Plus [x, Times yxy]
+    | Just (y1, Star xy) <- unsnoc yxy
+    , Plus [z1,z2] <-xy
+    , let y = Times y1
+    , (x == z1 && y == z2) || (x == z2 && y == z1)
+    -> Star (Plus [x,y])
+
+  x -> Star x
+
+splitAtStar :: [Regex] -> Maybe ([Regex], Regex, [Regex])
+splitAtStar = go []
+ where
+  go _            []  = Nothing
+  go ys (Star x : xs) = Just (reverse ys, x, xs)
+  go ys (     x : xs) = go (x:ys) xs
+
+-------------------------------------------------------------------------------
+
+subsumeChoices :: [Regex] -> Regex
+subsumeChoices = go []
+ where
+  go ys []                        = Plus ys
+  go ys (x:xs)
+    | any (subsumes x) (xs ++ ys) = go ys xs
+    | otherwise                   = go (x:ys) xs
+  
+  subsumes x y = equivalence x (intersection x y)
 
 -------------------------------------------------------------------------------
 

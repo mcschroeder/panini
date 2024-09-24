@@ -21,9 +21,8 @@ import Panini.CLI.Options
 import Panini.Elab
 import Panini.Environment
 import Panini.Events
-import Panini.Modules
+import Panini.Frontend.Python
 import Panini.Monad
-import Panini.Parser
 import Panini.Pretty
 import Panini.Provenance
 import Panini.SMT.Z3
@@ -59,11 +58,14 @@ replMain panOpts = do
 
   let panState0 = defaultState 
         { eventHandler
-        , Panini.Monad.smtTimeout = panOpts.smtTimeout 
+        , Panini.Monad.smtTimeout = panOpts.smtTimeout
+        , Panini.Monad.regexTimeout = panOpts.regexTimeout
+        , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
         }
 
   void $ runPan panState0 $ runInputT replConf $ do
     lift smtInit
+    lift logRegexInfo
     repl panOpts
 
   whenJust traceFile hClose
@@ -103,7 +105,7 @@ repl panOpts = outputStrLn banner >> loop
         | cmd `isPrefixOf` "paste" -> outputStrLn multiMsg >> loopMultiline []
         | Just f <- lookup cmd commandPrefixes -> f args >> loop
         | otherwise -> outputStrLn ("unknown command :" ++ cmd) >> loop
-      Just input -> evaluateInput input >> loop
+      Just input -> evaluateInput panOpts input >> loop
 
     cancellable = 
       handleInterrupt (outputStrLn "Cancelled." >> loop) . withInterrupt
@@ -119,7 +121,7 @@ repl panOpts = outputStrLn banner >> loop
 commands :: PanOptions -> [(String, String -> InputT Pan ())]
 commands panOpts = 
   [ ("help", const help)
-  , ("load", loadFiles . words)
+  , ("load", loadFiles panOpts . words)
   , ("show", showEnv panOpts)
   ]
 
@@ -135,14 +137,18 @@ help = outputStrLn "\
   \  :show                Show all bindings in the environment\n\
   \"
 
-loadFiles :: [String] -> InputT Pan ()
-loadFiles = mapM_ loadFile
+loadFiles :: PanOptions -> [String] -> InputT Pan ()
+loadFiles panOpts = mapM_ (loadFile panOpts)
 
-loadFile :: FilePath -> InputT Pan ()
-loadFile f = lift $ continueOnError $ do
-  module_ <- tryIO NoPV $ getModule f
-  src <- tryIO NoPV $ Text.readFile $ moduleLocation module_
-  prog <- parseSource (moduleLocation module_) src
+loadFile :: PanOptions -> FilePath -> InputT Pan ()
+loadFile panOpts f = lift $ continueOnError $ do
+  logMessage $ "Read" <+> pretty f
+  src <- tryIO NoPV $ Text.readFile f
+  let ext = takeExtension f
+  let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
+               | otherwise                           = loadModule
+  (module_, prog) <- loadFunc src f
+  maybeSavePanFile panOpts module_ prog
   elaborate module_ prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
@@ -169,11 +175,13 @@ showEnv panOpts _ = do
     Unverified{_name,_solvedType,_reason} -> hang 2 $
       "?" <+> pretty _name <+> colon <+> pretty _solvedType <\> pretty _reason
 
-evaluateInput :: String -> InputT Pan ()
-evaluateInput input = lift $ continueOnError $ do
+evaluateInput :: PanOptions -> String -> InputT Pan ()
+evaluateInput panOpts input = lift $ continueOnError $ do
   let src = Text.pack input
-  prog <- parseSource "<repl>" src
-  elaborate replModule prog
+  let loadFunc | panOpts.pythonInput = loadModulePython
+               | otherwise           = loadModule
+  (module_, prog) <- loadFunc src "<repl>"
+  elaborate module_ prog
 
 -------------------------------------------------------------------------------
 

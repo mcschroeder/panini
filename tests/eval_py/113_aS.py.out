@@ -1,0 +1,1 @@
+f113 : {s:𝕊 | s ∈ a*} → 𝟙  -- UNVERIFIED (timeout)

@@ -13,6 +13,7 @@ module Panini.Abstract.AValue
   ) where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text qualified as Text
@@ -37,7 +38,8 @@ data AValue
   deriving stock 
     ( Eq
     , Ord  -- ^ structural ordering
-    , Show, Read, Generic)
+    , Show, Read
+    , Generic, Data)
 
 instance Hashable AValue
 
@@ -67,6 +69,14 @@ instance PartialMeetSemilattice AValue where
   AChar   a ∧? AChar   b = Just $ AChar   (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
   _         ∧? _         = Nothing
+
+instance PartialJoinSemilattice AValue where
+  AUnit   a ∨? AUnit   b = Just $ AUnit   (a ∨ b)
+  ABool   a ∨? ABool   b = Just $ ABool   (a ∨ b)
+  AInt    a ∨? AInt    b = Just $ AInt    (a ∨ b)
+  AChar   a ∨? AChar   b = Just $ AChar   (a ∨ b)
+  AString a ∨? AString b = Just $ AString (a ∨ b)
+  _         ∨? _         = Nothing
 
 hasTop :: AValue -> Bool
 hasTop = \case

@@ -1,0 +1,9 @@
+def f282(s: str):
+  i = len(s)
+  if i == 0:
+    return
+  assert s[i-1] == "b"
+  assert s[i-2] == "a"
+  assert i-3 < 0
+
+# TODO: this seems to take forever; investigate

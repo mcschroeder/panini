@@ -22,6 +22,10 @@ data PanOptions = PanOptions
   , createGoldenFiles :: Bool
   , termWidth :: Maybe Int
   , smtTimeout :: Int
+  , regexTimeout :: Double
+  , pythonInput :: Bool
+  , debugTraceFrontendGraph :: Bool
+  , savePanFile :: Bool
   }
   deriving stock (Show, Read)
 
@@ -36,7 +40,7 @@ opts = info
       , "If the --test flag is passed, Panini runs in test mode: if INPUT is\
         \ a file, any output is compared against a corresponding \"golden\
         \ file\" named INPUT.out; if INPUT is a directory or file pattern, all\
-        \ files matching INPUT/**/*.pan will be processed and their outputs\
+        \ files matching INPUT/**/*.{pan,py} will be processed and their outputs\
         \ compared against the corresponding golden files; if no INPUT is\
         \ given, it is per default assumed to be a directory named \"tests\".\
         \ If any test input file has no matching golden file yet and the\
@@ -93,6 +97,24 @@ opts = info
       <*> (option auto $
             long "smt-timeout" <>
             metavar "SECONDS" <>
-            help "SMT solver timeout (default: 10 seconds)" <>
-            value 10
+            help "SMT solver timeout (default: 1 second)" <>
+            value 1
+          )
+      <*> (option auto $
+            long "regex-timeout" <>
+            metavar "SECONDS" <>
+            help "Regex simplifier timeout (default: 5 seconds)" <>
+            value 5
+          )
+      <*> (switch $
+            long "python" <>
+            help "Force input to be read as Python"
+          )
+      <*> (switch $
+            long "debug-trace-frontend-graph" <>
+            hidden
+          )
+      <*> (switch $
+            long "save-pan" <>
+            help "Save the transpiled source as a .pan file"
           )

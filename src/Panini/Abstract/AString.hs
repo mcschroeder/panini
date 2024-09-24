@@ -4,6 +4,7 @@
 module Panini.Abstract.AString where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import Data.String
 import Data.Text (Text)
@@ -14,8 +15,7 @@ import Panini.Abstract.AChar qualified as AChar
 import Panini.Abstract.AInt (AInt)
 import Panini.Abstract.AInt qualified as AInt
 import Panini.Pretty
-import Panini.Regex.Operations qualified as Regex
-import Panini.Regex.Simplify qualified as Regex
+import Panini.Regex qualified as Regex
 import Panini.Regex.SMT qualified as Regex
 import Panini.Regex.Type
 import Panini.SMT.RegLan (RegLan)
@@ -24,7 +24,7 @@ import Prelude hiding (length)
 ------------------------------------------------------------------------------
 
 newtype AString = MkAString Regex
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
   deriving newtype (Semigroup, Monoid, Hashable)
 
 -- | Based on total structural ordering of 'Regex'.
@@ -32,19 +32,19 @@ instance PartialOrder AString where
   (⊑) = (<=)
 
 instance JoinSemilattice AString where
-  MkAString r1 ∨ MkAString r2 = simplify $ MkAString $ Plus [r1,r2]
+  MkAString r1 ∨ MkAString r2 = MkAString $ Plus [r1,r2]
 
 instance BoundedJoinSemilattice AString where
   bot = MkAString Zero
 
 instance MeetSemilattice AString where
-  MkAString r1 ∧ MkAString r2 = simplify $ MkAString $ Regex.intersection r1 r2
+  MkAString r1 ∧ MkAString r2 = MkAString $ Regex.intersection r1 r2
 
 instance BoundedMeetSemilattice AString where
   top = MkAString All
 
 instance ComplementedLattice AString where
-  neg (MkAString r) = simplify $ MkAString $ Regex.complement r
+  neg (MkAString r) = MkAString $ Regex.complement r
 
 instance Pretty AString where
   pretty (MkAString r) = ann (Literal AbstractLit) $ pretty r

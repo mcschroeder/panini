@@ -1,0 +1,21 @@
+def f512(s: str):
+  if len(s) == 3:
+    assert s[0] == "a"
+    assert s[1] == "b"
+    assert s[2] == "c"
+  elif len(s) == 2:
+    if s[0] == "a":
+      assert s[1] == "b" or s[1] == "c"
+    else:
+      assert s[0] == "b"
+      assert s[1] == "c"
+  elif len(s) == 1:
+    if s[0] != "a":
+      if s[0] != "b":
+        if s[0] != "c":
+          raise Exception
+    return
+  else:
+    assert len(s) == 0
+
+# TODO: solves correctly but takes a while (1min); investigate

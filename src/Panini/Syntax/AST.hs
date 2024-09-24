@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.AST where
 
+import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Set ((\\))
 import Panini.Pretty
@@ -30,7 +31,7 @@ instance Pretty Program where
 
 instance Pretty Statement where
   pretty = \case
-    Assume x t -> pretty x <+> ":" <+> pretty t
+    Assume x t -> pretty x <+> align (":" <+> pretty t)
     Define x e -> pretty x <+> "=" <+> pretty e
     Import m _ -> ann Keyword "import" <+> pretty m
 
@@ -46,11 +47,88 @@ data Term
   | If Atom Term Term       PV  -- ^ branch @if v then e1 else e2@
   deriving stock (Show, Read)
 
+-- | Syntactic equality, ignoring provenance.
+instance Eq Term where
+  Val v1            == Val v2            = v1 == v2
+  App e1 v1       _ == App e2 v2       _ = e1 == e2 && v1 == v2
+  Lam x1 t1 e1    _ == Lam x2 t2 e2    _ = x1 == x2 && t1 == t2 && e1 == e2
+  Let x1 e1 f1    _ == Let x2 e2 f2    _ = x1 == x2 && e1 == e2 && f1 == f2
+  Rec x1 t1 e1 f1 _ == Rec x2 t2 e2 f2 _ = x1 == x2 && t1 == t2 && e1 == e2 && f1 == f2
+  If v1 e1 f1     _ == If v2 e2 f2     _ = v1 == v2 && e1 == e2 && f1 == f2
+  _                 == _                 = False
+
+-- | Structural ordering, ignoring provenance.
+instance Ord Term where
+  Val v1            <= Val v2            = v1 <= v2
+  App e1 v1       _ <= App e2 v2       _ = e1 <= e2 && v1 <= v2
+  Lam x1 t1 e1    _ <= Lam x2 t2 e2    _ = x1 <= x2 && t1 <= t2 && e1 <= e2
+  Let x1 e1 f1    _ <= Let x2 e2 f2    _ = x1 <= x2 && e1 <= e2 && f1 <= f2
+  Rec x1 t1 e1 f1 _ <= Rec x2 t2 e2 f2 _ = x1 <= x2 && t1 <= t2 && e1 <= e2 && f1 <= f2
+  If v1 e1 f1     _ <= If v2 e2 f2     _ = v1 <= v2 && e1 <= e2 && f1 <= f2
+  _                 <= _                 = False
+
 -- | Atomic values are either constants @c@ or variables @x@.
 data Atom
   = Con Value  -- ^ constant value
   | Var Name   -- ^ variable
-  deriving stock (Show, Read)
+  deriving stock
+    ( Eq  -- ^ structural equality
+    , Ord -- ^ structural ordering
+    , Show, Read
+    )
+
+instance Uniplate Term where
+  uniplate = \case
+    Val a             -> plate Val |- a
+    App e v pv        -> plate App |* e |- v |- pv
+    Lam x t e pv      -> plate Lam |- x |- t |* e |- pv
+    Let x e1 e2 pv    -> plate Let |- x |* e1 |* e2 |- pv
+    Rec x t e1 e2 pv  -> plate Rec |- x |- t |* e1 |* e2 |- pv
+    If v e1 e2 pv     -> plate If |- v |* e1 |* e2 |- pv
+
+-- see Panini.Syntax.Substitution
+instance Subable Term Atom where
+  subst x y = \case
+    Val (Var n) | y == n -> Val x
+    Val v                -> Val v
+
+    App e v pv -> App (subst x y e) (subst x y v) pv
+
+    Lam n t e pv
+      | y == n       -> Lam n  t            e   pv  -- (1)
+      | n `freeIn` x -> Lam n' t (subst x y e') pv  -- (2)
+      | otherwise    -> Lam n  t (subst x y e ) pv  -- (3)
+      where
+        e' = subst (Var n') n e
+        n' = freshName n ([y] <> freeVars e)
+    
+    Let n e1 e2 pv
+      | y == n       -> Let n  (subst x y e1)            e2   pv  -- (1)
+      | n `freeIn` x -> Let n' (subst x y e1) (subst x y e2') pv  -- (2)
+      | otherwise    -> Let n  (subst x y e1) (subst x y e2 ) pv  -- (3)
+      where
+        e2' = subst (Var n') n e2
+        n'  = freshName n ([y] <> freeVars e2)
+    
+    Rec n t e1 e2 pv
+      | y == n       -> Rec n  t            e1              e2   pv  -- (1)
+      | n `freeIn` x -> Rec n' t (subst x y e1') (subst x y e2') pv  -- (2)
+      | otherwise    -> Rec n  t (subst x y e1 ) (subst x y e2 ) pv  -- (3)
+      where
+        e1' = subst (Var n') n e1
+        e2' = subst (Var n') n e2
+        n'  = freshName n ([y] <> freeVars e1 <> freeVars e2)
+    
+    If v e1 e2 pv -> If (subst x y v) (subst x y e1) (subst x y e2) pv
+    
+  freeVars = \case
+    Val (Var x)     -> [x]
+    Val (Con _)     -> []
+    App e v _       -> freeVars e <> freeVars v
+    Lam x _ e _     -> freeVars e \\ [x]
+    Let x e1 e2 _   -> freeVars e1 <> (freeVars e2 \\ [x])
+    Rec x _ e1 e2 _ -> (freeVars e1 <> freeVars e2) \\ [x]
+    If v e1 e2 _    -> freeVars v <> freeVars e1 <> freeVars e2
 
 instance Pretty Term where
   pretty = \case
@@ -58,27 +136,49 @@ instance Pretty Term where
     
     App e x _ -> pretty e <+> pretty x  
     
-    Lam x t e _ -> 
-      nest 2 $ group $ 
+    Lam x t e@(Lam _ _ _ _) _ ->
+      lambda <> pretty x <> ":" <> parensIf (isFun t) (pretty t) <> dot <+>
+        pretty e
+
+    Lam x t e _ -> nest 2 $ group $ 
       lambda <> pretty x <> ":" <> parensIf (isFun t) (pretty t) <> dot <\>
         pretty e
 
+    Let x e1 e2 _ | isBinding e1 ->
+      nest 2 (kw "let" <+> pretty x <+> symEq <\\> 
+        pretty e1) <\\>
+      nest 2 (kw "in" <\\> 
+        pretty e2)
+
     Let x e1 e2 _ -> 
-      ann Keyword "let" <+> pretty x <+> symEq <+> group (pretty e1 <\> 
-      ann Keyword "in") <\\> 
+      kw "let" <+> pretty x <+> symEq <+> pretty e1 <+> kw "in" <\\>
       pretty e2
+    
+    Rec x t e1 e2 _ | isBinding e1 ->
+      nest 2 (kw "rec" <+> pretty x <+> ":" <+> pretty t <+> symEq <\\> 
+        pretty e1) <\\> 
+      nest 2 (kw "in" <\\> 
+        pretty e2)
   
     Rec x t e1 e2 _ ->
-      ann Keyword "rec" <+> pretty x <+> ":" <+> pretty t <\> 
-      symEq <+> group (pretty e1 <\> 
-      ann Keyword "in") <\\> 
-      pretty e2
+      kw "rec" <+> pretty x <+> ":" <+> pretty t <+> symEq <+> pretty e1 <\\> 
+      nest 2 (kw "in" <\\> 
+        pretty e2)
   
     If x e1 e2 _ -> group $
-      ann Keyword "if" <+> pretty x <+> nest 2 (ann Keyword "then" <\> 
-        pretty e1) <\> 
-      nest 2 (ann Keyword "else" <\> 
+      kw "if" <+> pretty x <+> nest 2 (kw "then" <\> 
+        pretty e1) <\>
+      nest 2 (kw "else" <\> 
         pretty e2)
+   
+   where
+    kw = ann Keyword
+
+isBinding :: Term -> Bool
+isBinding = \case
+  Let _ _ _ _   -> True
+  Rec _ _ _ _ _ -> True
+  _             -> False
 
 instance Pretty Atom where
   pretty = \case
@@ -123,13 +223,19 @@ instance Subable Atom Atom where
 data Type
   = TBase Name Base Reft PV  -- {v:b|r}
   | TFun Name Type Type PV   -- x:t₁ → t₂
-  deriving stock (Show, Read)
+  deriving stock (Show, Read, Data)
 
 -- | Syntactic equality, ignoring provenance.
 instance Eq Type where
   TBase x1 b1 r1 _ == TBase x2 b2 r2 _ = x1 == x2 && b1 == b2 && r1 == r2
   TFun x1 s1 t1 _  == TFun x2 s2 t2 _  = x1 == x2 && s1 == s2 && t1 == t2
   _                == _                = False
+
+-- | Structural ordering, ignoring provenance.
+instance Ord Type where
+  TBase x1 b1 r1 _ <= TBase x2 b2 r2 _ = x1 <= x2 && b1 <= b2 && r1 <= r2
+  TFun x1 s1 t1 _  <= TFun x2 s2 t2 _  = x1 <= x2 && s1 <= s2 && t1 <= t2
+  _                <= _                = False
 
 -- | When pretty printing a type, we try to be as succinct as possible. 
 --
@@ -142,22 +248,26 @@ instance Eq Type where
 --
 instance Pretty Type where
   pretty = \case
-    -- {_:b|true}
+    -- {_:b|true}  ≡  b
     TBase v b (Known PTrue) _ | isDummy v 
       -> pretty b
+
+    -- {v:b|true}  ≡  (v:b)
+    TBase v b (Known PTrue) _
+      -> parens $ v `col` pretty b
 
     -- {v:b|r}
     TBase v b r _ 
       -> ppBaseReft v b r
 
-    -- _:{_:b|true} → t₂
+    -- _:{_:b|true} → t₂  ≡  b → t₂
     TFun x (TBase v b (Known PTrue) _) t2 _ 
       | isDummy x, isDummy v, x `notElem` freeVars t2
       -> pretty b `arr` pretty t2
 
-    -- x:{x:b|r} → t₂
-    TFun x (TBase v b r _) t2 _ | x == v 
-      -> ppBaseReft v b r `arr` pretty t2
+    -- x:{x:b|r} → t₂  ≡  {x:b|r} → t₂
+    TFun x t1@(TBase v _ _ _) t2 _ | x == v 
+      -> pretty t1 `arr` pretty t2
     
     -- x:{v:b|r} → t₂
     TFun x t1@(TBase _ _ _ _) t2 _ 
@@ -167,13 +277,13 @@ instance Pretty Type where
     TFun x t1@(TFun _ _ _ _) t2 _ | isDummy x, x `notElem` freeVars t2
       -> parens (pretty t1) `arr` pretty t2
     
-    -- x:(s₁ → s₂) → t₁  ≡  x:(s₁ → s₂) → t₁
+    -- x:(s₁ → s₂) → t₁
     TFun x t1@(TFun _ _ _ _) t2 _ 
       -> x `col` parens (pretty t1) `arr` pretty t2
    
    where
     ppBaseReft v b r = braces $ v `col` pretty b <+> mid <+> pretty r    
-    arr a b = a <+> arrow <+> b
+    arr a b = group (a <\> arrow) <+> b
     col x a = pretty x <> colon <> a
 
 instance HasProvenance Type where
@@ -228,7 +338,7 @@ isFun _              = False
 data Reft
   = Unknown     -- ?
   | Known Pred  -- p
-  deriving stock (Eq, Show, Read)
+  deriving stock (Eq, Ord, Show, Read, Data)
 
 instance Pretty Reft where
   pretty Unknown   = "?"

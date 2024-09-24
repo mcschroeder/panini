@@ -1,6 +1,7 @@
 module Panini.Abstract.AUnit where
 
 import Algebra.Lattice
+import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
@@ -8,7 +9,7 @@ import Prelude
 
 -- | An abstract unit type. Basically 'TUnit' with an additional bottom.
 data AUnit = Bottom | Unit
-  deriving stock (Eq, Ord, Generic, Show, Read)
+  deriving stock (Eq, Ord, Generic, Show, Read, Data)
 
 instance Hashable AUnit
 

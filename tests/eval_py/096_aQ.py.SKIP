@@ -1,0 +1,6 @@
+def f096(s: str):
+  for c in s:
+    assert c == "a"
+  assert len(s) >= 0 and len(s) <= 1
+
+# skipped because for..in not yet supported by Python frontend

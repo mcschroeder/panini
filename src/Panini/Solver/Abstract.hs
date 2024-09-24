@@ -19,8 +19,10 @@ import Data.HashSet qualified as HashSet
 import Data.List qualified as List
 import Data.Map.Strict qualified as Map
 import Data.Maybe
+import Data.Ord
 import Data.Set qualified as Set
 import GHC.Generics
+import Panini.Abstract.AString qualified as AString
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
@@ -31,6 +33,7 @@ import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import System.Time.Extra
 
 -------------------------------------------------------------------------------
 
@@ -125,71 +128,50 @@ solve1 = \case
 
   PreCon x b _ c -> do
     c1 <- qelim c
-    c2 <- nnf c1 § "Convert to NNF"
-    c3 <- simplifyPred c2 § "Simplify predicate"
-    logMessage $ "Abstract" <+> pretty x <> colon <> pretty b
-    q <- abstractNNF x b c3
-    logData q
+    c2 <- nnf c1               § "Convert to NNF"
+    c3 <- simplifyPred c2      § "Simplify predicate"
+    q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
     return q
 
 abstractNNF :: Name -> Base -> Pred -> Pan AValue
 abstractNNF x b = \case
   PTrue   -> return $ topValue b
-  PFalse  -> return $ botValue b
-  PRel r  -> abstractVar' x b r
-  PAnd xs -> do vs <- mapM (abstractNNF x b) xs
-                let v = meets' b vs
-                logMessage $ "⋀" <> pretty vs <+> symEq <+> pretty v
-                return v    
-  POr xs  -> do vs <- mapM (abstractNNF x b) xs
-                let v = joins' b vs
-                logMessage $ "⋁" <> pretty vs <+> symEq <+> pretty v
-                return v
+  PFalse  -> return $ botValue b  
+  PRel r  -> simplifyAValue =<< abstractVarToValue x b r
+  PAnd xs -> valueMeets b =<< mapM (abstractNNF x b) xs
+  POr  xs -> valueJoins b =<< mapM (abstractNNF x b) xs
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
-meets' :: Base -> [AValue] -> AValue
-meets' b xs = case b of
-  TUnit   -> AUnit   $ meets $ map unsafeUnwrapAUnit xs
-  TBool   -> ABool   $ meets $ map unsafeUnwrapABool xs
-  TInt    -> AInt    $ meets $ map unsafeUnwrapAInt xs
-  TChar   -> AChar   $ meets $ map unsafeUnwrapAChar xs  
-  TString -> AString $ meets $ map unsafeUnwrapAString xs
+valueMeets :: Base -> [AValue] -> Pan AValue
+valueMeets b vs0 = do  
+  logMessage "Meet values"
+  let vs = List.sortBy (comparing Down) vs0
+  logData $ "⋀" <> pretty vs
+  v <- foldrM meet' (topValue b) vs
+  logData $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
+  return v
+ where
+  meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
+  err = panic $ "valueMeets" <+> pretty b <+> pretty vs0
 
-joins' :: Base -> [AValue] -> AValue
-joins' b xs = case b of
-  TUnit   -> AUnit   $ joins $ map unsafeUnwrapAUnit xs
-  TBool   -> ABool   $ joins $ map unsafeUnwrapABool xs
-  TInt    -> AInt    $ joins $ map unsafeUnwrapAInt xs
-  TChar   -> AChar   $ joins $ map unsafeUnwrapAChar xs
-  TString -> AString $ joins $ map unsafeUnwrapAString xs
-
-unsafeUnwrapAUnit :: AValue -> AUnit
-unsafeUnwrapAUnit (AUnit a) = a
-unsafeUnwrapAUnit a = panic $ "unsafeUnwrapAUnit: unexpected" <+> pretty a
-
-unsafeUnwrapABool :: AValue -> ABool
-unsafeUnwrapABool (ABool a) = a
-unsafeUnwrapABool a = panic $ "unsafeUnwrapABool: unexpected" <+> pretty a
-
-unsafeUnwrapAInt :: AValue -> AInt
-unsafeUnwrapAInt (AInt a) = a
-unsafeUnwrapAInt a = panic $ "unsafeUnwrapAInt: unexpected" <+> pretty a
-
-unsafeUnwrapAChar :: AValue -> AChar
-unsafeUnwrapAChar (AChar a) = a
-unsafeUnwrapAChar a = panic $ "unsafeUnwrapAChar: unexpected" <+> pretty a
-
-unsafeUnwrapAString :: AValue -> AString
-unsafeUnwrapAString (AString a) = a
-unsafeUnwrapAString a = panic $ "unsafeUnwrapAString: unexpected" <+> pretty a
+valueJoins :: Base -> [AValue] -> Pan AValue
+valueJoins b vs0 = do
+  logMessage "Join values"
+  let vs = List.sortBy (comparing Down) vs0
+  logData $ "⋁" <> pretty vs
+  v <- foldrM join' (botValue b) vs
+  logData $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
+  return v
+ where
+  join' x y = simplifyAValue $ fromMaybe err (partialJoin x y)
+  err = panic $ "valueJoins" <+> pretty b <+> pretty vs0
 
 -------------------------------------------------------------------------------
 
 qelim :: Con -> Pan Pred
 qelim c0 = do
-  c1 <- elimAll c0 § "Eliminate ∀"
-  c2 <- elimExists c1
-  logData c2
+  c1 <- elimAll c0      § "Eliminate ∀"
+  c2 <- elimExists c1  §§ "Eliminate ∃"
   return c2
  where
   elimAll :: Con -> Pred
@@ -259,20 +241,70 @@ qelim1 x b φ = do
   logMessage $ divider symDivH Nothing
   logMessage $ "qelim1" <+> pretty x <+> pretty b
   logMessage $ "φ ←" <+> pretty φ  
-  ξ <- mapM (abstractVar x b) [r | r <- φ, x `elem` freeVars r]
-  logMessage $ "ξ ←" <+> pretty ξ  
-  let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
-  let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
-  ψ <- filter (taut /=) <$> nubOrd <$> mapM normRelM (ψ₁ ++ ψ₂)
-  logMessage $ "ψ ←" <+> pretty ψ
-  if any (== cont) ψ then do
+  let rs = [r | r <- φ, x `elem` freeVars r]
+  ξ <- meetValueExprs b =<< mapM (simplifyExpr <=< abstractVar x b) rs  
+  logMessage $ "ξ ←" <+> pretty ξ
+  if any isBotValue ξ then do
     logMessage "↯"
     return PFalse
-  else
-    return $ meets $ map PRel ψ
+  else do
+    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
+    let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
+    ψ <- filter (taut /=) <$> nubOrd <$> mapM normRelM (ψ₁ ++ ψ₂)
+    logMessage $ "ψ ←" <+> pretty ψ
+    if any (== cont) ψ then do
+      logMessage "↯"
+      return PFalse
+    else
+      return $ meets $ map PRel ψ
+
+meetValueExprs :: Base -> [Expr] -> Pan [Expr]
+meetValueExprs b es0 = case List.partition isVal es0 of
+  ( [], es) -> return es
+  ([a], es) -> return (a:es)
+  ( as, es) -> do a <- valueMeets b (map unVal as)
+                  return (EAbs a : es)
+ where
+  isVal (ECon _) = True
+  isVal (EAbs _) = True
+  isVal _        = False
+  unVal (ECon c) = fromValue c
+  unVal (EAbs a) = a
+  unVal _        = impossible  
+
+isBotValue :: Expr -> Bool
+isBotValue (EAbs a) = hasBot a
+isBotValue _        = False
 
 normRelM :: Rel -> Pan Rel
 normRelM r = do
   let r' = normRel r
   unless (r' == r) $ logMessage $ pretty r <+> " ⇝ " <+> pretty r'
   return r'
+
+-------------------------------------------------------------------------------
+
+simplifyAValue :: AValue -> Pan AValue
+simplifyAValue = \case
+  AString s -> AString <$> simplifyRegex s
+  a         -> pure a
+
+simplifyExpr :: Expr -> Pan Expr
+simplifyExpr = \case
+  EStrA s -> EStrA <$> simplifyRegex s
+  e       -> pure e
+
+simplifyRegex :: AString -> Pan AString
+simplifyRegex s = do
+  logMessage "Simplify regular expression"
+  t <- gets regexTimeout
+  r <- liftIO $ timeout t $ return $! AString.simplify s
+  case r of
+    Nothing -> do
+      logMessage "Timeout trying to simplify regular expression"
+      logData s
+      return s    
+    Just s' -> do
+      unless (s == s') $ do
+        logData $ group $ pretty s <\> "  ⇝  " <\> pretty s'
+      return s'

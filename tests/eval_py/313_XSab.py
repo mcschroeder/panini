@@ -1,0 +1,4 @@
+def f313(s: str):
+  a,b = s[-2:]
+  assert a == "a"
+  assert b == "b"

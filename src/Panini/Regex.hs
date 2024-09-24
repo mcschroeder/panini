@@ -12,8 +12,11 @@ module Panini.Regex
   , intersection
   , complement
   , simplify
+  , equivalence
+  , membership
   ) where
 
+import Panini.Regex.Equivalence
 import Panini.Regex.Operations
 import Panini.Regex.Simplify
 import Panini.Regex.Type

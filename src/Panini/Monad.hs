@@ -9,13 +9,17 @@ module Panini.Monad
   , catchError
   , tryError
   , continueOnError
+  , liftE
+  , (?)
   , liftIO
   , tryIO
   , logError
   , logMessage
   , logData
   , logEvent
+  , logRegexInfo
   , (§)
+  , (§§)
   ) where
 
 import Control.Exception
@@ -34,6 +38,7 @@ import Panini.Modules
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
+import System.Time.Extra
 
 -------------------------------------------------------------------------------
 
@@ -60,6 +65,9 @@ data PanState = PanState {
   , eventHandler :: Event -> IO ()
 
   , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
+  , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
+  
+  , debugTraceFrontendGraph :: Bool
   }
 
 defaultState :: PanState
@@ -68,7 +76,9 @@ defaultState = PanState
   , kvarCount = 0
   , loadedModules = []
   , eventHandler = const (return ())
-  , smtTimeout = 10
+  , smtTimeout = 1
+  , regexTimeout = 5
+  , debugTraceFrontendGraph = False
   }
 
 -------------------------------------------------------------------------------
@@ -89,6 +99,12 @@ tryError m = catchError (Right <$> m) (return . Left)
 continueOnError :: Pan () -> Pan ()
 continueOnError m = catchError m logError
 
+liftE :: (e -> Error) -> Either e a -> Pan a
+liftE f = either (throwError . f) return
+
+(?) :: Either e a -> (e -> Error) -> Pan a
+(?) = flip liftE
+
 -- TODO: remove PV argument (enrich PV with other functions)
 -- | Try an IO action, transforming any 'IOException' that occurs into a Panini
 -- 'IOError' with the given provenance.
@@ -104,6 +120,10 @@ tryIO pv m = do
 (§) :: HasCallStack => Pretty a => a -> Doc -> Pan a
 x § msg = withFrozenCallStack $ logMessage msg >> logData x >> return x
 infix 0 §
+
+(§§) :: HasCallStack => Pretty a => Pan a -> Doc -> Pan a
+m §§ msg = withFrozenCallStack $ logMessage msg >> m >>= \x -> logData x >> return x
+infix 0 §§
 
 logEvent :: Event -> Pan ()
 logEvent d = do
@@ -125,3 +145,8 @@ getPaniniModuleName :: CallStack -> String
 getPaniniModuleName cs =
   let loc = srcLocModule $ snd $ head $ getCallStack cs
   in fromMaybe loc $ List.stripPrefix "Panini." loc
+
+logRegexInfo :: Pan ()
+logRegexInfo = do
+  t <- showDuration <$> gets regexTimeout
+  logEvent $ LogMessage "Regex" $ "Simplifier timeout:" <+> pretty t

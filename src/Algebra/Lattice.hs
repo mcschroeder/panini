@@ -151,5 +151,9 @@ partialMeets = foldl' (flip go) [] . toList
 class PartialJoinSemilattice a where
   (∨?) :: a -> a -> Maybe a
 
+-- | A synonym for '∨?'.
+partialJoin :: PartialJoinSemilattice a => a -> a -> Maybe a
+partialJoin = (∨?)
+
 -- | A partial lattice is both a partial meet- and a partial join-semilattice.
 type PartialLattice a = (PartialMeetSemilattice a, PartialJoinSemilattice a)

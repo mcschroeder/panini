@@ -9,6 +9,7 @@ module Panini.Provenance
 
 import Control.Monad
 import Data.ByteString qualified as BS
+import Data.Data (Data)
 import Data.Hashable
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
@@ -26,7 +27,7 @@ data SrcLoc = SrcLoc
   , begin :: (Int, Int)  -- ^ (line, column)
   , end   :: (Int, Int)  -- ^ (line, column)
   }
-  deriving stock (Eq, Ord, Show, Read, Generic)
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 instance Hashable SrcLoc
 
@@ -46,7 +47,7 @@ data PV
     -- ^ Derivation from original (e.g., type synthesis or variable renaming).
   | NoPV 
     -- ^ Most likely machine-generated data.
-  deriving stock (Eq, Show, Read, Generic)
+  deriving stock (Eq, Show, Read, Generic, Data)
 
 instance Hashable PV
 
@@ -69,6 +70,10 @@ updatePV f a = do
   let pv = getPV a
   pv' <- f pv
   return $ setPV pv' a
+
+instance HasProvenance PV where
+  getPV = id
+  setPV = const
 
 -------------------------------------------------------------------------------
 

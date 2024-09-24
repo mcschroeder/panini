@@ -3,6 +3,7 @@ module Panini.Error where
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Abstract.AValue
+import Panini.Frontend.Python.Error qualified as Python
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Constraints
@@ -21,9 +22,10 @@ data Error
   | SolverError Text PV
   | Unsolvable Name Con
   | IOError String PV
-  | AbstractionImpossible Name Rel Rel
+  | AbstractionImpossible Name Rel
+  | AbstractionToValueImpossible Name Rel Expr
   | ConcretizationImpossible Name Base AValue
-  deriving stock (Show, Read)
+  | PythonFrontendError Python.Error
 
 instance HasProvenance Error where
   getPV = \case
@@ -35,8 +37,10 @@ instance HasProvenance Error where
     SolverError _ pv               -> pv
     Unsolvable x _                 -> getPV x
     IOError _ pv                   -> pv
-    AbstractionImpossible x _r1 _  -> getPV x -- TODO: getPV r1
+    AbstractionImpossible x _r1    -> getPV x -- TODO: getPV r1
+    AbstractionToValueImpossible x _r1 _ -> getPV x -- TODO: getPV r1
     ConcretizationImpossible x _ _ -> getPV x -- TODO: getPV a
+    PythonFrontendError e          -> getPV e
   
   setPV pv = \case
     AlreadyDefined x               -> AlreadyDefined (setPV pv x)
@@ -47,8 +51,10 @@ instance HasProvenance Error where
     SolverError e _                -> SolverError e pv
     Unsolvable x vc                -> Unsolvable (setPV pv x) vc
     IOError e _                    -> IOError e pv
-    AbstractionImpossible x r1 r2  -> AbstractionImpossible (setPV pv x) r1 r2  -- TODO: setPV r1
+    AbstractionImpossible x r1     -> AbstractionImpossible (setPV pv x) r1     -- TODO: setPV r1
+    AbstractionToValueImpossible x r1 e  -> AbstractionToValueImpossible (setPV pv x) r1 e     -- TODO: setPV r1
     ConcretizationImpossible x b a -> ConcretizationImpossible (setPV pv x) b a -- TODO: setPV a
+    PythonFrontendError e          -> PythonFrontendError (setPV pv e)
 
 -------------------------------------------------------------------------------
 
@@ -73,11 +79,15 @@ prettyErrorMessage = \case
   SolverError e _      -> "unexpected SMT solver output:" <\> pretty e
   Unsolvable x _       -> "cannot solve constraints of" <\> pretty x    
   IOError e _          -> pretty $ Text.pack e  
-  AbstractionImpossible x _ r2 -> 
-    "abstraction impossible:" <\> "⟦" <> pretty r2 <> "⟧↑" <> pretty x
+  AbstractionImpossible x r -> 
+    "abstraction impossible:" <\> "⟦" <> pretty r <> "⟧↑" <> pretty x
+  AbstractionToValueImpossible x r e ->
+    "abstraction to value impossible:" <\> 
+    "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
   ConcretizationImpossible x b a ->
     "concretization impossible for" <+> pretty b <> ":" <\> 
     "⟦" <> pretty a <> "⟧↓" <> pretty x
+  PythonFrontendError e -> pretty e
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
 prettyLoc (FromSource l (Just s)) = (pretty l, Just (wavyDiagnostic l s))

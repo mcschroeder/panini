@@ -33,6 +33,7 @@ library
   build-depends:
       base ^>=4.18
     , ansi-terminal
+    , array
     , bytestring
     , containers
     , directory
@@ -42,11 +43,14 @@ library
     , githash
     , hashable
     , haskeline
+    , language-python
     , megaparsec == 9.2.*
     , optparse-applicative >= 0.18.1
     , parser-combinators
+    , pretty
     , prettyprinter
     , process
+    , template-haskell
     , text
     , transformers
     , uniplate
@@ -69,6 +73,26 @@ library
     Panini.Environment
     Panini.Error
     Panini.Events
+    Panini.Frontend.Common.Dom
+    Panini.Frontend.Common.SSA
+    Panini.Frontend.Inliner
+    Panini.Frontend.Python
+    Panini.Frontend.Python.AST
+    Panini.Frontend.Python.Axioms
+    Panini.Frontend.Python.CFG
+    Panini.Frontend.Python.DomTree
+    Panini.Frontend.Python.Error
+    Panini.Frontend.Python.Pretty
+    Panini.Frontend.Python.Provenance
+    Panini.Frontend.Python.Strings
+    Panini.Frontend.Python.Transpiler
+    Panini.Frontend.Python.Typing.Builtins
+    Panini.Frontend.Python.Typing.Infer
+    Panini.Frontend.Python.Typing.Monad
+    Panini.Frontend.Python.Typing.Pretty
+    Panini.Frontend.Python.Typing.PyType
+    Panini.Frontend.Python.Typing.TypeInfo
+    Panini.Frontend.Python.Typing.Unify
     Panini.Infer
     Panini.Modules
     Panini.Monad
@@ -84,6 +108,7 @@ library
     Panini.Provenance
     Panini.Regex
     Panini.Regex.CharSet
+    Panini.Regex.Equivalence
     Panini.Regex.Operations
     Panini.Regex.POSIX.BE
     Panini.Regex.POSIX.ERE
@@ -109,6 +134,7 @@ library
     Panini.Syntax.Names
     Panini.Syntax.Predicates
     Panini.Syntax.Primitives
+    Panini.Syntax.QQ
     Panini.Syntax.Substitution
     Panini.Version
 

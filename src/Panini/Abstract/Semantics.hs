@@ -95,10 +95,24 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrSub (EStr s _) (EIntA i  ) (EIntA j  )  -> normExpr $ EStrA $ strSub s i j
   EStrSub (EStr s _) (EIntA i  ) (EInt  j _)  -> normExpr $ EStrA $ strSub s i (AInt.eq j)
   EStrSub (EStr s _) (EInt  i _) (EIntA j  )  -> normExpr $ EStrA $ strSub s (AInt.eq i) j
+  EStrSub s1 (EInt 0 _) (EStrLen s2 :-: EInt 1 _) | s1 == s2 -> normExpr s1
   -----------------------------------------------------------
-  EStrComp (EStr s _)                         -> normExpr $ EStrA (neg $ AString.eq $ Text.unpack s)
-  EStrComp (EStrA s)                          -> normExpr $ EStrA $ neg s
-  EStrComp (EStrComp e)                       -> normExpr $ e
+  -- NOTE: We want to defer resolution of EStrComp as long as possible, 
+  -- in order to exploit opportunities for double-negation cancellation!   
+  -- EStrComp (EStr s _)                      -> normExpr $ EStrA (neg $ AString.eq $ Text.unpack s) 
+  -- EStrComp (EStrA s)                       -> normExpr $ EStrA $ neg s
+  EStrComp (EStrComp e)                       -> normExpr $ e  
+  -----------------------------------------------------------
+  EStrConc (EStr  a _) (EStr  b _)            -> normExpr $ EStr (a <> b) NoPV
+  EStrConc (EStrA a  ) (EStr  b _)            -> normExpr $ EStrA (a <> AString.eq (Text.unpack b))
+  EStrConc (EStr  a _) (EStrA b  )            -> normExpr $ EStrA (AString.eq (Text.unpack a) <> b)
+  EStrConc (EStrA a  ) (EStrA b  )            -> normExpr $ EStrA (a <> b)  
+  -----------------------------------------------------------
+  EStrStar (EStr  s _)                        -> normExpr $ EStrA $ star (AString.eq (Text.unpack s))
+  EStrStar (EStrA s  )                        -> normExpr $ EStrA $ star s
+  -----------------------------------------------------------
+  EStrContains (EStr s _) (EStr t _)          -> EBool (t `Text.isInfixOf` s) NoPV
+  EStrContains (EStr s _) (EStrA t )          -> EBool (AString.member (Text.unpack s) t) NoPV
   -----------------------------------------------------------
   e | e' <- descend normExpr e, e' /= e       -> normExpr e'
     | otherwise                               -> e
@@ -270,10 +284,35 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   EStrComp a :≠: EStrComp b                   -> normRel $ a :≠: b
   EStrComp a :=: b                            -> normRel $ a :≠: b
   EStrComp a :≠: b                            -> normRel $ a :=: b
-  a          :=: EStrComp b                   -> normRel $ a :≠: b
   a          :≠: EStrComp b                   -> normRel $ a :=: b
   -----------------------------------------------------------
   (EStrFirstIndexOfChar s1 c :-: EIntA î) :=: EStrLen s2 -> normRel $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
+  -----------------------------------------------------------
+  EStrIndexOf s c i :≠: EIntA n̂ -> normRel $ EStrIndexOf s c i :=: EIntA (neg n̂)
+  -----------------------------------------------------------
+  i1 :+: EIntA n̂ :=: EStrIndexOf s c i2 
+    | i1 == i2, let n̂' = n̂ ∧ AInt.ge 0, n̂' /= n̂ 
+    -> normRel $ i1 :+: EIntA n̂' :=: EStrIndexOf s c i2
+  i1 :-: EIntA n̂ :=: EStrIndexOf s c i2 
+    | i1 == i2, let n̂' = n̂ ∧ AInt.le 0, n̂' /= n̂ 
+    -> normRel $ i1 :-: EIntA n̂' :=: EStrIndexOf s c i2
+  -----------------------------------------------------------
+  EStrLen s1 :+: EIntA n̂ :=: EStrIndexOf s2 c i
+    | s1 == s2, let n̂' = n̂ ∧ AInt.lt 0, n̂' /= n̂ 
+    -> normRel $ EStrLen s1 :+: EIntA n̂' :=: EStrIndexOf s2 c i
+  -----------------------------------------------------------
+  k :=: EStrIndexOf s t i | k == i 
+    -> normRel $ EStrSub s i (i :+: (EStrLen t :-: EInt 1 NoPV)) :=: t
+  -----------------------------------------------------------
+  EStrLen s1 :-: EInt 1 _ :=: EStrIndexOf s2 (EStr t _) (EInt i _)
+    | s1 == s2, [c] <- Text.unpack t
+    , let ĉ = AChar.eq c, let c̄ = AChar.ne c    
+    -> normRel $ s1 :=: EStrA (rep anyChar i <> star (lit c̄) <> lit ĉ)
+  -----------------------------------------------------------
+  EStrSub s i1 i2 :=: EStr t pv
+    | i1 == i2, [c] <- t -> normRel $ EStrAt s i1 :=: EChar c pv
+  EStrSub s i1 i2 :=: EStrA t
+    | i1 == i2, Just c <- AString.toChar (t ∧ anyChar) -> normRel $ EStrAt s i1 :=: ECharA c
   -----------------------------------------------------------
   a :=: ESol x b r | Just r' <- tryEqARel a x b r -> normRel r'  
   a :≠: ESol x b r | Just r' <- tryNeARel a x b r -> normRel r'
@@ -299,14 +338,17 @@ pattern Range a b <- (AInt.intervals -> [AInt.In a b])
 -- | Try to resolve equality between an expression and an abstract relation.
 -- For example, @[1,∞] = {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] = Σ∖a@.
 tryEqARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
-tryEqARel a x _ = \case
-  _ | isSol a                       -> Nothing
+tryEqARel a x b = \case
+  r | ESol x1 b1 r1 <- a            -> tryEqARel2 (x1,b1,r1) (x,b,r)
   r | isConcrete a, x `notFreeIn` a -> Just $ subst a x r
   -----------------------------------------------------------
   EStrAt (EVar s) i :=: EChar  c pv -> Just $ EStrAt (EVar s) (subst a x i) :=: EChar  c pv
   EStrAt (EVar s) i :=: ECharA ĉ    -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA ĉ
   EStrAt (EVar s) i :≠: EChar  c _  -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA (AChar.ne c)
   EStrAt (EVar s) i :≠: ECharA ĉ    -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA (neg ĉ)
+  -----------------------------------------------------------
+  EVar x1 :≠: e | x == x1, x `notFreeIn` e -> Just $ a :≠: e
+  (EVar x1 :-: EInt k pv) :≠: e | x == x1, x `notFreeIn` e -> Just $ (a :-: EInt k pv) :≠: e
   -----------------------------------------------------------
   _                                 -> Nothing
 
@@ -315,17 +357,104 @@ tryEqARel a x _ = \case
 tryNeARel :: Expr -> Name -> Base -> Rel -> Maybe Rel
 tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
 
+pattern ECharA' :: AChar -> Expr
+pattern ECharA' c <- (exprToAChar -> Just c)
+
+exprToAChar :: Expr -> Maybe AChar
+exprToAChar (EChar  c _) = Just $ AChar.eq c
+exprToAChar (ECharA c  ) = Just c
+exprToAChar _            = Nothing
+
+pattern EqChar :: Expr -> AChar -> Rel
+pattern EqChar e c <- (relToEqChar -> Just (e,c))
+
+relToEqChar :: Rel -> Maybe (Expr, AChar)
+relToEqChar = \case
+   e :=: EChar  c _ -> Just (e, AChar.eq c)
+   e :=: ECharA c   -> Just (e, c)
+   e :≠: EChar  c _ -> Just (e, AChar.ne c)
+   e :≠: ECharA c   -> Just (e, neg c)
+   _ -> Nothing
+
+pattern VarPlusN :: Name -> Integer -> Expr
+pattern VarPlusN x n <- (exprToVarPlusN -> Just (x,n))
+
+exprToVarPlusN :: Expr -> Maybe (Name, Integer)
+exprToVarPlusN = \case
+  EVar x -> Just (x, 0)
+  EVar x :+: EInt n _ -> Just (x, n)
+  _ -> Nothing
+
+-- | Try to resolve equality between two abstract relations.
+tryEqARel2 :: (Name,Base,Rel) -> (Name,Base,Rel) -> Maybe Rel
+tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
+
+  (EStrAt (EVar s1) (VarPlusN i1 n1) `EqChar` c1, 
+   EStrAt (EVar s2) (VarPlusN i2 n2) `EqChar` c2)
+   | b1 == b2, x1 == i1, x2 == i2, s1 == s2 
+   , let n = n2 - n1
+   , let t | n > 0 = star anyChar <> lit c1 <> rep anyChar (n-1) <> lit c2 <> star anyChar
+           | n < 0 = star anyChar <> lit c2 <> rep anyChar (n-1) <> lit c1 <> star anyChar
+           | otherwise = star anyChar <> lit (c1 ∧ c2) <> star anyChar
+    -> Just $ EVar s1 :=: EStrA t
+
+  -- TODO: generalize these hackily hardcoded rules
+  (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 1) == AInt.ge 1, (b ∧ AInt.ge 1) == AInt.ge 2
+   , let t1 = lit cb <> star anyChar <> lit ca
+   , let t2 = lit ca <> star anyChar <> lit cb <> anyChar
+   , let t3 = lit (ca ∧ cb) <> anyChar
+   , let t = star anyChar <> (t1 ∨ t2 ∨ t3) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+  
+  -- TODO: see above
+  (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 1) == AInt.ge 1, (b ∧ AInt.ge 1) == AInt.ge 1
+   , let t1 = lit cb <> star anyChar <> lit ca
+   , let t2 = lit ca <> star anyChar <> lit cb
+   , let t3 = lit (ca ∧ cb)
+   , let t = star anyChar <> (t1 ∨ t2 ∨ t3) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+  -- TODO: see above
+  (EStrAt (EVar s1) (EVar y1 :-: EIntA b) :=: ECharA cb,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA a) :=: ECharA ca)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 1) == AInt.ge 1, (b ∧ AInt.ge 1) == AInt.eq 1
+   , let t2 = lit ca <> star anyChar <> lit cb
+   , let t3 = lit (ca ∧ cb)
+   , let t = star anyChar <> (t2 ∨ t3) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+  -- TODO: see above
+  (EStrAt (EVar s1) (EVar y1 :+: EIntA a) :=: ECharA ca,
+   EStrAt (EVar s2) (EVar y2 :-: EIntA b) :=: ECharA cb)
+   | b1 == b2, x1 == y1, x2 == y2
+   , s1 == s2, (a ∧ AInt.ge 0) == AInt.ge 0, (b ∧ AInt.ge 0) == AInt.ge 0   
+   , let t1 = lit (ca ∧ cb)
+   , let t2 = lit ca <> star anyChar <> lit cb
+   , let t = star anyChar <> (t1 ∨ t2) <> star anyChar
+   -> Just $ EVar s1 :=: EStrA t
+
+  _ -> Nothing
+
 -------------------------------------------------------------------------------
 
-abstractVar' :: Name -> Base -> Rel -> Pan AValue
-abstractVar' x b r0 = do
+abstractVarToValue :: Name -> Base -> Rel -> Pan AValue
+abstractVarToValue x b r0 = do
   let r = normRel r0
   let e = abstract x b r
-  logMessage $ "⟦" <> pretty r0 <> "⟧↑↑" <> pretty x <+> "≐" <+> pretty e
+  unless (isNothing e) $
+    logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
   case e of
-    Just (ECon c) -> return (fromValue c)
+    Just (ECon c) -> return $ fromValue c
     Just (EAbs a) -> return a
-    _             -> throwError $ AbstractionImpossible x r0 r
+    Just e'       -> throwError $ AbstractionToValueImpossible x r e'
+    Nothing       -> throwError $ AbstractionImpossible x r
 
 abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r0 = do
@@ -349,8 +478,10 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
   -----------------------------------------------------------
   -- TODO: this kind of reordering should happen during normRel, no?
-  (EStrLen s2 :+: EIntA î) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) î)) :=: EStrLen s2
-  (EStrLen s2 :-: EIntA î) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA î) :=: EStrLen s2
+  (EStrLen s2 :+: EInt  i _) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0) (AInt.eq i))) :=: EStrLen s2
+  (EStrLen s2 :+: EIntA î  ) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (AInt.sub (AInt.eq 0)          î )) :=: EStrLen s2
+  (EStrLen s2 :-: EInt  i _) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA (                      AInt.eq i )) :=: EStrLen s2
+  (EStrLen s2 :-: EIntA î  ) :=: EStrFirstIndexOfChar s1 c -> abstract x b $ (EStrFirstIndexOfChar s1 c :+: EIntA                                î  ) :=: EStrLen s2
   -----------------------------------------------------------
   (EStrFirstIndexOfChar (EVar s1) (EChar  c _) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev (AChar.eq c) (AInt.eq i)
   (EStrFirstIndexOfChar (EVar s1) (ECharA ĉ  ) :+: EInt  i _) :=: EStrLen (EVar s2) | x == s1, x == s2 -> Just $ EStrA $ strWithFirstIndexOfCharRev ĉ (AInt.eq i)
@@ -373,18 +504,20 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   e1 :≥: e2 | x `freeIn` e1, x `freeIn` e2    -> Nothing
   -- NOTE: below here, x occurs only on the LHS (possibly more than once)
   -----------------------------------------------------------
+  EVar _ :=: EStrComp (EStr  s _)             -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
+  EVar _ :=: EStrComp (EStrA s )              -> Just $ EStrA (neg s)
   EVar _ :=: e                                -> Just e
   -----------------------------------------------------------
   EVar _ :≠: EBool c pv                       -> Just $ EBool (not c) pv
   EVar _ :≠: e | b == TBool                   -> Just $ normExpr $ ENot e
   -----------------------------------------------------------
   EVar _ :≠: EInt c _                         -> Just $ EIntA (AInt.ne c)
+  EVar _ :≠: EIntA c                          -> Just $ EIntA (neg c)
   EVar _ :<: EInt c _                         -> Just $ EIntA (AInt.lt c)
   EVar _ :≤: EInt c _                         -> Just $ EIntA (AInt.le c)
   EVar _ :>: EInt c _                         -> Just $ EIntA (AInt.gt c)
   EVar _ :≥: EInt c _                         -> Just $ EIntA (AInt.ge c)
   -----------------------------------------------------------
-  EVar _ :≠: e | b == TInt                    -> Just $ normExpr $ e :+: EIntA (AInt.ne 0)
   EVar _ :<: e                                -> Just $ normExpr $ e :-: EIntA (AInt.ge 1)
   EVar _ :≤: e                                -> Just $ normExpr $ e :-: EIntA (AInt.ge 0)
   EVar _ :>: e                                -> Just $ normExpr $ e :+: EIntA (AInt.ge 1)
@@ -394,9 +527,10 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EVar _ :≠: ECharA c                         -> Just $ ECharA (neg c)
   -----------------------------------------------------------
   EVar _ :≠: EStr s _                         -> Just $ EStrA (neg $ AString.eq $ Text.unpack s)
-  EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)
+  EVar _ :≠: EStrA s                          -> Just $ EStrA (neg s)  
   EVar _ :≠: e | b == TString                 -> Just $ EStrComp e
   -----------------------------------------------------------
+  e :∈: EStrA s                               -> abstract x b $ e :=: EStrA s
   e :∈: EReg ere                              -> abstract x b $ e :=: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   e :∉: EReg ere                              -> abstract x b $ e :≠: (EStrA $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   -----------------------------------------------------------
@@ -431,6 +565,7 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA î  ) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev î ĉ
   EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :=: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev TOP (AChar.eq c)
   EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA TOP) :=: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithCharAtRev TOP ĉ
+  EStrAt (EVar s1) (EStrLen (EVar s2) :+: EIntA î  ) :=: c          | x == s1, x == s2 -> abstract x b $ EStrAt (EVar s1) (EStrLen (EVar s2) :-: EIntA (AInt.sub (AInt.eq 0) î)) :=: c
   -----------------------------------------------------------
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :≠: EChar  c _ | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev (AInt.eq i) (AChar.eq c)
   EStrAt (EVar s1) (EStrLen (EVar s2) :-: EInt  i _) :≠: ECharA ĉ   | x == s1, x == s2 -> Just $ EStrA $ strWithoutCharAtRev (AInt.eq i) ĉ
@@ -470,6 +605,28 @@ abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ 
   -----------------------------------------------------------
   EStrSub (EVar s1) (EStrFirstIndexOfChar (EVar s2) (EChar c _) :+: EInt i _) (EStrLen (EVar s3) :-: EInt j _) :=: EStr  t _ | x == s1, x == s2, x == s3 -> Just $ EStrA $ strWithSubstrFromFirstIndexOfCharToEnd (AChar.eq c) i j (AString.eq $ Text.unpack t)
   EStrSub (EVar s1) (EStrFirstIndexOfChar (EVar s2) (EChar c _) :+: EInt i _) (EStrLen (EVar s3) :-: EInt j _) :=: EStrA t̂   | x == s1, x == s2, x == s3 -> Just $ EStrA $ strWithSubstrFromFirstIndexOfCharToEnd (AChar.eq c) i j t̂
+  -----------------------------------------------------------
+  EStrIndexOf (EVar _) (EStr  (   Text.unpack ->      [c]) _) (EInt 0 _) :=: EInt  i _ -> Just $ EStrA $ strWithFirstIndexOfChar (AChar.eq c) (AInt.eq i)
+  EStrIndexOf (EVar _) (EStrA (AString.toChar -> Just  ĉ )  ) (EInt 0 _) :=: EInt  i _ -> Just $ EStrA $ strWithFirstIndexOfChar ĉ (AInt.eq i)
+  EStrIndexOf (EVar _) (EStr  (   Text.unpack ->      [c]) _) (EInt 0 _) :=: EIntA î   -> Just $ EStrA $ strWithFirstIndexOfChar (AChar.eq c) î
+  EStrIndexOf (EVar _) (EStrA (AString.toChar -> Just  ĉ )  ) (EInt 0 _) :=: EIntA î   -> Just $ EStrA $ strWithFirstIndexOfChar ĉ î
+  -----------------------------------------------------------
+  EStrIndexOf (EVar s1) (EStr (Text.unpack -> [c1]) _) (EStrIndexOf (EVar s2) (EStr (Text.unpack -> [c2]) _) (EInt 0 _) :+: EInt 1 _) :=: EIntA k̂
+    | x == s1, s1 == s2 -> Just $ EStrA $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar (AChar.eq c2) (AChar.eq c1) k̂
+  -----------------------------------------------------------
+  EStrAt (EVar s1) (EStrIndexOf (EVar s2) (EStr t1 _) (EInt i _) :+: EInt n _) :=: EChar c2 _
+    | x == s1, x == s2
+    , [c1] <- Text.unpack t1
+    , let ĉ1 = AChar.eq c1, let c̄1 = AChar.ne c1
+    , let ĉ2 = AChar.eq c2
+    -> Just $ EStrA $ rep anyChar i <> star (lit c̄1) <> lit ĉ1 <> rep anyChar (n - 1) <> lit ĉ2 <> star anyChar
+  -----------------------------------------------------------
+  EStrContains (EVar _) (EStr s _) :=: EBool doesContain _
+    | doesContain -> Just $ EStrA $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
+    | otherwise   -> Just $ EStrComp $ EStrA $ star anyChar <> AString.eq (Text.unpack s) <> star anyChar
+  EStrContains (EVar _) (EStrA s ) :=: EBool doesContain _
+    | doesContain -> Just $ EStrA $ star anyChar <> s <> star anyChar
+    | otherwise   -> Just $ EStrComp $ EStrA $ star anyChar <> s <> star anyChar
   -----------------------------------------------------------
   _                                           -> Nothing
 
@@ -583,7 +740,7 @@ strWithFirstIndexOfCharFollowedByFirstIndexOfChar ĉ1 ĉ2 (meet (AInt.ge 1) ->
   | not (isBot (ĉ1 ∧ ĉ2)) = undefined -- TODO
   | otherwise = joins $ AInt.intervals î >>= \case
       AInt.In (Fin a) (Fin b) -> [star c̄12 <> lit ĉ1 <> rep2 c̄2 a b <> lit ĉ2 <> star anyChar]
-      AInt.In (Fin a) PosInf  -> [star c̄12 <> lit ĉ1 <> rep c̄2 a <> star c̄2 <> lit ĉ2 <> star anyChar]
+      AInt.In (Fin a) PosInf  -> [star c̄12 <> lit ĉ1 <> rep c̄2 (a - 1) <> star c̄2 <> lit ĉ2 <> star anyChar]
       _                       -> impossible
  where
   c̄12 = lit (neg ĉ1 ∧ neg ĉ2)

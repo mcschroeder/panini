@@ -2,6 +2,7 @@
 module Panini.Syntax.Names where
 
 import Data.Char (isDigit)
+import Data.Data (Data)
 import Data.Hashable
 import Data.String
 import Data.Text (Text)
@@ -15,7 +16,7 @@ import Prelude
 
 -- | A name for something, e.g. a variable or a binder.
 data Name = Name !Text !PV
-  deriving stock (Show, Read)
+  deriving stock (Show, Read, Data)
 
 instance HasProvenance Name where
   getPV (Name _ pv) = pv

@@ -33,7 +33,7 @@ type Context = Map Name Type
 check :: Context -> Term -> Type -> Pan (Type, Con)
 check g e t̃ = do
   (t,c) <- infer g e
-  t̂ <- fresh mempty t̃
+  t̂ <- fresh g t̃
   ĉ <- sub t t̂
   return (t̂, c ∧ ĉ)
 
@@ -74,6 +74,11 @@ infer g = \case
         return $ (t, c) `withPV` pv
   
   -- inf/lam ----------------------------------------------
+  Lam x t̃₁ e pv | x `elem` Map.keys g -> do
+    let x' = freshName x (Map.keys g)
+    let e' = subst (Var x') x e
+    infer g $ Lam x' t̃₁ e' pv
+
   Lam x t̃₁ e pv -> do
     t̂₁ <- fresh g (shape t̃₁)
     (t₂, c₂) <- infer (Map.insert x t̂₁ g) e
@@ -82,6 +87,11 @@ infer g = \case
     return (t, c)
   
   -- inf/let ----------------------------------------------
+  Let x e₁ e₂ pv | x `elem` Map.keys g -> do
+    let x' = freshName x (Map.keys g)
+    let e₂' = subst (Var x') x e₂
+    infer g $ Let x' e₁ e₂' pv
+
   Let x e₁ e₂ pv -> do
     (t₁, c₁) <- infer g e₁
     (t₂, c₂) <- infer (Map.insert x t₁ g) e₂
@@ -91,8 +101,14 @@ infer g = \case
     return $ (t̂₂, c) `withPV` pv
 
   -- inf/rec ----------------------------------------------
+  Rec x t̃₁ e₁ e₂ pv | x `elem` Map.keys g -> do
+    let x' = freshName x (Map.keys g)
+    let e₁' = subst (Var x') x e₁
+    let e₂' = subst (Var x') x e₂
+    infer g $ Rec x' t̃₁ e₁' e₂' pv
+
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁      <- fresh mempty t̃₁
+    t̂₁      <- fresh g t̃₁
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
     ĉ₁      <- sub t₁ t̂₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
