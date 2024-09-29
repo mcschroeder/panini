@@ -179,7 +179,7 @@ test,test_result,test_time_sec,result,parser_type
 420_a_b_c,OK,0.01,exact,straight
 421_a_b_c,OK,0.02,exact,cond
 422_a_b_c,OK,0.02,exact,cond
-430_a_^b_c,FAIL,0.01,over,straight
+430_a_^b_c,OK,0.05,exact,straight
 431_a_^b_c,OK,0.01,exact,cond
 432_a_^b_c,FAIL,0.01,stuck,cond
 440_ab_c,OK,0.01,exact,straight
