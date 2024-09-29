@@ -208,5 +208,6 @@ test,test_result,test_time_sec,result,parser_type
 530_(ab_^a)S,OK,1.04,exact_inv,loop
 540_(abb_^a)S,OK,1.05,exact_inv,loop
 970_getAddrSpec,OK,1.01,exact,straight
+971_getAddrSpec,OK,1.02,exact,straight
 980_paper_example,OK,0.01,exact,cond
 990_lsb_check,OK,1.14,exact,loop
