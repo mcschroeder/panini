@@ -77,7 +77,7 @@ test,test_result,test_time_sec,result,parser_type
 131_XSa,FAIL,0.01,empty,straight
 132_XSa,FAIL,0.01,empty,straight
 133_XSa,OK,0.13,exact,loop
-140_XSaXS,FAIL,0.00,over,straight
+140_XSaXS,OK,1.01,exact,straight
 141_XSaXS,FAIL,0.00,frontend,straight
 142_XSaXS,FAIL,0.12,empty,loop
 143_XSaXS,FAIL,0.22,empty,loop
