@@ -69,7 +69,7 @@ test,test_result,test_time_sec,result,parser_type
 120_aXS,OK,0.01,exact,straight
 121_aXS,OK,0.01,exact,straight
 122_aXS,OK,0.01,exact,cond
-123_aXS,FAIL,0.00,frontend,loop
+123_aXS,OK,0.26,exact,loop
 124_aXS,OK,0.19,exact,loop
 125_aXS,OK,0.01,exact,cond
 126_aXS,FAIL,0.21,stuck,loop
