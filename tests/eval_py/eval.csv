@@ -168,7 +168,7 @@ test,test_result,test_time_sec,result,parser_type
 371_a_b,OK,0.01,exact,cond
 372_a_b,OK,0.01,exact,cond
 380_aS_b,OK,1.37,exact,loop
-381_aS_b,FAIL,1.15,over,loop
+381_aS_b,OK,1.15,exact,loop
 390_(a_b)Q,OK,0.01,exact,straight
 391_(a_b)Q,OK,0.02,exact,cond
 392_(a_b)Q,FAIL,0.02,stuck,straight

@@ -5,5 +5,4 @@ def f381(s: str):
       break
     i += 1
   if i < len(s):
-    assert i == 0
-    assert s[i] == "b"
+    assert s == "b"
