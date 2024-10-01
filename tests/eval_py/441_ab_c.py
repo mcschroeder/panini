@@ -1,6 +1,6 @@
 def f441(s: str):
   if s[0] == "a":
-    assert s[1] == "c"
+    assert s[1] == "b"
     assert len(s) <= 2
   else:
     assert s[0] == "c"

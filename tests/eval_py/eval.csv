@@ -183,7 +183,7 @@ test,test_result,test_time_sec,result,parser_type
 431_a_^b_c,OK,0.01,exact,cond
 432_a_^b_c,FAIL,0.01,stuck,cond
 440_ab_c,OK,0.01,exact,straight
-441_ab_c,FAIL,0.02,wrong,cond
+441_ab_c,OK,0.02,exact,cond
 442_ab_c,OK,0.02,exact,cond
 450_(a(^ab)b)S,FAIL,0.23,under,loop
 451_(a(^ab)b)S,FAIL,0.29,stuck,loop
