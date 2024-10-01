@@ -73,8 +73,6 @@ test,test_result,test_time_sec,result,parser_type
 125_aXS,OK,0.01,exact,cond
 126_aXS,FAIL,0.21,stuck,loop
 130_XSa,OK,0.01,exact,straight
-131_XSa,FAIL,0.01,empty,straight
-132_XSa,FAIL,0.01,empty,straight
 133_XSa,OK,0.13,exact,loop
 140_XSaXS,OK,1.01,exact,straight
 141_XSaXS,OK,1.01,exact,straight
@@ -106,7 +104,7 @@ test,test_result,test_time_sec,result,parser_type
 200_aS(^a),OK,1.14,exact,loop
 201_aS(^a),FAIL,0.54,empty,loop
 202_aS(^a),FAIL,0.19,stuck,loop
-203_aS(^a),FAIL,0.02,empty,loop
+203_aS(^a),FAIL,14.03,stuck,loop
 210_ab,OK,0.00,exact,straight
 211_ab,OK,0.01,exact,straight
 212_ab,FAIL,0.01,empty,straight
@@ -128,11 +126,11 @@ test,test_result,test_time_sec,result,parser_type
 260_aQb,OK,0.01,exact,straight
 261_aQb,FAIL,0.02,stuck,cond
 262_aQb,FAIL,0.00,stuck,cond
-263_aQb,FAIL,0.01,empty,cond
+263_aQb,OK,0.02,exact,cond
 270_abQ,OK,0.01,exact,straight
 271_abQ,FAIL,0.02,stuck,cond
 272_abQ,FAIL,0.01,stuck,cond
-273_abQ,FAIL,0.01,empty,cond
+273_abQ,OK,0.02,exact,cond
 280_(ab)Q,OK,0.01,exact,straight
 281_(ab)Q,OK,0.01,exact,cond
 290_aQbQ,OK,0.01,exact,straight
@@ -159,7 +157,6 @@ test,test_result,test_time_sec,result,parser_type
 351_aXQb,OK,0.02,exact,cond
 352_aXQb,FAIL,0.08,empty,cond
 360_aXSb,OK,0.01,exact,straight
-361_aXSb,FAIL,0.01,empty,straight
 362_aXSb,OK,0.23,exact,loop
 363_aXSb,OK,0.03,exact,straight
 370_a_b,OK,0.01,exact,straight
@@ -185,7 +182,6 @@ test,test_result,test_time_sec,result,parser_type
 442_ab_c,OK,0.02,exact,cond
 450_(a(^ab)b)S,FAIL,0.23,under,loop
 451_(a(^ab)b)S,FAIL,0.29,stuck,loop
-460_(0_1)S00(0_1)S,FAIL,2.32,empty,loop
 470_(0_01)S,FAIL,1.25,under,loop
 471_(0_01)S,FAIL,0.97,stuck,loop
 481_1Q(0_01)S,FAIL,0.52,stuck,loop

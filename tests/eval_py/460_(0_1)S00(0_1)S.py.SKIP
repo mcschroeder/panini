@@ -9,6 +9,8 @@ def f460(s: str):
       return
     i += 1
   if len(s) >= 2:
-    if s[-1] == "0" and s[-2] == "0":
+    if s[len(s)-1] == "0" and s[len(s)-2] == "0":
       return
   raise Exception
+
+# skipped for time

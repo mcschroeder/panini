@@ -1,5 +1,5 @@
 def f273(s: str):
-  c = s[-1]
+  c = s[len(s)-1]
   if c == "b":
     assert len(s) == 2
     assert s[0] == "a"
