@@ -38,7 +38,6 @@ test,test_result,test_time_sec,result,parser_type
 071_XXXS,OK,0.01,exact,straight
 072_XXXS,OK,0.01,exact,straight
 073_XXXS,OK,0.01,exact,straight
-074_XXXS,FAIL,0.38,empty,loop
 075_XXXS,OK,0.01,exact,straight
 076_XXXS,OK,0.03,exact,straight
 080_a,OK,0.01,exact,straight

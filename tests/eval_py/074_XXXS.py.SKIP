@@ -6,7 +6,7 @@ def f074(s: str):
     i += 1
   assert len(t) == 2
 
-# this example is out of scope:
+# skipped, because this example is out of scope:
 # we are trying to constrain the input string s by asserting an
 # additional semantic restriction on the output of the parsing of s
 # (which happens to be another string t, but that's irrelevant)
