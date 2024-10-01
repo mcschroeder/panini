@@ -141,8 +141,6 @@ test,test_result,test_time_sec,result,parser_type
 302_abXS,OK,0.01,exact,straight
 303_abXS,OK,0.01,exact,straight
 311_XSab,FAIL,0.00,stuck,straight
-312_XSab,FAIL,0.01,empty,straight
-313_XSab,FAIL,0.01,empty,straight
 320_aXb,OK,0.01,exact,straight
 321_aXb,OK,0.02,exact,cond
 322_aXb,OK,0.02,exact,straight
