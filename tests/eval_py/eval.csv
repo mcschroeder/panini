@@ -124,7 +124,7 @@ test,test_result,test_time_sec,result,parser_type
 241_aSbS,FAIL,39.62,stuck,loop
 250_(ab)S,FAIL,0.24,under,loop
 251_(ab)S,FAIL,0.25,stuck,loop
-252_(ab)S,FAIL,1.20,wrong,loop
+252_(ab)S,FAIL,1.20,under,loop
 260_aQb,OK,0.01,exact,straight
 261_aQb,FAIL,0.02,stuck,cond
 262_aQb,FAIL,0.00,stuck,cond
@@ -186,7 +186,7 @@ test,test_result,test_time_sec,result,parser_type
 450_(a(^ab)b)S,FAIL,0.23,under,loop
 451_(a(^ab)b)S,FAIL,0.29,stuck,loop
 460_(0_1)S00(0_1)S,FAIL,2.32,empty,loop
-470_(0_01)S,FAIL,1.25,wrong,loop
+470_(0_01)S,FAIL,1.25,under,loop
 471_(0_01)S,FAIL,0.97,stuck,loop
 481_1Q(0_01)S,FAIL,0.52,stuck,loop
 490_(0_1)S011,FAIL,0.18,stuck,loop
