@@ -101,7 +101,7 @@ test,test_result,test_time_sec,result,parser_type
 192_(^a)Sa,OK,1.14,exact,loop
 194_(^a)Sa,OK,1.47,exact,loop
 200_aS(^a),OK,1.14,exact,loop
-201_aS(^a),FAIL,0.54,empty,loop
+201_aS(^a),OK,1.58,exact,loop
 202_aS(^a),FAIL,0.19,stuck,loop
 203_aS(^a),FAIL,14.03,stuck,loop
 210_ab,OK,0.00,exact,straight
