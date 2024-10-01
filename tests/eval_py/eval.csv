@@ -56,7 +56,7 @@ test,test_result,test_time_sec,result,parser_type
 095_aQ,OK,0.13,exact,loop
 100_aa,OK,0.01,exact,straight
 101_aa,OK,0.01,exact,straight
-102_aa,OK,0.01,exact_inv,loop
+102_aa,FAIL,0.28,empty,loop
 103_aa,FAIL,0.55,empty,loop
 104_aa,OK,0.26,exact,loop
 108_aa,OK,0.01,exact,straight
