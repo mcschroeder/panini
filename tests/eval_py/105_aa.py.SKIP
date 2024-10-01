@@ -6,3 +6,5 @@ def f105(s: str):
     i -= 1
     j += 1
   assert j == 2
+
+# skipped because invariant b/w i and j too complex to infer at the moment

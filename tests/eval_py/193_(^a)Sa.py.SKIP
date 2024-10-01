@@ -6,3 +6,5 @@ def f193(s: str):
     i += 1
   assert i == len(s)-1
   assert s[len(s)-1] == "a"
+
+# skipped; this trigger a solver bug; investigate!
