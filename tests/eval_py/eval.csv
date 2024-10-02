@@ -107,7 +107,7 @@ test,test_result,test_time_sec,result,parser_type
 211_ab,OK,0.01,exact,straight
 212_ab,OK,0.02,exact,straight
 213_ab,OK,0.01,exact,cond
-214_ab,FAIL,0.00,stuck,straight
+214_ab,OK,0.01,exact,straight
 220_aSb,OK,1.15,exact,loop
 221_aSb,FAIL,0.13,empty,loop
 222_aSb,FAIL,21.80,stuck,loop
