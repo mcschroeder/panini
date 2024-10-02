@@ -91,6 +91,8 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrAt (EStr s _) (EInt  i _)               -> normExpr $ ECharA $ charAt s (AInt.eq i)
   EStrAt (EStr s _) (EIntA i)                 -> normExpr $ ECharA $ charAt s i
   -----------------------------------------------------------
+  EStrAt (EVar s1) (EStrLen (EVar s2)) | s1 == s2 -> ECharA bot
+  -----------------------------------------------------------
   EStrSub (EStr s _) (EInt  i _) (EInt  j _)  -> normExpr $ EStrA $ strSub s (AInt.eq i) (AInt.eq j)
   EStrSub (EStr s _) (EIntA i  ) (EIntA j  )  -> normExpr $ EStrA $ strSub s i j
   EStrSub (EStr s _) (EIntA i  ) (EInt  j _)  -> normExpr $ EStrA $ strSub s i (AInt.eq j)
