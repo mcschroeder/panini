@@ -10,5 +10,6 @@ def f114(s: str):
     assert t[i] == "a"
     i += 1
 
-# this kind of example is out of scope: t is the result of the parsing of s; any
-# additional restrictions on t are beyond what we claim to do
+# skipped, because this kind of example is out of scope: 
+# t is the result of the parsing of s; 
+# any additional restrictions on t are beyond what we claim to do

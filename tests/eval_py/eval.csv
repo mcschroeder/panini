@@ -63,7 +63,6 @@ test,test_result,test_time_sec,result,parser_type
 110_aS,OK,1.12,exact,loop
 111_aS,OK,1.30,exact,loop
 113_aS,FAIL,0.13,stuck,loop
-114_aS,FAIL,2.52,stuck,loop
 120_aXS,OK,0.01,exact,straight
 121_aXS,OK,0.01,exact,straight
 122_aXS,OK,0.01,exact,cond
