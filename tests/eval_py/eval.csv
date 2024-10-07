@@ -120,7 +120,6 @@ test,test_result,test_time_msec,result,parser_type
 241_aSbS,FAIL,39502,stuck,loop
 250_(ab)S,FAIL,149,under,loop
 251_(ab)S,FAIL,142,stuck,loop
-252_(ab)S,FAIL,959,wrong,loop
 260_aQb,OK,7,exact,straight
 261_aQb,FAIL,16,stuck,cond
 262_aQb,FAIL,4,stuck,cond
@@ -178,7 +177,7 @@ test,test_result,test_time_msec,result,parser_type
 442_ab_c,OK,16,exact,cond
 450_(a(^ab)b)S,FAIL,214,under,loop
 451_(a(^ab)b)S,FAIL,266,stuck,loop
-470_(0_01)S,FAIL,1229,wrong,loop
+470_(0_01)S,FAIL,223,under,loop
 471_(0_01)S,FAIL,834,stuck,loop
 481_1Q(0_01)S,FAIL,485,stuck,loop
 490_(0_1)S011,FAIL,167,stuck,loop
