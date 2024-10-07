@@ -162,7 +162,7 @@ test,test_result,test_time_msec,result,parser_type
 381_aS_b,OK,1129,exact,loop
 390_(a_b)Q,OK,10,exact,straight
 391_(a_b)Q,OK,13,exact,cond
-392_(a_b)Q,FAIL,12,under,straight
+392_(a_b)Q,OK,331,exact,straight
 400_aS_bS,FAIL,1100,stuck,loop
 401_aS_bS,FAIL,1411,under,loop
 410_(a_b)S,OK,1134,exact,loop
