@@ -26,6 +26,7 @@ data PanOptions = PanOptions
   , pythonInput :: Bool
   , debugTraceFrontendGraph :: Bool
   , savePanFile :: Bool
+  , milliseconds :: Bool
   }
   deriving stock (Show, Read)
 
@@ -117,4 +118,8 @@ opts = info
       <*> (switch $
             long "save-pan" <>
             help "Save the transpiled source as a .pan file"
+          )
+      <*> (switch $
+            long "milliseconds" <>
+            help "Show timings in milliseconds"
           )

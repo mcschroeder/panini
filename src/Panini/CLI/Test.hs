@@ -55,7 +55,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
   runTest :: PanOptions -> FilePath -> IO Bool
   runTest panOpts inFile = do
     putDoc $ testName inFile
-    execPan panOpts inFile >>= compareResult inFile
+    execPan panOpts inFile >>= compareResult panOpts inFile
 
   -- TODO: read local options from inFile header comment
   execPan :: PanOptions -> FilePath -> IO (Seconds, Text)
@@ -98,9 +98,12 @@ testMain globalOpts = assert globalOpts.testMode $ do
     let actual = renderDoc (fileRenderOptions globalOpts) output
     return (time, actual)
   
-  compareResult :: FilePath -> (Seconds, Text) -> IO Bool
-  compareResult inFile (time, actual) = do
-    let prettyTime = ann Margin $ parens $ pretty $ showDuration time
+  compareResult :: PanOptions -> FilePath -> (Seconds, Text) -> IO Bool
+  compareResult panOpts inFile (time, actual) = do
+    let durationStr
+          | panOpts.milliseconds = show @Int $ round $ time * 1000
+          | otherwise = showDuration time
+    let prettyTime = ann Margin $ parens $ pretty durationStr
     let goldenFile = outFileFor inFile
     goldenFileExists <- doesFileExist goldenFile
     if goldenFileExists then do
