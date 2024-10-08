@@ -4,7 +4,7 @@ Static Grammar Inference for Ad Hoc Parsers
 
 ## Installation / Development
 
-* Panini is written in Haskell. You need __GHC 9.6.4__ and __cabal 3.10.1.0__ to
+* Panini is written in Haskell. You need __GHC 9.6.6__ and __cabal 3.12.1.0__ to
   compile it. The recommended way to set up a Haskell environment is with
   [GHCup](https://www.haskell.org/ghcup/).
 
@@ -36,7 +36,7 @@ Static Grammar Inference for Ad Hoc Parsers
   inferred type signatures:
 
   ```console
-  > panini tests/eval/980_paper_example.pan
+  > panini tests/eval_py/980_paper_example.py
   parser : {s:𝕊 | s ∈ a|[^a]b.*} → 𝟙
   ```
 
@@ -50,21 +50,21 @@ Static Grammar Inference for Ad Hoc Parsers
   ```
 
 * `panini --test` runs Panini in test mode: by default, all files matching
-  `tests/*.pan` will be processed and their outputs compared against the
-  corresponding `tests/*.pan.out` files.
+  `tests/*.{pan,py}` will be processed and their outputs compared against the
+  corresponding `tests/*.{pan,py}.out` files.
 
   ```console
   > panini --test
-  tests/000_unit.pan            OK (0.24s)
-  tests/001_bool.pan            OK (0.25s)
-  tests/002_int.pan             OK (0.27s)
+  tests/basic/check/and/010.pan                      OK (0.04s)
+  tests/basic/check/and/020.pan                      OK (0.01s)
+  tests/basic/check/and/030.pan                      OK (0.02s)
   ...
   ```
 
 * **To reproduce the evaluation from the OOPSLA paper:**
 
   ```console
-  > panini tests/eval --test --smt-timeout 1
+  > panini --test tests/eval_py
   ```
 
 * The `--trace` flag, available in all modes, outputs (very) detailed internal
@@ -73,12 +73,15 @@ Static Grammar Inference for Ad Hoc Parsers
 
 * For further information and additional options, consult `panini --help`.
 
+## The Python frontend
+
+* Panini includes an *experimental* Python frontend and is able to directly
+  analyze a subset of Python source code. You can inspect the Python-to-λΣ
+  transpilation using `--trace` or provide the `--save-pan` flag to create a
+  standalone `.pan` file from the Python source.
+
 ## The λΣ Language
 
-* Eventually, Panini will be able to analyze Python source code directly. For
-  now, it expects all input to be in a domain-specific intermediate
-  representation for ad hoc parsers, built around a core calculus called λΣ.
-  
 * λΣ is a simple λ-calculus in A-normal form with a refinement type system in
   the style of *Liquid Types*. For an extensive description of the syntax and
   semantics of the core calculus, please refer to the paper.
