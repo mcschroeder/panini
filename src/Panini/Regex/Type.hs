@@ -5,8 +5,7 @@ Some aspects of note:
 
   1) Literals are represented as character sets ('CharSet') instead of just
      single characters ('Char'). This enables efficient and succinct
-     representation of character classes (e.g., @[a-z]@; see also
-     "Panini.Regex.POSIX.BE").
+     representation of character classes (e.g., @[a-z]@ in POSIX syntax).
   
   2) Smart pattern synonyms ensure that 'Regex' instances are
      efficient-by-construction and uphold certain invariants, while still
@@ -28,17 +27,16 @@ module Panini.Regex.Type
   , pattern Times
   , pattern Plus
   , pattern Star
-  , pattern Opt  
+  , pattern Opt
   , nullable
   , minWordLength
   , maxWordLength
   ) where
 
-import Algebra.Lattice
 import Data.Data (Data)
 import Data.Hashable
 import Data.Maybe
-import Data.Semigroup hiding (All)
+import Data.Semigroup (stimes)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
@@ -56,26 +54,28 @@ import Prelude
 data Regex  
   = One           -- ^ identitity element (1), empty string (ε)
   | Lit CharSet   -- ^ set of literal symbols, character class
+
+  -- internal constructors; use pattern synonyms below
   | Plus_ [Regex]
   | Times_ [Regex] 
   | Star_ Regex
   | Opt_ Regex
+
   deriving stock 
     ( Eq   -- ^ structural equivalence
-    , Ord  -- ^ structural ordering
-    , Show, Read
-    , Generic, Data
+    , Ord  -- ^ structural ordering    
+    , Show, Read, Generic, Data
     )
 
 -- | zero element (0), empty set (∅), bottom (⊥)
 pattern Zero :: Regex
-pattern Zero <- Lit (isBot -> True) where
-  Zero = Lit bot
+pattern Zero <- Lit (CS.null -> True) where
+  Zero = Lit CS.empty
 
 -- | set of all singleton words (Σ), class of all characters
 pattern AnyChar :: Regex
-pattern AnyChar <- Lit (isTop -> True) where
-  AnyChar = Lit top
+pattern AnyChar <- Lit (CS.isFull -> True) where
+  AnyChar = Lit CS.full
 
 -- | set of all words (Σ*), top (⊤)
 pattern All :: Regex
@@ -147,7 +147,7 @@ pattern Star x <- Star_ x where
 --
 -- Invariants:
 --    1) Options do not immediately contain nullable expressions.
---    2) Options do not immediately contain 'Zero'
+--    2) Options do not immediately contain 'Zero'.
 --
 pattern Opt :: Regex -> Regex
 pattern Opt x <- Opt_ x where
@@ -177,18 +177,6 @@ instance Semigroup Regex where
 instance Monoid Regex where
   mempty = One
 
-instance Pretty Regex where
-  pretty = go (7 :: Int)
-   where
-    go p = \case
-      Zero     -> emptySet
-      One      -> epsilon
-      Lit c    -> pretty c
-      Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
-      Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
-      Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
-      Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 
-
 -------------------------------------------------------------------------------
 
 -- | A regex is /nullable/ if it accepts the empty string.
@@ -196,8 +184,8 @@ nullable :: Regex -> Bool
 nullable = \case
   One      -> True
   Lit _    -> False
-  Plus rs  -> or $ map nullable rs
-  Times rs -> and $ map nullable rs
+  Plus rs  -> any nullable rs
+  Times rs -> all nullable rs
   Star _   -> True
   Opt _    -> True
 
@@ -228,3 +216,17 @@ maxWordLength r0 = Just $ fromMaybe (-1) $ go r0
     Times rs -> sum <$> mapM go rs
     Star _   -> Nothing
     Opt r    -> go r
+
+-------------------------------------------------------------------------------
+
+instance Pretty Regex where
+  pretty = go (7 :: Int)
+   where
+    go p = \case
+      Zero     -> emptySet
+      One      -> epsilon
+      Lit c    -> pretty c
+      Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
+      Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
+      Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
+      Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 

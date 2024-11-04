@@ -13,6 +13,7 @@ module Panini.Regex.CharSet
   , singleton
   , complement
   , union
+  , unions
   , intersection
   , null
   , isFull
@@ -28,6 +29,7 @@ module Panini.Regex.CharSet
 
 import Algebra.Lattice
 import Data.Data (Data)
+import Data.Foldable qualified
 import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
@@ -99,6 +101,10 @@ union (CharSet True  xs) (CharSet True  ys) = CharSet True  (I.union        xs y
 union (CharSet False xs) (CharSet False ys) = CharSet False (I.intersection xs ys)
 union (CharSet True  xs) (CharSet False ys) = CharSet False (I.difference   ys xs)
 union (CharSet False xs) (CharSet True  ys) = CharSet False (I.difference   xs ys)
+
+-- | The union of the character sets in a foldable structure.
+unions :: Foldable f => f CharSet -> CharSet
+unions = Data.Foldable.foldl' union empty
 
 -- | The intersection of two character sets.
 intersection :: CharSet -> CharSet -> CharSet
