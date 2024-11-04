@@ -9,7 +9,7 @@ References:
     https://doi.org/10.1016/j.jsc.2021.08.003
 
 -}
-module Panini.Regex.Simplify (simplify) where
+module Panini.Regex.Simplify (simplify, size) where
 
 import Data.Function
 import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)

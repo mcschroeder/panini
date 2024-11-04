@@ -144,3 +144,17 @@ executable panini
   build-depends: 
       base
     , panini
+
+benchmark regex-simplify
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tests/regex
+  main-is: eval_simplify.hs
+  build-depends: 
+      base
+    , panini
+    , text
+    , directory
+    , filepath
+    , extra
+    , clock
+  ghc-options: -O2
