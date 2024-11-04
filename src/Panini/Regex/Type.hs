@@ -36,7 +36,6 @@ module Panini.Regex.Type
 
 import Algebra.Lattice
 import Data.Data (Data)
-import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Maybe
 import Data.Semigroup hiding (All)
@@ -177,15 +176,6 @@ instance Semigroup Regex where
 
 instance Monoid Regex where
   mempty = One
-
-instance Uniplate Regex where
-  uniplate = \case
-    One      -> plate One
-    Lit c    -> plate Lit |- c
-    Plus rs  -> plate Plus ||* rs
-    Times rs -> plate Times ||* rs
-    Star r   -> plate Star |* r
-    Opt r    -> plate Opt |* r
 
 instance Pretty Regex where
   pretty = go (7 :: Int)
