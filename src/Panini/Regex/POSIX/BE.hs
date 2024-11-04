@@ -17,22 +17,24 @@ References:
 -}
 module Panini.Regex.POSIX.BE where
 
+import Control.Monad.Combinators.NonEmpty qualified as NE
 import Data.Data (Data)
-import Data.Char
 import Data.Hashable
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
+import Data.Void
 import GHC.Generics
 import Panini.Pretty
 import Panini.Regex.CharSet (CharSet(..))
 import Panini.Regex.CharSet qualified as CS
-import Prelude
+import Prelude hiding (exp)
+import Text.Megaparsec
+import Text.Megaparsec.Char
 
 -- TODO: escaping
 -- TODO: support character classes
 -- TODO: support equivalence classes
 -- TODO: support collating symbols
--- TODO: parsing
 -- TODO: more efficient conversion from/to CharSet (recognize ranges)
 
 -------------------------------------------------------------------------------
@@ -68,6 +70,19 @@ printBE = \case
   go = \case
     Ord c     -> [c]
     Ran c1 c2 -> c1:'-':c2:[]
+
+parseBE :: String -> Maybe BE
+parseBE = parseMaybe @Void be
+
+be :: (MonadParsec e s m, Token s ~ Char) => m BE
+be = char '[' *> choice [non, mat] <* char ']'
+ where
+  non = Non <$ char '^' <*> NE.some exp
+  mat = Mat <$>             NE.some exp
+  exp = choice [try ran, ord]
+  ran = Ran <$> chr <* char '-' <*> chr
+  ord = Ord <$> chr
+  chr = satisfy (\x -> x /= ']')
 
 -------------------------------------------------------------------------------
 

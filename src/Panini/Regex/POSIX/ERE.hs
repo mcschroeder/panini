@@ -17,22 +17,26 @@ References:
 -}
 module Panini.Regex.POSIX.ERE where
 
+import Control.Monad.Combinators.NonEmpty qualified as NE
 import Data.Data (Data)
 import Data.Hashable
 import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
+import Data.Void
 import GHC.Generics
 import Panini.Regex.POSIX.BE (BE)
 import Panini.Regex.POSIX.BE qualified as BE
 import Panini.Regex.CharSet qualified as CS
-import Prelude
+import Prelude hiding (exp, min)
 import Panini.Regex.Type
 import Panini.Panic
 import Panini.Pretty
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer qualified as L
 
 -- TODO: escaping
--- TODO: parsing
 -- TODO: how to deal with ERE 'Per' excluding \NUL vs. Regex 'AnyChar' ?
 -- TODO: figure out how to deal with anchors (should unanchored EREs convert to Σ*(r)Σ* ?)
 
@@ -98,6 +102,30 @@ printERE (Alt xs) = concat $ List.intersperse "|" $ map printCon $ NE.toList xs
     Exa m   -> "{" ++ show m ++ "}"
     Min m   -> "{" ++ show m ++ ",}"
     Inv m n -> "{" ++ show m ++ "," ++ show n ++ "}"
+
+parseERE :: String -> Maybe ERE
+parseERE = parseMaybe @Void ere
+
+ere :: (MonadParsec e s m, Token s ~ Char) => m ERE
+ere = Alt <$> NE.sepBy1 con (char '|')
+ where
+  con = Con <$> NE.some exp
+  exp = do
+    e <- choice [chr, per, bra, cir, dol, grp]
+    d <- optional $ choice [ast, pls, que, try exa, try min, inv]
+    return $ maybe e (Dup e) d
+  chr = Chr <$> satisfy (`notElem` ("|.[^$()*?{" :: [Char]))
+  per = Per <$ char '.'
+  bra = Bra <$> BE.be
+  cir = Cir <$ char '^'
+  dol = Dol <$ char '$'
+  grp = Grp <$ char '(' <*> ere <* char ')'
+  ast = Ast <$ char '*'
+  pls = Pls <$ char '+'
+  que = Que <$ char '?'
+  exa = Exa <$ char '{' <*> L.decimal                           <* char '}'
+  min = Min <$ char '{' <*> L.decimal <* char ','               <* char '}'
+  inv = Inv <$ char '{' <*> L.decimal <* char ',' <*> L.decimal <* char '}'
 
 ------------------------------------------------------------------------------
 
