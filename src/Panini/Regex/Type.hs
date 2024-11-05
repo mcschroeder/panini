@@ -53,13 +53,13 @@ import Prelude
 -- | The 'Regex' type defines regular expressions over Unicode characters.
 data Regex  
   = One           -- ^ identitity element (1), empty string (ε)
-  | Lit CharSet   -- ^ set of literal symbols, character class
+  | Lit !CharSet  -- ^ set of literal symbols, character class
 
   -- internal constructors; use pattern synonyms below
-  | Plus_ [Regex]
-  | Times_ [Regex] 
-  | Star_ Regex
-  | Opt_ Regex
+  | Plus_ ![Regex] !Bool
+  | Times_ ![Regex] !Bool
+  | Star_ !Regex
+  | Opt_ !Regex
 
   deriving stock 
     ( Eq   -- ^ structural equivalence
@@ -89,11 +89,11 @@ pattern All = Star AnyChar
 --    3) Sequences do not immediately contain 'Zero' or 'One'.
 --
 pattern Times :: [Regex] -> Regex
-pattern Times xs <- Times_ xs where
+pattern Times xs <- Times_ xs _ where
   Times xs | elem Zero xs' = Zero
            | null xs'      = One
            | [r] <- xs'    = r
-           | otherwise     = Times_ xs'
+           | otherwise     = Times_ xs' (all nullable xs')
    where
     xs' = concatMap flatTimes xs
     flatTimes = \case
@@ -112,7 +112,7 @@ pattern Times xs <- Times_ xs where
 --    6) Choices are ordered (via 'Ord').
 --
 pattern Plus :: [Regex] -> Regex
-pattern Plus xs <- Plus_ xs where
+pattern Plus xs <- Plus_ xs _ where
   Plus xs | any nullable xs && not (any nullable xs') = Opt $ mkPlus xs'
           | otherwise                                 =       mkPlus xs'
    where
@@ -127,7 +127,7 @@ pattern Plus xs <- Plus_ xs where
       []  -> Zero
       [y] -> y
       (Lit a : Lit b : ys) -> mkPlus $ Lit (a <> b) : ys
-      ys  -> Plus_ ys
+      ys  -> Plus_ ys (any nullable ys)
 
 -- | iteration, Kleene closure (r*)
 --
@@ -182,12 +182,12 @@ instance Monoid Regex where
 -- | A regex is /nullable/ if it accepts the empty string.
 nullable :: Regex -> Bool
 nullable = \case
-  One      -> True
-  Lit _    -> False
-  Plus rs  -> any nullable rs
-  Times rs -> all nullable rs
-  Star _   -> True
-  Opt _    -> True
+  One          -> True
+  Lit _        -> False
+  Plus_ _ ewp  -> ewp
+  Times_ _ ewp -> ewp
+  Star_ _      -> True
+  Opt_ _       -> True
 
 -- | The length of the shortest word accepted by the regex, or 'Nothing' if the
 -- regex is 'Zero'.
