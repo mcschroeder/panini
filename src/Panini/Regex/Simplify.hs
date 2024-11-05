@@ -565,10 +565,6 @@ lookupChoices = (Plus .) $ go $ \case
   -- x⋅Σ* + x*  =  (x⋅Σ*)?
   (Times [x1, All], Star x2) | x1 == x2 -> Just $ Opt (Times [x1, All])
 
-  -- [ab] + ab  =  a?b?
-  (Lit cs, Times [Lit a, Lit b]) 
-    | cs == CS.union a b -> Just $ Opt (Lit a) <> Opt (Lit b)
-
   -- (b*a(āb*a)*(āb*)? + b*)  =  (b+aā)*(ab*)?
   (Times [Star b1, a1, Star (Times [ā1, Star b2, a2]), Opt (Times [ā2, Star b3])], Star b4)
     | b1 == b2, b2 == b3, b3 == b4, a1 == a2, ā1 == ā2
