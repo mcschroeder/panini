@@ -50,8 +50,11 @@ instance Monoid    CharSet where mempty = empty
 
 -- | Extensional equality; different internal representations of the same set of
 -- characters will be seen as equal.
-instance Eq CharSet where 
-  a == b = a ⊑ b && b ⊑ a
+instance Eq CharSet where
+  CharSet True  xs == CharSet True  ys = xs == ys
+  CharSet False xs == CharSet False ys = xs == ys
+  CharSet True  xs == CharSet False ys = xs == I.difference xs ys
+  CharSet False xs == CharSet True  ys = ys == I.difference ys xs
 
 -- | A linear extension of the 'PartialOrder' using lexicographic ordering.
 instance Ord CharSet where
