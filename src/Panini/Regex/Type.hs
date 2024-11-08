@@ -165,6 +165,10 @@ instance IsString Regex where
   fromString = Times . map (Lit . CS.singleton)
 
 instance Semigroup Regex where
+  Zero     <> _        = Zero
+  _        <> Zero     = Zero
+  One      <> r        = r
+  r        <> One      = r
   Times xs <> Times ys = Times (xs ++ ys)
   Times xs <> r        = Times (xs ++ [r])
   r        <> Times xs = Times (r:xs)

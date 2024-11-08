@@ -37,7 +37,7 @@ simplify = goFree
              | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
              | r' <- pressSequence xs      , r' /= r -> goFree r'             
-             | r' <- Times (map goFree xs) , r' /= r -> goFree r'
+             | r' <- mconcat (map goFree xs), r' /= r -> goFree r'
     Star  x  | r' <- lookupStar x          , r' /= r -> goFree r'
              | r' <- Star (goStar x)       , r' /= r -> goFree r'    
     Opt   x  | r' <- lookupOpt x           , r' /= r -> goFree r' 
@@ -64,7 +64,7 @@ simplify = goFree
 --    x* ⋅ x* = x* ⋅ x? = x? ⋅ x* = c*
 --
 fuseSequence :: [Regex] -> Regex
-fuseSequence = Times . go
+fuseSequence = mconcat . go
  where
   go (Star x1 : Star x2 : ys) | x1 == x2 = go (Star x1 : ys)
   go (Star x1 : Opt  x2 : ys) | x1 == x2 = go (Star x1 : ys)
@@ -430,7 +430,7 @@ liftStarChoices xs = case partition (\x -> alpha x `CS.isSubsetOf` a1) xs of
 --    x* ⋅ y? = x*  if α(y) ⊆ α₁(x)
 --
 liftSequence :: [Regex] -> Regex
-liftSequence = Times . go
+liftSequence = mconcat . go
  where
   go (Star x : Star y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
   go (Star x : Opt  y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
@@ -460,7 +460,7 @@ liftChoices = Plus . go
 --     x?⋅y? = (x + y)*  if L(x?⋅y?) = L ((x?⋅y?)*)
 ---
 pressSequence :: [Regex] -> Regex
-pressSequence = Times . go []
+pressSequence = mconcat . go []
  where
   go ys (x:xs)
     | nullable x = go (x:ys) xs
@@ -518,7 +518,7 @@ lookupRegex = \case
 
 -- | Apply known syntactic replacements of sequences.
 lookupSequence :: [Regex] -> Regex
-lookupSequence = Times . go
+lookupSequence = mconcat . go
  where
   -- x*⋅y⋅(x*⋅y)*  =  (x + y)* ⋅ y
   go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs)

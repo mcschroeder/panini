@@ -69,7 +69,7 @@ derivative c = \case
   Plus rs           -> Plus $ map (derivative c) rs
   Times []          -> Zero  -- impossible case; to avoid warnings
   Times (r:rs) 
-    | nullable r    -> Plus [Times (derivative c r : rs), derivative c (Times rs)]
+    | nullable r    -> Plus [derivative c r <> Times rs, derivative c (Times rs)]
     | otherwise     -> derivative c r <> Times rs
   Star r            -> derivative c r <> Star r
   Opt r             -> derivative c r
