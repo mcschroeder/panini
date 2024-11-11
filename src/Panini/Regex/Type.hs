@@ -34,9 +34,11 @@ module Panini.Regex.Type
   ) where
 
 import Data.Data (Data)
+import Data.Foldable
 import Data.Hashable
 import Data.Maybe
 import Data.Semigroup (stimes)
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
@@ -56,7 +58,7 @@ data Regex
   | Lit !CharSet  -- ^ set of literal symbols, character class
 
   -- internal constructors; use pattern synonyms below
-  | Plus_ ![Regex] !Bool
+  | Plus_ !(Set Regex) !Bool
   | Times_ ![Regex] !Bool
   | Star_ !Regex
   | Opt_ !Regex
@@ -90,16 +92,18 @@ pattern All = Star AnyChar
 --
 pattern Times :: [Regex] -> Regex
 pattern Times xs <- Times_ xs _ where
-  Times xs | elem Zero xs' = Zero
-           | null xs'      = One
-           | [r] <- xs'    = r
-           | otherwise     = Times_ xs' (all nullable xs')
-   where
-    xs' = concatMap flatTimes xs
-    flatTimes = \case
-      Times ys -> ys
-      One      -> []
-      y        -> [y]
+  Times xs = foldr times One xs
+
+times :: Regex -> Regex -> Regex
+Zero         `times` _            = Zero
+_            `times` Zero         = Zero
+One          `times` r            = r
+r            `times` One          = r
+Times_ xs e1 `times` Times_ ys e2 = Times_ (xs ++ ys) (e1 && e2)
+Times_ xs e  `times` r            = Times_ (xs ++ [r]) (e && nullable r)
+r            `times` Times_ xs e  = Times_ (r:xs) (e && nullable r)
+r1           `times` r2           = Times_ [r1,r2] (nullable r1 && nullable r2)
+{-# INLINE times #-}
 
 -- | choice (r₁ + r₂), alternation (r₁ | r₂), join (r₁ ∨ r₂)
 --
@@ -112,22 +116,37 @@ pattern Times xs <- Times_ xs _ where
 --    6) Choices are ordered (via 'Ord').
 --
 pattern Plus :: [Regex] -> Regex
-pattern Plus xs <- Plus_ xs _ where
-  Plus xs | any nullable xs && not (any nullable xs') = Opt $ mkPlus xs'
-          | otherwise                                 =       mkPlus xs'
-   where
-    xs' = Set.toAscList $ Set.fromList $ concatMap flatPlus xs
-    flatPlus = \case
-      Plus ys -> ys
-      Zero    -> []
-      One     -> []
-      Opt y   -> flatPlus y
-      y       -> [y]
-    mkPlus = \case
-      []  -> Zero
-      [y] -> y
-      (Lit a : Lit b : ys) -> mkPlus $ Lit (a <> b) : ys
-      ys  -> Plus_ ys (any nullable ys)
+pattern Plus xs <- Plus_ (Set.toAscList -> xs) _ where
+  Plus xs = foldr plus Zero xs
+
+plus :: Regex -> Regex -> Regex
+Zero        `plus` r              = r
+r           `plus` Zero           = r
+One         `plus` r              = Opt r
+r           `plus` One            = Opt r
+Opt r1      `plus` r2             = Opt $ r1 `plus` r2
+r1          `plus` Opt r2         = Opt $ r1 `plus` r2
+Lit a       `plus` Lit b          = Lit (a <> b)
+Plus_ xs e1 `plus` Plus_ ys e2    = Plus_ (mergeChoices xs ys) (e1 || e2)
+Plus_ xs e  `plus` r              = Plus_ (insertChoice r xs) (e || nullable r)
+r           `plus` Plus_ xs e     = Plus_ (insertChoice r xs) (e || nullable r)
+r1          `plus` r2 | r1 < r2   = Plus_ (Set.fromDistinctAscList [r1,r2]) (nullable r1 || nullable r2)
+                      | r1 > r2   = Plus_ (Set.fromDistinctAscList [r2,r1]) (nullable r1 || nullable r2)
+                      | otherwise = r1
+{-# INLINE plus #-}
+
+mergeChoices :: Set Regex -> Set Regex -> Set Regex
+mergeChoices xs ys 
+  | Just (Lit a, xs') <- Set.minView xs
+  , Just (Lit b, ys') <- Set.minView ys = Set.insert (Lit (a <> b)) (xs' <> ys')
+  | otherwise = xs <> ys
+{-# INLINE mergeChoices #-}
+
+insertChoice :: Regex -> Set Regex -> Set Regex
+insertChoice (Lit a) (Set.minView -> Just (Lit b, xs)) = Set.insert (Lit (a <> b)) xs
+insertChoice x xs = Set.insert x xs
+{-# INLINE insertChoice #-}
+
 
 -- | iteration, Kleene closure (r*)
 --
@@ -165,14 +184,7 @@ instance IsString Regex where
   fromString = Times . map (Lit . CS.singleton)
 
 instance Semigroup Regex where
-  Zero     <> _        = Zero
-  _        <> Zero     = Zero
-  One      <> r        = r
-  r        <> One      = r
-  Times xs <> Times ys = Times (xs ++ ys)
-  Times xs <> r        = Times (xs ++ [r])
-  r        <> Times xs = Times (r:xs)
-  r1       <> r2       = Times [r1,r2]
+  (<>) = times
 
   stimes 0 _ = One
   stimes 1 r = r
