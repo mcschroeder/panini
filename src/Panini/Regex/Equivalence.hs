@@ -16,6 +16,7 @@ References:
 module Panini.Regex.Equivalence (equivalence, membership) where
 
 import Panini.Regex.CharSet qualified as CS
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import Panini.Regex.Operations
@@ -26,17 +27,17 @@ import Prelude
 
 -- | Semantic equivalence of two regular expressions, i.e., language equality.
 equivalence :: Regex -> Regex -> Bool
-equivalence r1 r2 = equiv [(r1,r2)] []
+equivalence r1 r2 = equiv (Set.singleton (r1,r2)) mempty
 
-equiv :: [(Regex,Regex)] -> [(Regex,Regex)] -> Bool
-equiv []        _                  = True
-equiv ((a,b):s) h | con a /= con b = False
-                  | otherwise      = equiv (s ++ s') h'
+equiv :: Set (Regex,Regex) -> Set (Regex,Regex) -> Bool
+equiv s _                                | Set.null s     = True
+equiv (Set.deleteFindMin -> ((a,b),s)) h | con a /= con b = False
+                                         | otherwise      = equiv (s <> s') h'
  where
   a' = det (lin a)
   b' = det (lin b)
-  s' = [p | p <- derivatives a' b', p `notElem` h']
-  h' = (a,b):h
+  s' = (Set.fromList $ derivatives a' b') `Set.difference` h'
+  h' = Set.insert (a,b) h
 
 derivatives :: Regex -> Regex -> [(Regex,Regex)]
 derivatives a b = 
