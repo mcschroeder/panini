@@ -25,7 +25,13 @@ module Panini.Regex.Type
   , pattern AnyChar
   , pattern All
   , pattern Times
+  , times
+  , pattern Times1
+  , unconsTimes
   , pattern Plus
+  , plus
+  , pattern Plus1
+  , unconsPlus
   , pattern Star
   , pattern Opt
   , nullable
@@ -42,6 +48,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
+import Panini.Panic
 import Panini.Pretty
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
@@ -73,15 +80,18 @@ data Regex
 pattern Zero :: Regex
 pattern Zero <- Lit (CS.null -> True) where
   Zero = Lit CS.empty
+{-# INLINE Zero #-}
 
 -- | set of all singleton words (Σ), class of all characters
 pattern AnyChar :: Regex
 pattern AnyChar <- Lit (CS.isFull -> True) where
   AnyChar = Lit CS.full
+{-# INLINE AnyChar #-}
 
 -- | set of all words (Σ*), top (⊤)
 pattern All :: Regex
 pattern All = Star AnyChar
+{-# INLINE All #-}
 
 -- | sequence (r₁ ⋅ r₂), concatenation (r₁ <> r₂)
 --
@@ -93,6 +103,7 @@ pattern All = Star AnyChar
 pattern Times :: [Regex] -> Regex
 pattern Times xs <- Times_ xs _ where
   Times xs = foldr times One xs
+{-# INLINE Times #-}
 
 times :: Regex -> Regex -> Regex
 Zero         `times` _            = Zero
@@ -104,6 +115,18 @@ Times_ xs e  `times` r            = Times_ (xs ++ [r]) (e && nullable r)
 r            `times` Times_ xs e  = Times_ (r:xs) (e && nullable r)
 r1           `times` r2           = Times_ [r1,r2] (nullable r1 && nullable r2)
 {-# INLINE times #-}
+
+pattern Times1 :: Regex -> Regex -> Regex
+pattern Times1 x y <- (unconsTimes -> Just (x,y))
+{-# INLINE Times1 #-}
+
+unconsTimes :: Regex -> Maybe (Regex, Regex)
+unconsTimes = \case
+  Times_ []     _ -> impossible
+  Times_ [x,y]  _ -> Just (x, y)
+  Times_ (x:xs) _ -> Just (x, Times_ xs (all nullable xs))
+  _               -> Nothing
+{-# INLINE unconsTimes #-}
 
 -- | choice (r₁ + r₂), alternation (r₁ | r₂), join (r₁ ∨ r₂)
 --
@@ -118,6 +141,7 @@ r1           `times` r2           = Times_ [r1,r2] (nullable r1 && nullable r2)
 pattern Plus :: [Regex] -> Regex
 pattern Plus xs <- Plus_ (Set.toAscList -> xs) _ where
   Plus xs = foldr plus Zero xs
+{-# INLINE Plus #-}
 
 plus :: Regex -> Regex -> Regex
 Zero        `plus` r              = r
@@ -147,6 +171,18 @@ insertChoice (Lit a) (Set.minView -> Just (Lit b, xs)) = Set.insert (Lit (a <> b
 insertChoice x xs = Set.insert x xs
 {-# INLINE insertChoice #-}
 
+pattern Plus1 :: Regex -> Regex -> Regex
+pattern Plus1 x y <- (unconsPlus -> Just (x,y))
+{-# INLINE Plus1 #-}
+
+unconsPlus :: Regex -> Maybe (Regex, Regex)
+unconsPlus = \case  
+  Plus_ xs0 _ -> case Set.minView xs0 of
+    Nothing                            -> impossible
+    Just (x,xs) | [y] <- Set.toList xs -> Just (x, y)
+                | otherwise            -> Just (x, Plus_ xs (any nullable xs))
+  _ -> Nothing
+{-# INLINE unconsPlus #-}
 
 -- | iteration, Kleene closure (r*)
 --
@@ -161,6 +197,7 @@ pattern Star x <- Star_ x where
   Star (Star x) = Star_ x
   Star (Opt x)  = Star_ x
   Star x        = Star_ x
+{-# INLINE Star #-}
 
 -- | option (r?)
 --
@@ -173,8 +210,12 @@ pattern Opt x <- Opt_ x where
   Opt Zero           = One
   Opt x | nullable x = x
         | otherwise  = Opt_ x
+{-# INLINE Opt #-}
 
-{-# COMPLETE One, Lit, Plus, Times, Star, Opt #-}
+{-# COMPLETE One, Lit, Plus , Times , Star, Opt #-}
+{-# COMPLETE One, Lit, Plus , Times1, Star, Opt #-}
+{-# COMPLETE One, Lit, Plus1, Times , Star, Opt #-}
+{-# COMPLETE One, Lit, Plus1, Times1, Star, Opt #-}
 
 -------------------------------------------------------------------------------
 
@@ -185,6 +226,7 @@ instance IsString Regex where
 
 instance Semigroup Regex where
   (<>) = times
+  {-# INLINE (<>) #-}
 
   stimes 0 _ = One
   stimes 1 r = r
@@ -192,6 +234,7 @@ instance Semigroup Regex where
 
 instance Monoid Regex where
   mempty = One
+  {-# INLINE mempty #-}
 
 -------------------------------------------------------------------------------
 

@@ -66,11 +66,10 @@ derivative c = \case
   Lit d 
     | CS.member c d -> One
     | otherwise     -> Zero
-  Plus rs           -> Plus $ map (derivative c) rs
-  Times []          -> Zero  -- impossible case; to avoid warnings
-  Times (r:rs) 
-    | nullable r    -> Plus [derivative c r <> Times rs, derivative c (Times rs)]
-    | otherwise     -> derivative c r <> Times rs
+  Plus1 r rs        -> derivative c r `plus` derivative c rs
+  Times1 r rs 
+    | nullable r    -> (derivative c r <> rs) `plus` derivative c rs
+    | otherwise     -> derivative c r <> rs 
   Star r            -> derivative c r <> Star r
   Opt r             -> derivative c r
 
@@ -110,7 +109,7 @@ intersection = curry $ solve $ \(x1,x2) ->
                       , let x = (derivative c x1, derivative c x2)
          ]
 
-  in (c0, Map.fromListWith (\a b -> Plus [a,b]) cx)
+  in (c0, Map.fromListWith plus cx)
 
 -- | Compute the complement of a regex.
 --
@@ -136,7 +135,7 @@ complement r0 = fromMaybe (complement' r0) (lookupComplement r0)
            , let x   = derivative c x1
            ]
 
-    in (Plus [c0,c1], Map.fromListWith (\a b -> Plus [a,b]) cx)
+    in (c0 `plus` c1, Map.fromListWith plus cx)
 
 -- | Look up known regex complements.
 lookupComplement :: Regex -> Maybe Regex
@@ -170,8 +169,7 @@ type RHS x = (Regex, Map x Regex)
 --     combine (a + bX) (c + dX + eY)  =  (a+c) + (b+d)X + eY.
 --
 combine :: Ord x => RHS x -> RHS x -> RHS x
-combine (c01,xs1) (c02,xs2) = 
-  (Plus [c01,c02], Map.unionWith (\a b -> Plus [a,b]) xs1 xs2)
+combine (c01,xs1) (c02,xs2) = (c01 `plus` c02, Map.unionWith plus xs1 xs2)
 
 -- | Multiply each RHS term by a constant, i.e., concatenating the constant
 -- regex in front of each term. For example,
@@ -254,16 +252,12 @@ next :: Regex -> Set CharSet
 next = \case
   One            -> Set.singleton bot
   Lit a          -> Set.singleton a
-  Plus (r:rs)    -> next r ⋈ next (Plus rs)
-  Times (r:rs)
-    | nullable r -> next r ⋈ next (Times rs)
-    | otherwise  -> next r
+  Plus1 x y      -> next x ⋈ next y
+  Times1 x y
+    | nullable x -> next x ⋈ next y
+    | otherwise  -> next x
   Star r         -> next r
   Opt r          -> next One ⋈ next r
-
-  -- impossible cases; to avoid warnings
-  Plus  [] -> Set.singleton bot
-  Times [] -> Set.singleton bot
 
 -- | Given two sets of mutually disjoint literals, ⨝ (join) builds a new set of
 -- mutually disjoint literals that covers the union of the two sets (Keil and

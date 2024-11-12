@@ -60,24 +60,23 @@ lin = lin2 . lin1
   lin1 (Lit a)               = Lit a
   lin1 (Plus ab)             = Plus $ map lin1 ab
   lin1 (Star a)              = lin1 a <> Star a
-  lin1 (Times (Star a : b))  = Plus [lin1 a <> Star a <> Times b, Times b]
-  lin1 (Times (Plus ab : c)) = Plus $ map (lin1 . (<> Times c)) ab
-  lin1 (Times ab)            = Times ab
+  lin1 (Times1 (Star a) b)   = (lin1 a <> Star a <> b) `plus` b
+  lin1 (Times1 (Plus ab) c)  = Plus $ map (lin1 . (<> c)) ab
+  lin1 r@(Times _)           = r
   lin1 (Opt a)               = lin1 a
 
   lin2 (Plus a)              = Plus $ map lin2 a
-  lin2 (Times (Plus ab : c)) = Plus $ map (lin2 . (<> Times c)) ab
+  lin2 (Times1 (Plus ab) c)  = Plus $ map (lin2 . (<> c)) ab
   lin2 a                     = a
 
--- | Given a linear regular expression, return a deterministic linear regular
--- expression.
+-- | Given a linear regex, return a deterministic linear regex.
 det :: Regex -> Regex
-det (Plus (Times (Lit x : a) : Times (Lit y : b) : c)) | x == y 
-      = det $ Plus (Lit x <> Plus [Times a, Times b] : c)
-det (Plus [Times (Lit x : a), Times (Lit y : b)]) | x == y 
-      = Lit x <> Plus [Times a, Times b]  
-det (Plus [Times (Lit x : a), Lit y]) | x == y 
-      = Lit x <> Opt (Times a)  
+det (Plus1 (Times1 (Lit x) a) (Plus1 (Times1 (Lit y) b) c)) 
+  | x == y = det $ (Lit x <> (a `plus` b)) `plus` c
+det (Plus [Times1 (Lit x) a, Times1 (Lit y) b])
+  | x == y = Lit x <> Plus [a,b]  
+det (Plus [Times1 (Lit x) a, Lit y]) 
+  | x == y = Lit x <> Opt a
 det a = a
 
 -------------------------------------------------------------------------------
