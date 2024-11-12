@@ -109,6 +109,7 @@ library
     Panini.Regex
     Panini.Regex.CharSet
     Panini.Regex.Equivalence
+    Panini.Regex.Inclusion
     Panini.Regex.Operations
     Panini.Regex.POSIX.BE
     Panini.Regex.POSIX.ERE

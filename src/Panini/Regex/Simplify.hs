@@ -16,7 +16,7 @@ import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Equivalence
-import Panini.Regex.Operations
+import Panini.Regex.Inclusion
 import Panini.Regex.Type
 import Prelude
 
@@ -475,7 +475,13 @@ pressSequence = mconcat . go []
 
 -- | Checks whether L(r) = L(r*).
 selfStarEq :: Regex -> Bool
-selfStarEq r = equivalence r (Star r)
+selfStarEq r = let r' = Star r 
+               in case (r' `isIncludedBy` r, r `isIncludedBy` r') of
+                    (No , _  ) -> False
+                    (_  , No ) -> False
+                    (Yes, Yes) -> True
+                    _          -> equivalence r (Star r)
+
 -- TODO: can we somehow exploit this special case of equivalence checking?
 
 -------------------------------------------------------------------------------
@@ -681,7 +687,10 @@ subsumeChoices = go []
     | any (subsumes x) (xs ++ ys) = go ys xs
     | otherwise                   = go (x:ys) xs
   
-  subsumes x y = equivalence x (intersection x y)
+  -- subsumes x y = equivalence x (intersection x y)
+  subsumes x y = case x `isIncludedBy` y of
+    Yes -> True
+    _   -> False
 
 -------------------------------------------------------------------------------
 
