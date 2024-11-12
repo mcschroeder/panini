@@ -12,6 +12,11 @@ References:
   * Antimirov, Valentin and Peter Mosses. 1995. "Rewriting extended regular
     expressions." Computer Science 143 (1995): 51-72.
     https://doi.org/10.1016/0304-3975(95)80024-4
+  
+  * Nipkow, Tobias and Dmitriy Traytel. 2014. "Unified Decision Procedures for
+    Regular Expression Equivalence." ITP 2014. LNCS 8558: 450-466.
+    https://doi.org/10.1007/978-3-319-08970-6_29
+
 -}
 module Panini.Regex.Equivalence (equivalence, membership) where
 
@@ -82,5 +87,6 @@ det a = a
 -------------------------------------------------------------------------------
 
 -- | Is a given string a member of the language described by the regex?
+-- Implementation based on `match` function from Nipkow and Traytel (2014).
 membership :: String -> Regex -> Bool
-membership s r = not $ equivalence (intersection (fromString s) r) Zero
+membership s r = nullable (foldr derivative r s)
