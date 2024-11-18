@@ -28,6 +28,8 @@ module Panini.Regex.Type
   , times
   , pattern Times1
   , unconsTimes
+  , pattern TimesN
+  , unsnocTimes
   , pattern Plus
   , plus
   , pattern Plus1
@@ -42,6 +44,7 @@ module Panini.Regex.Type
 import Data.Data (Data)
 import Data.Foldable
 import Data.Hashable
+import Data.List.Extra (unsnoc)
 import Data.Maybe
 import Data.Semigroup (stimes)
 import Data.Set (Set)
@@ -127,6 +130,18 @@ unconsTimes = \case
   Times_ (x:xs) _ -> Just (x, Times_ xs (all nullable xs))
   _               -> Nothing
 {-# INLINE unconsTimes #-}
+
+pattern TimesN :: Regex -> Regex -> Regex
+pattern TimesN x y <- (unsnocTimes -> Just (x,y))
+{-# INLINE TimesN #-}
+
+unsnocTimes :: Regex -> Maybe (Regex, Regex)
+unsnocTimes = \case
+  Times_ []                      _ -> impossible
+  Times_ [x,y]                   _ -> Just (x, y)
+  Times_ (unsnoc -> Just (xs,x)) _ -> Just (Times_ xs (all nullable xs),x)
+  _                                -> Nothing
+{-# INLINE unsnocTimes #-}
 
 -- | choice (r₁ + r₂), alternation (r₁ | r₂), join (r₁ ∨ r₂)
 --
