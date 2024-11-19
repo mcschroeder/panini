@@ -5,8 +5,7 @@ Some aspects of note:
 
   1) Literals are represented as character sets ('CharSet') instead of just
      single characters ('Char'). This enables efficient and succinct
-     representation of character classes (e.g., @[a-z]@; see also
-     "Panini.Regex.POSIX.BE").
+     representation of character classes (e.g., @[a-z]@ in POSIX syntax).
   
   2) Smart pattern synonyms ensure that 'Regex' instances are
      efficient-by-construction and uphold certain invariants, while still
@@ -26,23 +25,30 @@ module Panini.Regex.Type
   , pattern AnyChar
   , pattern All
   , pattern Times
+  , times
+  , pattern Times1
+  , unconsTimes
   , pattern Plus
+  , plus
+  , pattern Plus1
+  , unconsPlus
   , pattern Star
-  , pattern Opt  
+  , pattern Opt
   , nullable
   , minWordLength
   , maxWordLength
   ) where
 
-import Algebra.Lattice
 import Data.Data (Data)
-import Data.Generics.Uniplate.Direct
+import Data.Foldable
 import Data.Hashable
 import Data.Maybe
-import Data.Semigroup hiding (All)
+import Data.Semigroup (stimes)
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
+import Panini.Panic
 import Panini.Pretty
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
@@ -56,31 +62,36 @@ import Prelude
 -- | The 'Regex' type defines regular expressions over Unicode characters.
 data Regex  
   = One           -- ^ identitity element (1), empty string (ε)
-  | Lit CharSet   -- ^ set of literal symbols, character class
-  | Plus_ [Regex]
-  | Times_ [Regex] 
-  | Star_ Regex
-  | Opt_ Regex
+  | Lit !CharSet  -- ^ set of literal symbols, character class
+
+  -- internal constructors; use pattern synonyms below
+  | Plus_ !(Set Regex) !Bool
+  | Times_ ![Regex] !Bool
+  | Star_ !Regex
+  | Opt_ !Regex
+
   deriving stock 
     ( Eq   -- ^ structural equivalence
-    , Ord  -- ^ structural ordering
-    , Show, Read
-    , Generic, Data
+    , Ord  -- ^ structural ordering    
+    , Show, Read, Generic, Data
     )
 
 -- | zero element (0), empty set (∅), bottom (⊥)
 pattern Zero :: Regex
-pattern Zero <- Lit (isBot -> True) where
-  Zero = Lit bot
+pattern Zero <- Lit (CS.null -> True) where
+  Zero = Lit CS.empty
+{-# INLINE Zero #-}
 
 -- | set of all singleton words (Σ), class of all characters
 pattern AnyChar :: Regex
-pattern AnyChar <- Lit (isTop -> True) where
-  AnyChar = Lit top
+pattern AnyChar <- Lit (CS.isFull -> True) where
+  AnyChar = Lit CS.full
+{-# INLINE AnyChar #-}
 
 -- | set of all words (Σ*), top (⊤)
 pattern All :: Regex
 pattern All = Star AnyChar
+{-# INLINE All #-}
 
 -- | sequence (r₁ ⋅ r₂), concatenation (r₁ <> r₂)
 --
@@ -90,17 +101,32 @@ pattern All = Star AnyChar
 --    3) Sequences do not immediately contain 'Zero' or 'One'.
 --
 pattern Times :: [Regex] -> Regex
-pattern Times xs <- Times_ xs where
-  Times xs | elem Zero xs' = Zero
-           | null xs'      = One
-           | [r] <- xs'    = r
-           | otherwise     = Times_ xs'
-   where
-    xs' = concatMap flatTimes xs
-    flatTimes = \case
-      Times ys -> ys
-      One      -> []
-      y        -> [y]
+pattern Times xs <- Times_ xs _ where
+  Times xs = foldr times One xs
+{-# INLINE Times #-}
+
+times :: Regex -> Regex -> Regex
+Zero         `times` _            = Zero
+_            `times` Zero         = Zero
+One          `times` r            = r
+r            `times` One          = r
+Times_ xs e1 `times` Times_ ys e2 = Times_ (xs ++ ys) (e1 && e2)
+Times_ xs e  `times` r            = Times_ (xs ++ [r]) (e && nullable r)
+r            `times` Times_ xs e  = Times_ (r:xs) (e && nullable r)
+r1           `times` r2           = Times_ [r1,r2] (nullable r1 && nullable r2)
+{-# INLINE times #-}
+
+pattern Times1 :: Regex -> Regex -> Regex
+pattern Times1 x y <- (unconsTimes -> Just (x,y))
+{-# INLINE Times1 #-}
+
+unconsTimes :: Regex -> Maybe (Regex, Regex)
+unconsTimes = \case
+  Times_ []     _ -> impossible
+  Times_ [x,y]  _ -> Just (x, y)
+  Times_ (x:xs) _ -> Just (x, Times_ xs (all nullable xs))
+  _               -> Nothing
+{-# INLINE unconsTimes #-}
 
 -- | choice (r₁ + r₂), alternation (r₁ | r₂), join (r₁ ∨ r₂)
 --
@@ -113,22 +139,50 @@ pattern Times xs <- Times_ xs where
 --    6) Choices are ordered (via 'Ord').
 --
 pattern Plus :: [Regex] -> Regex
-pattern Plus xs <- Plus_ xs where
-  Plus xs | any nullable xs && not (any nullable xs') = Opt $ mkPlus xs'
-          | otherwise                                 =       mkPlus xs'
-   where
-    xs' = Set.toAscList $ Set.fromList $ concatMap flatPlus xs
-    flatPlus = \case
-      Plus ys -> ys
-      Zero    -> []
-      One     -> []
-      Opt y   -> flatPlus y
-      y       -> [y]
-    mkPlus = \case
-      []  -> Zero
-      [y] -> y
-      (Lit a : Lit b : ys) -> mkPlus $ Lit (a <> b) : ys
-      ys  -> Plus_ ys
+pattern Plus xs <- Plus_ (Set.toAscList -> xs) _ where
+  Plus xs = foldr plus Zero xs
+{-# INLINE Plus #-}
+
+plus :: Regex -> Regex -> Regex
+Zero        `plus` r              = r
+r           `plus` Zero           = r
+One         `plus` r              = Opt r
+r           `plus` One            = Opt r
+Opt r1      `plus` r2             = Opt $ r1 `plus` r2
+r1          `plus` Opt r2         = Opt $ r1 `plus` r2
+Lit a       `plus` Lit b          = Lit (a <> b)
+Plus_ xs e1 `plus` Plus_ ys e2    = Plus_ (mergeChoices xs ys) (e1 || e2)
+Plus_ xs e  `plus` r              = Plus_ (insertChoice r xs) (e || nullable r)
+r           `plus` Plus_ xs e     = Plus_ (insertChoice r xs) (e || nullable r)
+r1          `plus` r2 | r1 < r2   = Plus_ (Set.fromDistinctAscList [r1,r2]) (nullable r1 || nullable r2)
+                      | r1 > r2   = Plus_ (Set.fromDistinctAscList [r2,r1]) (nullable r1 || nullable r2)
+                      | otherwise = r1
+{-# INLINE plus #-}
+
+mergeChoices :: Set Regex -> Set Regex -> Set Regex
+mergeChoices xs ys 
+  | Just (Lit a, xs') <- Set.minView xs
+  , Just (Lit b, ys') <- Set.minView ys = Set.insert (Lit (a <> b)) (xs' <> ys')
+  | otherwise = xs <> ys
+{-# INLINE mergeChoices #-}
+
+insertChoice :: Regex -> Set Regex -> Set Regex
+insertChoice (Lit a) (Set.minView -> Just (Lit b, xs)) = Set.insert (Lit (a <> b)) xs
+insertChoice x xs = Set.insert x xs
+{-# INLINE insertChoice #-}
+
+pattern Plus1 :: Regex -> Regex -> Regex
+pattern Plus1 x y <- (unconsPlus -> Just (x,y))
+{-# INLINE Plus1 #-}
+
+unconsPlus :: Regex -> Maybe (Regex, Regex)
+unconsPlus = \case  
+  Plus_ xs0 _ -> case Set.minView xs0 of
+    Nothing                            -> impossible
+    Just (x,xs) | [y] <- Set.toList xs -> Just (x, y)
+                | otherwise            -> Just (x, Plus_ xs (any nullable xs))
+  _ -> Nothing
+{-# INLINE unconsPlus #-}
 
 -- | iteration, Kleene closure (r*)
 --
@@ -143,20 +197,25 @@ pattern Star x <- Star_ x where
   Star (Star x) = Star_ x
   Star (Opt x)  = Star_ x
   Star x        = Star_ x
+{-# INLINE Star #-}
 
 -- | option (r?)
 --
 -- Invariants:
 --    1) Options do not immediately contain nullable expressions.
---    2) Options do not immediately contain 'Zero'
+--    2) Options do not immediately contain 'Zero'.
 --
 pattern Opt :: Regex -> Regex
 pattern Opt x <- Opt_ x where
   Opt Zero           = One
   Opt x | nullable x = x
         | otherwise  = Opt_ x
+{-# INLINE Opt #-}
 
-{-# COMPLETE One, Lit, Plus, Times, Star, Opt #-}
+{-# COMPLETE One, Lit, Plus , Times , Star, Opt #-}
+{-# COMPLETE One, Lit, Plus , Times1, Star, Opt #-}
+{-# COMPLETE One, Lit, Plus1, Times , Star, Opt #-}
+{-# COMPLETE One, Lit, Plus1, Times1, Star, Opt #-}
 
 -------------------------------------------------------------------------------
 
@@ -166,10 +225,8 @@ instance IsString Regex where
   fromString = Times . map (Lit . CS.singleton)
 
 instance Semigroup Regex where
-  Times xs <> Times ys = Times (xs ++ ys)
-  Times xs <> r        = Times (xs ++ [r])
-  r        <> Times xs = Times (r:xs)
-  r1       <> r2       = Times [r1,r2]
+  (<>) = times
+  {-# INLINE (<>) #-}
 
   stimes 0 _ = One
   stimes 1 r = r
@@ -177,39 +234,19 @@ instance Semigroup Regex where
 
 instance Monoid Regex where
   mempty = One
-
-instance Uniplate Regex where
-  uniplate = \case
-    One      -> plate One
-    Lit c    -> plate Lit |- c
-    Plus rs  -> plate Plus ||* rs
-    Times rs -> plate Times ||* rs
-    Star r   -> plate Star |* r
-    Opt r    -> plate Opt |* r
-
-instance Pretty Regex where
-  pretty = go (7 :: Int)
-   where
-    go p = \case
-      Zero     -> emptySet
-      One      -> epsilon
-      Lit c    -> pretty c
-      Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
-      Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
-      Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
-      Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 
+  {-# INLINE mempty #-}
 
 -------------------------------------------------------------------------------
 
 -- | A regex is /nullable/ if it accepts the empty string.
 nullable :: Regex -> Bool
 nullable = \case
-  One      -> True
-  Lit _    -> False
-  Plus rs  -> or $ map nullable rs
-  Times rs -> and $ map nullable rs
-  Star _   -> True
-  Opt _    -> True
+  One          -> True
+  Lit _        -> False
+  Plus_ _ ewp  -> ewp
+  Times_ _ ewp -> ewp
+  Star_ _      -> True
+  Opt_ _       -> True
 
 -- | The length of the shortest word accepted by the regex, or 'Nothing' if the
 -- regex is 'Zero'.
@@ -238,3 +275,17 @@ maxWordLength r0 = Just $ fromMaybe (-1) $ go r0
     Times rs -> sum <$> mapM go rs
     Star _   -> Nothing
     Opt r    -> go r
+
+-------------------------------------------------------------------------------
+
+instance Pretty Regex where
+  pretty = go (7 :: Int)
+   where
+    go p = \case
+      Zero     -> emptySet
+      One      -> epsilon
+      Lit c    -> pretty c
+      Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
+      Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
+      Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
+      Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 

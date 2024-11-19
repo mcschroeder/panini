@@ -12,10 +12,16 @@ References:
   * Antimirov, Valentin and Peter Mosses. 1995. "Rewriting extended regular
     expressions." Computer Science 143 (1995): 51-72.
     https://doi.org/10.1016/0304-3975(95)80024-4
+  
+  * Nipkow, Tobias and Dmitriy Traytel. 2014. "Unified Decision Procedures for
+    Regular Expression Equivalence." ITP 2014. LNCS 8558: 450-466.
+    https://doi.org/10.1007/978-3-319-08970-6_29
+
 -}
 module Panini.Regex.Equivalence (equivalence, membership) where
 
 import Panini.Regex.CharSet qualified as CS
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import Panini.Regex.Operations
@@ -26,17 +32,17 @@ import Prelude
 
 -- | Semantic equivalence of two regular expressions, i.e., language equality.
 equivalence :: Regex -> Regex -> Bool
-equivalence r1 r2 = equiv [(r1,r2)] []
+equivalence r1 r2 = equiv (Set.singleton (r1,r2)) mempty
 
-equiv :: [(Regex,Regex)] -> [(Regex,Regex)] -> Bool
-equiv []        _                  = True
-equiv ((a,b):s) h | con a /= con b = False
-                  | otherwise      = equiv (s ++ s') h'
+equiv :: Set (Regex,Regex) -> Set (Regex,Regex) -> Bool
+equiv s _                                | Set.null s     = True
+equiv (Set.deleteFindMin -> ((a,b),s)) h | con a /= con b = False
+                                         | otherwise      = equiv (s <> s') h'
  where
   a' = det (lin a)
   b' = det (lin b)
-  s' = [p | p <- derivatives a' b', p `notElem` h']
-  h' = (a,b):h
+  s' = (Set.fromList $ derivatives a' b') `Set.difference` h'
+  h' = Set.insert (a,b) h
 
 derivatives :: Regex -> Regex -> [(Regex,Regex)]
 derivatives a b = 
@@ -59,28 +65,28 @@ lin = lin2 . lin1
   lin1 (Lit a)               = Lit a
   lin1 (Plus ab)             = Plus $ map lin1 ab
   lin1 (Star a)              = lin1 a <> Star a
-  lin1 (Times (Star a : b))  = Plus [lin1 a <> Star a <> Times b, Times b]
-  lin1 (Times (Plus ab : c)) = Plus $ map (lin1 . (<> Times c)) ab
-  lin1 (Times ab)            = Times ab
+  lin1 (Times1 (Star a) b)   = (lin1 a <> Star a <> b) `plus` b
+  lin1 (Times1 (Plus ab) c)  = Plus $ map (lin1 . (<> c)) ab
+  lin1 r@(Times _)           = r
   lin1 (Opt a)               = lin1 a
 
   lin2 (Plus a)              = Plus $ map lin2 a
-  lin2 (Times (Plus ab : c)) = Plus $ map (lin2 . (<> Times c)) ab
+  lin2 (Times1 (Plus ab) c)  = Plus $ map (lin2 . (<> c)) ab
   lin2 a                     = a
 
--- | Given a linear regular expression, return a deterministic linear regular
--- expression.
+-- | Given a linear regex, return a deterministic linear regex.
 det :: Regex -> Regex
-det (Plus (Times (Lit x : a) : Times (Lit y : b) : c)) | x == y 
-      = det $ Plus (Lit x <> Plus [Times a, Times b] : c)
-det (Plus [Times (Lit x : a), Times (Lit y : b)]) | x == y 
-      = Lit x <> Plus [Times a, Times b]  
-det (Plus [Times (Lit x : a), Lit y]) | x == y 
-      = Lit x <> Opt (Times a)  
+det (Plus1 (Times1 (Lit x) a) (Plus1 (Times1 (Lit y) b) c)) 
+  | x == y = det $ (Lit x <> (a `plus` b)) `plus` c
+det (Plus [Times1 (Lit x) a, Times1 (Lit y) b])
+  | x == y = Lit x <> Plus [a,b]  
+det (Plus [Times1 (Lit x) a, Lit y]) 
+  | x == y = Lit x <> Opt a
 det a = a
 
 -------------------------------------------------------------------------------
 
 -- | Is a given string a member of the language described by the regex?
+-- Implementation based on `match` function from Nipkow and Traytel (2014).
 membership :: String -> Regex -> Bool
-membership s r = not $ equivalence (intersection (fromString s) r) Zero
+membership s r = nullable (foldr derivative r s)

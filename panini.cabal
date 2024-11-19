@@ -109,6 +109,7 @@ library
     Panini.Regex
     Panini.Regex.CharSet
     Panini.Regex.Equivalence
+    Panini.Regex.Inclusion
     Panini.Regex.Operations
     Panini.Regex.POSIX.BE
     Panini.Regex.POSIX.ERE
@@ -145,3 +146,17 @@ executable panini
   build-depends: 
       base
     , panini
+
+benchmark regex-simplify
+  type: exitcode-stdio-1.0
+  hs-source-dirs: tests/regex
+  main-is: eval_simplify.hs
+  build-depends: 
+      base
+    , panini
+    , text
+    , directory
+    , filepath
+    , extra
+    , clock
+  ghc-options: -O2

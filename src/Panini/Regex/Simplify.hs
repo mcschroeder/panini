@@ -9,14 +9,14 @@ References:
     https://doi.org/10.1016/j.jsc.2021.08.003
 
 -}
-module Panini.Regex.Simplify (simplify) where
+module Panini.Regex.Simplify (simplify, size) where
 
 import Data.Function
 import Data.List.Extra (partition, sortBy, uncons, splitAtEnd, breakEnd)
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Equivalence
-import Panini.Regex.Operations
+import Panini.Regex.Inclusion
 import Panini.Regex.Type
 import Prelude
 
@@ -37,7 +37,7 @@ simplify = goFree
              | r' <- fuseSequence xs       , r' /= r -> goFree r'
              | r' <- liftSequence xs       , r' /= r -> goFree r'
              | r' <- pressSequence xs      , r' /= r -> goFree r'             
-             | r' <- Times (map goFree xs) , r' /= r -> goFree r'
+             | r' <- mconcat (map goFree xs), r' /= r -> goFree r'
     Star  x  | r' <- lookupStar x          , r' /= r -> goFree r'
              | r' <- Star (goStar x)       , r' /= r -> goFree r'    
     Opt   x  | r' <- lookupOpt x           , r' /= r -> goFree r' 
@@ -64,7 +64,7 @@ simplify = goFree
 --    x* ⋅ x* = x* ⋅ x? = x? ⋅ x* = c*
 --
 fuseSequence :: [Regex] -> Regex
-fuseSequence = Times . go
+fuseSequence = mconcat . go
  where
   go (Star x1 : Star x2 : ys) | x1 == x2 = go (Star x1 : ys)
   go (Star x1 : Opt  x2 : ys) | x1 == x2 = go (Star x1 : ys)
@@ -430,7 +430,7 @@ liftStarChoices xs = case partition (\x -> alpha x `CS.isSubsetOf` a1) xs of
 --    x* ⋅ y? = x*  if α(y) ⊆ α₁(x)
 --
 liftSequence :: [Regex] -> Regex
-liftSequence = Times . go
+liftSequence = mconcat . go
  where
   go (Star x : Star y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
   go (Star x : Opt  y : zs) | alpha y `CS.isSubsetOf` alpha1 x = go (Star x : zs)
@@ -460,7 +460,7 @@ liftChoices = Plus . go
 --     x?⋅y? = (x + y)*  if L(x?⋅y?) = L ((x?⋅y?)*)
 ---
 pressSequence :: [Regex] -> Regex
-pressSequence = Times . go []
+pressSequence = mconcat . go []
  where
   go ys (x:xs)
     | nullable x = go (x:ys) xs
@@ -475,7 +475,13 @@ pressSequence = Times . go []
 
 -- | Checks whether L(r) = L(r*).
 selfStarEq :: Regex -> Bool
-selfStarEq r = equivalence r (Star r)
+selfStarEq r = let r' = Star r 
+               in case (r' `isIncludedBy` r, r `isIncludedBy` r') of
+                    (No , _  ) -> False
+                    (_  , No ) -> False
+                    (Yes, Yes) -> True
+                    _          -> equivalence r (Star r)
+
 -- TODO: can we somehow exploit this special case of equivalence checking?
 
 -------------------------------------------------------------------------------
@@ -518,7 +524,7 @@ lookupRegex = \case
 
 -- | Apply known syntactic replacements of sequences.
 lookupSequence :: [Regex] -> Regex
-lookupSequence = Times . go
+lookupSequence = mconcat . go
  where
   -- x*⋅y⋅(x*⋅y)*  =  (x + y)* ⋅ y
   go (Star x1 : y1 : Star (Times [Star x2, y2]) : zs)
@@ -564,10 +570,6 @@ lookupChoices :: [Regex] -> Regex
 lookupChoices = (Plus .) $ go $ \case
   -- x⋅Σ* + x*  =  (x⋅Σ*)?
   (Times [x1, All], Star x2) | x1 == x2 -> Just $ Opt (Times [x1, All])
-
-  -- [ab] + ab  =  a?b?
-  (Lit cs, Times [Lit a, Lit b]) 
-    | cs == CS.union a b -> Just $ Opt (Lit a) <> Opt (Lit b)
 
   -- (b*a(āb*a)*(āb*)? + b*)  =  (b+aā)*(ab*)?
   (Times [Star b1, a1, Star (Times [ā1, Star b2, a2]), Opt (Times [ā2, Star b3])], Star b4)
@@ -685,7 +687,10 @@ subsumeChoices = go []
     | any (subsumes x) (xs ++ ys) = go ys xs
     | otherwise                   = go (x:ys) xs
   
-  subsumes x y = equivalence x (intersection x y)
+  -- subsumes x y = equivalence x (intersection x y)
+  subsumes x y = case x `isIncludedBy` y of
+    Yes -> True
+    _   -> False
 
 -------------------------------------------------------------------------------
 

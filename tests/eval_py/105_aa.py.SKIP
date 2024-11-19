@@ -1,0 +1,10 @@
+def f105(s: str):
+  i = len(s)
+  j = 0
+  while i > 0:
+    assert s[i-1] == "a"
+    i -= 1
+    j += 1
+  assert j == 2
+
+# skipped because invariant b/w i and j too complex to infer at the moment

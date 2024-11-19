@@ -91,6 +91,8 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrAt (EStr s _) (EInt  i _)               -> normExpr $ ECharA $ charAt s (AInt.eq i)
   EStrAt (EStr s _) (EIntA i)                 -> normExpr $ ECharA $ charAt s i
   -----------------------------------------------------------
+  EStrAt (EVar s1) (EStrLen (EVar s2)) | s1 == s2 -> ECharA bot
+  -----------------------------------------------------------
   EStrSub (EStr s _) (EInt  i _) (EInt  j _)  -> normExpr $ EStrA $ strSub s (AInt.eq i) (AInt.eq j)
   EStrSub (EStr s _) (EIntA i  ) (EIntA j  )  -> normExpr $ EStrA $ strSub s i j
   EStrSub (EStr s _) (EIntA i  ) (EInt  j _)  -> normExpr $ EStrA $ strSub s i (AInt.eq j)
@@ -107,6 +109,10 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
   EStrConc (EStrA a  ) (EStr  b _)            -> normExpr $ EStrA (a <> AString.eq (Text.unpack b))
   EStrConc (EStr  a _) (EStrA b  )            -> normExpr $ EStrA (AString.eq (Text.unpack a) <> b)
   EStrConc (EStrA a  ) (EStrA b  )            -> normExpr $ EStrA (a <> b)  
+  -----------------------------------------------------------
+  EStrConc (EStrSub s1 (EInt i1 pvi1) (EInt j1 _)) (EStrSub s2 (EInt i2 _) (EInt j2 pvj2))
+    | s1 == s2, i1 <= j1, j1 + 1 == i2, i2 <= j2
+    -> normExpr $ EStrSub s1 (EInt i1 pvi1) (EInt j2 pvj2)
   -----------------------------------------------------------
   EStrStar (EStr  s _)                        -> normExpr $ EStrA $ star (AString.eq (Text.unpack s))
   EStrStar (EStrA s  )                        -> normExpr $ EStrA $ star s

@@ -46,8 +46,8 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("and"    , [Bool, Bool], Bool) -> Just ("and", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∧ b = true)} |])
   ("assert" , [Bool]      , None) -> Just $ assertWithType TUnit
   ("len"    , _           , _   ) -> axiomForFunction "__len__" args ret
-  ("not"    , [Bool], Bool) -> Just ("or", [panType| (a:𝔹) → {b:𝔹 | b = ¬a} |])
-  ("or"     , [Bool, Bool], Bool) -> Just ("not", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∨ b = true)} |])
+  ("not"    , [Bool], Bool) -> Just ("not", [panType| (a:𝔹) → {b:𝔹 | b = ¬a} |])
+  ("or"     , [Bool, Bool], Bool) -> Just ("or", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∨ b = true)} |])
 
   -- comparison methods
   ("__lt__", [Int, Int], Bool) -> Just ("lt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a < b} |])
@@ -68,6 +68,8 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__len__"    , [Str]               , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])  
   ("index"      , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {k:ℤ | k = str_indexof(s,t,0)}|])
   ("index"      , [Str, Str, Int]     , Int) -> Just ("indexFrom", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {k:ℤ | k = str_indexof(s,t,i)} |])
+  ("find"       , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {k:ℤ | k = str_indexof(s,t,0)}|])
+  ("find"       , [Str, Str, Int]     , Int) -> Just ("indexFrom", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {k:ℤ | k = str_indexof(s,t,i)} |])
 
   -- numeric methods
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])

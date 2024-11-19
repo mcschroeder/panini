@@ -383,7 +383,19 @@ applyAxiom
   -> Transpiler Term
 applyAxiom fun args argTys retTy pv = do
   f <- getAxiom fun argTys retTy pv
-  withAtoms args $ return . mkApp f
+  case fun of
+    "index" -> withAtoms args $ \indexArgs -> do
+        assertFun <- getAxiom "assert" [PyType.Bool] PyType.None pv
+        geFun     <- getAxiom "__ge__" [PyType.Int,PyType.Int] PyType.Bool pv
+        indexVar  <- newVar
+        predicate <- newVar
+        let zero   = Con (I 0 pv)
+        let e4     = Val (Var indexVar)
+        let e3     = Let dummyName (mkApp assertFun [Var predicate]) e4 pv
+        let e2     = Let predicate (mkApp geFun [Var indexVar, zero]) e3 pv
+        return     $ Let indexVar (mkApp f indexArgs) e2 pv
+    
+    _ -> withAtoms args $ return . mkApp f
 
 getAxiom :: String -> [PyType] -> PyType -> PV -> Transpiler Name
 getAxiom fun argTys retTy pv = do
