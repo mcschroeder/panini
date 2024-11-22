@@ -144,10 +144,10 @@ infix 0 :⊑
 isIncludedBy3 :: Regex -> Regex -> Bool
 isIncludedBy3 r₁ r₂ = go [r₁ :⊑ r₂] mempty
  where
-  go [] _       = True
+  go [] _       = {-# SCC "isIncludedBy3_1" #-} True
   go (i:t) s
-    | i ∈ s     = go t s
-    | otherwise = case match i of
+    | i ∈ s     = {-# SCC "isIncludedBy3_2" #-} go t s
+    | otherwise = {-# SCC "isIncludedBy3_3" #-} case match i of
                     Just ps -> go (ps ++ t) (Set.insert i s)
                     --Ambiguous   -> OneAmbiguous
                     Nothing     -> False
@@ -190,16 +190,16 @@ match :: (Regex ⊑ Regex) -> Maybe [Regex ⊑ Regex]
 match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
   -- Axm ----------------------------------------------------------------------
   One :⊑ r 
-    | 𝔫 r                             -> Just []
+    | {-# SCC "match_Axm" #-} 𝔫 r                             -> Just []
 
   -- Letter -------------------------------------------------------------------
   Lit l₁ :⋅ r₁ :⊑ Lit l₂  :⋅ r₂ 
-    | l₁ ⊆ l₂                         -> Just [r₁ :⊑ r₂]
+    | {-# SCC "match_Letter" #-} l₁ ⊆ l₂                         -> Just [r₁ :⊑ r₂]
 
   -- LetterStar + ElimCat + LeftChoice ----------------------------------------
   Lit l :⋅ r₁ :⊑ Star r₂ :⋅ r₃
-    | l₂ ∩? l₃                        -> Just (ambiguous conclusion)
-    | l₂ ∪ l₃ == l                    -> Just (p₂ ++ p₃)
+    | {-# SCC "match_LetterStar_1" #-} l₂ ∩? l₃                        -> Just (ambiguous conclusion)
+    | {-# SCC "match_LetterStar_2" #-} l₂ ∪ l₃ == l                    -> Just (p₂ ++ p₃)
    where
     l₂ = l ⩀ r₂
     l₃ = l ⩀ r₃
@@ -208,10 +208,10 @@ match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
 
   -- LetterChoice + ElimCat + LeftChoice --------------------------------------
   Lit l :⋅ r₁ :⊑ r₅@(r₂ :+ r₃) :⋅ r₄
-    | l₂ ∩? l₃                        -> Just (ambiguous conclusion)
-    | l₂ ∩? l₄                        -> Just (ambiguous conclusion)
-    | l₃ ∩? l₄                        -> Just (ambiguous conclusion)
-    | l₂ ∪ l₃ ∪ l₄ == l               -> Just (p₂ ++ p₃ ++ p₄)
+    | {-# SCC "match_LetterChoice_1" #-} l₂ ∩? l₃                        -> Just (ambiguous conclusion)
+    | {-# SCC "match_LetterChoice_2" #-} l₂ ∩? l₄                        -> Just (ambiguous conclusion)
+    | {-# SCC "match_LetterChoice_3" #-} l₃ ∩? l₄                        -> Just (ambiguous conclusion)
+    | {-# SCC "match_LetterChoice_4" #-} l₂ ∪ l₃ ∪ l₄ == l               -> Just (p₂ ++ p₃ ++ p₄)
    where
     l₂ = l ⩀ r₂
     l₃ = l ⩀ r₃
@@ -221,29 +221,29 @@ match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
     p₄ = if CS.null l₄ then [] else [(Lit l₄)⋅r₁ :⊑ r₄]
   
   -- LeftChoice ---------------------------------------------------------------
-  (r₁ :+ r₂) :⋅ r₃ :⊑ r₄              -> Just [r₁⋅r₃ :⊑ r₄, r₂⋅r₃ :⊑ r₄]
+  (r₁ :+ r₂) :⋅ r₃ :⊑ r₄ | {-# SCC "match_LeftChoice" #-} True              -> Just [r₁⋅r₃ :⊑ r₄, r₂⋅r₃ :⊑ r₄]
 
   -- LeftStar + ElimCat -------------------------------------------------------
   Star r₁ :⋅ r₂ :⊑ r₃ :⋅ r₄
-    | leftStar, elimCat               -> Just (ambiguous conclusion)
-    | leftStar                        -> Just [r₁⋅rᴸ :⊑ rᴿ, r₂ :⊑ rᴿ]
-    | elimCat                         -> Just [rᴸ :⊑ r₄]
+    | {-# SCC "match_LeftStar_1" #-} leftStar, elimCat               -> Just (ambiguous conclusion)
+    | {-# SCC "match_LeftStar_2" #-} leftStar                        -> Just [r₁⋅rᴸ :⊑ rᴿ, r₂ :⊑ rᴿ]
+    | {-# SCC "match_LeftStar_3" #-} elimCat                         -> Just [rᴸ :⊑ r₄]
    where
     leftStar = (isLit r₃ || isStar r₃) && rᴸ ⊙ r₃
     elimCat  = 𝔫 r₃ && rᴸ ⋖ r₄
 
   -- StarChoice1 + StarChoice2 + ElimCat --------------------------------------
   Star r₁ :⋅ r₂ :⊑ r₆@(r₃ :+ r₄) :⋅ r₅
-    | starChoice1_3, starChoice1_4    -> Just (ambiguous conclusion)
-    | starChoice1_3, starChoice2      -> Just (ambiguous conclusion)
-    | starChoice1_4, starChoice2      -> Just (ambiguous conclusion)
-    | starChoice1_3, elimCat          -> Just (ambiguous conclusion)
-    | starChoice1_4, elimCat          -> Just (ambiguous conclusion)
-    | starChoice2, elimCat            -> Just (ambiguous conclusion)
-    | starChoice1_3                   -> Just [rᴸ :⊑ r₃⋅r₅] 
-    | starChoice1_4                   -> Just [rᴸ :⊑ r₄⋅r₅] 
-    | starChoice2                     -> Just [r₁⋅rᴸ :⊑ rᴿ, r₂ :⊑ rᴿ]
-    | elimCat                         -> Just [rᴸ :⊑ r₅]
+    | {-# SCC "match_StarChoice_1" #-} starChoice1_3, starChoice1_4    -> Just (ambiguous conclusion)
+    | {-# SCC "match_StarChoice_2" #-} starChoice1_3, starChoice2      -> Just (ambiguous conclusion)
+    | {-# SCC "match_StarChoice_3" #-} starChoice1_4, starChoice2      -> Just (ambiguous conclusion)
+    | {-# SCC "match_StarChoice_4" #-} starChoice1_3, elimCat          -> Just (ambiguous conclusion)
+    | {-# SCC "match_StarChoice_5" #-} starChoice1_4, elimCat          -> Just (ambiguous conclusion)
+    | {-# SCC "match_StarChoice_6" #-} starChoice2, elimCat            -> Just (ambiguous conclusion)
+    | {-# SCC "match_StarChoice_7" #-} starChoice1_3                   -> Just [rᴸ :⊑ r₃⋅r₅] 
+    | {-# SCC "match_StarChoice_8" #-} starChoice1_4                   -> Just [rᴸ :⊑ r₄⋅r₅] 
+    | {-# SCC "match_StarChoice_9" #-} starChoice2                     -> Just [r₁⋅rᴸ :⊑ rᴿ, r₂ :⊑ rᴿ]
+    | {-# SCC "match_StarChoice_10" #-} elimCat                         -> Just [rᴸ :⊑ r₅]
    where
     elimCat       = 𝔫 r₆ && rᴸ ⋖ r₅
     starChoice1_3 = rᴸ ⊙ r₃ && rᴸ ⋖ r₃⋅r₅ && (𝔫̸ r₂ || 𝔫 r₃)
@@ -253,7 +253,7 @@ match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
                     ((𝔫̸ r₃ && (𝔫 r₂ || rᴸ ⊙ r₄⋅r₅)) || rᴸ ⊙ r₄)
 
   -----------------------------------------------------------------------------
-  _ -> assert (not (rᴸ ⋖ rᴿ) || (𝔫 rᴸ && 𝔫̸ rᴿ) || (rᴸ /= One && rᴿ == One)) Nothing
+  _ | {-# SCC "match_Nothing" #-} True -> assert (not (rᴸ ⋖ rᴿ) || (𝔫 rᴸ && 𝔫̸ rᴿ) || (rᴸ /= One && rᴿ == One)) Nothing
 
 
 ambiguous i@(r :⊑ s) = [derivative c r :⊑ derivative c s | a <- Set.toList $ next' i, Just c <- [CS.choose a]]
@@ -268,3 +268,9 @@ l1 ⋉ l2 = Set.fromList $ concat $
     ]
   | a1 <- Set.toList l1, a2 <- Set.toList l2
   ]
+
+{-# SCC isIncludedBy3 #-}
+{-# SCC match #-}
+{-# SCC ambiguous #-}
+{-# SCC next' #-}
+{-# SCC (⋉) #-}
