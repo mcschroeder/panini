@@ -48,7 +48,7 @@ selfStarEq r
                         Yes             -> True
                         No              -> False
                         OneAmbiguous
-                          | size r < 40 -> r2 `isIncludedBy2` r
+                          | size r < 80 -> r2 `isIncludedBy2` r
                           | otherwise   -> False
  where
   r2 = r <> r

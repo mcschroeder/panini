@@ -34,18 +34,31 @@ infix 0 :⊑
 ν = nullable
 
 isIncludedBy2 :: Regex -> Regex -> Bool
-isIncludedBy2 r s = decide mempty (r :⊑ s)
+isIncludedBy2 r0 s0 = go mempty [r0 :⊑ s0]
+ where
+  go _ [] = True
+  go g (i@(r :⊑ s):t)
+    | i ∈ g = go g t
+    | not (ν r ==> ν s) = False
+    | s == Zero, any (not . CS.null) (next r) = False        
+    | r == Zero = go (Set.insert i g) t
+    | r == One, ν s = go (Set.insert i g) t
+    | r == s = go (Set.insert i g) t        
+    | otherwise = go (Set.insert i g) (ps ++ t)
+        where
+          ps = [(derivative c r :⊑ derivative c s) | a <- Set.toList $ next' i, Just c <- [CS.choose a]]
 
-decide :: Set (Regex ⊑ Regex) -> (Regex ⊑ Regex) -> Bool
-decide g i@(r :⊑ s)
-  | r == s = True -- IDENTITY
-  | r == Zero = True -- PROVE-EMPTY
-  | r == One, ν s = True -- PROVE-NULLABLE
-  | s == Zero, any (not . CS.null) (next r) = False -- DISPROVE-EMPTY
-  | ν r, not (ν s) = False -- DISPROVE
-  | i ∈ g = True -- CYCLE
-  | ν r ==> ν s = let g' = Set.insert i g in and [decide g' (derivative c r :⊑ derivative c s) | a <- Set.toList $ next' i, Just c <- [CS.choose a]]
-  | otherwise = impossible -- either CYCLE or DISPROVE must have fired
+-- decide :: Set (Regex ⊑ Regex) -> (Regex ⊑ Regex) -> Bool
+-- decide g i@(r :⊑ s)
+--   | r == s = True -- IDENTITY
+--   | r == Zero = True -- PROVE-EMPTY
+--   | r == One, ν s = True -- PROVE-NULLABLE
+--   | s == Zero, any (not . CS.null) (next r) = False -- DISPROVE-EMPTY
+  
+--   | ν r, not (ν s) = False -- DISPROVE  
+--   | i ∈ g = True -- CYCLE
+--   | ν r ==> ν s = let g' = Set.insert i g in and [decide g' (derivative c r :⊑ derivative c s) | a <- Set.toList $ next' i, Just c <- [CS.choose a]]
+--   | otherwise = impossible -- either CYCLE or DISPROVE must have fired
 
 
 (==>) :: Bool -> Bool -> Bool
