@@ -2,6 +2,8 @@ module Panini.Regex.Simplify.Press where
 
 import Panini.Regex.Equivalence
 import Panini.Regex.Inclusion
+import Panini.Regex.Inclusion2
+import Panini.Regex.Inclusion3
 import Panini.Regex.Simplify.Common
 import Panini.Regex.Type
 import Prelude
@@ -41,18 +43,22 @@ selfStarEq :: Regex -> Bool
 selfStarEq r
   | not (nullable r) = False
   | r2 == r          = True
+  -- | otherwise        = r2 `isIncludedBy3` r
   | otherwise        = case r2 `isIncludedBy` r of
                         Yes             -> True
                         No              -> False
                         OneAmbiguous
-                          | size r < 80 -> equivalence r (Star r)
+                          | size r < 40 -> r2 `isIncludedBy2` r
                           | otherwise   -> False
  where
   r2 = r <> r
 
 -- | @x `isSubsumedBy` y@ returns 'True' iff L(x) ⊆ L(y) and y is 1-unambiguous.
 isSubsumedBy :: Regex -> Regex -> Bool
+-- x `isSubsumedBy` y = x `isIncludedBy3` y
 x `isSubsumedBy` y = case x `isIncludedBy` y of
                       Yes          -> True
-                      No           -> False
-                      OneAmbiguous -> False
+                      _           -> False
+                      -- OneAmbiguous 
+                      --   | size x < 80, size y < 80 -> x `isIncludedBy2` y
+                      --   | otherwise -> False
