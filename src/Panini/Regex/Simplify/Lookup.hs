@@ -7,8 +7,8 @@ import Prelude
 
 -- TODO: read syntactic replacements from a file
 
-lookup :: Regex -> Regex
-lookup = \case  
+lookup :: Context -> Regex -> Regex
+lookup _ = \case  
   Times xs0 -> Times $ go xs0
    where
     -- x*⋅y⋅(x*⋅y)*  =  (x + y)* ⋅ y

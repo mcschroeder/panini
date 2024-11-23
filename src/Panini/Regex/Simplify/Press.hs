@@ -6,8 +6,8 @@ import Panini.Regex.Simplify.Common
 import Panini.Regex.Type
 import Prelude
 
-press :: Regex -> Regex
-press = \case
+press :: Context -> Regex -> Regex
+press _ = \case
   
   -- x?⋅y? = (x + y)*  if L(x?⋅y?) = L((x?⋅y?)*) ----------------
   Times xs0 -> Times $ go [] xs0

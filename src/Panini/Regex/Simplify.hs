@@ -23,17 +23,21 @@ import Prelude hiding (lookup)
 -------------------------------------------------------------------------------
 
 simplify :: Regex -> Regex
-simplify = converge $ go Free
- where
-  go ctx = descend ctx . lookup . press . lift ctx . factor . fuse ctx
-  descend ctx = \case
-    Times xs        -> Times $ map (go Free) xs
-    r@(Plus xs)
-      | nullable r  -> Plus $ map (go (max ctx Optional)) xs
-      | otherwise   -> Plus $ map (go ctx) xs
-    Opt r           -> Opt $ go (max ctx Optional) r
-    Star r          -> Star $ go Starred r
-    r               -> r
+simplify = converge $ apply Free lookup 
+                    . apply Free press  
+                    . apply Free lift  
+                    . apply Free factor  
+                    . apply Free fuse
 
 converge :: Eq a => (a -> a) -> a -> a
 converge = until =<< ((==) =<<)
+
+apply :: Context -> (Context -> Regex -> Regex) -> Regex -> Regex
+apply ctx f = \case
+  r@(Plus xs)
+    | nullable r  -> f ctx $ Plus $ map (apply (max ctx Optional) f) xs
+    | otherwise   -> f ctx $ Plus $ map (apply ctx f) xs
+  Times xs        -> f ctx $ Times $ map (apply Free f) xs
+  Opt r           -> f ctx $ Opt $ apply (max ctx Optional) f r
+  Star r          -> f ctx $ Star $ apply Starred f r
+  r               -> r

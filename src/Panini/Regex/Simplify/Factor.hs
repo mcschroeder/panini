@@ -6,8 +6,8 @@ import Panini.Regex.Simplify.Common
 import Panini.Regex.Type
 import Prelude
 
-factor :: Regex -> Regex
-factor = \case
+factor :: Context -> Regex -> Regex
+factor _ = \case
   Plus xs -> Plus $ factorize xs
   r       -> r
 
