@@ -17,7 +17,7 @@ import Data.Set qualified as Set
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Panini.Regex.Type
-import Panini.Regex.Operations
+import Panini.Regex.Derivative
 import Prelude
 import Panini.Panic
 
@@ -66,11 +66,3 @@ a ==> b = (not a) || b
 
 next' :: (Regex ⊑ Regex) -> Set CharSet
 next' (r :⊑ s) = next r ⋉ next s
-
-(⋉) :: Set CharSet -> Set CharSet -> Set CharSet
-l1 ⋉ l2 = Set.fromList $ concat $
-  [ [ a1 ∧ a2
-    , a1 ∧ (neg $ joins l2)
-    ]
-  | a1 <- Set.toList l1, a2 <- Set.toList l2
-  ]

@@ -108,6 +108,7 @@ library
     Panini.Provenance
     Panini.Regex
     Panini.Regex.CharSet
+    Panini.Regex.Derivative
     Panini.Regex.Equivalence
     Panini.Regex.Inclusion
     Panini.Regex.Inclusion2
