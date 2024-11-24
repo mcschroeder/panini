@@ -171,7 +171,7 @@ isIncludedBy3 r₁ r₂ = runST $ do
   
   let go _ _ [] = {-# SCC "isIncludedBy3_go_1" #-} return True
       go !(c :: Int) s (i@(r1 :⊑ r2):t)
-        | c > 100 = return False        
+        | c > 20 = return False        
         | i ∈ s     = {-# SCC "isIncludedBy3_go_2" #-} go c s t
         | otherwise = case match i of
             NoMatch     -> {-# SCC "isIncludedBy3_go_3" #-} return False

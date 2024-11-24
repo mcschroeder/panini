@@ -43,11 +43,12 @@ main = do
         Just reg2 -> do
           let len2 = size reg2
           printf "%d,%d," len2 delta
-          case True of
-          --case equivalence reg1 reg2 of
+          -- case True of
+          case equivalence reg1 reg2 of
             True -> printf "ok\n"
             False -> printf "wrong\n"
 
 gatherInputFiles :: IO [FilePath]
-gatherInputFiles = return ["tests/regex/data/00_timeout.txt"]
+gatherInputFiles = return ["tests/regex/data/test_MrE.txt"]
+-- gatherInputFiles = return ["tests/regex/data/MrE/expansions/s9w4"]
 --gatherInputFiles = listFilesRecursive "tests/regex/data"

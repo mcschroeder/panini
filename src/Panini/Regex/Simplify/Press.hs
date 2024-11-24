@@ -4,10 +4,12 @@ import Panini.Regex.Equivalence
 import Panini.Regex.Inclusion
 import Panini.Regex.Inclusion2
 import Panini.Regex.Inclusion3
+import Panini.Regex.Inclusion4
 import Panini.Regex.Simplify.Common
 import Panini.Regex.Type
 import Prelude
-
+import Debug.Trace
+import Panini.Pretty
 press :: Regex -> Regex
 press = \case
   
@@ -43,11 +45,18 @@ selfStarEq :: Regex -> Bool
 selfStarEq r
   | not (nullable r) = False
   -- | r2 == r          = True
-  | otherwise        = r2 `isIncludedBy3` r
+  | size r < 80 = let x = r2 `isIncludedBy4` r
+                      xok = r2 `isIncludedBy2` r
+                  in if x /= xok then error ("WRONG: " ++ showPretty r) else x
+    
+--    trace (showPretty $ pretty r2 <+> "⊑" <+> pretty r <+> "=" <+> pretty (show $ r2 `isIncludedBy2` r) ) 
+  -- | size r < 80 = r2 `isIncludedBy4` r
+  | otherwise = False
+  -- | otherwise        = r2 `isIncludedBy3` r
   -- | otherwise        = case r2 `isIncludedBy` r of
   --                       Yes             -> True
   --                       No              -> False
-  --                       OneAmbiguous
+  --                       OneAmbiguous    -- -> r2 `isIncludedBy2` r
   --                         | size r < 80 -> r2 `isIncludedBy2` r
   --                         | otherwise   -> False
  where

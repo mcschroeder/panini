@@ -113,6 +113,7 @@ library
     Panini.Regex.Inclusion
     Panini.Regex.Inclusion2
     Panini.Regex.Inclusion3
+    Panini.Regex.Inclusion4
     Panini.Regex.Operations
     Panini.Regex.POSIX.BE
     Panini.Regex.POSIX.ERE
