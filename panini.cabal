@@ -164,4 +164,8 @@ benchmark regex-simplify
     , filepath
     , extra
     , clock
+    , statistics
+    , vector
+    , megaparsec
+    , parser-combinators
   ghc-options: -O2
