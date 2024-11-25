@@ -114,6 +114,12 @@ library
     Panini.Regex.POSIX.BE
     Panini.Regex.POSIX.ERE
     Panini.Regex.Simplify
+    Panini.Regex.Simplify.Common
+    Panini.Regex.Simplify.Factor
+    Panini.Regex.Simplify.Fuse
+    Panini.Regex.Simplify.Lift
+    Panini.Regex.Simplify.Lookup
+    Panini.Regex.Simplify.Press
     Panini.Regex.SMT
     Panini.Regex.Type
     Panini.SMT.RegLan

@@ -53,7 +53,7 @@ instance Monoid    CharSet where mempty = empty
 instance Eq CharSet where
   CharSet True  xs == CharSet True  ys = xs == ys
   CharSet False xs == CharSet False ys = xs == ys
-  a                == b                = a ⊑ b && a ⊑ b
+  a                == b                = a ⊑ b && b ⊑ a
 
 -- | A linear extension of the 'PartialOrder' using lexicographic ordering.
 instance Ord CharSet where

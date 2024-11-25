@@ -1,12 +1,14 @@
 {-# LANGUAGE GHC2021 #-}
 
 import Control.Monad
+import Data.List (isInfixOf)
 import Data.Maybe
 import Panini.Pretty
 import Panini.Regex
 import Panini.Regex.POSIX.BE as BE
 import Panini.Regex.POSIX.ERE as ERE
 import Panini.Regex.Simplify
+import Panini.Regex.Simplify.Common
 import Prelude
 import System.Clock
 import System.Directory.Extra
@@ -14,7 +16,6 @@ import System.FilePath
 import System.IO
 import System.Time.Extra
 import Text.Printf
-import Data.List (isInfixOf)
 
 main :: IO ()
 main = do
