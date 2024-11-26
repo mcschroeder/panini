@@ -80,3 +80,13 @@ l1 ⋈ l2 = Set.fromList $ concat $
     ]
   | a1 <- Set.toList l1, a2 <- Set.toList l2
   ]
+
+-- | A left-biased version of ⋈ that only covers the symbols of its left operand
+-- (Keil and Thiemann 2014, Definition 16).
+(⋉) :: Set CharSet -> Set CharSet -> Set CharSet
+l1 ⋉ l2 = Set.fromList $ concat $
+  [ [ a1 ∧ a2
+    , a1 ∧ (neg $ joins l2)
+    ]
+  | a1 <- Set.toList l1, a2 <- Set.toList l2
+  ]

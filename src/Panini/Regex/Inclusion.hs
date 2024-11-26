@@ -1,17 +1,23 @@
 {-# OPTIONS_GHC -Wno-operator-whitespace #-}
 
 {-
-This module implements fast regular expression inclusion testing for certain
-kinds of expressions.
+This module implements various algorithms for regular expressions inclusion
+testing.
 
 References:
 
-  * Hovland, Dag. 2012. "The inclusion problem for regular expressions." 
-    Journal of Computer and System Sciences 78 (2012): 1795-1813.
+  * Hovland, Dag. 2012. "The inclusion problem for regular expressions." Journal
+    of Computer and System Sciences 78 (2012): 1795-1813.
     https://doi.org/10.1016/j.jcss.2011.12.003
 
+  * Keil, Matthias and Peter Thiemann. 2014. "Symbolic Solving of Extended
+    Regular Expression Inequalities." https://arxiv.org/abs/1410.3227
+
 -}
-module Panini.Regex.Inclusion (isIncludedBy, Result(..)) where
+module Panini.Regex.Inclusion 
+  ( isIncludedBy
+  , isUnambiguouslyIncludedBy
+  ) where
 
 import Control.Exception
 import Data.Foldable
@@ -19,6 +25,7 @@ import Data.Maybe
 import Data.Set qualified as Set
 import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
+import Panini.Regex.Derivative
 import Panini.Regex.Type
 import Prelude
 
@@ -71,9 +78,9 @@ infix 4 ⋖
 r₁ ⊙ r₂ = not $ CS.null $ first r₁ `CS.intersection` first r₂
 infix 4 ⊙
 
-𝔫, 𝔫̸ :: Regex -> Bool
-𝔫 = nullable
-𝔫̸ = not . nullable
+ν, ν̸ :: Regex -> Bool
+ν = nullable
+ν̸ = not . nullable
 
 (⋅) :: Regex -> Regex -> Regex
 (⋅) = times
@@ -125,29 +132,49 @@ infix 0 :⊑
 
 -------------------------------------------------------------------------------
 
--- | The result of the regular-language inclusion test @a `isIncludedBy` b@.
-data Result
-  = Yes           -- ^ L(a) ⊆ L(b)
-  | No            -- ^ L(a) ⊈ L(b)
-  | OneAmbiguous  -- ^ b is 1-ambiguous in a problematic way
-  deriving stock (Eq, Ord, Show, Read)
+-- | A regular language inclusion test, based on the construction by Keil and
+-- Thiemann (2014). Note that even though the algorithm tries to fail early and
+-- can finish quickly in practice, the problem is generally PSPACE-complete.
+isIncludedBy :: Regex -> Regex -> Bool
+isIncludedBy r0 s0 = go mempty [r0 :⊑ s0]
+ where
+  go _ []                                     = True
+  go g (i@(r :⊑ s):t)
+    | i ∈ g                                   = go g t
+    | ν r, ν̸ s                                = False
+    | s == Zero, any (not . CS.null) (next r) = False
+    | r == Zero                               = go (Set.insert i g) t
+    | r == One, ν s                           = go (Set.insert i g) t
+    | r == s                                  = go (Set.insert i g) t        
+    | otherwise                               = go (Set.insert i g) (ps ++ t)
+        where
+          ps = [ (derivative c r :⊑ derivative c s) 
+               | a <- Set.toList $ next r ⋉ next s
+               , Just c <- [CS.choose a]
+               ]
+
+-------------------------------------------------------------------------------
 
 -- | A polynomial-time regular language inclusion test, based on the algorithm
 -- by Dag Hovland (2012). Both the left-hand and the right-hand expression can
 -- be arbitrary. If the right-hand expression is 1-unambiguous, then the
 -- algorithm is guaranteed to decide the inclusion problem. However, if the
 -- right-hand expression is 1-ambiguous, then the algorithm might either decide
--- the problem correctly, or complain about the 1-ambiguity.
-isIncludedBy :: Regex -> Regex -> Result
-isIncludedBy r₁ r₂ = go [r₁ :⊑ r₂] mempty
+-- the problem correctly, or return without an answer.
+--
+-- If @a `isUnambiguouslyIncludedBy` b@ returns 'Just True', then L(a) ⊆ L(b);
+-- if it returns 'Just False', then L(a) ⊈ L(b); and if it returns 'Nothing',
+-- then b is 1-ambiguous in a problematic way.
+isUnambiguouslyIncludedBy :: Regex -> Regex -> Maybe Bool
+isUnambiguouslyIncludedBy r₁ r₂ = go [r₁ :⊑ r₂] mempty
  where
-  go [] _       = Yes
+  go [] _       = Just True
   go (i:t) s
     | i ∈ s     = go t s
     | otherwise = case match i of
                     Premises ps -> go (ps ++ t) (Set.insert i s)
-                    Ambiguous   -> OneAmbiguous
-                    NoMatch     -> No
+                    Ambiguous   -> Nothing
+                    NoMatch     -> Just False
 
 -- Note: Our 'Regex' type already insures that expressions are in header-form,
 -- hence the omission of the `hdf` function (Hovland 2012, Definition 2.7).
@@ -187,7 +214,7 @@ match :: (Regex ⊑ Regex) -> MatchResult
 match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
   -- Axm ----------------------------------------------------------------------
   One :⊑ r 
-    | 𝔫 r                             -> Premises []
+    | ν r                             -> Premises []
 
   -- Letter -------------------------------------------------------------------
   Lit l₁ :⋅ r₁ :⊑ Lit l₂  :⋅ r₂ 
@@ -212,7 +239,7 @@ match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
    where
     l₂ = l ⩀ r₂
     l₃ = l ⩀ r₃
-    l₄ = if 𝔫 r₅ then l ⩀ r₄ else mempty
+    l₄ = if ν r₅ then l ⩀ r₄ else mempty
     p₂ = if CS.null l₂ then [] else [(Lit l₂)⋅r₁ :⊑ r₂⋅r₄]
     p₃ = if CS.null l₃ then [] else [(Lit l₃)⋅r₁ :⊑ r₃⋅r₄]
     p₄ = if CS.null l₄ then [] else [(Lit l₄)⋅r₁ :⊑ r₄]
@@ -227,7 +254,7 @@ match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
     | elimCat                         -> Premises [rᴸ :⊑ r₄]
    where
     leftStar = (isLit r₃ || isStar r₃) && rᴸ ⊙ r₃
-    elimCat  = 𝔫 r₃ && rᴸ ⋖ r₄
+    elimCat  = ν r₃ && rᴸ ⋖ r₄
 
   -- StarChoice1 + StarChoice2 + ElimCat --------------------------------------
   Star r₁ :⋅ r₂ :⊑ r₆@(r₃ :+ r₄) :⋅ r₅
@@ -242,12 +269,12 @@ match conclusion@(rᴸ :⊑ rᴿ) = case conclusion of
     | starChoice2                     -> Premises [r₁⋅rᴸ :⊑ rᴿ, r₂ :⊑ rᴿ]
     | elimCat                         -> Premises [rᴸ :⊑ r₅]
    where
-    elimCat       = 𝔫 r₆ && rᴸ ⋖ r₅
-    starChoice1_3 = rᴸ ⊙ r₃ && rᴸ ⋖ r₃⋅r₅ && (𝔫̸ r₂ || 𝔫 r₃)
-    starChoice1_4 = rᴸ ⊙ r₄ && rᴸ ⋖ r₄⋅r₅ && (𝔫̸ r₂ || 𝔫 r₄)
+    elimCat       = ν r₆ && rᴸ ⋖ r₅
+    starChoice1_3 = rᴸ ⊙ r₃ && rᴸ ⋖ r₃⋅r₅ && (ν̸ r₂ || ν r₃)
+    starChoice1_4 = rᴸ ⊙ r₄ && rᴸ ⋖ r₄⋅r₅ && (ν̸ r₂ || ν r₄)
     starChoice2   = rᴸ ⊙ r₆ &&
-                    ((𝔫̸ r₄ && (𝔫 r₂ || rᴸ ⊙ r₃⋅r₅)) || rᴸ ⊙ r₃) &&
-                    ((𝔫̸ r₃ && (𝔫 r₂ || rᴸ ⊙ r₄⋅r₅)) || rᴸ ⊙ r₄)
+                    ((ν̸ r₄ && (ν r₂ || rᴸ ⊙ r₃⋅r₅)) || rᴸ ⊙ r₃) &&
+                    ((ν̸ r₃ && (ν r₂ || rᴸ ⊙ r₄⋅r₅)) || rᴸ ⊙ r₄)
 
   -----------------------------------------------------------------------------
-  _ -> assert (not (rᴸ ⋖ rᴿ) || (𝔫 rᴸ && 𝔫̸ rᴿ) || (rᴸ /= One && rᴿ == One)) NoMatch
+  _ -> assert (not (rᴸ ⋖ rᴿ) || (ν rᴸ && ν̸ rᴿ) || (rᴸ /= One && rᴿ == One)) NoMatch
