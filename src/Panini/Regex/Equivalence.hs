@@ -24,7 +24,7 @@ import Panini.Regex.CharSet qualified as CS
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
-import Panini.Regex.Operations
+import Panini.Regex.Derivative
 import Panini.Regex.Type
 import Prelude
 
