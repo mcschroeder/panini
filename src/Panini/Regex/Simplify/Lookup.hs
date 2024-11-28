@@ -126,9 +126,20 @@ lookup _ = \case
     , let b̄1 = Lit (CS.complement b)
     -> Plus [Times [a1, Opt (Times [b1, Star (Times [b1, Star b̄1])])], Star (Times [ā1, Star a1])]
 
+  -- ({a,b}+ab)?  =  a?b?
+  Opt (Plus [Lit ab, Times [Lit a, Lit b]])
+    | ab == a `CS.union` b
+    -> Times [Opt (Lit a), Opt (Lit b)]
+
   -- ({a,b,c}+a(c+bc?)+bc)?  =  a?b?c
   Opt (Plus [Lit abc, Times [Lit a1, (Plus [Lit c1, Times [Lit b1, Opt (Lit c2)]])], Times [Lit b2, Lit c3]])
     | b1 == b2, c1 == c2, c2 == c3
+    , abc == a1 `CS.union` b1 `CS.union` c1
+    -> Times [Opt (Lit a1), Opt (Lit b1), Opt (Lit c1)]
+
+  -- ({a,b,c}+a(b+b?c)+bc)?  =  a?b?c
+  Opt (Plus [Lit abc, Times [Lit a1, (Plus [Lit b1, Times [Opt (Lit b2), Lit c1]])], Times [Lit b3, Lit c2]])
+    | b1 == b2, b2 == b3, c1 == c2
     , abc == a1 `CS.union` b1 `CS.union` c1
     -> Times [Opt (Lit a1), Opt (Lit b1), Opt (Lit c1)]
 
