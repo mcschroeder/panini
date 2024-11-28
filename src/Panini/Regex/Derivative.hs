@@ -36,17 +36,19 @@ import Prelude
 -- operator ∂ is sometimes used to denote (non-partial) Brzozowski derivatives,
 -- as in Keil and Thiemann (2014).
 derivative :: Char -> Regex -> Regex
-derivative c = \case
-  One               -> Zero
-  Lit d 
-    | CS.member c d -> One
-    | otherwise     -> Zero
-  Plus1 r rs        -> derivative c r `plus` derivative c rs
-  Times1 r rs 
-    | nullable r    -> (derivative c r <> rs) `plus` derivative c rs
-    | otherwise     -> derivative c r <> rs 
-  Star r            -> derivative c r <> Star r
-  Opt r             -> derivative c r
+derivative c = go
+ where
+  go = \case
+    One               -> Zero
+    Lit d 
+      | CS.member c d -> One
+      | otherwise     -> Zero
+    Plus1 r rs        -> go r `plus` go rs
+    Times1 r rs 
+      | nullable r    -> (go r `times` rs) `plus` go rs
+      | otherwise     -> go r `times` rs 
+    Star r            -> go r `times` Star r
+    Opt r             -> go r
 
 -------------------------------------------------------------------------------
 
