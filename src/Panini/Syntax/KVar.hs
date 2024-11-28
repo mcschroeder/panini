@@ -38,7 +38,7 @@ ktypes :: KVar -> [Base]
 ktypes (KVar _ ts _) = ts
 
 instance Pretty KVar where
-  pretty k@(KVar _ ts _) = prettyKVarName k <> prettyTuple zs
+  pretty k@(KVar _ ts _) = prettyKVarName k <> prettyTupleTight zs
     where
       zs = [pretty z <> colon <> pretty t | (z,t) <- zip (kparams k) ts]
 
