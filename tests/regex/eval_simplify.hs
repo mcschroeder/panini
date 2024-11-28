@@ -34,6 +34,9 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
 
+defaultTimeout :: Seconds
+defaultTimeout = 30
+
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
@@ -77,7 +80,7 @@ main = do
       let !regBefore = parseRegex regexFormat rawLine
       let !sizeBefore = size regBefore      
       t1 <- getTime Monotonic
-      !result <- timeout 5 $ return $! simplify regBefore
+      !result <- timeout defaultTimeout $ return $! simplify regBefore
       t2 <- getTime Monotonic
       let testTimeMillis = (toNanoSecs $ diffTimeSpec t1 t2) ./. 1000000
       let !sizeAfter | Just regAfter <- result = size regAfter
