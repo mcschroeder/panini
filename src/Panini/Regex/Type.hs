@@ -34,6 +34,7 @@ module Panini.Regex.Type
   , plus
   , pattern Plus1
   , unconsPlus
+  , deleteFindChoice
   , pattern Star
   , pattern Opt
   , nullable
@@ -198,6 +199,12 @@ unconsPlus = \case
                 | otherwise            -> Just (x, Plus_ xs (any nullable xs))
   _ -> Nothing
 {-# INLINE unconsPlus #-}
+
+deleteFindChoice :: Regex -> Regex -> Maybe Regex
+deleteFindChoice x (Plus_ xs e) 
+  | Set.member x xs, let xs' = Set.delete x xs 
+  = Just $ Plus_ xs' (e && all nullable xs')
+deleteFindChoice _ _ = Nothing
 
 -- | iteration, Kleene closure (r*)
 --
