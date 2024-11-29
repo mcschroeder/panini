@@ -39,6 +39,9 @@ lift ctx r = case (ctx, r) of
       ([], _ ) -> r
       (ys, zs) -> Plus $ map (Lit . alpha1) ys ++ zs
 
+  -- (x⋅y?)* = x*  if α(y) ⊆ α₁(x) ------------------------------
+  (Starred, TimesN x (Opt y)) | alpha y ⊆ alpha1 x -> x
+
   -- x* = α̂₁(x)*  if α(x) = α₁(x) -------------------------------
   (Starred, _) | alpha r == a1 -> Lit a1  where a1 = alpha1 r
 
