@@ -1,5 +1,8 @@
 module Panini.Regex.Simplify.Press where
 
+import Control.Applicative
+import Data.List.Extra (firstJust)
+import Panini.Regex.Equivalence
 import Panini.Regex.Inclusion
 import Panini.Regex.Simplify.Common
 import Panini.Regex.Type
@@ -21,28 +24,39 @@ press _ = \case
     tryPress ys
       | selfStarEq (Times ys) = [Star (Plus $ map flatNullable ys)]
       | otherwise             = ys
-    
-  -- (x + y) = y  if L(x) ⊆ L(y) --------------------------------
+
+  -- x + y = (x ↘ y) + y ----------------------------------------
   Plus xs0 -> Plus $ go [] xs0
    where
-    go ys [] = ys
-    go ys (x:xs) | (x `isSubsumedBy`) `any` (xs ++ ys) = go ys xs
-                 | otherwise = go (x:ys) xs
-
+    go ys []                                 = ys
+    go ys (x:xs)
+      | Just y <- firstJust (x ↘) (xs ++ ys) = go (y:ys) xs
+      | otherwise                            = go (x:ys) xs
+    
   ---------------------------------------------------------------
   r -> r
 
--- | Checks whether L(r) = L(r*) by testing whether L(rr) ⊆ L(r).
+-- | Checks whether L(r) = L(r*) by testing whether L(ε) ⊆ L(rr) ⊆ L(r).
 selfStarEq :: Regex -> Bool
-selfStarEq r
-  | not (nullable r) = False
-  | otherwise = case (r <> r) `isUnambiguouslyIncludedBy` r of
-      Just b  -> b
-      Nothing -> (r <> r) `isIncludedBy` r
+selfStarEq r = nullable r && (r <> r) ⊑ r
 
--- | @x `isSubsumedBy` y@ returns 'True' iff L(x) ⊆ L(y).
-isSubsumedBy :: Regex -> Regex -> Bool
-x `isSubsumedBy` y = 
-  case x `isUnambiguouslyIncludedBy` y of
-    Just b  -> b
-    Nothing -> x `isIncludedBy` y
+-- | If we have a choice x + y we can use the operation x ↘ y to try to "press"
+-- x into a smaller expression x' such that L(x) ∖ L(y) ⊆ L(x') ⊆ L(x + y).
+-- In the best case, L(x) ⊆ L(y) and thus x ↘ y = ∅ so that x + y = y.
+(↘) :: Regex -> Regex -> Maybe Regex
+x ↘ y       | x ⊑ y             = Just Zero
+x ↘ Opt y   | not (nullable x)  = y ↘ x
+Opt x ↘ y   | nullable y        = x ↘ y <|> Just x
+Star x ↘ y  | Opt x ≡ Star x    = Opt x ↘ y
+x ↘ Star y                      = y ↘ x
+_ ↘ _                           = Nothing
+
+-- | @x '≡' y@ tests whether L(x) = L(y). Warning: this can be expensive!
+(≡) :: Regex -> Regex -> Bool
+r ≡ s = equivalence r s
+
+-- | @x '⊑' y@ tests whether L(x) ⊆ L(y). Warning: this can be expensive!
+(⊑) :: Regex -> Regex -> Bool
+r ⊑ s = case r `isUnambiguouslyIncludedBy` s of
+  Just b -> b
+  Nothing -> r `isIncludedBy` s
