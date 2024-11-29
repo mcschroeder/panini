@@ -48,7 +48,7 @@ x ↘ y       | x ⊑ y             = Just Zero
 x ↘ Opt y   | not (nullable x)  = y ↘ x
 Opt x ↘ y   | nullable y        = x ↘ y <|> Just x
 Star x ↘ y  | Opt x ≡ Star x    = Opt x ↘ y
-x ↘ Star y                      = y ↘ x
+x ↘ Star y                      = x ↘ y
 _ ↘ _                           = Nothing
 
 -- | @x '≡' y@ tests whether L(x) = L(y). Warning: this can be expensive!
