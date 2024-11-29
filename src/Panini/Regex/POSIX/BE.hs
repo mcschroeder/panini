@@ -25,7 +25,7 @@ import Data.List.NonEmpty qualified as NE
 import Data.Void
 import GHC.Generics
 import Panini.Pretty
-import Panini.Regex.CharSet (CharSet(..))
+import Panini.Regex.CharSet (CharSet)
 import Panini.Regex.CharSet qualified as CS
 import Prelude hiding (exp)
 import Text.Megaparsec
@@ -97,7 +97,7 @@ be = char '[' *> choice [non, mat] <* char ']'
 -- 'Char'. This is in line with how Σ is usually treated, e.g., by translating
 -- it to the ERE wildcard @.@ which also technically should exclude @\NUL@.
 fromCharSet :: CharSet -> Maybe BE
-fromCharSet (CharSet b s) = case (b, NE.nonEmpty $ CS.intSetToCharList s) of
+fromCharSet (CS.fromCharSet -> (b,s)) = case (b, NE.nonEmpty $ CS.intSetToCharList s) of
   (True,  Nothing) -> Nothing
   (True,  Just xs) -> Just $ Mat $ NE.fromList $ rangeChunks $ NE.toList xs
   (False, Nothing) -> Just $ Mat $ NE.singleton $ Ran '\NUL' (maxBound @Char)

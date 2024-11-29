@@ -7,7 +7,7 @@
 -- that need to be re-constructed anytime charsets are joined/meeted).
 -- 
 module Panini.Regex.CharSet
-  ( CharSet(..)
+  ( CharSet
   , empty
   , full
   , singleton
