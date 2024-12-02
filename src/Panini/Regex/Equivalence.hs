@@ -21,7 +21,6 @@ References:
 module Panini.Regex.Equivalence (equivalence, membership) where
 
 import Panini.Regex.CharSet qualified as CS
-import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import Panini.Regex.Derivative
@@ -30,31 +29,36 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
+(∈) :: Eq a => Foldable t => a -> t a -> Bool
+(∈) = elem
+
+ν :: Regex -> Bool
+ν = nullable
+
+-- | The '≡' type is a reified regular expression equivalence relation.
+data a ≡ b = a :≡ b 
+  deriving stock (Eq, Ord, Show, Read)
+
+infix 0 :≡
+
+-------------------------------------------------------------------------------
+
 -- | Semantic equivalence of two regular expressions, i.e., language equality.
 equivalence :: Regex -> Regex -> Bool
-equivalence r1 r2 = equiv (Set.singleton (r1,r2)) mempty
-
-equiv :: Set (Regex,Regex) -> Set (Regex,Regex) -> Bool
-equiv s _                                | Set.null s     = True
-equiv (Set.deleteFindMin -> ((a,b),s)) h | con a /= con b = False
-                                         | otherwise      = equiv (s <> s') h'
+equivalence r1 r2 = go mempty [r1 :≡ r2]
  where
-  a' = det (lin a)
-  b' = det (lin b)
-  s' = (Set.fromList $ derivatives a' b') `Set.difference` h'
-  h' = Set.insert (a,b) h
-
-derivatives :: Regex -> Regex -> [(Regex,Regex)]
-derivatives a b = 
-  [ (derivative c a, derivative c b) 
-  | p <- Set.toList $ next a ⋈ next b
-  , Just c <- [CS.choose p]
-  ]
-
--- | Return the constant part of a regular expression.
-con :: Regex -> Regex
-con a | nullable a = One
-      | otherwise  = Zero
+  go _ []               = True
+  go h (e@(a :≡ b):s)
+    | e ∈ h             = go h s
+    | ν a /= ν b        = False
+    | otherwise         = go (Set.insert e h) (s' ++ s)
+        where
+          a' = det (lin a)
+          b' = det (lin b)
+          s' = [ derivative c a' :≡ derivative c b'
+               | p <- Set.toList $ next a ⋈ next b
+               , Just c <- [CS.choose p]
+               ]
 
 -- | Given an arbitrary regular expression, return a linear regular expression.
 lin :: Regex -> Regex
