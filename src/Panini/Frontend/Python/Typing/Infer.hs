@@ -31,6 +31,7 @@ import Prelude
 
 infer :: Module a -> Either TypeError (Typed Module a)
 infer (Module stmts) = runInfer $ do
+  registerVar "__name__" PyType.Str
   stmtsTypedMeta <- mapM inferStmt stmts
   --traceM $ showPretty stmtsTypedMeta
   constraints    <- lift $ gets subConstraints

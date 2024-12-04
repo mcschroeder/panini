@@ -389,6 +389,7 @@ globalFunctions =
   , ("pow", Callable [Float,Float] (Union [Float,Complex]))
   , ("pow", Callable [Float,Complex] (Union [Float,Complex]))
   , ("pow", Callable [Complex,Complex] Complex)
+  , ("print", Callable [Object] None)
   , ("quit", Callable [] NoReturn)
   , ("quit", Callable [Object] NoReturn)
   , ("repr", Callable [Object] Str)

@@ -110,6 +110,16 @@ transpileTopLevel dom = go dom.root
       rest    <- go _next
       return   $ imports ++ rest
     
+    -- HACK: ignore: if __name__ == '__main__': ...
+    Branch 
+      { _cond = BinaryOp 
+        { operator = Equality{}
+        , left_op_arg = IsVar "__name__"
+        , right_op_arg = IsString "__main__" 
+        }
+      , ..
+      } -> go _nextFalse
+
     Branch{} -> do
       lift $ throwE $ OtherError "UnsupportedTopLevel: branch" NoPV -- TODO
     

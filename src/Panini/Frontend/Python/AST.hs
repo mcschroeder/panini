@@ -8,6 +8,7 @@ helpful utility functions and types.
 module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
   , pattern IsVar
+  , pattern IsString
   , expectVars
   , assignOpToOp
   , pattern ArgExprs
@@ -29,6 +30,7 @@ import Data.Maybe
 import Data.Set (Set, (\\))
 import Data.Set qualified as Set
 import Language.Python.Common.AST
+import Panini.Frontend.Python.Strings 
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -42,6 +44,11 @@ expectVars = go []
   go xs []            = Just (reverse xs)
   go xs (Var x _: es) = go (x:xs) es
   go _  _             = Nothing
+
+------------------------------------------------------------------------------
+
+pattern IsString :: String -> Expr annot
+pattern IsString str <- Strings { strings_strings = [decodeStringLiteral -> Just str] }
 
 ------------------------------------------------------------------------------
 
