@@ -57,3 +57,7 @@ TAGS
 .DS_Store
 
 *.log
+
+__pycache__
+*.dfa.dot
+*.grammar.json
