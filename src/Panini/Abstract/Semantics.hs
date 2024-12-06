@@ -789,7 +789,7 @@ concretizeInt x a = case AInt.intervals a of
   []                                        -> PFalse  
   [NegInf :..: PosInf]                      -> PTrue
   [NegInf :..: Fin n ]                      -> mk (:≤:) n
-  [Fin m  :..: PosInf]                      -> mk (:>:) m
+  [Fin m  :..: PosInf]                      -> mk (:≥:) m
   [Fin m  :..: Fin n ] | m == n             -> mk (:=:) m
                        | otherwise          -> mk (:≥:) m ∧ mk (:≤:) n
   [NegInf :..: Fin m, Fin n :..: PosInf]
