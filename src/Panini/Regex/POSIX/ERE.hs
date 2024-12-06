@@ -114,7 +114,7 @@ ere = Alt <$> NE.sepBy1 con (char '|')
     e <- choice [chr, per, bra, cir, dol, grp]
     d <- optional $ choice [ast, pls, que, try exa, try min, inv]
     return $ maybe e (Dup e) d
-  chr = Chr <$> satisfy (`notElem` ("|.[^$()*?{" :: [Char]))
+  chr = Chr <$> satisfy (`notElem` ("|.[]^$()*?{}" :: [Char]))
   per = Per <$ char '.'
   bra = Bra <$> BE.be
   cir = Cir <$ char '^'

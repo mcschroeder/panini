@@ -27,6 +27,7 @@ import Panini.Error
 import Panini.Monad
 import Panini.Pretty ((<+>), pretty)
 import Panini.Provenance
+import Panini.Regex.POSIX.ERE qualified as ERE
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
@@ -363,6 +364,7 @@ predicate = makeExprParser predTerm predOps
 predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
+  , try regRel
   , try predRel
   , PTrue <$ keyword "true"
   , PFalse <$ keyword "false"
@@ -393,6 +395,13 @@ mkOr (POr ps) q        = POr (ps ++ [q])
 mkOr p        (POr qs) = POr (p:qs)
 mkOr p        q        = POr [p,q]
 
+regRel :: Parser Pred
+regRel = do
+  e1 <- pexpr
+  ctor <- ((:∈:) <$ symIn) <|> ((:∉:) <$ symNotIn)
+  e2 <- EReg <$> ERE.ere
+  return (PRel (ctor e1 e2))
+
 predRel :: Parser Pred
 predRel = do
   e1 <- pexpr
@@ -408,8 +417,8 @@ relation = choice
   , (:<:) <$ op "<"
   , (:≥:) <$ symGe
   , (:>:) <$ op ">"
-  , (:∈:) <$ symIn
-  , (:∉:) <$ symNotIn
+  --, (:∈:) <$ symIn
+  --, (:∉:) <$ symNotIn
   ]
 
 pexpr :: Parser Expr
