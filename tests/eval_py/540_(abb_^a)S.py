@@ -7,5 +7,3 @@ def f540(s: str):
       i += 3
     else:
       i += 1
-
-# skipped for .pan file because it needs manual loop invariant

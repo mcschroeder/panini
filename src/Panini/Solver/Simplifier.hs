@@ -5,6 +5,8 @@ import Data.Generics.Uniplate.Operations
 import Data.List.Extra qualified as List
 import Data.Maybe
 import Panini.Abstract.Semantics
+import Panini.Abstract.AValue
+import Panini.Abstract.AInt qualified as AInt
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
@@ -74,6 +76,26 @@ simplifyPred = rewrite $ \case
       PAnd ys -> ys
       PTrue   -> []
       y       -> [y]
+  
+  p@(PAnd xs0@(PRel (Rel _ (EVar i) (EInt _ _)) : _)) -> case go top xs0 of
+    Just p' | p' /= p -> Just p'
+    _                 -> Nothing
+   where
+    go v (PRel r:xs)  = case abstract i TInt r of
+        Just (EAbs (AInt v')) -> go (v ∧ v') xs
+        Just (ECon (I c _))   -> go (v ∧ AInt.eq c) xs
+        _                     -> Nothing
+    go _ (_:_)        = Nothing      
+    go v []           = Just $ concretizeInt i v
+
+  PAnd [PRel (EVar i1 :≥: EInt 0 _pv1), PRel (EVar i2 :>: EInt 0 pv2)]
+    | i1 == i2 -> Just $ PRel (EVar i2 :>: EInt 0 pv2)
+
+  POr [PRel (EVar i1 :>: EInt 0 _pv1), PRel (EVar i2 :=: EInt 0 pv2)]
+    | i1 == i2 -> Just $ PRel (EVar i2 :≥: EInt 0 pv2)  
+
+  POr [PRel (EVar i1 :≥: EInt 1 _pv1), PRel (EVar i2 :=: EInt 0 pv2)]
+    | i1 == i2 -> Just $ PRel (EVar i2 :≥: EInt 0 pv2)
 
   PNot PTrue -> Just PFalse
   PNot PFalse -> Just PTrue

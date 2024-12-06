@@ -33,7 +33,7 @@ hex_values = \c:string.
 
 cgi_decode : {s:𝕊 | ?} → 𝟙
 cgi_decode = λs:𝕊.
-  rec L1 : {i:ℤ | i >= 0 /\ i <= |s|} → 𝟙 = λi:ℤ.
+  rec L1 : {i:ℤ | ?} → 𝟙 = λi:ℤ.
     let v0 = length s in
     let v1 = lt i v0 in
     if v1 then

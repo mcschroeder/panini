@@ -193,8 +193,8 @@ test,result,time_ms,language,precision,recall
 526_aaXS.py,FAIL,9,error,1.00,0.00
 527_aaXS.py,FAIL,9,error,1.00,0.00
 528_aaXS.py,FAIL,9,error,1.00,0.00
-530_(ab_^a)S.pan,OK,1024,exact,1.00,1.00
-540_(abb_^a)S.pan,OK,1048,exact,1.00,1.00
+530_(ab_^a)S.py,OK,1024,exact,1.00,1.00
+540_(abb_^a)S.py,OK,1048,exact,1.00,1.00
 550_no_single_b.py,OK,36,exact,1.00,1.00
 551_no_single_b.py,OK,733,exact,1.00,1.00
 970_getAddrSpec.py,OK,1021,exact,1.00,1.00

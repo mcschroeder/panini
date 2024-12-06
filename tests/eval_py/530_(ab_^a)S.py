@@ -6,5 +6,3 @@ def f530(s: str):
       i += 2
     else:
       i += 1
-
-# skipped for .pan file because it needs manual loop invariant
