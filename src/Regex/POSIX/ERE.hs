@@ -25,7 +25,6 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
 import Data.Void
 import GHC.Generics
-import Panini.Panic
 import Prelude hiding (exp, min)
 import Regex.POSIX.BE (BE)
 import Regex.POSIX.BE qualified as BE
@@ -162,7 +161,7 @@ fromRegex = regexToAlt
     Lit cs   -> Dup <$> litToExp cs <*> pure d
     Plus _   -> Dup <$> (Grp <$> regexToAlt r) <*> pure d
     Times _  -> Dup <$> (Grp <$> regexToAlt r) <*> pure d
-    _        -> impossible
+    _        -> error "impossible"
 
   litToExp cs
     | [c] <- CS.toList cs          = Just $ Chr c

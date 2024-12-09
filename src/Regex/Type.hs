@@ -53,7 +53,6 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
-import Panini.Panic
 import Prelude
 import Prettyprinter
 import Regex.CharSet (CharSet)
@@ -127,7 +126,6 @@ pattern Times1 x y <- (unconsTimes -> Just (x,y))
 
 unconsTimes :: Regex -> Maybe (Regex, Regex)
 unconsTimes = \case
-  Times_ []     _ -> impossible
   Times_ [x,y]  _ -> Just (x, y)
   Times_ (x:xs) _ -> Just (x, Times_ xs (all nullable xs))
   _               -> Nothing
@@ -139,7 +137,6 @@ pattern TimesN x y <- (unsnocTimes -> Just (x,y))
 
 unsnocTimes :: Regex -> Maybe (Regex, Regex)
 unsnocTimes = \case
-  Times_ []                      _ -> impossible
   Times_ [x,y]                   _ -> Just (x, y)
   Times_ (unsnoc -> Just (xs,x)) _ -> Just (Times_ xs (all nullable xs),x)
   _                                -> Nothing
@@ -194,10 +191,9 @@ pattern Plus1 x y <- (unconsPlus -> Just (x,y))
 
 unconsPlus :: Regex -> Maybe (Regex, Regex)
 unconsPlus = \case  
-  Plus_ xs0 _ -> case Set.minView xs0 of
-    Nothing                            -> impossible
-    Just (x,xs) | [y] <- Set.toList xs -> Just (x, y)
-                | otherwise            -> Just (x, Plus_ xs (any nullable xs))
+  Plus_ xs0 _ -> case Set.deleteFindMin xs0 of
+    (x,xs) | [y] <- Set.toList xs -> Just (x, y)
+           | otherwise            -> Just (x, Plus_ xs (any nullable xs))
   _ -> Nothing
 {-# INLINE unconsPlus #-}
 
