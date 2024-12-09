@@ -25,6 +25,7 @@ module Regex.CharSet
   , choose
   , fromCharSet
   , intSetToCharList
+  , prettyCharSet
   ) where
 
 import Algebra.Lattice
@@ -33,9 +34,10 @@ import Data.Foldable qualified
 import Data.Hashable
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as I
+import Data.List (intersperse)
 import GHC.Generics
-import Panini.Pretty
 import Prelude hiding (null)
+import Prettyprinter
 
 -------------------------------------------------------------------------------
 
@@ -67,17 +69,6 @@ instance JoinSemilattice        CharSet where (∨) = union
 instance BoundedMeetSemilattice CharSet where top = full
 instance BoundedJoinSemilattice CharSet where bot = empty
 instance ComplementedLattice    CharSet where neg = complement
-
-instance Pretty CharSet where 
-  pretty = \case
-    CharSet True s -> case intSetToCharList s of
-      []  -> emptySet
-      [x] -> pretty x
-      xs  -> prettySetTight $ map pretty xs
-    CharSet False s -> case intSetToCharList s of
-      []  -> bigSigma
-      [x] -> parens $ bigSigma <> setMinus <> pretty x
-      xs  -> parens $ bigSigma <> setMinus <> prettySetTight (map pretty xs)
 
 -------------------------------------------------------------------------------
 
@@ -168,3 +159,19 @@ intSetToCharList = map (toEnum @Char) . I.toAscList
 
 charListToIntSet :: [Char] -> IntSet
 charListToIntSet = I.fromList . map (fromEnum @Char)
+
+-------------------------------------------------------------------------------
+
+instance Pretty CharSet where
+  pretty = prettyCharSet
+
+prettyCharSet :: CharSet -> Doc ann
+prettyCharSet = \case
+  CharSet True s -> case intSetToCharList s of
+    [] -> "∅"
+    xs -> prettySet xs
+  CharSet False s -> case intSetToCharList s of
+    [] -> "Σ"
+    xs -> "Σ∖" <> prettySet xs
+  where
+    prettySet = braces . mconcat . intersperse "," . map pretty

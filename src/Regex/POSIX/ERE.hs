@@ -26,7 +26,6 @@ import Data.List.NonEmpty qualified as NE
 import Data.Void
 import GHC.Generics
 import Panini.Panic
-import Panini.Pretty
 import Prelude hiding (exp, min)
 import Regex.POSIX.BE (BE)
 import Regex.POSIX.BE qualified as BE
@@ -79,9 +78,6 @@ instance Hashable Exp
 instance Hashable Dup
 
 ------------------------------------------------------------------------------
-
-instance Pretty ERE where
-  pretty = ann (Literal StringLit) . pretty . printERE
 
 printERE :: ERE -> String
 printERE (Alt xs) = concat $ List.intersperse "|" $ map printCon $ NE.toList xs
@@ -192,8 +188,8 @@ toRegex ere0 = altToRegex ere0
     Chr c   -> Lit $ CS.singleton c
     Per     -> AnyChar  -- note: deviation from standard    
     Bra b   -> Lit $ BE.toCharSet b
-    Cir     -> panic $ "Cannot convert anchored ERE to Regex:" <+> pretty ere0
-    Dol     -> panic $ "Cannot convert anchored ERE to Regex:" <+> pretty ere0
+    Cir     -> error $ "Cannot convert anchored ERE to Regex: " ++ printERE ere0
+    Dol     -> error $ "Cannot convert anchored ERE to Regex: " ++ printERE ere0
     Grp r   -> altToRegex r
     Dup r d -> dupToRegex (expToRegex r) d
   

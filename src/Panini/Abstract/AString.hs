@@ -47,7 +47,7 @@ instance ComplementedLattice AString where
   neg (MkAString r) = MkAString $ Regex.complement r
 
 instance Pretty AString where
-  pretty (MkAString r) = ann (Literal AbstractLit) $ pretty r
+  pretty (MkAString r) = ann (Literal AbstractLit) $ prettyRegex r
 
 ------------------------------------------------------------------------------
 

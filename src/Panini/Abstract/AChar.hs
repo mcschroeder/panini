@@ -57,7 +57,7 @@ ne :: Char -> AChar
 ne = AChar . CS.complement . CS.singleton
 
 instance Pretty AChar where
-  pretty (AChar cs) = pretty cs
+  pretty (AChar cs) = CS.prettyCharSet cs
 
 toCharSet :: AChar -> CharSet
 toCharSet (AChar cs) = cs

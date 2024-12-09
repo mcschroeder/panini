@@ -24,7 +24,6 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
 import Data.Void
 import GHC.Generics
-import Panini.Pretty
 import Prelude hiding (exp)
 import Regex.CharSet (CharSet)
 import Regex.CharSet qualified as CS
@@ -58,9 +57,6 @@ instance Hashable BE
 instance Hashable Exp
 
 -------------------------------------------------------------------------------
-
-instance Pretty BE where
-  pretty = ann (Literal StringLit) . pretty . printBE
 
 printBE :: BE -> String
 printBE = \case

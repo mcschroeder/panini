@@ -20,6 +20,7 @@ import Panini.Provenance
 import Panini.Syntax
 import Prelude
 import Regex qualified as Regex
+import Regex.Type (prettyRegex)
 import Regex.POSIX.ERE qualified
 
 --import Debug.Trace
@@ -822,4 +823,4 @@ concretizeString x a = case AString.toRegex a of
   Regex.All  -> PTrue
   r -> case Regex.POSIX.ERE.fromRegex r of
     Just ere -> PRel $ EVar x :∈: EReg ere
-    Nothing  -> panic $ "cannot convert Regex to ERE:" <+> pretty r
+    Nothing  -> panic $ "cannot convert Regex to ERE:" <+> prettyRegex r

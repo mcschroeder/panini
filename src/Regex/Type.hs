@@ -40,12 +40,13 @@ module Regex.Type
   , nullable
   , minWordLength
   , maxWordLength
+  , prettyRegex
   ) where
 
 import Data.Data (Data)
 import Data.Foldable
 import Data.Hashable
-import Data.List.Extra (unsnoc)
+import Data.List.Extra (unsnoc, intersperse)
 import Data.Maybe
 import Data.Semigroup (stimes)
 import Data.Set (Set)
@@ -53,8 +54,8 @@ import Data.Set qualified as Set
 import Data.String
 import GHC.Generics
 import Panini.Panic
-import Panini.Pretty
 import Prelude
+import Prettyprinter
 import Regex.CharSet (CharSet)
 import Regex.CharSet qualified as CS
 
@@ -301,13 +302,18 @@ maxWordLength r0 = Just $ fromMaybe (-1) $ go r0
 -------------------------------------------------------------------------------
 
 instance Pretty Regex where
-  pretty = go (7 :: Int)
-   where
-    go p = \case
-      Zero     -> emptySet
-      One      -> epsilon
-      Lit c    -> pretty c
-      Plus rs  -> parensIf (p >= 7) $ concatWithOp "+" $ map (go 7) rs
-      Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
-      Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
-      Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 
+  pretty = prettyRegex
+
+prettyRegex :: Regex -> Doc ann
+prettyRegex = go (7 :: Int)
+ where
+  go p = \case
+    Zero     -> "∅"
+    One      -> "ε"
+    Lit c    -> pretty c
+    Plus rs  -> parensIf (p >= 7) $ fillSep $ intersperse "+" $ map (go 7) rs
+    Times rs -> parensIf (p >= 8) $ mconcat $ map (go 8) rs
+    Star r   -> parensIf (p >= 9) $ go 9 r <> "*" 
+    Opt r    -> parensIf (p >= 9) $ go 9 r <> "?" 
+    
+  parensIf x = if x then parens else id

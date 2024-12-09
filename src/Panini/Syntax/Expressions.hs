@@ -22,7 +22,7 @@ import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
-import Regex.POSIX.ERE (ERE)
+import Regex.POSIX.ERE (ERE, printERE)
 
 -- TODO: consider changing EStrSub to start,length encoding (like SMTLIB)?
 -- TODO: simplify EReg situation
@@ -289,7 +289,7 @@ instance Pretty Expr where
     EStrSub s i j -> pretty s <> "[" <> pretty i <> ".." <> pretty j <> "]"
     EFun f es     -> pretty f <> parens (mconcat $ List.intersperse ", " $ map pretty es)
     ECon c        -> pretty c
-    EReg r        -> pretty r
+    EReg r        -> ann (Literal StringLit) $ pretty $ printERE r
     EAbs a        -> pretty a
     ESol x _ r    -> braces $ pretty x <> "|" <> pretty r
    where
