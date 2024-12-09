@@ -105,24 +105,8 @@ library
     Panini.Pretty.Render
     Panini.Pretty.Style
     Panini.Pretty.Symbols
-    Panini.Provenance
-    Panini.Regex
-    Panini.Regex.CharSet
-    Panini.Regex.Derivative
-    Panini.Regex.Equivalence
-    Panini.Regex.Inclusion
-    Panini.Regex.Operations
-    Panini.Regex.POSIX.BE
-    Panini.Regex.POSIX.ERE
-    Panini.Regex.Simplify
-    Panini.Regex.Simplify.Common
-    Panini.Regex.Simplify.Factor
-    Panini.Regex.Simplify.Fuse
-    Panini.Regex.Simplify.Lift
-    Panini.Regex.Simplify.Lookup
-    Panini.Regex.Simplify.Press
+    Panini.Provenance    
     Panini.Regex.SMT
-    Panini.Regex.Type
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
@@ -144,6 +128,22 @@ library
     Panini.Syntax.QQ
     Panini.Syntax.Substitution
     Panini.Version
+    Regex
+    Regex.CharSet
+    Regex.Derivative
+    Regex.Equivalence
+    Regex.Inclusion
+    Regex.Operations
+    Regex.POSIX.BE
+    Regex.POSIX.ERE
+    Regex.Simplify
+    Regex.Simplify.Common
+    Regex.Simplify.Factor
+    Regex.Simplify.Fuse
+    Regex.Simplify.Lift
+    Regex.Simplify.Lookup
+    Regex.Simplify.Press
+    Regex.Type
 
 executable panini
   hs-source-dirs: app

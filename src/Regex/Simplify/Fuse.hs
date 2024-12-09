@@ -1,8 +1,8 @@
-module Panini.Regex.Simplify.Fuse where
+module Regex.Simplify.Fuse where
 
-import Panini.Regex.Simplify.Common
-import Panini.Regex.Type
 import Prelude
+import Regex.Simplify.Common
+import Regex.Type
 
 fuse :: Context -> Regex -> Regex
 fuse ctx r = case (ctx, r) of

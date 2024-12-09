@@ -1,11 +1,11 @@
-module Panini.Regex.Simplify.Lift where
+module Regex.Simplify.Lift where
 
 import Data.List.Extra (partition)
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Simplify.Common
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet (CharSet)
+import Regex.CharSet qualified as CS
+import Regex.Simplify.Common
+import Regex.Type
 
 (⊆) :: CharSet -> CharSet -> Bool
 (⊆) = CS.isSubsetOf

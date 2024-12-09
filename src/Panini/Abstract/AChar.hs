@@ -15,9 +15,9 @@ import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
 import Panini.Pretty
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.CharSet qualified as CS
 import Prelude
+import Regex.CharSet (CharSet)
+import Regex.CharSet qualified as CS
 
 -------------------------------------------------------------------------------
 

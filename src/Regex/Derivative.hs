@@ -14,15 +14,15 @@ References:
     Regular Expression Inequalities." https://arxiv.org/abs/1410.3227
 
 -}
-module Panini.Regex.Derivative where
+module Regex.Derivative where
 
 import Algebra.Lattice
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet (CharSet)
+import Regex.CharSet qualified as CS
+import Regex.Type
 
 -------------------------------------------------------------------------------
 

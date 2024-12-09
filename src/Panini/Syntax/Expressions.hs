@@ -2,6 +2,7 @@
 module Panini.Syntax.Expressions where
 
 import Algebra.Lattice
+import Control.Applicative
 import Data.Data (Data)
 import Data.Foldable
 import Data.Generics.Uniplate.Direct
@@ -17,12 +18,11 @@ import Panini.Abstract.AUnit as AUnit
 import Panini.Abstract.AValue as AValue
 import Panini.Pretty
 import Panini.Provenance
-import Panini.Regex.POSIX.ERE (ERE)
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
-import Control.Applicative
+import Regex.POSIX.ERE (ERE)
 
 -- TODO: consider changing EStrSub to start,length encoding (like SMTLIB)?
 -- TODO: simplify EReg situation

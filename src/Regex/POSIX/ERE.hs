@@ -15,7 +15,7 @@ References:
     https://en.wikipedia.org/wiki/Regular_expression
 
 -}
-module Panini.Regex.POSIX.ERE where
+module Regex.POSIX.ERE where
 
 import Control.Monad.Combinators.NonEmpty qualified as NE
 import Data.Data (Data)
@@ -25,13 +25,13 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
 import Data.Void
 import GHC.Generics
-import Panini.Regex.POSIX.BE (BE)
-import Panini.Regex.POSIX.BE qualified as BE
-import Panini.Regex.CharSet qualified as CS
-import Prelude hiding (exp, min)
-import Panini.Regex.Type
 import Panini.Panic
 import Panini.Pretty
+import Prelude hiding (exp, min)
+import Regex.POSIX.BE (BE)
+import Regex.POSIX.BE qualified as BE
+import Regex.CharSet qualified as CS
+import Regex.Type
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L

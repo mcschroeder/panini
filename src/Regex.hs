@@ -1,6 +1,6 @@
 -- | This module exports types and functions to work with extended regular
 -- expressions (i.e., regexes that permit intersection and complement).
-module Panini.Regex
+module Regex
   ( Regex(..)
   , pattern Zero
   , pattern All
@@ -16,8 +16,8 @@ module Panini.Regex
   , membership
   ) where
 
-import Panini.Regex.Equivalence
-import Panini.Regex.Operations
-import Panini.Regex.Simplify
-import Panini.Regex.Type
+import Regex.Equivalence
+import Regex.Operations
+import Regex.Simplify
+import Regex.Type
 import Prelude ()

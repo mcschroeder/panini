@@ -1,12 +1,12 @@
-module Panini.Regex.Simplify.Press where
+module Regex.Simplify.Press where
 
 import Control.Applicative
 import Data.List.Extra (firstJust)
-import Panini.Regex.Equivalence
-import Panini.Regex.Inclusion
-import Panini.Regex.Simplify.Common
-import Panini.Regex.Type
 import Prelude
+import Regex.Equivalence
+import Regex.Inclusion
+import Regex.Simplify.Common
+import Regex.Type
 
 press :: Context -> Regex -> Regex
 press _ = \case

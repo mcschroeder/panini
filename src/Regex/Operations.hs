@@ -18,7 +18,7 @@ References:
     Regular Expression Inequalities." https://arxiv.org/abs/1410.3227
     
 -}
-module Panini.Regex.Operations where
+module Regex.Operations where
 
 import Algebra.Lattice
 import Control.Applicative
@@ -29,10 +29,10 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.Semigroup hiding (All)
 import Data.Set qualified as Set
-import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Derivative
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet qualified as CS
+import Regex.Derivative
+import Regex.Type
 
 -------------------------------------------------------------------------------
 

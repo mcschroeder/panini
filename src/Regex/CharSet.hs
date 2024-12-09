@@ -6,7 +6,7 @@
 -- slow for our use case (probably because it stores an extra set of head bytes
 -- that need to be re-constructed anytime charsets are joined/meeted).
 -- 
-module Panini.Regex.CharSet
+module Regex.CharSet
   ( CharSet
   , empty
   , full

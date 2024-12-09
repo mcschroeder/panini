@@ -18,14 +18,14 @@ References:
     https://doi.org/10.1007/978-3-319-08970-6_29
 
 -}
-module Panini.Regex.Equivalence (equivalence, membership) where
+module Regex.Equivalence (equivalence, membership) where
 
-import Panini.Regex.CharSet qualified as CS
 import Data.Set qualified as Set
 import Data.String
-import Panini.Regex.Derivative
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet qualified as CS
+import Regex.Derivative
+import Regex.Type
 
 -------------------------------------------------------------------------------
 

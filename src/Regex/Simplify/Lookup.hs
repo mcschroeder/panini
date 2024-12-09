@@ -1,9 +1,9 @@
-module Panini.Regex.Simplify.Lookup where
+module Regex.Simplify.Lookup where
 
-import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Simplify.Common
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet qualified as CS
+import Regex.Simplify.Common
+import Regex.Type
 
 -- TODO: read syntactic replacements from a file
 

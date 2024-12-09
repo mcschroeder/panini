@@ -10,12 +10,12 @@ import Panini.Abstract.AString (AString, toRegLan)
 import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
-import Panini.Regex.POSIX.ERE qualified as ERE
 import Panini.Regex.SMT qualified as Regex
 import Panini.SMT.RegLan
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Regex.POSIX.ERE qualified as ERE
 
 -- TODO: ensure variable names are encoded properly (e.g., n')
 -- TODO: allow EFun names to contain dots to match SMT-LIB (e.g. "str.indexof")

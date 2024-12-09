@@ -15,7 +15,7 @@ References:
     https://en.wikipedia.org/wiki/Regular_expression
 
 -}
-module Panini.Regex.POSIX.BE where
+module Regex.POSIX.BE where
 
 import Control.Monad.Combinators.NonEmpty qualified as NE
 import Data.Data (Data)
@@ -25,9 +25,9 @@ import Data.List.NonEmpty qualified as NE
 import Data.Void
 import GHC.Generics
 import Panini.Pretty
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.CharSet qualified as CS
 import Prelude hiding (exp)
+import Regex.CharSet (CharSet)
+import Regex.CharSet qualified as CS
 import Text.Megaparsec
 import Text.Megaparsec.Char
 

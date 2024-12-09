@@ -27,10 +27,10 @@ import Panini.Error
 import Panini.Monad
 import Panini.Pretty ((<+>), pretty)
 import Panini.Provenance
-import Panini.Regex.POSIX.ERE qualified as ERE
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Regex.POSIX.ERE qualified as ERE
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L

@@ -14,7 +14,7 @@ References:
     Regular Expression Inequalities." https://arxiv.org/abs/1410.3227
 
 -}
-module Panini.Regex.Inclusion 
+module Regex.Inclusion 
   ( isIncludedBy
   , isUnambiguouslyIncludedBy
   ) where
@@ -23,11 +23,11 @@ import Control.Exception
 import Data.Foldable
 import Data.Maybe
 import Data.Set qualified as Set
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Derivative
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet (CharSet)
+import Regex.CharSet qualified as CS
+import Regex.Derivative
+import Regex.Type
 
 -------------------------------------------------------------------------------
 

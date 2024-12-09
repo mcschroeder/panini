@@ -1,10 +1,10 @@
 module Panini.Regex.SMT where
 
-import Panini.Regex.CharSet qualified as CS
-import Panini.Regex.Type
 import Panini.SMT.RegLan qualified as SMT
 import Data.IntSet qualified as IS
 import Prelude
+import Regex.CharSet qualified as CS
+import Regex.Type
 
 -- TODO: fromRegLan
 

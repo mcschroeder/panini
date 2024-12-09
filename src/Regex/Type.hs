@@ -19,7 +19,7 @@ References:
     https://doi.org/10.1016/j.jsc.2021.08.003
 
 -}
-module Panini.Regex.Type
+module Regex.Type
   ( Regex(One,Lit)
   , pattern Zero
   , pattern AnyChar
@@ -54,9 +54,9 @@ import Data.String
 import GHC.Generics
 import Panini.Panic
 import Panini.Pretty
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.CharSet qualified as CS
 import Prelude
+import Regex.CharSet (CharSet)
+import Regex.CharSet qualified as CS
 
 -- TODO: m-to-n-times repetition {m,n}
 -- TODO: one-or-more repetition (+)

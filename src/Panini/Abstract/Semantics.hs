@@ -17,10 +17,10 @@ import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
-import Panini.Regex qualified as Regex
-import Panini.Regex.POSIX.ERE qualified as Regex.POSIX.ERE
 import Panini.Syntax
 import Prelude
+import Regex qualified as Regex
+import Regex.POSIX.ERE qualified
 
 --import Debug.Trace
 trace :: String -> a -> a

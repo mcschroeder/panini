@@ -9,16 +9,16 @@ References:
     https://doi.org/10.1016/j.jsc.2021.08.003
 
 -}
-module Panini.Regex.Simplify (simplify) where
+module Regex.Simplify (simplify) where
 
-import Panini.Regex.Simplify.Common
-import Panini.Regex.Simplify.Factor
-import Panini.Regex.Simplify.Fuse
-import Panini.Regex.Simplify.Lift
-import Panini.Regex.Simplify.Lookup
-import Panini.Regex.Simplify.Press
-import Panini.Regex.Type
 import Prelude hiding (lookup)
+import Regex.Simplify.Common
+import Regex.Simplify.Factor
+import Regex.Simplify.Fuse
+import Regex.Simplify.Lift
+import Regex.Simplify.Lookup
+import Regex.Simplify.Press
+import Regex.Type
 
 -------------------------------------------------------------------------------
 

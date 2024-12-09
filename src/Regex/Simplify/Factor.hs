@@ -1,10 +1,10 @@
-module Panini.Regex.Simplify.Factor where
+module Regex.Simplify.Factor where
 
 import Data.Function
 import Data.List.Extra (sortBy, splitAtEnd, breakEnd)
-import Panini.Regex.Simplify.Common
-import Panini.Regex.Type
 import Prelude
+import Regex.Simplify.Common
+import Regex.Type
 
 factor :: Context -> Regex -> Regex
 factor _ = \case

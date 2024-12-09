@@ -1,9 +1,9 @@
-module Panini.Regex.Simplify.Common where
+module Regex.Simplify.Common where
 
 import Data.List.Extra (uncons)
-import Panini.Regex.CharSet (CharSet)
-import Panini.Regex.Type
 import Prelude
+import Regex.CharSet (CharSet)
+import Regex.Type
 
 -- | Simplification context (essentially, the kind of surrounding regex).
 data Context = Free | Optional | Starred
