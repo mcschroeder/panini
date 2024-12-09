@@ -20,7 +20,6 @@ References:
 -}
 module Regex.Operations where
 
-import Algebra.Lattice
 import Control.Applicative
 import Control.Exception
 import Control.Monad.Trans.State.Strict
@@ -103,15 +102,15 @@ lookupComplement :: Regex -> Maybe Regex
 lookupComplement = \case
   -- ¬(Σ*abΣ*)  =  ((Σ∖a) + a(Σ∖b))*a?
   Times [Star AnyChar, Lit a, Lit b, Star AnyChar]
-    -> Just $ Star (Plus [Lit a <> Lit (neg b), Lit (neg a)]) <> Opt (Lit a)
+    -> Just $ Star (Plus [Lit a <> Lit (CS.complement b), Lit (CS.complement a)]) <> Opt (Lit a)
   
   -- ¬(Σ*a)  =  (Σ*(Σ∖a))?
   Times [Star AnyChar, Lit a] 
-    -> Just $ Opt (Star AnyChar <> Lit (neg a))
+    -> Just $ Opt (Star AnyChar <> Lit (CS.complement a))
   
   -- ¬(Σ*aΣ?)  =  ((Σ*(Σ∖a))?(Σ∖a))?
   Times [Star AnyChar, Lit a, Opt AnyChar]
-    -> Just $ Opt (Opt (Star AnyChar <> Lit (neg a)) <> Lit (neg a))
+    -> Just $ Opt (Opt (Star AnyChar <> Lit (CS.complement a)) <> Lit (CS.complement a))
 
   _ -> Nothing
 

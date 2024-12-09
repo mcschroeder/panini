@@ -11,6 +11,7 @@ module Panini.Abstract.AChar
   ) where
 
 import Algebra.Lattice
+import Data.Coerce
 import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
@@ -24,13 +25,15 @@ import Regex.CharSet qualified as CS
 -- | An abstract character.
 newtype AChar = AChar CharSet
   deriving stock (Generic, Show, Read, Data)
-  deriving newtype 
-    ( Eq, Ord
-    , PartialOrder
-    , MeetSemilattice, JoinSemilattice
-    , BoundedMeetSemilattice, BoundedJoinSemilattice
-    , ComplementedLattice
-    )
+  deriving newtype (Eq, Ord)
+
+instance PartialOrder           AChar where (⊑) = coerce CS.isSubsetOf
+instance MeetSemilattice        AChar where (∧) = coerce CS.intersection
+instance JoinSemilattice        AChar where (∨) = coerce CS.union
+instance BoundedMeetSemilattice AChar where top = coerce CS.full
+instance BoundedJoinSemilattice AChar where bot = coerce CS.empty
+instance ComplementedLattice    AChar where neg = coerce CS.complement
+
 
 instance Hashable AChar
 

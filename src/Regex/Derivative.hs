@@ -16,7 +16,6 @@ References:
 -}
 module Regex.Derivative where
 
-import Algebra.Lattice
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Prelude
@@ -76,9 +75,9 @@ next = \case
 -- Thiemann 2014, Definition 7).
 (⋈) :: Set CharSet -> Set CharSet -> Set CharSet
 l1 ⋈ l2 = Set.fromList $ concat $
-  [ [ a1 ∧ a2
-    , a1 ∧ (neg $ joins l2)
-    , a2 ∧ (neg $ joins l1)
+  [ [ CS.intersection a1 a2
+    , CS.intersection a1 (CS.complement $ CS.unions l2)
+    , CS.intersection a2 (CS.complement $ CS.unions l1)
     ]
   | a1 <- Set.toList l1, a2 <- Set.toList l2
   ]
@@ -87,8 +86,8 @@ l1 ⋈ l2 = Set.fromList $ concat $
 -- (Keil and Thiemann 2014, Definition 16).
 (⋉) :: Set CharSet -> Set CharSet -> Set CharSet
 l1 ⋉ l2 = Set.fromList $ concat $
-  [ [ a1 ∧ a2
-    , a1 ∧ (neg $ joins l2)
+  [ [ CS.intersection a1 a2
+    , CS.intersection a1 (CS.complement $ CS.unions l2)
     ]
   | a1 <- Set.toList l1, a2 <- Set.toList l2
   ]

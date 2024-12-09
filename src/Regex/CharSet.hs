@@ -28,7 +28,6 @@ module Regex.CharSet
   , prettyCharSet
   ) where
 
-import Algebra.Lattice
 import Data.Data (Data)
 import Data.Foldable qualified
 import Data.Hashable
@@ -55,20 +54,13 @@ instance Monoid    CharSet where mempty = empty
 instance Eq CharSet where
   CharSet True  xs == CharSet True  ys = xs == ys
   CharSet False xs == CharSet False ys = xs == ys
-  a                == b                = a ⊑ b && b ⊑ a
+  a                == b                = a `isSubsetOf` b && b `isSubsetOf` a
 
--- | A linear extension of the 'PartialOrder' using lexicographic ordering.
+-- | A linear extension of the subset partial order using lexicographic ordering.
 instance Ord CharSet where
-  a <= b | a ⊑ b     = True
-         | b ⊑ a     = False
-         | otherwise = toList a <= toList b  
-
-instance PartialOrder           CharSet where (⊑) = isSubsetOf
-instance MeetSemilattice        CharSet where (∧) = intersection
-instance JoinSemilattice        CharSet where (∨) = union
-instance BoundedMeetSemilattice CharSet where top = full
-instance BoundedJoinSemilattice CharSet where bot = empty
-instance ComplementedLattice    CharSet where neg = complement
+  a <= b | a `isSubsetOf` b = True
+         | b `isSubsetOf` a = False
+         | otherwise        = toList a <= toList b  
 
 -------------------------------------------------------------------------------
 
