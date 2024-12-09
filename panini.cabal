@@ -50,6 +50,7 @@ library
     , pretty
     , prettyprinter
     , process
+    , regex-algebra
     , template-haskell
     , text
     , transformers
@@ -128,22 +129,6 @@ library
     Panini.Syntax.QQ
     Panini.Syntax.Substitution
     Panini.Version
-    Regex
-    Regex.CharSet
-    Regex.Derivative
-    Regex.Equivalence
-    Regex.Inclusion
-    Regex.Operations
-    Regex.POSIX.BE
-    Regex.POSIX.ERE
-    Regex.Simplify
-    Regex.Simplify.Common
-    Regex.Simplify.Factor
-    Regex.Simplify.Fuse
-    Regex.Simplify.Lift
-    Regex.Simplify.Lookup
-    Regex.Simplify.Press
-    Regex.Type
 
 executable panini
   hs-source-dirs: app
@@ -152,21 +137,3 @@ executable panini
   build-depends: 
       base
     , panini
-
-benchmark regex-simplify
-  type: exitcode-stdio-1.0
-  hs-source-dirs: tests/regex
-  main-is: eval_simplify.hs
-  build-depends: 
-      base
-    , panini
-    , text
-    , directory
-    , filepath
-    , extra
-    , clock
-    , statistics
-    , vector
-    , megaparsec
-    , parser-combinators
-  ghc-options: -O2

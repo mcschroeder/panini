@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | An efficient implementation of Unicode character sets/classes, in
 -- particular with respect to 'complement'.
 --

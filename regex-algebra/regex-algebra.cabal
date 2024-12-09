@@ -1,0 +1,75 @@
+cabal-version:      3.4
+name:               regex-algebra
+version:            0.1.0.0
+-- synopsis:
+-- description:
+-- license:            MIT
+-- license-file:       LICENSE
+author:             Michael Schröder
+maintainer:         michael.schroeder@tuwien.ac.at
+-- copyright:
+build-type:         Simple
+-- extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+
+    -- Modules exported by the library.
+    exposed-modules:  
+        Regex
+        Regex.CharSet
+        Regex.Derivative
+        Regex.Equivalence
+        Regex.Inclusion
+        Regex.Operations
+        Regex.POSIX.BE
+        Regex.POSIX.ERE
+        Regex.Simplify
+        Regex.Simplify.Common
+        Regex.Simplify.Factor
+        Regex.Simplify.Fuse
+        Regex.Simplify.Lift
+        Regex.Simplify.Lookup
+        Regex.Simplify.Press
+        Regex.Type
+        
+    build-depends:    
+          base ^>=4.18.2.0
+        , containers
+        , extra
+        , hashable
+        , megaparsec
+        , parser-combinators
+        , prettyprinter
+        , transformers
+
+    hs-source-dirs:   src
+    default-language: GHC2021
+    default-extensions: 
+        DerivingStrategies
+        LambdaCase
+        PatternSynonyms
+        ViewPatterns
+
+
+benchmark regex-simplify
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: eval_simplify.hs
+  build-depends: 
+      base
+    , regex-algebra
+    , text
+    , directory
+    , filepath
+    , extra
+    , clock
+    , statistics
+    , vector
+    , megaparsec
+    , parser-combinators
+  ghc-options: -O2

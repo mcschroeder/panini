@@ -12,15 +12,12 @@ import Data.Vector qualified as V
 import Data.Vector.Mutable qualified as VM
 import Data.Vector.Unboxed.Mutable qualified as VUM
 import Data.Void
-import Panini.Panic
-import Panini.Pretty
-import Panini.Pretty
-import Panini.Regex
-import Panini.Regex.POSIX.BE as BE
-import Panini.Regex.POSIX.ERE as ERE
-import Panini.Regex.Simplify
-import Panini.Regex.Simplify.Common
 import Prelude hiding (minimum, maximum)
+import Regex
+import Regex.POSIX.BE as BE
+import Regex.POSIX.ERE as ERE
+import Regex.Simplify
+import Regex.Simplify.Common
 import Statistics.Quantile
 import Statistics.Sample
 import System.Clock
