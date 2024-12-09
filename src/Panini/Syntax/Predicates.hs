@@ -17,18 +17,20 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
+type Pred = Pred' ()
+
 -- | Predicates are terms in a Boolean logic.
-data Pred
+data Pred' a
   = PTrue
   | PFalse
-  | PAnd ![Pred]               -- ^ conjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
-  | POr ![Pred]                -- ^ disjunction @p₁ ∨ p₂ ∨ … ∨ pₙ@
-  | PImpl !Pred !Pred          -- ^ implication @p₁ ⟹ p₂@
-  | PIff !Pred !Pred           -- ^ if-and-only-if @p₁ ⟺ p₂@
-  | PNot !Pred                 -- ^ negation @¬p@
-  | PRel !Rel                  -- ^ relation @e₁ ⋈ e₂@
-  | PAppK !KVar ![Expr]        -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
-  | PExists !Name !Base !Pred  -- ^ existential quantification @∃x:b. p@
+  | PAnd ![Pred' a]               -- ^ conjunction @p₁ ∧ p₂ ∧ … ∧ pₙ@
+  | POr ![Pred' a]                -- ^ disjunction @p₁ ∨ p₂ ∨ … ∨ pₙ@
+  | PImpl !(Pred' a) !(Pred' a)          -- ^ implication @p₁ ⟹ p₂@
+  | PIff !(Pred' a) !(Pred' a)           -- ^ if-and-only-if @p₁ ⟺ p₂@
+  | PNot !(Pred' a)                 -- ^ negation @¬p@
+  | PRel !(Rel' a)                  -- ^ relation @e₁ ⋈ e₂@
+  | PAppK !KVar ![Expr' a]        -- ^ κ-variable application @κᵢ(y₁,y₂,…,yₙ)@  
+  | PExists !Name !Base !(Pred' a)  -- ^ existential quantification @∃x:b. p@
   deriving stock 
     ( Eq
     , Ord -- ^ structural ordering
@@ -36,18 +38,18 @@ data Pred
     , Generic, Data
     )
 
-instance Hashable Pred
+instance Hashable (Pred' a)
 
 -- | Same as structural ordering, except that 'PTrue' and 'PFalse' are always
 -- the largest and smallest element, respectively.
-instance PartialOrder Pred where
+instance PartialOrder (Pred' a) where
   _      ⊑ PTrue  = True
   PTrue  ⊑ _      = False
   PFalse ⊑ _      = True
   _      ⊑ PFalse = False
   a      ⊑ b      = a <= b
 
-instance MeetSemilattice Pred where
+instance MeetSemilattice (Pred' a) where
   PTrue   ∧ q       = q
   PFalse  ∧ _       = PFalse
   p       ∧ PTrue   = p
@@ -57,10 +59,10 @@ instance MeetSemilattice Pred where
   p       ∧ PAnd qs = PAnd (p:qs)
   p       ∧ q       = PAnd [p,q]
 
-instance BoundedMeetSemilattice Pred where
+instance BoundedMeetSemilattice (Pred' a) where
   top = PTrue
 
-instance JoinSemilattice Pred where
+instance JoinSemilattice (Pred' a) where
   PFalse ∨ q      = q
   PTrue  ∨ _      = PTrue
   p      ∨ PFalse = p
@@ -70,10 +72,10 @@ instance JoinSemilattice Pred where
   p      ∨ POr qs = POr (p:qs)
   p      ∨ q      = POr [p,q]
 
-instance BoundedJoinSemilattice Pred where
+instance BoundedJoinSemilattice (Pred' a) where
   bot = PFalse
 
-instance Uniplate Pred where
+instance Uniplate (Pred' a) where
   uniplate = \case
     PTrue         -> plate PTrue
     PFalse        -> plate PFalse
@@ -86,7 +88,7 @@ instance Uniplate Pred where
     PAppK k ys    -> plate PAppK |- k |- ys
     PExists x b p -> plate PExists |- x |- b |* p
 
-instance Biplate Pred Expr where
+instance Biplate (Pred' a) (Expr' a) where
   biplate = \case
     PTrue         -> plate PTrue
     PFalse        -> plate PFalse
@@ -99,7 +101,7 @@ instance Biplate Pred Expr where
     PAppK k ys    -> plate PAppK |- k |- ys
     PExists x b p -> plate PExists |- x |- b |+ p
     
-instance Pretty Pred where
+instance Pretty a => Pretty (Pred' a) where
   pretty p0 = case p0 of
     PAppK k xs -> ann Highlight $ prettyKVarName k <> prettyTupleTight xs
     PNot p1 -> symNeg <> parensIf (p1 `needsParensPrefixedBy` p0) (pretty p1)
@@ -113,7 +115,7 @@ instance Pretty Pred where
     PFalse -> symFalse
     PRel p -> pretty p
 
-instance HasFixity Pred where
+instance HasFixity (Pred' a) where
   fixity = \case
     PNot _    -> Prefix
     PRel _    -> Infix NoAss 4
@@ -124,7 +126,7 @@ instance HasFixity Pred where
     _         -> Infix LeftAss 9
 
 -- see Panini.Syntax.Substitution
-instance Subable Pred Expr where
+instance Subable (Pred' a) (Expr' a) where
   subst x y = \case
     PExists n b p
       | n == y       -> PExists n b            p   -- (1)

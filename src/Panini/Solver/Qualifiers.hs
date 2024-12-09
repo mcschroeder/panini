@@ -48,9 +48,9 @@ extractQualifiers c bs = nubOrd $ map normPred $
   constants = \case
     TUnit   -> [ (Eq, EUnit    NoPV) ]
     TBool   -> [ (Eq, EBool b  NoPV) | b <- [True,False] ]
-    TInt    -> [ (op, EInt  i  NoPV) | EInt  i  _ <- universeBi c, op <- [Eq,Ne,Gt,Ge,Lt,Le] ]
-    TChar   -> [ (Eq, EChar ch NoPV) | EChar ch _ <- universeBi c ]
-    TString -> [ (Eq, EStr  s  NoPV) | EStr  s  _ <- universeBi c ]
+    TInt    -> [ (op, EInt  i  NoPV) | EInt  i  _ <- universeBi @Con @Expr c, op <- [Eq,Ne,Gt,Ge,Lt,Le] ]
+    TChar   -> [ (Eq, EChar ch NoPV) | EChar ch _ <- universeBi @Con @Expr c ]
+    TString -> [ (Eq, EStr  s  NoPV) | EStr  s  _ <- universeBi @Con @Expr c ]
 
 -- TODO: normalize qualifiers more aggressively to avoid redundancies
 normPred :: Pred -> Pred

@@ -56,6 +56,7 @@ instance Pretty String  where pretty = PP.pretty
 instance Pretty Char    where pretty = PP.pretty
 instance Pretty Integer where pretty = PP.pretty
 instance Pretty Int     where pretty = PP.pretty
+instance Pretty ()      where pretty = PP.pretty
 
 instance (Pretty a, Pretty b) => Pretty (a,b) where
   pretty (a,b) = listed lparen rparen [pretty a, pretty b]

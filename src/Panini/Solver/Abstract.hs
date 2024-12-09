@@ -87,7 +87,7 @@ solve c0 = do
   --   return $ Map.insert k (AInt bot, PTrue) s -- TODO
 
   solve' s (PreCon x b k c) = do
-    logMessage $ "Solve" <+> pretty (PAppK k [EVar x])
+    logMessage $ "Solve" <+> pretty @Pred (PAppK k [EVar x])
     c' <- apply (Map.map snd s) c   § "Apply partial solution"
     a1 <- solve1 (PreCon x b k c')
     a2 <- meet' a1 (Map.lookup k s) § "Meet with previous abstract solution"

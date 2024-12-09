@@ -29,122 +29,124 @@ import Regex.POSIX.ERE (ERE, printERE)
 
 ------------------------------------------------------------------------------
 
+type Expr = Expr' ()
+
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
-data Expr
+data Expr' a
   = EVar !Name               -- ^ variable @x@  
-  | EFun !Name ![Expr]       -- ^ (uninterpreted) function @f(e₁,e₂,…,eₙ)@
+  | EFun !Name ![Expr' a]       -- ^ (uninterpreted) function @f(e₁,e₂,…,eₙ)@
   | ECon !Value              -- ^ concrete constant value @c@
   | EReg !ERE                -- ^ regular expression @RE@
   | EAbs !AValue             -- ^ abstract value @α@
-  | ESol !Name !Base !Rel    -- ^ abstract solution @⟨x|r⟩@
+  | ESol !Name !Base !(Rel' a)    -- ^ abstract solution @⟨x|r⟩@
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
-instance Hashable Expr
+instance Hashable (Expr' a)
 
 ------------------------------------------------------------------------------
 
 -- | Boolean negation @¬@
-pattern ENot :: Expr -> Expr
+pattern ENot :: Expr' a -> Expr' a
 pattern ENot e = EFun "not" [e]
 
 -- | integer addition
-pattern (:+:) :: Expr -> Expr -> Expr
+pattern (:+:) :: Expr' a -> Expr' a -> Expr' a
 pattern a :+: b = EFun "+" [a,b]
 
 -- | integer subtraction
-pattern (:-:) :: Expr -> Expr -> Expr
+pattern (:-:) :: Expr' a -> Expr' a -> Expr' a
 pattern a :-: b = EFun "-" [a,b]
 
 -- | integer multiplication
-pattern (:*:) :: Expr -> Expr -> Expr
+pattern (:*:) :: Expr' a -> Expr' a -> Expr' a
 pattern a :*: b = EFun "*" [a,b]
 
 -- | integer modulus
-pattern EMod :: Expr -> Expr -> Expr
+pattern EMod :: Expr' a -> Expr' a -> Expr' a
 pattern EMod a b = EFun "mod" [a,b]
 
 -- | string length @|s|@
-pattern EStrLen :: Expr -> Expr
+pattern EStrLen :: Expr' a -> Expr' a
 pattern EStrLen s = EFun "str.len" [s]
 
 -- | character at index @s[i]@
-pattern EStrAt :: Expr -> Expr -> Expr
+pattern EStrAt :: Expr' a -> Expr' a -> Expr' a
 pattern EStrAt s i = EFun "str.at" [s,i]
 
 -- | substring @s[i..j]@ (inclusive bounds)
-pattern EStrSub :: Expr -> Expr -> Expr -> Expr
+pattern EStrSub :: Expr' a -> Expr' a -> Expr' a -> Expr' a
 pattern EStrSub s i j = EFun "str.sub" [s,i,j]
 
 -- | string complement
-pattern EStrComp :: Expr -> Expr
+pattern EStrComp :: Expr' a -> Expr' a
 pattern EStrComp s = EFun "str.comp" [s]
 
-pattern EStrFirstIndexOfChar :: Expr -> Expr -> Expr
+pattern EStrFirstIndexOfChar :: Expr' a -> Expr' a -> Expr' a
 pattern EStrFirstIndexOfChar s c = EFun "firstIndexOfChar" [s,c]
 
-pattern EStrIndexOf :: Expr -> Expr -> Expr -> Expr
+pattern EStrIndexOf :: Expr' a -> Expr' a -> Expr' a -> Expr' a
 pattern EStrIndexOf s t i = EFun "str_indexof" [s,t,i]
 
 -- | string concatenation
-pattern EStrConc :: Expr -> Expr -> Expr
+pattern EStrConc :: Expr' a -> Expr' a -> Expr' a
 pattern EStrConc a b = EFun "str.++" [a,b]
 
-pattern EStrStar :: Expr -> Expr
+pattern EStrStar :: Expr' a -> Expr' a
 pattern EStrStar s = EFun "re_star" [s]
 
-pattern EStrContains :: Expr -> Expr -> Expr
+pattern EStrContains :: Expr' a -> Expr' a -> Expr' a
 pattern EStrContains s t = EFun "str_contains" [s,t]
 
 ------------------------------------------------------------------------------
 
 -- | unit constant
-pattern EUnit :: PV -> Expr
+pattern EUnit :: PV -> Expr' a
 pattern EUnit pv = ECon (U pv)
 
 -- | Boolean constant
-pattern EBool :: Bool -> PV -> Expr
+pattern EBool :: Bool -> PV -> Expr' a
 pattern EBool b pv = ECon (B b pv)
 
 -- | integer constant
-pattern EInt :: Integer -> PV -> Expr
+pattern EInt :: Integer -> PV -> Expr' a
 pattern EInt i pv = ECon (I i pv)
 
 -- | character constant
-pattern EChar :: Char -> PV -> Expr
+pattern EChar :: Char -> PV -> Expr' a
 pattern EChar c pv = ECon (C c pv)
 
 -- | string constant
-pattern EStr :: Text -> PV -> Expr
+pattern EStr :: Text -> PV -> Expr' a
 pattern EStr s pv = ECon (S s pv)
 
 ------------------------------------------------------------------------------
 
 -- | abstract unit constant
-pattern EUnitA :: AUnit -> Expr
+pattern EUnitA :: AUnit -> Expr' a
 pattern EUnitA a = EAbs (AUnit a)
 
 -- | abstract Boolean constant
-pattern EBoolA :: ABool -> Expr
+pattern EBoolA :: ABool -> Expr' a
 pattern EBoolA a = EAbs (ABool a)
 
 -- | abstract integer constant
-pattern EIntA :: AInt -> Expr
+pattern EIntA :: AInt -> Expr' a
 pattern EIntA a = EAbs (AInt a)
 
 -- | abstract character constant
-pattern ECharA :: AChar -> Expr
+pattern ECharA :: AChar -> Expr' a
 pattern ECharA a = EAbs (AChar a)
 
 -- | abstract string constant
-pattern EStrA :: AString -> Expr
+pattern EStrA :: AString -> Expr' a
 pattern EStrA a = EAbs (AString a)
 
 ------------------------------------------------------------------------------
 
 -- | An expression is /ground/ if it contains no variables; in particular, it
 -- also does not contain any abstract solutions.
-ground :: Expr -> Bool
+ground :: Expr' a -> Bool
 ground (EVar _)     = False
 ground (EFun _ es)  = all ground es
 ground (ECon _)     = True
@@ -153,11 +155,11 @@ ground (EAbs _)     = True
 ground (ESol _ _ _) = False
 
 -- | Postfix operator for 'ground'.
-(⏚) :: Expr -> Bool
+(⏚) :: Expr' a -> Bool
 (⏚) = ground
 
 -- | An expression is /abstract/ if it involves abstract values.
-isAbstract :: Expr -> Bool
+isAbstract :: Expr' a -> Bool
 isAbstract e0 = or [isAbs e | e <- universe e0]
  where
   isAbs (EAbs _)     = True
@@ -166,11 +168,11 @@ isAbstract e0 = or [isAbs e | e <- universe e0]
   isAbs _            = False
 
 -- | An expression is /concrete/ if it does not involve any abstract values.
-isConcrete :: Expr -> Bool
+isConcrete :: Expr' a -> Bool
 isConcrete = not . isAbstract
 
 -- | The abstract maximum element for the given type.
-topExpr :: Base -> Expr
+topExpr :: Base -> Expr' a
 topExpr TUnit   = EUnitA top
 topExpr TBool   = EBoolA top
 topExpr TInt    = EIntA top
@@ -178,7 +180,7 @@ topExpr TChar   = ECharA top
 topExpr TString = EStrA top
 
 -- | The abstract minimum element for the given type.
-botExpr :: Base -> Expr
+botExpr :: Base -> Expr' a
 botExpr TUnit   = EUnitA bot
 botExpr TBool   = EBoolA bot
 botExpr TInt    = EIntA bot
@@ -186,7 +188,7 @@ botExpr TChar   = ECharA bot
 botExpr TString = EStrA bot
 
 -- | The type of the given expression, if locally discernible.
-typeOfExpr :: Expr -> Maybe Base
+typeOfExpr :: Expr' a -> Maybe Base
 typeOfExpr = \case
   EVar _        -> Nothing
   ENot _        -> Just TBool
@@ -207,7 +209,7 @@ typeOfExpr = \case
   ESol _ b _    -> Just b
 
 -- | The type of a variable in a given expression, if locally discernible.
-typeOfVarInExpr :: Name -> Expr -> Maybe Base
+typeOfVarInExpr :: Name -> Expr' a -> Maybe Base
 typeOfVarInExpr x = \case
   ENot (EVar y)         | x == y -> Just TBool
   EVar y :+: _          | x == y -> Just TInt
@@ -241,7 +243,7 @@ typeOfVarInExpr x = \case
 
 ------------------------------------------------------------------------------
 
-instance Uniplate Expr where
+instance Uniplate (Expr' a) where
   uniplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||* es
@@ -250,7 +252,7 @@ instance Uniplate Expr where
     EAbs a     -> plate EAbs |- a
     ESol x b r -> plate ESol |- x |- b |+ r
 
-instance Biplate Expr Value where
+instance Biplate (Expr' a) Value where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
@@ -259,7 +261,7 @@ instance Biplate Expr Value where
     EAbs a     -> plate EAbs |- a
     ESol x b r -> plate ESol |- x |- b |+ r
 
-instance Biplate Expr AValue where
+instance Biplate (Expr' a) AValue where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
@@ -268,7 +270,7 @@ instance Biplate Expr AValue where
     EAbs a     -> plate EAbs |* a
     ESol x b r -> plate ESol |- x |- b |+ r
 
-instance Biplate Expr Rel where
+instance Biplate (Expr' a) (Rel' a) where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
@@ -277,7 +279,7 @@ instance Biplate Expr Rel where
     EAbs a     -> plate EAbs |- a
     ESol x b r -> plate ESol |- x |- b |* r
 
-instance Pretty Expr where
+instance Pretty a => Pretty (Expr' a) where
   pretty e0 = case e0 of
     EVar x        -> pretty x
     ENot e        -> symNeg <> parensIf (complex e) (pretty e)
@@ -299,14 +301,14 @@ instance Pretty Expr where
     complex (_ :-: _) = True
     complex _         = False
 
-instance HasFixity Expr where
+instance HasFixity (Expr' a) where
   fixity (_ :*: _) = Infix LeftAss 6
   fixity (_ :+: _) = Infix LeftAss 5
   fixity (_ :-: _) = Infix LeftAss 5
   fixity _         = Infix LeftAss 9
 
 -- see Panini.Syntax.Substitution
-instance Subable Expr Expr where
+instance Subable (Expr' a) (Expr' a) where
   subst x y = \case
     EVar n | y == n -> x
     ESol n b r
@@ -329,15 +331,17 @@ instance Subable Expr Expr where
 
 ------------------------------------------------------------------------------
 
+type Rel = Rel' ()
+
 -- | Relation between expressions.
-data Rel = Rel !Rop !Expr !Expr
+data Rel' a = Rel !Rop !(Expr' a) !(Expr' a)
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 data Rop = Eq | Ne | Lt | Le | Gt | Ge | In | NotIn
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 {-# COMPLETE (:=:), (:≠:), (:<:), (:≤:), (:>:), (:≥:), (:∈:), (:∉:) #-}
-pattern (:=:), (:≠:), (:<:), (:≤:), (:>:), (:≥:), (:∈:), (:∉:) :: Expr -> Expr -> Rel
+pattern (:=:), (:≠:), (:<:), (:≤:), (:>:), (:≥:), (:∈:), (:∉:) :: Expr' a -> Expr' a -> Rel' a
 pattern a :=: b = Rel Eq a b
 pattern a :≠: b = Rel Ne a b
 pattern a :<: b = Rel Lt a b
@@ -347,26 +351,26 @@ pattern a :≥: b = Rel Ge a b
 pattern a :∈: b = Rel In a b
 pattern a :∉: b = Rel NotIn a b
 
-instance Hashable Rel
+instance Hashable (Rel' a)
 instance Hashable Rop
 
-instance Uniplate Rel where
+instance Uniplate (Rel' a) where
   uniplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Biplate Rel Expr where
+instance Biplate (Rel' a) (Expr' a) where
   biplate (Rel op a b) = plate Rel |- op |* a |* b
 
-instance Biplate Rel Value where
+instance Biplate (Rel' a) Value where
   biplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Biplate Rel AValue where
+instance Biplate (Rel' a) AValue where
   biplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Subable Rel Expr where
-  subst x y = descendBi (subst @Expr x y)
-  freeVars = mconcat . map (freeVars @Expr) . childrenBi
+instance Subable (Rel' a) (Expr' a) where
+  subst x y = descendBi (subst @(Expr' a) x y)
+  freeVars = mconcat . map (freeVars @(Expr' a)) . childrenBi
 
-instance Pretty Rel where
+instance Pretty a => Pretty (Rel' a) where
   pretty (Rel op a b) = pretty a <+> pop <+> pretty b
    where
     pop = case (op, isAbstract a, isAbstract b) of
@@ -394,7 +398,7 @@ instance Pretty Rop where
 ------------------------------------------------------------------------------
 
 -- | The inverse of a relation, i.e., its negation, e.g., @a > b@ to @a ≤ b@.
-inverse :: Rel -> Rel
+inverse :: Rel' a -> Rel' a
 inverse = \case
   e1 :=: e2 -> e1 :≠: e2
   e1 :≠: e2 -> e1 :=: e2
@@ -406,7 +410,7 @@ inverse = \case
   e1 :∉: e2 -> e1 :∈: e2
 
 -- | The type of a variable in a given relation, if locally discernible.
-typeOfVarInRel :: Name -> Rel -> Maybe Base
+typeOfVarInRel :: Name -> Rel' a -> Maybe Base
 typeOfVarInRel x = \case
   EVar y :=: e      | x == y -> typeOfExpr e
   e      :=: EVar y | x == y -> typeOfExpr e

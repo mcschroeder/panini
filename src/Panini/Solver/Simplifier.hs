@@ -106,7 +106,7 @@ simplifyPred = rewrite $ \case
   PRel r -> case normRel r of
     r' | r' == taut -> Just PTrue
        | r' == cont -> Just PFalse
-       | r' /= r, all isConcrete (universeBi r') -> Just $ PRel r'
+       | r' /= r, all isConcrete (universeBi @Rel @Expr r') -> Just $ PRel r'
        | otherwise  -> Nothing
 
   PIff p PTrue -> Just p

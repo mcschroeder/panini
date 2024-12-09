@@ -18,60 +18,62 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
+type Con = Con' ()
+
 -- | Constraints are Horn clauses in negation normal form (NNF). They form a
 -- tree, where each leaf is a goal ('CHead') and each node either quantifies
 -- some variable to satisfy a hypothesis ('CAll') or conjoins two
 -- sub-constraints ('CAnd').
-data Con
-  = CHead !Pred                  -- p
-  | CAnd !Con !Con               -- c1 ∧ c2
-  | CAll !Name !Base !Pred !Con  -- ∀(x:b). p ⟹ c  
+data Con' a
+  = CHead !(Pred' a)                  -- p
+  | CAnd !(Con' a) !(Con' a)               -- c1 ∧ c2
+  | CAll !Name !Base !(Pred' a) !(Con' a)  -- ∀(x:b). p ⟹ c  
   deriving stock 
     ( Eq
     , Ord  -- ^ structural ordering
     , Show, Read, Generic)
 
-instance Hashable Con
+instance Hashable (Con' a)
 
-pattern CTrue :: Con
+pattern CTrue :: Con' a
 pattern CTrue = CHead PTrue
 
-pattern CFalse :: Con
+pattern CFalse :: Con' a
 pattern CFalse = CHead PFalse
 
 -- | Similar to structural ordering, except 'CTrue' is the largest element.
-instance PartialOrder Con where
+instance PartialOrder (Con' a) where
   _     ⊑ CTrue = True
   CTrue ⊑ _     = False
   a     ⊑ b     = a <= b
 
-instance MeetSemilattice Con where
+instance MeetSemilattice (Con' a) where
   CTrue ∧ c2    = c2
   c1    ∧ CTrue = c1
   c1    ∧ c2    = CAnd c1 c2
 
-instance BoundedMeetSemilattice Con where
+instance BoundedMeetSemilattice (Con' a) where
   top = CTrue
 
-instance Uniplate Con where
+instance Uniplate (Con' a) where
   uniplate = \case
     CHead p      -> plate CHead |- p
     CAnd c1 c2   -> plate CAnd |* c1 |* c2
     CAll x b p c -> plate CAll |- x |- b |- p |* c
 
-instance Biplate Con Pred where
+instance Biplate (Con' a) (Pred' a) where
   biplate = \case
     CHead p      -> plate CHead |* p
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
     CAll x b p c -> plate CAll |- x |- b |* p |+ c
 
-instance Biplate Con Expr where
+instance Biplate (Con' a) (Expr' a) where
   biplate = \case
     CHead p      -> plate CHead |+ p
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
     CAll x b p c -> plate CAll |- x |- b |+ p |+ c
 
-instance Pretty Con where
+instance Pretty a => Pretty (Con' a) where
   pretty = \case
     CHead p -> pretty p
     CAnd c1 c2 -> align $ pretty c1 <+> wedge <\> pretty c2
@@ -81,7 +83,7 @@ instance Pretty Con where
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
-instance Subable Con Expr where
+instance Subable (Con' a) (Expr' a) where
   subst x y = \case
     CAll n b p c
       | n == y       -> CAll n b            p             c   -- (1)
