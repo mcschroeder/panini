@@ -15,7 +15,8 @@ import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AUnit as AUnit
-import Panini.Abstract.AValue as AValue
+import Panini.Abstract.AInt (AInt)
+--import Panini.Abstract.AValue as AValue
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax.Names
@@ -26,6 +27,64 @@ import Regex.POSIX.ERE (ERE, printERE)
 
 -- TODO: consider changing EStrSub to start,length encoding (like SMTLIB)?
 -- TODO: simplify EReg situation
+
+------------------------------------------------------------------------------
+
+data AValue
+  = AUnit !AUnit
+  | ABool !ABool
+  | AInt !AInt
+  | AChar !AChar
+  | AString !AString
+  | ARel !Name !Base !RelA
+  deriving stock 
+    ( Eq
+    , Ord  -- ^ structural ordering
+    , Show, Read
+    , Generic, Data)
+
+instance Hashable AValue
+
+instance Uniplate AValue where
+  uniplate = plate
+
+instance Biplate AValue RelA where
+  biplate = \case
+    AUnit a     -> plate AUnit |- a
+    ABool a     -> plate ABool |- a
+    AInt a     -> plate AInt |- a
+    AChar a     -> plate AChar |- a
+    AString a     -> plate AString |- a
+    ARel x b r  -> plate ARel |- x |- b |* r
+
+instance Biplate AValue ExprA where
+  biplate = \case
+    AUnit a     -> plate AUnit |- a
+    ABool a     -> plate ABool |- a
+    AInt a     -> plate AInt |- a
+    AChar a     -> plate AChar |- a
+    AString a     -> plate AString |- a
+    ARel x b r  -> plate ARel |- x |- b |+ r
+
+instance Pretty AValue where
+  pretty = \case
+    AUnit   a -> pretty a
+    ABool   a -> pretty a
+    AInt    a -> pretty a
+    AChar   a -> pretty a
+    AString a -> pretty a
+    ARel x _ r -> braces $ pretty x <> "|" <> pretty r
+
+typeOfAValue :: AValue -> Base
+typeOfAValue = \case
+  AUnit   _ -> TUnit
+  ABool   _ -> TBool
+  AInt    _ -> TInt
+  AChar   _ -> TChar
+  AString _ -> TString
+  ARel _ b _ -> b
+
+
 
 ------------------------------------------------------------------------------
 
@@ -40,10 +99,13 @@ data Expr' a
   | ECon !Value              -- ^ concrete constant value @c@
   | EReg !ERE                -- ^ regular expression @RE@
   | EAbs !AValue             -- ^ abstract value @α@
-  | ESol !Name !Base !(Rel' a)    -- ^ abstract solution @⟨x|r⟩@
+--  | ESol !Name !Base !(Rel' a)    -- ^ abstract solution @⟨x|r⟩@
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
 instance Hashable (Expr' a)
+
+pattern ESol :: Name -> Base -> RelA -> ExprA
+pattern ESol x b r = EAbs (ARel x b r)
 
 ------------------------------------------------------------------------------
 
@@ -147,11 +209,11 @@ pattern EStrA a = EAbs (AString a)
 
 -- | An expression is /ground/ if it contains no variables anywhere, including
 -- inside abstract values.
-ground :: Expr' a -> Bool
+ground :: Uniplate (Expr' a) => Expr' a -> Bool
 ground e = and [False | EVar _ <- universe e]
 
 -- | Postfix operator for 'ground'.
-(⏚) :: Expr' a -> Bool
+(⏚) :: Uniplate (Expr' a) => Expr' a -> Bool
 (⏚) = ground
 
 -- | The abstract maximum element for the given type.
@@ -189,7 +251,6 @@ typeOfExpr = \case
   ECon c        -> Just $ typeOfValue c
   EReg _        -> Just TString
   EAbs a        -> Just $ typeOfAValue a
-  ESol _ b _    -> Just b
 
 -- | The type of a variable in a given expression, if locally discernible.
 typeOfVarInExpr :: Name -> Expr' a -> Maybe Base
@@ -216,8 +277,8 @@ typeOfVarInExpr x = \case
   EStrConc _ (EVar y) | x == y -> Just TString
   EStrContains (EVar y) _ | x == y -> Just TString
   EStrContains _ (EVar y) | x == y -> Just TString  
-  ESol y _ _            | x == y -> Nothing
-  ESol _ _ r                     -> typeOfVarInRel x r
+  -- ESol y _ _            | x == y -> Nothing
+  -- ESol _ _ r                     -> typeOfVarInRel x r
   EFun _ es                      -> asum $ map (typeOfVarInExpr x) es
   EVar _                         -> Nothing
   ECon _                         -> Nothing
@@ -226,41 +287,45 @@ typeOfVarInExpr x = \case
 
 ------------------------------------------------------------------------------
 
-instance Uniplate (Expr' a) where
+instance Uniplate Expr where
   uniplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||* es
     ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |- a
-    ESol x b r -> plate ESol |- x |- b |+ r
 
-instance Biplate (Expr' a) Value where
+instance Uniplate ExprA where
+  uniplate = \case
+    EVar x     -> plate EVar |- x
+    EFun f es  -> plate EFun |- f ||* es
+    ECon c     -> plate ECon |- c
+    EReg r     -> plate EReg |- r
+    EAbs a     -> plate EAbs |+ a
+
+instance Biplate Expr Value where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
     ECon c     -> plate ECon |* c
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |- a
-    ESol x b r -> plate ESol |- x |- b |+ r
 
-instance Biplate (Expr' a) AValue where
+instance Biplate ExprA AValue where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
     ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |* a
-    ESol x b r -> plate ESol |- x |- b |+ r
 
-instance Biplate (Expr' a) (Rel' a) where
+instance Biplate ExprA RelA where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
     ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
-    EAbs a     -> plate EAbs |- a
-    ESol x b r -> plate ESol |- x |- b |* r
+    EAbs a     -> plate EAbs |+ a
 
 instance Pretty a => Pretty (Expr' a) where
   pretty e0 = case e0 of
@@ -276,7 +341,6 @@ instance Pretty a => Pretty (Expr' a) where
     ECon c        -> pretty c
     EReg r        -> ann (Literal StringLit) $ pretty $ printERE r
     EAbs a        -> pretty a
-    ESol x _ r    -> braces $ pretty x <> "|" <> pretty r
    where
     -- TODO: make use of fixity for this
     complex (_ :*: _) = True
@@ -291,7 +355,20 @@ instance HasFixity (Expr' a) where
   fixity _         = Infix LeftAss 9
 
 -- see Panini.Syntax.Substitution
-instance Subable (Expr' a) (Expr' a) where
+instance Subable Expr Expr where
+  subst x y = \case
+    EVar n | y == n -> x
+    e -> descend (subst x y) e
+
+  freeVars = \case
+    EVar x           -> [x]
+    EFun _ es        -> mconcat (map freeVars es)
+    ECon _           -> []
+    EReg _           -> []
+    EAbs _           -> []
+
+-- see Panini.Syntax.Substitution
+instance Subable ExprA ExprA where
   subst x y = \case
     EVar n | y == n -> x
     ESol n b r
@@ -309,8 +386,8 @@ instance Subable (Expr' a) (Expr' a) where
     EFun _ es        -> mconcat (map freeVars es)
     ECon _           -> []
     EReg _           -> []
-    EAbs _           -> []
     ESol x _ r       -> freeVars r \\ [x]
+    EAbs _           -> []
 
 ------------------------------------------------------------------------------
 
@@ -338,21 +415,25 @@ pattern a :∉: b = Rel NotIn a b
 instance Hashable (Rel' a)
 instance Hashable Rop
 
-instance Uniplate (Rel' a) where
+instance Uniplate RelA where
   uniplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Biplate (Rel' a) (Expr' a) where
+instance Uniplate (Expr' a) => Biplate (Rel' a) (Expr' a) where
   biplate (Rel op a b) = plate Rel |- op |* a |* b
 
-instance Biplate (Rel' a) Value where
+instance Biplate Rel Value where
   biplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Biplate (Rel' a) AValue where
+instance Biplate RelA AValue where
   biplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Subable (Rel' a) (Expr' a) where
-  subst x y = descendBi (subst @(Expr' a) x y)
-  freeVars = mconcat . map (freeVars @(Expr' a)) . childrenBi
+instance Subable Rel Expr where
+  subst x y = descendBi (subst @Expr x y)
+  freeVars = mconcat . map (freeVars @Expr) . childrenBi
+
+instance Subable RelA ExprA where
+  subst x y = descendBi (subst @ExprA x y)
+  freeVars = mconcat . map (freeVars @ExprA) . childrenBi
 
 instance Pretty a => Pretty (Rel' a) where
   pretty (Rel op a b) = pretty a <+> pretty op <+> pretty b

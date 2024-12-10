@@ -412,7 +412,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
   r | r' <- descendBi normExprA r, r' /= r    -> normRelA r'
     | otherwise                               -> Right r
 
-isSol :: Expr -> Bool
+isSol :: ExprA -> Bool
 isSol (ESol _ _ _) = True
 isSol _            = False
 
@@ -532,6 +532,9 @@ tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
 -------------------------------------------------------------------------------
 
+-- TODO: clean all of this up now that ARel is in AValue
+-- TODO: track whether AValue has free vars in type?
+
 abstractVarToValue :: Name -> Base -> RelA -> Pan AValue
 abstractVarToValue x b r0 = do
   case normRelA r0 of
@@ -543,6 +546,7 @@ abstractVarToValue x b r0 = do
         logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
       case e of
         Just (ECon c) -> return $ fromValue c
+        Just e'@(ESol _ _ _) -> throwError $ AbstractionToValueImpossible x r e'
         Just (EAbs a) -> return a
         Just e'       -> throwError $ AbstractionToValueImpossible x r e'
         Nothing       -> throwError $ AbstractionImpossible x r

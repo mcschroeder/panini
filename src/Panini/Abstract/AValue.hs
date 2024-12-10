@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Panini.Abstract.AValue
   ( AValue(..)
   , ABool
@@ -13,46 +14,24 @@ module Panini.Abstract.AValue
   ) where
 
 import Algebra.Lattice
-import Data.Data (Data)
-import Data.Generics.Uniplate.Direct
-import Data.Hashable
+--import Data.Data (Data)
+--import Data.Generics.Uniplate.Direct
+--import Data.Hashable
 import Data.Text qualified as Text
-import GHC.Generics (Generic)
+--import GHC.Generics (Generic)
 import Panini.Abstract.ABool as ABool
 import Panini.Abstract.AChar as AChar
 import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AUnit
-import Panini.Pretty
+--import Panini.Pretty
 import Panini.Syntax.Primitives
 import Prelude
 
 ------------------------------------------------------------------------------
 
-data AValue
-  = AUnit !AUnit
-  | ABool !ABool
-  | AInt !AInt
-  | AChar !AChar
-  | AString !AString
-  deriving stock 
-    ( Eq
-    , Ord  -- ^ structural ordering
-    , Show, Read
-    , Generic, Data)
+import Panini.Syntax.Expressions
 
-instance Hashable AValue
-
-instance Uniplate AValue where
-  uniplate = plate
-
-instance Pretty AValue where
-  pretty = \case
-    AUnit   a -> pretty a
-    ABool   a -> pretty a
-    AInt    a -> pretty a
-    AChar   a -> pretty a
-    AString a -> pretty a
 
 instance PartialOrder AValue where
   AUnit   a ⊑ AUnit   b = a ⊑ b
@@ -85,6 +64,7 @@ hasTop = \case
   AInt    a -> isTop a
   AChar   a -> isTop a
   AString a -> isTop a
+  ARel _ _ _ -> False
 
 hasBot :: AValue -> Bool
 hasBot = \case
@@ -93,6 +73,7 @@ hasBot = \case
   AInt    a -> isBot a
   AChar   a -> isBot a
   AString a -> isBot a
+  ARel _ _ _ -> False
 
 fillTop :: AValue -> AValue
 fillTop = topValue . typeOfAValue
@@ -115,15 +96,6 @@ botValue = \case
   TInt    -> AInt    bot
   TChar   -> AChar   bot
   TString -> AString bot
-
-
-typeOfAValue :: AValue -> Base
-typeOfAValue = \case
-  AUnit   _ -> TUnit
-  ABool   _ -> TBool
-  AInt    _ -> TInt
-  AChar   _ -> TChar
-  AString _ -> TString
 
 fromValue :: Value -> AValue
 fromValue = \case

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Panini.Solver.Constraints where
 
 import Algebra.Lattice
@@ -69,7 +70,7 @@ instance Biplate (Con' a) (Pred' a) where
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
     CAll x b p c -> plate CAll |- x |- b |* p |+ c
 
-instance Biplate (Con' a) (Expr' a) where
+instance Uniplate (Expr' a) => Biplate (Con' a) (Expr' a) where
   biplate = \case
     CHead p      -> plate CHead |+ p
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
@@ -85,7 +86,7 @@ instance Pretty a => Pretty (Con' a) where
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
-instance Subable (Con' a) (Expr' a) where
+instance (Subable (Expr' a) (Expr' a), Subable (Rel' a) (Expr' a)) => Subable (Con' a) (Expr' a) where
   subst x y = \case
     CAll n b p c
       | n == y       -> CAll n b            p             c   -- (1)

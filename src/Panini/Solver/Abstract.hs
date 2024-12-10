@@ -70,7 +70,6 @@ abstractExpr = \case
   ECon v -> EAbs (fromValue v)
   EReg ere -> EAbs (AString $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
   EAbs _ -> undefined
-  ESol _ _ _ -> undefined
 
 -------------------------------------------------------------------------------
 
@@ -304,6 +303,7 @@ meetValueExprs b es0 = case List.partition isVal es0 of
                   return (EAbs a : es)
  where
   isVal (ECon _) = True
+  isVal (ESol _ _ _) = False
   isVal (EAbs _) = True
   isVal _        = False
   unVal (ECon c) = fromValue c

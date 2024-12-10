@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Panini.Syntax.Predicates where
 
 import Algebra.Lattice
@@ -90,7 +91,7 @@ instance Uniplate (Pred' a) where
     PAppK k ys    -> plate PAppK |- k |- ys
     PExists x b p -> plate PExists |- x |- b |* p
 
-instance Biplate (Pred' a) (Expr' a) where
+instance Uniplate (Expr' a ) => Biplate (Pred' a) (Expr' a) where
   biplate = \case
     PTrue         -> plate PTrue
     PFalse        -> plate PFalse
@@ -128,7 +129,7 @@ instance HasFixity (Pred' a) where
     _         -> Infix LeftAss 9
 
 -- see Panini.Syntax.Substitution
-instance Subable (Pred' a) (Expr' a) where
+instance (Subable (Expr' a) (Expr' a), Subable (Rel' a) (Expr' a)) => Subable (Pred' a) (Expr' a) where
   subst x y = \case
     PExists n b p
       | n == y       -> PExists n b            p   -- (1)
