@@ -155,19 +155,6 @@ simplifyPred = \case
 
 -------------------------------------------------------------------------------
 
--- TODO: remove dead code?
-simplifyDNF :: [[Rel]] -> [[Rel]]
-simplifyDNF = go []
- where
-  go ys []     = ys
-  go ys (x:xs) = case filter (/= taut) $ List.nub $ map normRel x of
-    x' | null x'          -> [[]]
-       | any (== cont) x' -> go ys xs
-       | otherwise        -> go (x:ys) xs
-
-
--------------------------------------------------------------------------------
-
 instance Simplifiable Type where
   simplify = \case
     TBase x b Unknown   pv -> TBase x b Unknown pv
