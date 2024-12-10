@@ -154,19 +154,6 @@ ground e = and [False | EVar _ <- universe e]
 (⏚) :: Expr' a -> Bool
 (⏚) = ground
 
--- | An expression is /abstract/ if it involves abstract values.
-isAbstract :: Expr' a -> Bool
-isAbstract e0 = or [isAbs e | e <- universe e0]
- where
-  isAbs (EAbs _)     = True
-  isAbs (ESol _ _ _) = True
-  isAbs (EReg _)     = True -- TODO: ?
-  isAbs _            = False
-
--- | An expression is /concrete/ if it does not involve any abstract values.
-isConcrete :: Expr' a -> Bool
-isConcrete = not . isAbstract
-
 -- | The abstract maximum element for the given type.
 topExpr :: Base -> Expr' a
 topExpr TUnit   = EUnitA top
@@ -368,18 +355,7 @@ instance Subable (Rel' a) (Expr' a) where
   freeVars = mconcat . map (freeVars @(Expr' a)) . childrenBi
 
 instance Pretty a => Pretty (Rel' a) where
-  pretty (Rel op a b) = pretty a <+> pop <+> pretty b
-   where
-    pop = case (op, isAbstract a, isAbstract b) of
-      (Eq, True , True ) -> symNei
-      (Eq, True , False) -> symNi
-      (Eq, False, True ) -> symIn
-      (Eq, False, False) -> symEq
-      (Ne, True , True ) -> symEi
-      (Ne, True , False) -> symNotNi
-      (Ne, False, True ) -> symNotIn
-      (Ne, False, False) -> symNe
-      _                  -> pretty op
+  pretty (Rel op a b) = pretty a <+> pretty op <+> pretty b
 
 instance Pretty Rop where
   pretty = \case

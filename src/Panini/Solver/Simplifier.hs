@@ -126,8 +126,8 @@ simplifyPred = \case
     Left True -> Just PTrue
     Left False -> Just PFalse
     Right r'
-       | r' /= r, all isConcrete (universeBi @Rel @Expr r') -> Just $ PRel r'
-       | otherwise  -> Nothing
+       | r' /= r -> Just $ PRel r'
+       | otherwise -> Nothing
 
   PIff p PTrue -> Just p
   PIff PTrue p -> Just p
