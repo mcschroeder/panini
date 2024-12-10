@@ -9,6 +9,7 @@ import Panini.Abstract.AInt qualified as AInt
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Unsafe.Coerce
 
 -------------------------------------------------------------------------------
 
@@ -66,6 +67,13 @@ leftmostAnd = \case
 
 instance Simplifiable Pred where
   simplify = rewrite simplifyPred
+
+instance Simplifiable PredA where
+  simplify = rewrite simplifyPredA
+
+-- TODO
+simplifyPredA :: PredA -> Maybe PredA
+simplifyPredA = unsafeCoerce simplifyPred
 
 simplifyPred :: Pred -> Maybe Pred
 simplifyPred = \case

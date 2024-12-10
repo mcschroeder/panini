@@ -15,10 +15,12 @@ import Panini.Syntax.Predicates
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
+import Panini.Abstract.AValue (AValue)
 
 ------------------------------------------------------------------------------
 
-type Con = Con' ()
+type Con  = Con' Value
+type ConA = Con' AValue
 
 -- | Constraints are Horn clauses in negation normal form (NNF). They form a
 -- tree, where each leaf is a goal ('CHead') and each node either quantifies

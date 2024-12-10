@@ -34,7 +34,43 @@ import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import Regex.POSIX.ERE qualified
 import System.Time.Extra
+
+-------------------------------------------------------------------------------
+
+-- TODO: replace all these with simple fmap fromValue
+
+abstractCon :: Con -> ConA
+abstractCon = \case
+  CHead p -> CHead (abstractPred p)
+  CAnd c1 c2 -> CAnd (abstractCon c1) (abstractCon c2)
+  CAll x b p c -> CAll x b (abstractPred p) (abstractCon c)
+
+abstractPred :: Pred -> PredA
+abstractPred = \case
+    PTrue         -> PTrue
+    PFalse        -> PFalse
+    PAnd ps       -> PAnd $ map abstractPred ps
+    POr ps        -> POr $ map abstractPred ps
+    PImpl p q     -> PImpl (abstractPred p) (abstractPred q)
+    PIff p q      -> PIff (abstractPred p) (abstractPred q)
+    PNot p        -> PNot (abstractPred p)
+    PRel r        -> PRel (abstractRel r)
+    PAppK k ys    -> PAppK k (map abstractExpr ys)
+    PExists x b p -> PExists x b (abstractPred p)
+
+abstractRel :: Rel -> RelA
+abstractRel (Rel op e1 e2) = Rel op (abstractExpr e1) (abstractExpr e2)
+
+abstractExpr :: Expr -> ExprA
+abstractExpr = \case
+  EVar x -> EVar x
+  EFun f es -> EFun f (map abstractExpr es)
+  ECon v -> EAbs (fromValue v)
+  EReg ere -> EAbs (AString $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
+  EAbs _ -> undefined
+  ESol _ _ _ -> undefined
 
 -------------------------------------------------------------------------------
 
@@ -127,14 +163,15 @@ solve1 = \case
     c2 <- simplify c1     § "Simplify constraint"
     solve1 $ PreCon x b k c2
 
-  PreCon x b _ c -> do
+  PreCon x b _ c0 -> do
+    let c = abstractCon c0
     c1 <- qelim c
     c2 <- nnf c1               § "Convert to NNF"
     c3 <- simplify c2          § "Simplify predicate"
     q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
     return q
 
-abstractNNF :: Name -> Base -> Pred -> Pan AValue
+abstractNNF :: Name -> Base -> PredA -> Pan AValue
 abstractNNF x b = \case
   PTrue   -> return $ topValue b
   PFalse  -> return $ botValue b  
@@ -169,13 +206,13 @@ valueJoins b vs0 = do
 
 -------------------------------------------------------------------------------
 
-qelim :: Con -> Pan Pred
+qelim :: ConA -> Pan PredA
 qelim c0 = do
   c1 <- elimAll c0      § "Eliminate ∀"
   c2 <- elimExists c1  §§ "Eliminate ∃"
   return c2
  where
-  elimAll :: Con -> Pred
+  elimAll :: ConA -> PredA
   elimAll = \case
     CHead p       -> p
     CAnd c1 c2    -> elimAll c1 ∧ elimAll c2
@@ -183,7 +220,7 @@ qelim c0 = do
       | x `notFreeIn` p, x `notFreeIn` c      -> PImpl p $ elimAll c
       | otherwise -> PNot $ PExists x t $ PNot $ PImpl p $ elimAll c
 
-  elimExists :: Pred -> Pan Pred
+  elimExists :: PredA -> Pan PredA
   elimExists = \case
     PTrue         -> return PTrue
     PFalse        -> return PFalse
@@ -201,7 +238,7 @@ qelim c0 = do
                         logData q
                         return q
 
-nnf :: Pred -> Pred
+nnf :: Pred' v -> Pred' v
 nnf = \case
   PTrue            -> PTrue
   PFalse           -> PFalse
@@ -220,7 +257,7 @@ nnf = \case
   POr xs           -> POr (map nnf xs)
   _                -> impossible
 
-dnf :: Pred -> [[Rel]]
+dnf :: Pred' v -> [[Rel' v]]
 dnf p0 = case nnf p0 of
   PTrue   -> [[]]
   PFalse  -> []  
@@ -237,7 +274,7 @@ dnf p0 = case nnf p0 of
 --
 --     𝔐 ⊧ qelim1 x b R  ⟺  𝔐 ⊧ ∃(x:b). R 
 --
-qelim1 :: Name -> Base -> [Rel] -> Pan Pred
+qelim1 :: Name -> Base -> [RelA] -> Pan PredA
 qelim1 x b φ = do
   logMessage $ divider symDivH Nothing
   logMessage $ "qelim1" <+> pretty x <+> pretty b
@@ -259,7 +296,7 @@ qelim1 x b φ = do
         logMessage $ "ψ ←" <+> pretty ψ
         return $ meets $ map PRel ψ
 
-meetValueExprs :: Base -> [Expr] -> Pan [Expr]
+meetValueExprs :: Base -> [ExprA] -> Pan [ExprA]
 meetValueExprs b es0 = case List.partition isVal es0 of
   ( [], es) -> return es
   ([a], es) -> return (a:es)
@@ -273,16 +310,16 @@ meetValueExprs b es0 = case List.partition isVal es0 of
   unVal (EAbs a) = a
   unVal _        = impossible  
 
-isBotValue :: Expr -> Bool
+isBotValue :: ExprA -> Bool
 isBotValue (EAbs a) = hasBot a
 isBotValue _        = False
 
-normRels :: [Rel] -> Pan (Maybe [Rel])
+normRels :: [RelA] -> Pan (Maybe [RelA])
 normRels = go []
  where
-  go ys [] = return $ Just ys
+  go ys [] = return $ Just $ nubOrd ys
   go ys (r:rs) = do
-    let r' = normRel r
+    let r' = normRelA r
     case r' of
       Left False          -> logMessage $ pretty r <+> " ⇝  ⊥"
       Left True           -> logMessage $ pretty r <+> " ⇝  ⊤"
@@ -300,7 +337,7 @@ simplifyAValue = \case
   AString s -> AString <$> simplifyRegex s
   a         -> pure a
 
-simplifyExpr :: Expr -> Pan Expr
+simplifyExpr :: ExprA -> Pan ExprA
 simplifyExpr = \case
   EStrA s -> EStrA <$> simplifyRegex s
   e       -> pure e

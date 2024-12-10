@@ -19,6 +19,7 @@ import Panini.Regex.SMT qualified as Regex
 import Panini.SMT.RegLan (RegLan)
 import Prelude hiding (length)
 import Regex qualified as Regex
+import Regex.CharSet qualified as CS
 import Regex.Type
 
 ------------------------------------------------------------------------------
@@ -48,6 +49,17 @@ instance ComplementedLattice AString where
 
 instance Pretty AString where
   pretty (MkAString r) = ann (Literal AbstractLit) $ prettyRegex r
+
+-- TODO
+pattern AString1 :: Text -> AString
+pattern AString1 s <- (MkAString (regex1 -> Just s))
+
+regex1 :: Regex -> Maybe Text
+regex1 r0 = Text.pack <$> go [] r0
+ where
+  go xs (Times1 (Lit c) r) | [x] <- CS.toList c = go (x:xs) r
+  go xs (Lit c)            | [x] <- CS.toList c = Just $ reverse (x:xs)
+  go _ _                                        = Nothing
 
 ------------------------------------------------------------------------------
 

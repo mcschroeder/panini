@@ -14,10 +14,12 @@ import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
+import Panini.Abstract.AValue (AValue)
 
 ------------------------------------------------------------------------------
 
-type Pred = Pred' ()
+type Pred  = Pred' Value
+type PredA = Pred' AValue
 
 -- | Predicates are terms in a Boolean logic.
 data Pred' a

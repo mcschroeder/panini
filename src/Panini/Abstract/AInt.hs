@@ -12,6 +12,7 @@ module Panini.Abstract.AInt
   , maximum
   , continuous
   , finite
+  , isLe
   , eq
   , ne
   , gt
@@ -148,6 +149,14 @@ finite (AInt xs) = case xs of
   (In NegInf _):_ -> False
   (last -> In _ PosInf) -> False
   _ -> True
+
+-- | Whether the abstract integer solely represents values less than or equal to
+-- a given integer.
+isLe :: AInt -> Integer -> Bool
+isLe a b = case maximum a of
+  Just NegInf  -> True
+  Just (Fin n) -> n <= b
+  _            -> False
 
 -------------------------------------------------------------------------------
 

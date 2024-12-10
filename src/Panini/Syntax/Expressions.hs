@@ -29,7 +29,8 @@ import Regex.POSIX.ERE (ERE, printERE)
 
 ------------------------------------------------------------------------------
 
-type Expr = Expr' ()
+type Expr  = Expr' Value
+type ExprA = Expr' AValue
 
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
@@ -331,7 +332,8 @@ instance Subable (Expr' a) (Expr' a) where
 
 ------------------------------------------------------------------------------
 
-type Rel = Rel' ()
+type Rel  = Rel' Value
+type RelA = Rel' AValue
 
 -- | Relation between expressions.
 data Rel' a = Rel !Rop !(Expr' a) !(Expr' a)
