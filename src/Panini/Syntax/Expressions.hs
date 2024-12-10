@@ -145,15 +145,10 @@ pattern EStrA a = EAbs (AString a)
 
 ------------------------------------------------------------------------------
 
--- | An expression is /ground/ if it contains no variables; in particular, it
--- also does not contain any abstract solutions.
+-- | An expression is /ground/ if it contains no variables anywhere, including
+-- inside abstract values.
 ground :: Expr' a -> Bool
-ground (EVar _)     = False
-ground (EFun _ es)  = all ground es
-ground (ECon _)     = True
-ground (EReg _)     = True
-ground (EAbs _)     = True
-ground (ESol _ _ _) = False
+ground e = and [False | EVar _ <- universe e]
 
 -- | Postfix operator for 'ground'.
 (⏚) :: Expr' a -> Bool
