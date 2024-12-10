@@ -123,13 +123,13 @@ solve1 = \case
   PreCon x b k c | not $ null $ kvars c -> do
     let st = Map.fromList [(k2, PTrue) | k2 <- toList (kvars c)]
     c1 <- apply st c      § "Set nested" <+> kappa <+> "variables true"
-    c2 <- simplifyCon c1  § "Simplify constraint"
+    c2 <- simplify c1     § "Simplify constraint"
     solve1 $ PreCon x b k c2
 
   PreCon x b _ c -> do
     c1 <- qelim c
     c2 <- nnf c1               § "Convert to NNF"
-    c3 <- simplifyPred c2      § "Simplify predicate"
+    c3 <- simplify c2          § "Simplify predicate"
     q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
     return q
 

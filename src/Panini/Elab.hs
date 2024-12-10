@@ -99,7 +99,7 @@ define x e = do
 
     Right (t1,vc) -> do
       logData t1
-      t2 <- simplifyType t1 § "Simplify type"      
+      t2 <- simplify t1 § "Simplify type"      
       envExtend x $ Inferred x t0m e t2 vc
             
       -- TODO: less brittle way of identifying user holes
@@ -129,7 +129,7 @@ define x e = do
 makeFinalType :: Assignment -> Type -> Maybe Type -> Pan Type
 makeFinalType s t1 t0m = do
   t2 <- apply s t1        § "Apply solution to type"
-  t3 <- simplifyType t2   § "Simplify type"
+  t3 <- simplify t2       § "Simplify type"
   case t0m of
     Nothing -> pure t3
     Just t0 -> do

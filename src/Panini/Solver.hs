@@ -36,14 +36,14 @@ data Result
 solve :: Set KVar -> Con -> Pan Result
 solve kst c0 = do
   logMessage "Phase 1: FUSION — Eliminate local acyclic variables"
-  c1  <- simplifyCon c0                  § "Simplify constraint"
+  c1  <- simplify c0                     § "Simplify constraint"
   c2  <- Fusion.solve kst c1
-  c3  <- simplifyCon c2                  § "Simplify constraint"
+  c3  <- simplify c2                     § "Simplify constraint"
 
   logMessage "Phase 2: LIQUID — Solve residual non-grammar variables"
   ksp <- allGrammarVars c3               § "Identify grammar variables"
   c4  <- apply (allTrue ksp) c3          § "Hide grammar variables"
-  c5  <- simplifyCon c4                  § "Simplify constraint"
+  c5  <- simplify c4                     § "Simplify constraint"
   qs  <- qualifiers c0 (kvars c5)        § "Extract candidate qualifiers"
   cs5 <- flat c5                         § "Flatten constraint"
   csk <- filter horny cs5                § "Gather Horn-headed constraints"
@@ -51,12 +51,12 @@ solve kst c0 = do
   sl  <- Liquid.fixpoint csk s0
   c6  <- c3                              § "Restore grammar variables"
   c7  <- apply sl c6                     § "Apply Liquid solution"
-  c8  <- simplifyCon c7                  § "Simplify constraint"
+  c8  <- simplify c7                     § "Simplify constraint"
 
   logMessage "Phase 3: ABSTRACT — Infer grammars using abstract interpretation"
   sa  <- Abstract.solve c8
   c9  <- apply sa c8                     § "Apply abstract solution"
-  c10 <- simplifyCon c9                  § "Simplify constraint"
+  c10 <- simplify c9                     § "Simplify constraint"
   s   <- sa <> sl <> allTrue (kvars c0)  § "Construct final solution"
   vc  <- apply s c10                     § "Apply final solution"
 

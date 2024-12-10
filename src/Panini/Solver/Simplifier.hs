@@ -12,8 +12,16 @@ import Prelude
 
 -------------------------------------------------------------------------------
 
-simplifyCon :: Con -> Con
-simplifyCon = rewrite $ \case
+class Simplifiable a where
+  simplify :: a -> a
+
+-------------------------------------------------------------------------------
+
+instance Simplifiable Con where
+  simplify = rewrite simplifyCon
+
+simplifyCon :: Con -> Maybe Con
+simplifyCon = \case
   CAnd (CHead PTrue) c2 -> Just c2
   CAnd c1 (CHead PTrue) -> Just c1
   CAll _ _ _ (CHead PTrue) -> Just (CHead PTrue)
@@ -43,8 +51,8 @@ simplifyCon = rewrite $ \case
     , x `notElem` maybe mempty freeVars c
     -> Just $ CAnd (CHead q) (fromMaybe CTrue c)
 
-  CAll x b p c | p' <- simplifyPred p, p' /= p -> Just $ CAll x b p' c
-  CHead p      | p' <- simplifyPred p, p' /= p -> Just $ CHead p'
+  CAll x b p c | p' <- simplify p, p' /= p -> Just $ CAll x b p' c
+  CHead p      | p' <- simplify p, p' /= p -> Just $ CHead p'
 
   _ -> Nothing
 
@@ -56,8 +64,11 @@ leftmostAnd = \case
 
 -------------------------------------------------------------------------------
 
-simplifyPred :: Pred -> Pred
-simplifyPred = rewrite $ \case
+instance Simplifiable Pred where
+  simplify = rewrite simplifyPred
+
+simplifyPred :: Pred -> Maybe Pred
+simplifyPred = \case
   POr xs
     | null xs        -> Just PFalse
     | [x] <- xs      -> Just x
@@ -144,6 +155,7 @@ simplifyPred = rewrite $ \case
 
 -------------------------------------------------------------------------------
 
+-- TODO: remove dead code?
 simplifyDNF :: [[Rel]] -> [[Rel]]
 simplifyDNF = go []
  where
@@ -156,8 +168,8 @@ simplifyDNF = go []
 
 -------------------------------------------------------------------------------
 
-simplifyType :: Type -> Type
-simplifyType = \case
-  TBase x b Unknown   pv -> TBase x b Unknown pv
-  TBase x b (Known p) pv -> TBase x b (Known $ simplifyPred p) pv
-  TFun x s t pv          -> TFun x (simplifyType s) (simplifyType t) pv
+instance Simplifiable Type where
+  simplify = \case
+    TBase x b Unknown   pv -> TBase x b Unknown pv
+    TBase x b (Known p) pv -> TBase x b (Known $ simplify p) pv
+    TFun x s t pv          -> TFun x (simplify s) (simplify t) pv

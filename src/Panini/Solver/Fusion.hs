@@ -39,7 +39,7 @@ elim ks c0 = foldM elimOne c0 ks
  where
   elimOne c1 k = do
     c2 <- elim1 k c1     § "Eliminate" <+> pretty k
-    c3 <- simplifyCon c2 § "Simplify constraint"
+    c3 <- simplify c2    § "Simplify constraint"
     return c3
 
 -- | Eliminates κ from a constraint c by invoking 'elim'' on the strongest
