@@ -46,8 +46,12 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
 --EStrA  a | [s]    <- AString.values a       -> EStr  s NoPV
   EStrA  a | AString.isEmpty a                -> EStr "" NoPV
   -----------------------------------------------------------
-  ESol x b r | r' <- normRel r, r' /= r       -> normExpr $ ESol x b r'
-  ESol x b r | Just e <- abstract x b r       -> e
+  ESol x b r -> case normRel r of
+    Left True                                 -> EAbs (topValue b)
+    Left False                                -> EAbs (botValue b)
+    Right r' | r' /= r                        -> normExpr $ ESol x b r'
+             | Just e <- abstract x b r       -> e
+    _                                         -> e0
   -----------------------------------------------------------
 --EFun _ es | any hasBot (universeBi =<< es)  -> botExpr ??
   -----------------------------------------------------------
@@ -126,68 +130,53 @@ normExpr e0 = trace ("normExpr " ++ showPretty e0) $ case e0 of
 
 -------------------------------------------------------------------------------
 
--- | The canonical tautological relation. 
---
--- To find out if a relation is a tautology, normalize it first using 'normRel'
--- and then compare it with 'taut'. (But note that if a comparison with 'taut'
--- returns 'False', the relation could still be a tautology. Not all
--- tautological relations necessarily normalize.)
-taut :: Rel
-taut = EUnit NoPV :=: EUnit NoPV
-
--- | The canonical contradictory relation; see 'taut'.
-cont :: Rel
-cont = EUnit NoPV :≠: EUnit NoPV
-
-toRel :: Bool -> Rel
-toRel True = taut
-toRel False = cont
-
 -- | Normalize a relation by (partial) evaluation.
 --
--- This function might change both the abstractness and the base type of a
--- relation's sub-expressions. A type change happens in particular when a
--- relation is evaluated to 'taut' or 'cont' (e.g., 2 > 1 ⇝ unit = unit). Note
--- that the relation itself continues to be a Boolean predicate, with the same
--- truth value as before.
-normRel :: Rel -> Rel
+-- If the result is 'Left', then the relation could be fully evaluated and was
+-- either a tautology ('Left True') or a contradiction ('Left False').
+-- Otherwise, the result is a 'Right' value containing the maximally
+-- evaluated/normalized relation. Note that not all tautological or
+-- contradictory relations necessarily normalize.
+--
+-- This function might change the abstractness of a relation's sub-expressions.
+normRel :: Rel -> Either Bool Rel
 -- normRel = \case
 normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   -----------------------------------------------------------
-  EUnit   _ :=: EUnit    _                    -> taut
-  EBool a _ :=: EBool  b _                    -> toRel (a == b)
-  EInt  a _ :=: EInt   b _                    -> toRel (a == b)
-  EChar a _ :=: EChar  b _                    -> toRel (a == b)
-  EStr  a _ :=: EStr   b _                    -> toRel (a == b)
-  EUnit   _ :=: EUnitA b                      -> toRel (b == Unit)
-  EBool a _ :=: EBoolA b                      -> toRel (ABool.member a b)
-  EInt  a _ :=: EIntA  b                      -> toRel (AInt.member a b)
-  EChar a _ :=: ECharA b                      -> toRel (AChar.member a b)
-  EStr  a _ :=: EStrA  b                      -> toRel (AString.member (Text.unpack a) b)
-  EAbs  a   :=: EAbs   b   | Just m <- a ∧? b -> toRel (not $ hasBot m)
-  a         :=: b          | a == b           -> taut
+  EUnit   _ :=: EUnit    _                    -> Left True
+  EBool a _ :=: EBool  b _                    -> Left (a == b)
+  EInt  a _ :=: EInt   b _                    -> Left (a == b)
+  EChar a _ :=: EChar  b _                    -> Left (a == b)
+  EStr  a _ :=: EStr   b _                    -> Left (a == b)
+  EUnit   _ :=: EUnitA b                      -> Left (b == Unit)
+  EBool a _ :=: EBoolA b                      -> Left (ABool.member a b)
+  EInt  a _ :=: EIntA  b                      -> Left (AInt.member a b)
+  EChar a _ :=: ECharA b                      -> Left (AChar.member a b)
+  EStr  a _ :=: EStrA  b                      -> Left (AString.member (Text.unpack a) b)
+  EAbs  a   :=: EAbs   b   | Just m <- a ∧? b -> Left (not $ hasBot m)
+  a         :=: b          | a == b           -> Left True
   -----------------------------------------------------------
-  EUnit   _ :≠: EUnit    _                    -> cont
-  EBool a _ :≠: EBool  b _                    -> toRel (a /= b)
-  EInt  a _ :≠: EInt   b _                    -> toRel (a /= b)
-  EChar a _ :≠: EChar  b _                    -> toRel (a /= b)
-  EStr  a _ :≠: EStr   b _                    -> toRel (a /= b)
-  EUnit   _ :≠: EUnitA b                      -> toRel (b /= Unit)
-  EBool a _ :≠: EBoolA b                      -> toRel (not $ ABool.member a b)
-  EInt  a _ :≠: EIntA  b                      -> toRel (not $ AInt.member a b)
-  EChar a _ :≠: ECharA b                      -> toRel (not $ AChar.member a b)
-  EStr  a _ :≠: EStrA  b                      -> toRel (not $ AString.member (Text.unpack a) b)
-  EAbs  a   :≠: EAbs   b   | Just m <- a ∧? b -> toRel (hasBot m)
-  a         :≠: b          | a == b           -> cont
+  EUnit   _ :≠: EUnit    _                    -> Left False
+  EBool a _ :≠: EBool  b _                    -> Left (a /= b)
+  EInt  a _ :≠: EInt   b _                    -> Left (a /= b)
+  EChar a _ :≠: EChar  b _                    -> Left (a /= b)
+  EStr  a _ :≠: EStr   b _                    -> Left (a /= b)
+  EUnit   _ :≠: EUnitA b                      -> Left (b /= Unit)
+  EBool a _ :≠: EBoolA b                      -> Left (not $ ABool.member a b)
+  EInt  a _ :≠: EIntA  b                      -> Left (not $ AInt.member a b)
+  EChar a _ :≠: ECharA b                      -> Left (not $ AChar.member a b)
+  EStr  a _ :≠: EStrA  b                      -> Left (not $ AString.member (Text.unpack a) b)
+  EAbs  a   :≠: EAbs   b   | Just m <- a ∧? b -> Left (hasBot m)
+  a         :≠: b          | a == b           -> Left False
   -----------------------------------------------------------
-  EInt  a _ :<: EInt   b _                    -> toRel (a <  b)
-  EInt  a _ :≤: EInt   b _                    -> toRel (a <= b)
-  EInt  a _ :>: EInt   b _                    -> toRel (a >  b)
-  EInt  a _ :≥: EInt   b _                    -> toRel (a >= b)
-  a         :<: b          | a == b           -> cont
-  a         :≤: b          | a == b           -> taut
-  a         :>: b          | a == b           -> cont
-  a         :≥: b          | a == b           -> taut
+  EInt  a _ :<: EInt   b _                    -> Left (a <  b)
+  EInt  a _ :≤: EInt   b _                    -> Left (a <= b)
+  EInt  a _ :>: EInt   b _                    -> Left (a >  b)
+  EInt  a _ :≥: EInt   b _                    -> Left (a >= b)
+  a         :<: b          | a == b           -> Left False
+  a         :≤: b          | a == b           -> Left True
+  a         :>: b          | a == b           -> Left False
+  a         :≥: b          | a == b           -> Left True
   -----------------------------------------------------------
   -- NOTE: ">" is the structural ordering on 'Expr'; after 
   -- this block, the "smaller" expression will be on the LHS,
@@ -206,54 +195,54 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   a      :=: ENot b                           -> normRel $ a :≠: b
   a      :≠: ENot b                           -> normRel $ a :=: b
   -----------------------------------------------------------
-  a :=: (b :+: EInt  c _) | a == b            -> toRel (c == 0)
-  a :≠: (b :+: EInt  c _) | a == b            -> toRel (c /= 0)
-  a :<: (b :+: EInt  c _) | a == b            -> toRel (c >  0)
-  a :≤: (b :+: EInt  c _) | a == b            -> toRel (c >= 0)
-  a :>: (b :+: EInt  c _) | a == b            -> toRel (c <  0)
-  a :≥: (b :+: EInt  c _) | a == b            -> toRel (c <= 0)
-  a :=: (b :+: EIntA c  ) | a == b            -> toRel (AInt.member 0 c)
-  a :≠: (b :+: EIntA c  ) | a == b            -> toRel (not $ AInt.member 0 c)
-  a :<: (b :+: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.gt 0)
-  a :≤: (b :+: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.ge 0)
-  a :>: (b :+: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.lt 0)
-  a :≥: (b :+: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.le 0)
-  (b :+: EInt  c _) :=: a | a == b            -> toRel (c == 0)
-  (b :+: EInt  c _) :≠: a | a == b            -> toRel (c /= 0)
-  (b :+: EInt  c _) :>: a | a == b            -> toRel (c >  0)  
-  (b :+: EInt  c _) :≥: a | a == b            -> toRel (c >= 0)
-  (b :+: EInt  c _) :<: a | a == b            -> toRel (c <  0)
-  (b :+: EInt  c _) :≤: a | a == b            -> toRel (c <= 0)
-  (b :+: EIntA c  ) :=: a | a == b            -> toRel (AInt.member 0 c)
-  (b :+: EIntA c  ) :>: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.gt 0)
-  (b :+: EIntA c  ) :≥: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.ge 0)
-  (b :+: EIntA c  ) :<: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.lt 0)
-  (b :+: EIntA c  ) :≤: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.le 0)
+  a :=: (b :+: EInt  c _) | a == b            -> Left (c == 0)
+  a :≠: (b :+: EInt  c _) | a == b            -> Left (c /= 0)
+  a :<: (b :+: EInt  c _) | a == b            -> Left (c >  0)
+  a :≤: (b :+: EInt  c _) | a == b            -> Left (c >= 0)
+  a :>: (b :+: EInt  c _) | a == b            -> Left (c <  0)
+  a :≥: (b :+: EInt  c _) | a == b            -> Left (c <= 0)
+  a :=: (b :+: EIntA c  ) | a == b            -> Left (AInt.member 0 c)
+  a :≠: (b :+: EIntA c  ) | a == b            -> Left (not $ AInt.member 0 c)
+  a :<: (b :+: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.gt 0)
+  a :≤: (b :+: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.ge 0)
+  a :>: (b :+: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.lt 0)
+  a :≥: (b :+: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.le 0)
+  (b :+: EInt  c _) :=: a | a == b            -> Left (c == 0)
+  (b :+: EInt  c _) :≠: a | a == b            -> Left (c /= 0)
+  (b :+: EInt  c _) :>: a | a == b            -> Left (c >  0)  
+  (b :+: EInt  c _) :≥: a | a == b            -> Left (c >= 0)
+  (b :+: EInt  c _) :<: a | a == b            -> Left (c <  0)
+  (b :+: EInt  c _) :≤: a | a == b            -> Left (c <= 0)
+  (b :+: EIntA c  ) :=: a | a == b            -> Left (AInt.member 0 c)
+  (b :+: EIntA c  ) :>: a | a == b            -> Left (not $ isBot $ c ∧ AInt.gt 0)
+  (b :+: EIntA c  ) :≥: a | a == b            -> Left (not $ isBot $ c ∧ AInt.ge 0)
+  (b :+: EIntA c  ) :<: a | a == b            -> Left (not $ isBot $ c ∧ AInt.lt 0)
+  (b :+: EIntA c  ) :≤: a | a == b            -> Left (not $ isBot $ c ∧ AInt.le 0)
   -----------------------------------------------------------
-  a :=: (b :-: EInt  c _) | a == b            -> toRel (c == 0)
-  a :≠: (b :-: EInt  c _) | a == b            -> toRel (c /= 0)
-  a :<: (b :-: EInt  c _) | a == b            -> toRel (c <  0)
-  a :≤: (b :-: EInt  c _) | a == b            -> toRel (c <= 0)
-  a :>: (b :-: EInt  c _) | a == b            -> toRel (c >  0)
-  a :≥: (b :-: EInt  c _) | a == b            -> toRel (c >= 0)
-  a :=: (b :-: EIntA c  ) | a == b            -> toRel (AInt.member 0 c)
-  a :≠: (b :-: EIntA c  ) | a == b            -> toRel (not $ AInt.member 0 c)
-  a :<: (b :-: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.lt 0)
-  a :≤: (b :-: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.le 0)
-  a :>: (b :-: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.gt 0)
-  a :≥: (b :-: EIntA c  ) | a == b            -> toRel (not $ isBot $ c ∧ AInt.ge 0)  
-  (b :-: EInt  c _) :=: a | a == b            -> toRel (c == 0)
-  (b :-: EInt  c _) :≠: a | a == b            -> toRel (c /= 0)
-  (b :-: EInt  c _) :>: a | a == b            -> toRel (c <  0)
-  (b :-: EInt  c _) :≥: a | a == b            -> toRel (c <= 0)
-  (b :-: EInt  c _) :<: a | a == b            -> toRel (c >  0)
-  (b :-: EInt  c _) :≤: a | a == b            -> toRel (c >= 0)
-  (b :-: EIntA c  ) :=: a | a == b            -> toRel (AInt.member 0 c)
-  (b :-: EIntA c  ) :≠: a | a == b            -> toRel (not $ AInt.member 0 c)
-  (b :-: EIntA c  ) :>: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.lt 0)
-  (b :-: EIntA c  ) :≥: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.le 0)
-  (b :-: EIntA c  ) :<: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.gt 0)
-  (b :-: EIntA c  ) :≤: a | a == b            -> toRel (not $ isBot $ c ∧ AInt.ge 0)
+  a :=: (b :-: EInt  c _) | a == b            -> Left (c == 0)
+  a :≠: (b :-: EInt  c _) | a == b            -> Left (c /= 0)
+  a :<: (b :-: EInt  c _) | a == b            -> Left (c <  0)
+  a :≤: (b :-: EInt  c _) | a == b            -> Left (c <= 0)
+  a :>: (b :-: EInt  c _) | a == b            -> Left (c >  0)
+  a :≥: (b :-: EInt  c _) | a == b            -> Left (c >= 0)
+  a :=: (b :-: EIntA c  ) | a == b            -> Left (AInt.member 0 c)
+  a :≠: (b :-: EIntA c  ) | a == b            -> Left (not $ AInt.member 0 c)
+  a :<: (b :-: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.lt 0)
+  a :≤: (b :-: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.le 0)
+  a :>: (b :-: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.gt 0)
+  a :≥: (b :-: EIntA c  ) | a == b            -> Left (not $ isBot $ c ∧ AInt.ge 0)  
+  (b :-: EInt  c _) :=: a | a == b            -> Left (c == 0)
+  (b :-: EInt  c _) :≠: a | a == b            -> Left (c /= 0)
+  (b :-: EInt  c _) :>: a | a == b            -> Left (c <  0)
+  (b :-: EInt  c _) :≥: a | a == b            -> Left (c <= 0)
+  (b :-: EInt  c _) :<: a | a == b            -> Left (c >  0)
+  (b :-: EInt  c _) :≤: a | a == b            -> Left (c >= 0)
+  (b :-: EIntA c  ) :=: a | a == b            -> Left (AInt.member 0 c)
+  (b :-: EIntA c  ) :≠: a | a == b            -> Left (not $ AInt.member 0 c)
+  (b :-: EIntA c  ) :>: a | a == b            -> Left (not $ isBot $ c ∧ AInt.lt 0)
+  (b :-: EIntA c  ) :≥: a | a == b            -> Left (not $ isBot $ c ∧ AInt.le 0)
+  (b :-: EIntA c  ) :<: a | a == b            -> Left (not $ isBot $ c ∧ AInt.gt 0)
+  (b :-: EIntA c  ) :≤: a | a == b            -> Left (not $ isBot $ c ∧ AInt.ge 0)
   -----------------------------------------------------------
   a :<: (b :+: EInt 1 _)                      -> normRel $ a :≤: b
   a :≤: (b :-: EInt 1 _)                      -> normRel $ a :<: b
@@ -282,10 +271,10 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
   Rel op (a :-: b) c@(d :-: _) | (b ⏚), (d ⏚) -> normRel $ Rel op a (normExpr $ c :+: b)
   -----------------------------------------------------------
   EMod (EIntA a) (EInt b _) :=: EInt c _
-    | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> taut
+    | any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> Left True
   -----------------------------------------------------------
   EIntA î :=: ESol a1 TInt (EMod (EVar a2) (EInt n _) :=: EInt m _)
-    | a1 == a2, n >= 0, m >= 0, AInt.ge 0 == î ∧ AInt.ge 0 -> taut
+    | a1 == a2, n >= 0, m >= 0, AInt.ge 0 == î ∧ AInt.ge 0 -> Left True
   -----------------------------------------------------------
   EStrComp a :=: EStrComp b                   -> normRel $ a :=: b
   EStrComp a :≠: EStrComp b                   -> normRel $ a :≠: b
@@ -331,7 +320,7 @@ normRel r0 = trace ("normRel " ++ showPretty r0) $ case r0 of
     , r' < r                                  -> normRel r'
   -----------------------------------------------------------
   r | r' <- descendBi normExpr r, r' /= r     -> normRel r'
-    | otherwise                               -> r
+    | otherwise                               -> Right r
 
 isSol :: Expr -> Bool
 isSol (ESol _ _ _) = True
@@ -453,22 +442,28 @@ tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
 abstractVarToValue :: Name -> Base -> Rel -> Pan AValue
 abstractVarToValue x b r0 = do
-  let r = normRel r0
-  let e = abstract x b r
-  unless (isNothing e) $
-    logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
-  case e of
-    Just (ECon c) -> return $ fromValue c
-    Just (EAbs a) -> return a
-    Just e'       -> throwError $ AbstractionToValueImpossible x r e'
-    Nothing       -> throwError $ AbstractionImpossible x r
+  case normRel r0 of
+    Left True  -> return $ topValue b
+    Left False -> return $ botValue b
+    Right r -> do
+      let e = abstract x b r
+      unless (isNothing e) $
+        logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
+      case e of
+        Just (ECon c) -> return $ fromValue c
+        Just (EAbs a) -> return a
+        Just e'       -> throwError $ AbstractionToValueImpossible x r e'
+        Nothing       -> throwError $ AbstractionImpossible x r
 
 abstractVar :: Name -> Base -> Rel -> Pan Expr
 abstractVar x b r0 = do
-  let r = normRel r0
-  let e = fromMaybe (ESol x b r) (abstract x b r)
-  logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
-  return e
+  case normRel r0 of
+    Left True  -> return $ EAbs $ topValue b
+    Left False -> return $ EAbs $ botValue b
+    Right r -> do
+      let e = fromMaybe (ESol x b r) (abstract x b r)
+      logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
+      return e
 
 abstract :: Name -> Base -> Rel -> Maybe Expr
 -- abstract x b = \case

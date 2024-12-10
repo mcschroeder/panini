@@ -10,6 +10,7 @@ module Panini.Solver.Abstract
 import Algebra.Lattice
 import Control.Monad.Extra
 import Data.Containers.ListUtils (nubOrd)
+import Data.Either
 import Data.Foldable
 import Data.Generics.Uniplate.Operations qualified as Uniplate
 import Data.Graph qualified as Graph
@@ -249,14 +250,14 @@ qelim1 x b φ = do
     return PFalse
   else do
     let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
-    let ψ₂ = [r | r <- φ, x `notElem` freeVars r]    
-    ψ <- filter (taut /=) <$> nubOrd <$> mapM normRelM (ψ₁ ++ ψ₂)
-    logMessage $ "ψ ←" <+> pretty ψ
-    if any (== cont) ψ then do
-      logMessage "↯"
-      return PFalse
-    else
-      return $ meets $ map PRel ψ
+    let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
+    normRels (ψ₁ ++ ψ₂) >>= \case
+      Nothing -> do
+        logMessage "↯"
+        return PFalse
+      Just ψ -> do 
+        logMessage $ "ψ ←" <+> pretty ψ
+        return $ meets $ map PRel ψ
 
 meetValueExprs :: Base -> [Expr] -> Pan [Expr]
 meetValueExprs b es0 = case List.partition isVal es0 of
@@ -276,11 +277,21 @@ isBotValue :: Expr -> Bool
 isBotValue (EAbs a) = hasBot a
 isBotValue _        = False
 
-normRelM :: Rel -> Pan Rel
-normRelM r = do
-  let r' = normRel r
-  unless (r' == r) $ logMessage $ pretty r <+> " ⇝ " <+> pretty r'
-  return r'
+normRels :: [Rel] -> Pan (Maybe [Rel])
+normRels = go []
+ where
+  go ys [] = return $ Just ys
+  go ys (r:rs) = do
+    let r' = normRel r
+    case r' of
+      Left False          -> logMessage $ pretty r <+> " ⇝  ⊥"
+      Left True           -> logMessage $ pretty r <+> " ⇝  ⊤"
+      Right y | y /= r    -> logMessage $ pretty r <+> " ⇝ " <+> pretty y
+              | otherwise -> return ()
+    case r' of
+      Left False -> return Nothing
+      Left True  -> go ys rs
+      Right y    -> go (y:ys) rs
 
 -------------------------------------------------------------------------------
 

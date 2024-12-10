@@ -115,8 +115,9 @@ simplifyPred = \case
   PNot (PRel r) -> Just $ PRel $ inverse r 
 
   PRel r -> case normRel r of
-    r' | r' == taut -> Just PTrue
-       | r' == cont -> Just PFalse
+    Left True -> Just PTrue
+    Left False -> Just PFalse
+    Right r'
        | r' /= r, all isConcrete (universeBi @Rel @Expr r') -> Just $ PRel r'
        | otherwise  -> Nothing
 
