@@ -74,7 +74,6 @@ instance SMTLIB Rel where
     e1 :>: e2 -> sexpr [">", encode e1, encode e2]
     e1 :≥: e2 -> sexpr [">=", encode e1, encode e2]
     e1 :∈: e2@(EReg _) -> sexpr ["str.in_re", encode e1, encode e2]
-    e1 :∈: e2@(EStrA _) -> sexpr ["str.in_re", encode e1, encode e2]
     e1 :∈: e2 | Just TString <- typeOfExpr e2 -> sexpr ["str.in_re", encode e1, encode e2]
     r -> panic $ "SMTLIB: unencondable relation:" <+> pretty r
 
@@ -106,7 +105,6 @@ instance SMTLIB Expr where
     EFun f es        -> sexpr (encode f : map encode es)
     ECon c           -> encode c
     EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r
-    e                -> panic $ "SMTLIB: unencodable expression:" <+> pretty e
 
 -- NB: we represent the substring operation using [start..end] ranges,
 -- but SMTLIB/Z3Str expects start plus length, so we have to convert

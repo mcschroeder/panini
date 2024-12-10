@@ -69,7 +69,6 @@ abstractExpr = \case
   EFun f es -> EFun f (map abstractExpr es)
   ECon v -> EAbs (fromValue v)
   EReg ere -> EAbs (AString $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
-  EAbs _ -> undefined
 
 -------------------------------------------------------------------------------
 
@@ -256,7 +255,7 @@ nnf = \case
   POr xs           -> POr (map nnf xs)
   _                -> impossible
 
-dnf :: Pred' v -> [[Rel' v]]
+dnf :: Ord v => Pred' v -> [[Rel' v]]
 dnf p0 = case nnf p0 of
   PTrue   -> [[]]
   PFalse  -> []  
@@ -302,11 +301,9 @@ meetValueExprs b es0 = case List.partition isVal es0 of
   ( as, es) -> do a <- valueMeets b (map unVal as)
                   return (EAbs a : es)
  where
-  isVal (ECon _) = True
   isVal (ESol _ _ _) = False
   isVal (EAbs _) = True
   isVal _        = False
-  unVal (ECon c) = fromValue c
   unVal (EAbs a) = a
   unVal _        = impossible  
 

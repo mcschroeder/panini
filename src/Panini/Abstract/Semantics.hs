@@ -115,7 +115,7 @@ normExprA e0 = trace ("normExprA " ++ showPretty e0) $ case e0 of
   -- NOTE: We don't have any efficient way to compute nor represent, in general,
   -- the precise lengths of all strings contained in an abstract string.
   -----------------------------------------------------------
-  EStrAt (EStr s _) (EIntA i)                 -> normExprA $ ECharA $ charAt s i
+  EStrAt (EStrA (AString1 s)) (EIntA i)                 -> normExprA $ ECharA $ charAt s i
   -----------------------------------------------------------
   EStrAt (EVar s1) (EStrLen (EVar s2)) | s1 == s2 -> ECharA bot
   -----------------------------------------------------------
@@ -249,11 +249,6 @@ normRel = \case
   -----------------------------------------------------------
   k :=: EStrIndexOf s t i | k == i 
     -> normRel $ EStrSub s i (i :+: (EStrLen t :-: EInt 1 NoPV)) :=: t
-  -----------------------------------------------------------
-  EStrLen s1 :-: EInt 1 _ :=: EStrIndexOf s2 (EStr t _) (EInt i _)
-    | s1 == s2, [c] <- Text.unpack t
-    , let ĉ = AChar.eq c, let c̄ = AChar.ne c    
-    -> normRel $ s1 :=: EStrA (rep anyChar i <> star (lit c̄) <> lit ĉ)
   -----------------------------------------------------------
   EStrSub s i1 i2 :=: EStr t pv
     | i1 == i2, [c] <- t -> normRel $ EStrAt s i1 :=: EChar c pv
@@ -404,7 +399,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
   a :≠: ESol x b r | Just r' <- tryNeARel a x b r -> normRelA r'
   -----------------------------------------------------------
   r | [x] <- freeVars r
-    , Just b <- typeOfVarInRel x r
+    , Just b <- typeOfVarInRelA x r
     , Just e <- abstract x b r
     , let r' = EVar x :=: e
     , r' < r                                  -> normRelA r'
@@ -545,7 +540,6 @@ abstractVarToValue x b r0 = do
       unless (isNothing e) $
         logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
       case e of
-        Just (ECon c) -> return $ fromValue c
         Just e'@(ESol _ _ _) -> throwError $ AbstractionToValueImpossible x r e'
         Just (EAbs a) -> return a
         Just e'       -> throwError $ AbstractionToValueImpossible x r e'

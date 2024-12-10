@@ -16,7 +16,6 @@ import Panini.Syntax.Predicates
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
-import Panini.Abstract.AValue (AValue)
 
 ------------------------------------------------------------------------------
 
@@ -36,7 +35,7 @@ data Con' a
     , Ord  -- ^ structural ordering
     , Show, Read, Generic)
 
-instance Hashable (Con' a)
+instance Hashable a => Hashable (Con' a)
 
 pattern CTrue :: Con' a
 pattern CTrue = CHead PTrue
@@ -45,17 +44,17 @@ pattern CFalse :: Con' a
 pattern CFalse = CHead PFalse
 
 -- | Similar to structural ordering, except 'CTrue' is the largest element.
-instance PartialOrder (Con' a) where
+instance Ord a => PartialOrder (Con' a) where
   _     ⊑ CTrue = True
   CTrue ⊑ _     = False
   a     ⊑ b     = a <= b
 
-instance MeetSemilattice (Con' a) where
+instance Ord a => MeetSemilattice (Con' a) where
   CTrue ∧ c2    = c2
   c1    ∧ CTrue = c1
   c1    ∧ c2    = CAnd c1 c2
 
-instance BoundedMeetSemilattice (Con' a) where
+instance Ord a => BoundedMeetSemilattice (Con' a) where
   top = CTrue
 
 instance Uniplate (Con' a) where

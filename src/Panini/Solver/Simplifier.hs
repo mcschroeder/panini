@@ -9,7 +9,6 @@ import Panini.Abstract.AInt qualified as AInt
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
-import Unsafe.Coerce
 
 -------------------------------------------------------------------------------
 
@@ -71,9 +70,60 @@ instance Simplifiable Pred where
 instance Simplifiable PredA where
   simplify = rewrite simplifyPredA
 
--- TODO
+-- TODO: consolidate different simplifyPreds
 simplifyPredA :: PredA -> Maybe PredA
-simplifyPredA = unsafeCoerce simplifyPred
+simplifyPredA = \case
+  POr xs
+    | null xs        -> Just PFalse
+    | [x] <- xs      -> Just x
+    | elem PTrue xs  -> Just PTrue
+    | elem PFalse xs -> Just $ POr $ filter (/= PFalse) xs
+
+  PAnd xs
+    | null xs        -> Just PTrue
+    | [x] <- xs      -> Just x
+    | elem PFalse xs -> Just PFalse
+    | xs' /= xs      -> Just $ PAnd xs'
+   where
+    xs' = List.nubBy (==) $ concatMap flatAnd xs
+    flatAnd = \case
+      PAnd ys -> ys
+      PTrue   -> []
+      y       -> [y]
+
+  PNot PTrue -> Just PFalse
+  PNot PFalse -> Just PTrue
+  PNot (PRel r) -> Just $ PRel $ inverse r 
+
+  PIff p PTrue -> Just p
+  PIff PTrue p -> Just p
+  PIff p PFalse -> Just $ PNot p
+  PIff PFalse p -> Just $ PNot p
+
+  PExists x _ p | x `notElem` freeVars p -> Just p
+
+  -- ∃x:b. … ∧ x = y ∧ …   ≡   ∃x:b. P[x/y]
+  PExists x1 b p0@(PAnd ps0) | Just y <- findAssignment ps0
+    -> Just $ PExists x1 b $ subst y x1 p0
+   where
+    findAssignment (PRel (e1 :=: e2) : _ ) 
+      | EVar x2 <- e1, x1 == x2, x1 `notFreeIn` e2 = Just e2
+      | EVar x2 <- e2, x1 == x2, x1 `notFreeIn` e1 = Just e1      
+    findAssignment (_                : ps)         = findAssignment ps
+    findAssignment                     []          = Nothing
+
+  -- ∃x:b. y = x   ≡   ⊤
+  PExists x1 _ (PRel (y :=: EVar x2))
+    | x1 == x2, x1 `notElem` freeVars y
+    -> Just PTrue
+
+  -- ∃x:b. x = y   ≡   ⊤
+  PExists x1 _ (PRel (EVar x2 :=: y))
+    | x1 == x2, x1 `notElem` freeVars y
+    -> Just PTrue
+
+  _ -> Nothing
+
 
 simplifyPred :: Pred -> Maybe Pred
 simplifyPred = \case

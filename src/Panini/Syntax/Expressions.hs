@@ -95,17 +95,27 @@ type ExprA = Expr' AValue
 -- integer arithmetic, functions over strings, and uninterpreted functions.
 data Expr' a
   = EVar !Name               -- ^ variable @x@  
-  | EFun !Name ![Expr' a]       -- ^ (uninterpreted) function @f(e₁,e₂,…,eₙ)@
-  | ECon !Value              -- ^ concrete constant value @c@
+  | EFun !Name ![Expr' a]    -- ^ (uninterpreted) function @f(e₁,e₂,…,eₙ)@
+  | EVal !a
   | EReg !ERE                -- ^ regular expression @RE@
-  | EAbs !AValue             -- ^ abstract value @α@
---  | ESol !Name !Base !(Rel' a)    -- ^ abstract solution @⟨x|r⟩@
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
-instance Hashable (Expr' a)
+instance Hashable a => Hashable (Expr' a)
 
+-- ^ abstract solution @⟨x|r⟩@
 pattern ESol :: Name -> Base -> RelA -> ExprA
 pattern ESol x b r = EAbs (ARel x b r)
+
+-- ^ abstract value @α@
+pattern EAbs :: AValue -> ExprA
+pattern EAbs v = EVal v
+
+-- ^ concrete constant value @c@
+pattern ECon :: Value -> Expr
+pattern ECon v = EVal v
+
+{-# COMPLETE EVar, EFun, ECon, EReg #-}
+{-# COMPLETE EVar, EFun, EAbs #-}
 
 ------------------------------------------------------------------------------
 
@@ -164,45 +174,45 @@ pattern EStrContains s t = EFun "str_contains" [s,t]
 ------------------------------------------------------------------------------
 
 -- | unit constant
-pattern EUnit :: PV -> Expr' a
+pattern EUnit :: PV -> Expr
 pattern EUnit pv = ECon (U pv)
 
 -- | Boolean constant
-pattern EBool :: Bool -> PV -> Expr' a
+pattern EBool :: Bool -> PV -> Expr
 pattern EBool b pv = ECon (B b pv)
 
 -- | integer constant
-pattern EInt :: Integer -> PV -> Expr' a
+pattern EInt :: Integer -> PV -> Expr
 pattern EInt i pv = ECon (I i pv)
 
 -- | character constant
-pattern EChar :: Char -> PV -> Expr' a
+pattern EChar :: Char -> PV -> Expr
 pattern EChar c pv = ECon (C c pv)
 
 -- | string constant
-pattern EStr :: Text -> PV -> Expr' a
+pattern EStr :: Text -> PV -> Expr
 pattern EStr s pv = ECon (S s pv)
 
 ------------------------------------------------------------------------------
 
 -- | abstract unit constant
-pattern EUnitA :: AUnit -> Expr' a
+pattern EUnitA :: AUnit -> ExprA
 pattern EUnitA a = EAbs (AUnit a)
 
 -- | abstract Boolean constant
-pattern EBoolA :: ABool -> Expr' a
+pattern EBoolA :: ABool -> ExprA
 pattern EBoolA a = EAbs (ABool a)
 
 -- | abstract integer constant
-pattern EIntA :: AInt -> Expr' a
+pattern EIntA :: AInt -> ExprA
 pattern EIntA a = EAbs (AInt a)
 
 -- | abstract character constant
-pattern ECharA :: AChar -> Expr' a
+pattern ECharA :: AChar -> ExprA
 pattern ECharA a = EAbs (AChar a)
 
 -- | abstract string constant
-pattern EStrA :: AString -> Expr' a
+pattern EStrA :: AString -> ExprA
 pattern EStrA a = EAbs (AString a)
 
 ------------------------------------------------------------------------------
@@ -217,7 +227,7 @@ ground e = and [False | EVar _ <- universe e]
 (⏚) = ground
 
 -- | The abstract maximum element for the given type.
-topExpr :: Base -> Expr' a
+topExpr :: Base -> ExprA
 topExpr TUnit   = EUnitA top
 topExpr TBool   = EBoolA top
 topExpr TInt    = EIntA top
@@ -225,7 +235,7 @@ topExpr TChar   = ECharA top
 topExpr TString = EStrA top
 
 -- | The abstract minimum element for the given type.
-botExpr :: Base -> Expr' a
+botExpr :: Base -> ExprA
 botExpr TUnit   = EUnitA bot
 botExpr TBool   = EBoolA bot
 botExpr TInt    = EIntA bot
@@ -233,7 +243,7 @@ botExpr TChar   = ECharA bot
 botExpr TString = EStrA bot
 
 -- | The type of the given expression, if locally discernible.
-typeOfExpr :: Expr' a -> Maybe Base
+typeOfExpr :: Expr -> Maybe Base
 typeOfExpr = \case
   EVar _        -> Nothing
   ENot _        -> Just TBool
@@ -249,6 +259,24 @@ typeOfExpr = \case
   EStrContains _ _ -> Just TBool
   EFun _ es     -> asum $ map typeOfExpr es
   ECon c        -> Just $ typeOfValue c
+  EReg _        -> Just TString
+
+-- | The type of the given expression, if locally discernible.
+typeOfExprA :: ExprA -> Maybe Base
+typeOfExprA = \case
+  EVar _        -> Nothing
+  ENot _        -> Just TBool
+  _ :+: _       -> Just TInt
+  _ :-: _       -> Just TInt
+  _ :*: _       -> Just TInt
+  EStrLen _     -> Just TInt
+  EStrAt _ _    -> Just TChar
+  EStrSub _ _ _ -> Just TString
+  EStrFirstIndexOfChar _ _ -> Just TInt
+  EStrConc _ _ -> Just TString
+  EStrStar _ -> Just TString
+  EStrContains _ _ -> Just TBool
+  EFun _ es     -> asum $ map typeOfExprA es
   EReg _        -> Just TString
   EAbs a        -> Just $ typeOfAValue a
 
@@ -277,13 +305,10 @@ typeOfVarInExpr x = \case
   EStrConc _ (EVar y) | x == y -> Just TString
   EStrContains (EVar y) _ | x == y -> Just TString
   EStrContains _ (EVar y) | x == y -> Just TString  
-  -- ESol y _ _            | x == y -> Nothing
-  -- ESol _ _ r                     -> typeOfVarInRel x r
   EFun _ es                      -> asum $ map (typeOfVarInExpr x) es
   EVar _                         -> Nothing
-  ECon _                         -> Nothing
   EReg _                         -> Nothing
-  EAbs _                         -> Nothing
+  EVal _                         -> Nothing
 
 ------------------------------------------------------------------------------
 
@@ -293,13 +318,11 @@ instance Uniplate Expr where
     EFun f es  -> plate EFun |- f ||* es
     ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
-    EAbs a     -> plate EAbs |- a
 
 instance Uniplate ExprA where
   uniplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||* es
-    ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |+ a
 
@@ -309,13 +332,11 @@ instance Biplate Expr Value where
     EFun f es  -> plate EFun |- f ||+ es
     ECon c     -> plate ECon |* c
     EReg r     -> plate EReg |- r
-    EAbs a     -> plate EAbs |- a
 
 instance Biplate ExprA AValue where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
-    ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |* a
 
@@ -323,7 +344,6 @@ instance Biplate ExprA RelA where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
-    ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |+ a
 
@@ -338,9 +358,8 @@ instance Pretty a => Pretty (Expr' a) where
     EStrAt s i    -> pretty s <> "[" <> pretty i <> "]"
     EStrSub s i j -> pretty s <> "[" <> pretty i <> ".." <> pretty j <> "]"
     EFun f es     -> pretty f <> parens (mconcat $ List.intersperse ", " $ map pretty es)
-    ECon c        -> pretty c
     EReg r        -> ann (Literal StringLit) $ pretty $ printERE r
-    EAbs a        -> pretty a
+    EVal a        -> pretty a
    where
     -- TODO: make use of fixity for this
     complex (_ :*: _) = True
@@ -365,7 +384,6 @@ instance Subable Expr Expr where
     EFun _ es        -> mconcat (map freeVars es)
     ECon _           -> []
     EReg _           -> []
-    EAbs _           -> []
 
 -- see Panini.Syntax.Substitution
 instance Subable ExprA ExprA where
@@ -384,7 +402,6 @@ instance Subable ExprA ExprA where
   freeVars = \case
     EVar x           -> [x]
     EFun _ es        -> mconcat (map freeVars es)
-    ECon _           -> []
     EReg _           -> []
     ESol x _ r       -> freeVars r \\ [x]
     EAbs _           -> []
@@ -412,7 +429,7 @@ pattern a :≥: b = Rel Ge a b
 pattern a :∈: b = Rel In a b
 pattern a :∉: b = Rel NotIn a b
 
-instance Hashable (Rel' a)
+instance Hashable a => Hashable (Rel' a)
 instance Hashable Rop
 
 instance Uniplate RelA where
@@ -464,7 +481,7 @@ inverse = \case
   e1 :∉: e2 -> e1 :∈: e2
 
 -- | The type of a variable in a given relation, if locally discernible.
-typeOfVarInRel :: Name -> Rel' a -> Maybe Base
+typeOfVarInRel :: Name -> Rel -> Maybe Base
 typeOfVarInRel x = \case
   EVar y :=: e      | x == y -> typeOfExpr e
   e      :=: EVar y | x == y -> typeOfExpr e
@@ -482,4 +499,25 @@ typeOfVarInRel x = \case
   e      :∈: EVar y | x == y -> typeOfExpr e
   EVar y :∉: e      | x == y -> typeOfExpr e
   e      :∉: EVar y | x == y -> typeOfExpr e  
+  Rel _ e1 e2 -> typeOfVarInExpr x e1 <|> typeOfVarInExpr x e2
+
+-- | The type of a variable in a given relation, if locally discernible.
+typeOfVarInRelA :: Name -> RelA -> Maybe Base
+typeOfVarInRelA x = \case
+  EVar y :=: e      | x == y -> typeOfExprA e
+  e      :=: EVar y | x == y -> typeOfExprA e
+  EVar y :≠: e      | x == y -> typeOfExprA e
+  e      :≠: EVar y | x == y -> typeOfExprA e
+  EVar y :<: _      | x == y -> Just TInt
+  _      :<: EVar y | x == y -> Just TInt
+  EVar y :≤: _      | x == y -> Just TInt
+  _      :≤: EVar y | x == y -> Just TInt  
+  EVar y :>: _      | x == y -> Just TInt
+  _      :>: EVar y | x == y -> Just TInt
+  EVar y :≥: _      | x == y -> Just TInt
+  _      :≥: EVar y | x == y -> Just TInt  
+  EVar y :∈: e      | x == y -> typeOfExprA e
+  e      :∈: EVar y | x == y -> typeOfExprA e
+  EVar y :∉: e      | x == y -> typeOfExprA e
+  e      :∉: EVar y | x == y -> typeOfExprA e  
   Rel _ e1 e2 -> typeOfVarInExpr x e1 <|> typeOfVarInExpr x e2

@@ -15,7 +15,6 @@ import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
-import Panini.Abstract.AValue (AValue)
 
 ------------------------------------------------------------------------------
 
@@ -41,18 +40,18 @@ data Pred' a
     , Generic, Data
     )
 
-instance Hashable (Pred' a)
+instance Hashable a => Hashable (Pred' a)
 
 -- | Same as structural ordering, except that 'PTrue' and 'PFalse' are always
 -- the largest and smallest element, respectively.
-instance PartialOrder (Pred' a) where
+instance Ord a => PartialOrder (Pred' a) where
   _      ⊑ PTrue  = True
   PTrue  ⊑ _      = False
   PFalse ⊑ _      = True
   _      ⊑ PFalse = False
   a      ⊑ b      = a <= b
 
-instance MeetSemilattice (Pred' a) where
+instance Ord a => MeetSemilattice (Pred' a) where
   PTrue   ∧ q       = q
   PFalse  ∧ _       = PFalse
   p       ∧ PTrue   = p
@@ -62,10 +61,10 @@ instance MeetSemilattice (Pred' a) where
   p       ∧ PAnd qs = PAnd (p:qs)
   p       ∧ q       = PAnd [p,q]
 
-instance BoundedMeetSemilattice (Pred' a) where
+instance Ord a => BoundedMeetSemilattice (Pred' a) where
   top = PTrue
 
-instance JoinSemilattice (Pred' a) where
+instance Ord a => JoinSemilattice (Pred' a) where
   PFalse ∨ q      = q
   PTrue  ∨ _      = PTrue
   p      ∨ PFalse = p
@@ -75,7 +74,7 @@ instance JoinSemilattice (Pred' a) where
   p      ∨ POr qs = POr (p:qs)
   p      ∨ q      = POr [p,q]
 
-instance BoundedJoinSemilattice (Pred' a) where
+instance Ord a => BoundedJoinSemilattice (Pred' a) where
   bot = PFalse
 
 instance Uniplate (Pred' a) where
