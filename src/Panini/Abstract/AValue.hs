@@ -69,7 +69,7 @@ instance Pretty AValue where
     AInt    a -> pretty a
     AChar   a -> pretty a
     AString a -> pretty a
-    ARel x _ r -> braces $ pretty x <> "|" <> pretty r
+    ARel x _ r -> mangles $ pretty x <> colon <+> pretty r
 
 typeOfAValue :: AValue -> Base
 typeOfAValue = \case

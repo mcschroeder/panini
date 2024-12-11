@@ -21,6 +21,9 @@ brackets d = lbracket <> d <> rbracket
 braces :: Doc -> Doc
 braces d = lbrace <> d <> rbrace
 
+mangles :: Doc -> Doc
+mangles d = lmangle <> d <> rmangle
+
 lparen, rparen :: Doc
 lparen = ann (Bracket OpenBra)  "("
 rparen = ann (Bracket CloseBra) ")"
@@ -32,6 +35,10 @@ rbracket = ann (Bracket CloseBra) "]"
 lbrace, rbrace :: Doc
 lbrace = ann (Bracket OpenBra)  "{"
 rbrace = ann (Bracket CloseBra) "}"
+
+lmangle, rmangle :: Doc
+lmangle = ann (Bracket OpenBra) ("⟨" `orASCII` "<")
+rmangle = ann (Bracket CloseBra) ("⟩" `orASCII` ">")
 
 -------------------------------------------------------------------------------
 
