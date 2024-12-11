@@ -136,7 +136,7 @@ solve1 = \case
     q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
     return q
 
-abstractNNF :: Name -> Base -> PredA -> Pan AValue
+abstractNNF :: Name -> Base -> APred -> Pan AValue
 abstractNNF x b = \case
   PTrue   -> return $ topValue b
   PFalse  -> return $ botValue b  
@@ -171,13 +171,13 @@ valueJoins b vs0 = do
 
 -------------------------------------------------------------------------------
 
-qelim :: ConA -> Pan PredA
+qelim :: ACon -> Pan APred
 qelim c0 = do
   c1 <- elimAll c0      § "Eliminate ∀"
   c2 <- elimExists c1  §§ "Eliminate ∃"
   return c2
  where
-  elimAll :: ConA -> PredA
+  elimAll :: ACon -> APred
   elimAll = \case
     CHead p       -> p
     CAnd c1 c2    -> elimAll c1 ∧ elimAll c2
@@ -185,7 +185,7 @@ qelim c0 = do
       | x `notFreeIn` p, x `notFreeIn` c      -> PImpl p $ elimAll c
       | otherwise -> PNot $ PExists x t $ PNot $ PImpl p $ elimAll c
 
-  elimExists :: PredA -> Pan PredA
+  elimExists :: APred -> Pan APred
   elimExists = \case
     PTrue         -> return PTrue
     PFalse        -> return PFalse
@@ -239,7 +239,7 @@ dnf p0 = case nnf p0 of
 --
 --     𝔐 ⊧ qelim1 x b R  ⟺  𝔐 ⊧ ∃(x:b). R 
 --
-qelim1 :: Name -> Base -> [RelA] -> Pan PredA
+qelim1 :: Name -> Base -> [ARel] -> Pan APred
 qelim1 x b φ = do
   logMessage $ divider symDivH Nothing
   logMessage $ "qelim1" <+> pretty x <+> pretty b
@@ -261,7 +261,7 @@ qelim1 x b φ = do
         logMessage $ "ψ ←" <+> pretty ψ
         return $ meets $ map PRel ψ
 
-meetValueExprs :: Base -> [ExprA] -> Pan [ExprA]
+meetValueExprs :: Base -> [AExpr] -> Pan [AExpr]
 meetValueExprs b es0 = case List.partition isVal es0 of
   ( [], es) -> return es
   ([a], es) -> return (a:es)
@@ -274,11 +274,11 @@ meetValueExprs b es0 = case List.partition isVal es0 of
   unVal (EAbs a) = a
   unVal _        = impossible  
 
-isBotValue :: ExprA -> Bool
+isBotValue :: AExpr -> Bool
 isBotValue (EAbs a) = hasBot a
 isBotValue _        = False
 
-normRels :: [RelA] -> Pan (Maybe [RelA])
+normRels :: [ARel] -> Pan (Maybe [ARel])
 normRels = go []
  where
   go ys [] = return $ Just $ nubOrd ys
@@ -301,7 +301,7 @@ simplifyAValue = \case
   AString s -> AString <$> simplifyRegex s
   a         -> pure a
 
-simplifyExpr :: ExprA -> Pan ExprA
+simplifyExpr :: AExpr -> Pan AExpr
 simplifyExpr = \case
   EStrA s -> EStrA <$> simplifyRegex s
   e       -> pure e

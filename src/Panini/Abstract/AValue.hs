@@ -32,7 +32,7 @@ data AValue
   | AInt !AInt
   | AChar !AChar
   | AString !AString
-  | ARel !Name !Base !RelA
+  | ARel !Name !Base !ARel
   deriving stock 
     ( Eq
     , Ord  -- ^ structural ordering
@@ -44,7 +44,7 @@ instance Hashable AValue
 instance Uniplate AValue where
   uniplate = plate
 
-instance Biplate AValue RelA where
+instance Biplate AValue ARel where
   biplate = \case
     AUnit a     -> plate AUnit |- a
     ABool a     -> plate ABool |- a
@@ -53,7 +53,7 @@ instance Biplate AValue RelA where
     AString a     -> plate AString |- a
     ARel x b r  -> plate ARel |- x |- b |* r
 
-instance Biplate AValue ExprA where
+instance Biplate AValue AExpr where
   biplate = \case
     AUnit a     -> plate AUnit |- a
     ABool a     -> plate ABool |- a
@@ -155,25 +155,25 @@ fromValue = \case
 
 ------------------------------------------------------------------------------
 
-type RelA  = Rel'  AValue
-type ExprA = Expr' AValue
-type PredA = Pred' AValue
-type ConA  = Con'  AValue
+type ARel  = Rel'  AValue
+type AExpr = Expr' AValue
+type APred = Pred' AValue
+type ACon  = Con'  AValue
 
 ------------------------------------------------------------------------------
 
-instance Uniplate RelA where
+instance Uniplate ARel where
   uniplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Biplate RelA AValue where
+instance Biplate ARel AValue where
   biplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
-instance Subable RelA ExprA where
-  subst x y = descendBi (subst @ExprA x y)
-  freeVars = mconcat . map (freeVars @ExprA) . childrenBi
+instance Subable ARel AExpr where
+  subst x y = descendBi (subst @AExpr x y)
+  freeVars = mconcat . map (freeVars @AExpr) . childrenBi
 
 -- | The type of a variable in a given relation, if locally discernible.
-typeOfVarInRelA :: Name -> RelA -> Maybe Base
+typeOfVarInRelA :: Name -> ARel -> Maybe Base
 typeOfVarInRelA x = \case
   EVar y :=: e      | x == y -> typeOfExprA e
   e      :=: EVar y | x == y -> typeOfExprA e
@@ -196,37 +196,37 @@ typeOfVarInRelA x = \case
 ------------------------------------------------------------------------------
 
 -- ^ abstract value @α@
-pattern EAbs :: AValue -> ExprA
+pattern EAbs :: AValue -> AExpr
 pattern EAbs v = EVal v
 
 {-# COMPLETE EVar, EFun, EAbs #-}
 
 -- | abstract unit constant
-pattern EUnitA :: AUnit -> ExprA
+pattern EUnitA :: AUnit -> AExpr
 pattern EUnitA a = EAbs (AUnit a)
 
 -- | abstract Boolean constant
-pattern EBoolA :: ABool -> ExprA
+pattern EBoolA :: ABool -> AExpr
 pattern EBoolA a = EAbs (ABool a)
 
 -- | abstract integer constant
-pattern EIntA :: AInt -> ExprA
+pattern EIntA :: AInt -> AExpr
 pattern EIntA a = EAbs (AInt a)
 
 -- | abstract character constant
-pattern ECharA :: AChar -> ExprA
+pattern ECharA :: AChar -> AExpr
 pattern ECharA a = EAbs (AChar a)
 
 -- | abstract string constant
-pattern EStrA :: AString -> ExprA
+pattern EStrA :: AString -> AExpr
 pattern EStrA a = EAbs (AString a)
 
 -- ^ abstract solution @⟨x|r⟩@
-pattern ESol :: Name -> Base -> RelA -> ExprA
+pattern ESol :: Name -> Base -> ARel -> AExpr
 pattern ESol x b r = EAbs (ARel x b r)
 
 -- | The type of the given expression, if locally discernible.
-typeOfExprA :: ExprA -> Maybe Base
+typeOfExprA :: AExpr -> Maybe Base
 typeOfExprA = \case
   EVar _        -> Nothing
   ENot _        -> Just TBool
@@ -244,21 +244,21 @@ typeOfExprA = \case
   EReg _        -> Just TString
   EAbs a        -> Just $ typeOfAValue a
 
-instance Uniplate ExprA where
+instance Uniplate AExpr where
   uniplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||* es
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |+ a
 
-instance Biplate ExprA AValue where
+instance Biplate AExpr AValue where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |* a
 
-instance Biplate ExprA RelA where
+instance Biplate AExpr ARel where
   biplate = \case
     EVar x     -> plate EVar |- x
     EFun f es  -> plate EFun |- f ||+ es
@@ -266,7 +266,7 @@ instance Biplate ExprA RelA where
     EAbs a     -> plate EAbs |+ a
 
 -- see Panini.Syntax.Substitution
-instance Subable ExprA ExprA where
+instance Subable AExpr AExpr where
   subst x y = \case
     EVar n | y == n -> x
     ESol n b r

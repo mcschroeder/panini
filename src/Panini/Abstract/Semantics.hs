@@ -31,7 +31,7 @@ trace _ = id
 -------------------------------------------------------------------------------
 
 -- | Normalize an abstract expression by (partial) evaluation; see 'normRel'.
-normExprA :: ExprA -> ExprA
+normExprA :: AExpr -> AExpr
 -- normExprA = \case
 normExprA e0 = trace ("normExprA " ++ showPretty e0) $ case e0 of
   -----------------------------------------------------------
@@ -102,7 +102,7 @@ normExprA e0 = trace ("normExprA " ++ showPretty e0) $ case e0 of
     | otherwise                               -> e
 
 -- | Normalize an abstract relation by (partial) evaluation; see 'normRel'.
-normRelA :: RelA -> Either Bool RelA
+normRelA :: ARel -> Either Bool ARel
 -- normRelA = \case
 normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
   -----------------------------------------------------------
@@ -244,7 +244,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
   r | r' <- descendBi normExprA r, r' /= r    -> normRelA r'
     | otherwise                               -> Right r
 
-isSol :: ExprA -> Bool
+isSol :: AExpr -> Bool
 isSol (ESol _ _ _) = True
 isSol _            = False
 
@@ -255,7 +255,7 @@ pattern Range a b <- (AInt.intervals -> [AInt.In a b])
 
 -- | Try to resolve equality between an expression and an abstract relation.
 -- For example, @[1,∞] = {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] = Σ∖a@.
-tryEqARel :: ExprA -> Name -> Base -> RelA -> Maybe RelA
+tryEqARel :: AExpr -> Name -> Base -> ARel -> Maybe ARel
 tryEqARel a x b = \case
   r | ESol x1 b1 r1 <- a            -> tryEqARel2 (x1,b1,r1) (x,b,r)
   r | isConcrete' a, x `notFreeIn` a -> Just $ subst a x r
@@ -268,7 +268,7 @@ tryEqARel a x b = \case
   -----------------------------------------------------------
   _                                 -> Nothing
 
-isConcrete' :: ExprA -> Bool
+isConcrete' :: AExpr -> Bool
 isConcrete' = \case
   EUnitA Unit -> True
   EBoolA (value -> Just _) -> True
@@ -282,13 +282,13 @@ isConcrete' = \case
 
 -- | Try to resolve inequality between an expressions and an abstract relation.
 -- For example, @[1,∞] || {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] ≠ Σ∖a@
-tryNeARel :: ExprA -> Name -> Base -> RelA -> Maybe RelA
+tryNeARel :: AExpr -> Name -> Base -> ARel -> Maybe ARel
 tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
 
-pattern EqChar :: ExprA -> AChar -> RelA
+pattern EqChar :: AExpr -> AChar -> ARel
 pattern EqChar e c <- (relToEqChar -> Just (e,c))
 
-relToEqChar :: RelA -> Maybe (ExprA, AChar)
+relToEqChar :: ARel -> Maybe (AExpr, AChar)
 relToEqChar = \case
 --   e :=: EChar  c _ -> Just (e, AChar.eq c)
    e :=: ECharA c   -> Just (e, c)
@@ -296,17 +296,17 @@ relToEqChar = \case
    e :≠: ECharA c   -> Just (e, neg c)
    _ -> Nothing
 
-pattern VarPlusN :: Name -> Integer -> ExprA
+pattern VarPlusN :: Name -> Integer -> AExpr
 pattern VarPlusN x n <- (exprToVarPlusN -> Just (x,n))
 
-exprToVarPlusN :: ExprA -> Maybe (Name, Integer)
+exprToVarPlusN :: AExpr -> Maybe (Name, Integer)
 exprToVarPlusN = \case
   EVar x -> Just (x, 0)
   EVar x :+: EIntA n̂ | [n] <- AInt.values n̂ -> Just (x, n)
   _ -> Nothing
 
 -- | Try to resolve equality between two abstract relations.
-tryEqARel2 :: (Name,Base,RelA) -> (Name,Base,RelA) -> Maybe RelA
+tryEqARel2 :: (Name,Base,ARel) -> (Name,Base,ARel) -> Maybe ARel
 tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 
   (EStrAt (EVar s1) (VarPlusN i1 n1) `EqChar` c1, 
@@ -367,7 +367,7 @@ tryEqARel2 (x1,b1,r1) (x2,b2,r2) = case (r1,r2) of
 -- TODO: clean all of this up now that ARel is in AValue
 -- TODO: track whether AValue has free vars in type?
 
-abstractVarToValue :: Name -> Base -> RelA -> Pan AValue
+abstractVarToValue :: Name -> Base -> ARel -> Pan AValue
 abstractVarToValue x b r0 = do
   case normRelA r0 of
     Left True  -> return $ topValue b
@@ -382,7 +382,7 @@ abstractVarToValue x b r0 = do
         Just e'       -> throwError $ AbstractionToValueImpossible x r e'
         Nothing       -> throwError $ AbstractionImpossible x r
 
-abstractVar :: Name -> Base -> RelA -> Pan ExprA
+abstractVar :: Name -> Base -> ARel -> Pan AExpr
 abstractVar x b r0 = do
   case normRelA r0 of
     Left True  -> return $ EAbs $ topValue b
@@ -392,7 +392,7 @@ abstractVar x b r0 = do
       logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
       return e
 
-abstract :: Name -> Base -> RelA -> Maybe ExprA
+abstract :: Name -> Base -> ARel -> Maybe AExpr
 -- abstract x b = \case
 abstract x b r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++ " " ++ showPretty (freeVars r0)) $ case r0 of
   -----------------------------------------------------------

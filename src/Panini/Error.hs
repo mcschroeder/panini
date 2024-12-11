@@ -22,8 +22,8 @@ data Error
   | SolverError Text PV
   | Unsolvable Name Con
   | IOError String PV
-  | AbstractionImpossible Name RelA
-  | AbstractionToValueImpossible Name RelA ExprA
+  | AbstractionImpossible Name ARel
+  | AbstractionToValueImpossible Name ARel AExpr
   | ConcretizationImpossible Name Base AValue
   | PythonFrontendError Python.Error
 

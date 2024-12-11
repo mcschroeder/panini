@@ -9,7 +9,7 @@ import Panini.Abstract.AInt qualified as AInt
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
-import Panini.Abstract.AValue (PredA)
+import Panini.Abstract.AValue (APred)
 
 -------------------------------------------------------------------------------
 
@@ -68,11 +68,11 @@ leftmostAnd = \case
 instance Simplifiable Pred where
   simplify = rewrite simplifyPred
 
-instance Simplifiable PredA where
+instance Simplifiable APred where
   simplify = rewrite simplifyPredA
 
 -- TODO: consolidate different simplifyPreds
-simplifyPredA :: PredA -> Maybe PredA
+simplifyPredA :: APred -> Maybe APred
 simplifyPredA = \case
   POr xs
     | null xs        -> Just PFalse
