@@ -46,6 +46,7 @@ library
     , language-python
     , megaparsec == 9.2.*
     , optparse-applicative >= 0.18.1
+    , panini-core
     , parser-combinators
     , pretty
     , prettyprinter
@@ -57,7 +58,6 @@ library
     , uniplate
     , unordered-containers
   exposed-modules:
-    Algebra.Lattice
     Panini.Abstract.ABool
     Panini.Abstract.AChar
     Panini.Abstract.AInt
@@ -97,39 +97,17 @@ library
     Panini.Infer
     Panini.Modules
     Panini.Monad
-    Panini.Panic
-    Panini.Parser
-    Panini.Pretty
-    Panini.Pretty.Doc
-    Panini.Pretty.Fixity
-    Panini.Pretty.Graphviz
-    Panini.Pretty.Render
-    Panini.Pretty.Style
-    Panini.Pretty.Symbols
-    Panini.Provenance    
     Panini.Regex.SMT
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
     Panini.Solver
     Panini.Solver.Abstract
-    Panini.Solver.Assignment
-    Panini.Solver.Constraints
+    Panini.Solver.Assignment    
     Panini.Solver.Fusion
     Panini.Solver.Liquid
     Panini.Solver.Qualifiers
     Panini.Solver.Simplifier
-    Panini.Syntax
-    Panini.Syntax.AST
-    Panini.Syntax.Expressions
-    Panini.Syntax.KVar
-    Panini.Syntax.Names
-    Panini.Syntax.Predicates
-    Panini.Syntax.Primitives
-    Panini.Syntax.QQ
-    Panini.Syntax.Relations
-    Panini.Syntax.Substitution
-    Panini.Version
 
 executable panini
   hs-source-dirs: app

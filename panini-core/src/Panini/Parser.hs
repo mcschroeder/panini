@@ -1,18 +1,16 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Panini.Parser
-  ( parseSource
-  , parseProgram
+  ( parseProgram
   , parseStatement
   , parseTerm
   , parseType
   , parseConstraint
+  , Error(..)
   ) where
 
 import Control.Monad
 import Control.Monad.Combinators.Expr
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.Except
 import Data.Bifunctor
 import Data.Char
 import Data.List (foldl')
@@ -23,9 +21,6 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
-import Panini.Error
-import Panini.Monad
-import Panini.Pretty ((<+>), pretty)
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -38,14 +33,7 @@ import Text.Printf
 
 -------------------------------------------------------------------------------
 
-parseSource :: FilePath -> Text -> Pan Program
-parseSource path src = do
-  logMessage $ "Parse" <+> pretty path
-  prog <- lift $ except $ parseProgram path src
-  logData prog
-  return prog
-
--------------------------------------------------------------------------------
+data Error = ParserError Text PV
 
 parseProgram :: FilePath -> Text -> Either Error Program
 parseProgram = parseA $ whitespace >> many statement

@@ -1,0 +1,82 @@
+cabal-version:      3.4
+name:               panini-core
+version:            0.1
+--synopsis:
+author:             Michael Schröder
+maintainer:         michael.schroeder@tuwien.ac.at
+
+library
+  hs-source-dirs: src
+  default-language: GHC2021
+  default-extensions:
+    DataKinds
+    DerivingStrategies
+    ImportQualifiedPost
+    LambdaCase
+    OverloadedRecordDot
+    OverloadedStrings
+    PatternSynonyms
+    ViewPatterns
+  ghc-options:
+    -Weverything
+    -Wno-missing-exported-signatures
+    -Wno-missing-import-lists
+    -Wno-missing-export-lists
+    -Wno-missed-specialisations
+    -Wno-all-missed-specialisations
+    -Wno-unsafe
+    -Wno-safe
+    -Wno-missing-safe-haskell-mode
+    -Wno-missing-local-signatures
+    -Wno-monomorphism-restriction
+    -Wno-missing-kind-signatures
+  build-depends:
+      base ^>=4.18
+    , ansi-terminal
+    , array
+    , bytestring
+    , containers
+    , directory
+    , extra
+    , filepath
+    , filepattern
+    , githash
+    , hashable
+    , haskeline
+    , language-python
+    , megaparsec == 9.2.*
+    , optparse-applicative >= 0.18.1
+    , parser-combinators
+    , pretty
+    , prettyprinter
+    , process
+    , regex-algebra
+    , template-haskell
+    , text
+    , transformers
+    , uniplate
+    , unordered-containers
+  exposed-modules:
+    Algebra.Lattice
+    Panini.Panic
+    Panini.Parser
+    Panini.Pretty
+    Panini.Pretty.Doc
+    Panini.Pretty.Fixity
+    Panini.Pretty.Graphviz
+    Panini.Pretty.Render
+    Panini.Pretty.Style
+    Panini.Pretty.Symbols
+    Panini.Provenance
+    Panini.Solver.Constraints
+    Panini.Syntax
+    Panini.Syntax.AST
+    Panini.Syntax.Expressions
+    Panini.Syntax.KVar
+    Panini.Syntax.Names
+    Panini.Syntax.Predicates
+    Panini.Syntax.Primitives
+    Panini.Syntax.QQ
+    Panini.Syntax.Relations
+    Panini.Syntax.Substitution
+    Panini.Version

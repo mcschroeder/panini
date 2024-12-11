@@ -14,13 +14,13 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
 import Data.Text.IO qualified as Text
+import Panini.CLI.Common
 import Panini.Environment
 import Panini.Error
 import Panini.Infer
 import Panini.Modules
 import Panini.Monad
 import Panini.Panic
-import Panini.Parser
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Assignment

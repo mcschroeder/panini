@@ -11,7 +11,7 @@ panType :: QuasiQuoter
 panType = QuasiQuoter {
   quoteExp = \s -> do
     case parseType "" (Text.strip $ Text.pack s) of
-      Left err -> fail $ showPretty err
+      Left (ParserError err _) -> fail $ showPretty err
       Right ty -> dataToExpQ (const Nothing) ty
   
   , quotePat = undefined

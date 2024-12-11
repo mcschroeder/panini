@@ -5,6 +5,7 @@ import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Options
 import Panini.Events
+import Panini.Error
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
@@ -15,6 +16,15 @@ import System.FilePath
 import System.IO
 
 -------------------------------------------------------------------------------
+
+parseSource :: FilePath -> Text -> Pan Program
+parseSource path src = do
+  logMessage $ "Parse" <+> pretty path
+  prog <- parseProgram path src ? paErr
+  logData prog
+  return prog
+ where
+  paErr = \(Panini.Parser.ParserError e pv) -> Panini.Error.ParserError e pv
 
 -- TODO: here may not be the right location for this
 loadModule :: Text -> FilePath -> Pan (Module, Program)
