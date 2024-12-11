@@ -1,6 +1,7 @@
 packages: 
   .
   panini-core
+  panini-python
   regex-algebra
 
 with-compiler: ghc-9.6.6
