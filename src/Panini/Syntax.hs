@@ -7,4 +7,5 @@ import Panini.Syntax.KVar as X
 import Panini.Syntax.Names as X
 import Panini.Syntax.Predicates as X
 import Panini.Syntax.Primitives as X
+import Panini.Syntax.Relations as X
 import Panini.Syntax.Substitution as X

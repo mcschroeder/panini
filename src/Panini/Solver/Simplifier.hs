@@ -9,6 +9,7 @@ import Panini.Abstract.AInt qualified as AInt
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Panini.Abstract.AValue (PredA)
 
 -------------------------------------------------------------------------------
 

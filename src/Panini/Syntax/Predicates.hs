@@ -14,12 +14,12 @@ import Panini.Syntax.KVar
 import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
+import Panini.Syntax.Relations
 import Prelude
 
 ------------------------------------------------------------------------------
 
-type Pred  = Pred' Value
-type PredA = Pred' AValue
+type Pred = Pred' Value
 
 -- | Predicates are terms in a Boolean logic.
 data Pred' a
@@ -128,7 +128,7 @@ instance HasFixity (Pred' a) where
     _         -> Infix LeftAss 9
 
 -- see Panini.Syntax.Substitution
-instance (Subable (Expr' a) (Expr' a), Subable (Rel' a) (Expr' a)) => Subable (Pred' a) (Expr' a) where
+instance (Uniplate (Expr' a), Subable (Expr' a) (Expr' a), Subable (Rel' a) (Expr' a)) => Subable (Pred' a) (Expr' a) where
   subst x y = \case
     PExists n b p
       | n == y       -> PExists n b            p   -- (1)

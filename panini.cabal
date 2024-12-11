@@ -127,6 +127,7 @@ library
     Panini.Syntax.Predicates
     Panini.Syntax.Primitives
     Panini.Syntax.QQ
+    Panini.Syntax.Relations
     Panini.Syntax.Substitution
     Panini.Version
 

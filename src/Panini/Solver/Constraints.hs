@@ -15,12 +15,12 @@ import Panini.Syntax.Names
 import Panini.Syntax.Predicates
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
+import Panini.Syntax.Relations
 import Prelude
 
 ------------------------------------------------------------------------------
 
-type Con  = Con' Value
-type ConA = Con' AValue
+type Con = Con' Value
 
 -- | Constraints are Horn clauses in negation normal form (NNF). They form a
 -- tree, where each leaf is a goal ('CHead') and each node either quantifies
@@ -85,7 +85,7 @@ instance Pretty a => Pretty (Con' a) where
       where
         forall_ = symAll <> pretty x <> colon <> pretty b <> dot
 
-instance (Subable (Expr' a) (Expr' a), Subable (Rel' a) (Expr' a)) => Subable (Con' a) (Expr' a) where
+instance (Uniplate (Expr' a), Subable (Expr' a) (Expr' a), Subable (Rel' a) (Expr' a)) => Subable (Con' a) (Expr' a) where
   subst x y = \case
     CAll n b p c
       | n == y       -> CAll n b            p             c   -- (1)

@@ -24,6 +24,7 @@ import Data.Ord
 import Data.Set qualified as Set
 import GHC.Generics
 import Panini.Abstract.AString qualified as AString
+import Panini.Abstract.AString (AString)
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
 import Panini.Monad
