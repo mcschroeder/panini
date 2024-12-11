@@ -221,9 +221,9 @@ pattern ECharA a = EAbs (AChar a)
 pattern EStrA :: AString -> AExpr
 pattern EStrA a = EAbs (AString a)
 
--- ^ abstract solution @⟨x|r⟩@
-pattern ESol :: Name -> Base -> ARel -> AExpr
-pattern ESol x b r = EAbs (ARel x b r)
+-- ^ abstract relation @⟨x: ρ⟩@
+pattern ERelA :: Name -> Base -> ARel -> AExpr
+pattern ERelA x b r = EAbs (ARel x b r)
 
 -- | The type of the given expression, if locally discernible.
 typeOfExprA :: AExpr -> Maybe Base
@@ -269,10 +269,10 @@ instance Biplate AExpr ARel where
 instance Subable AExpr AExpr where
   subst x y = \case
     EVar n | y == n -> x
-    ESol n b r
-      | y == n       -> ESol n  b            r   -- (1)
-      | n `freeIn` x -> ESol n' b (subst x y r') -- (2)
-      | otherwise    -> ESol n  b (subst x y r ) -- (3)
+    ERelA n b r
+      | y == n       -> ERelA n  b            r   -- (1)
+      | n `freeIn` x -> ERelA n' b (subst x y r') -- (2)
+      | otherwise    -> ERelA n  b (subst x y r ) -- (3)
       where
         r' = subst (EVar n') n r
         n' = freshName n ([y] <> freeVars r)
@@ -283,5 +283,5 @@ instance Subable AExpr AExpr where
     EVar x           -> [x]
     EFun _ es        -> mconcat (map freeVars es)
     EReg _           -> []
-    ESol x _ r       -> freeVars r \\ [x]
+    ERelA x _ r       -> freeVars r \\ [x]
     EAbs _           -> []

@@ -35,10 +35,10 @@ normExprA :: AExpr -> AExpr
 -- normExprA = \case
 normExprA e0 = trace ("normExprA " ++ showPretty e0) $ case e0 of
   -----------------------------------------------------------
-  ESol x b r -> case normRelA r of
+  ERelA x b r -> case normRelA r of
     Left True                                 -> EAbs (topValue b)
     Left False                                -> EAbs (botValue b)
-    Right r' | r' /= r                        -> normExprA $ ESol x b r'
+    Right r' | r' /= r                        -> normExprA $ ERelA x b r'
              | Just e <- abstract x b r       -> e
     _                                         -> e0
   -----------------------------------------------------------
@@ -193,7 +193,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
     | [b] <- AInt.values b̂, [c] <- AInt.values ĉ
     , any (\x -> x `mod` b == c) $ take 100 $ AInt.values a -> Left True
   -----------------------------------------------------------
-  EIntA î :=: ESol a1 TInt (EMod (EVar a2) (EIntA n̂) :=: EIntA m̂)
+  EIntA î :=: ERelA a1 TInt (EMod (EVar a2) (EIntA n̂) :=: EIntA m̂)
     | [n] <- AInt.values n̂, [m] <- AInt.values m̂
     , a1 == a2, n >= 0, m >= 0, AInt.ge 0 == î ∧ AInt.ge 0 -> Left True
   -----------------------------------------------------------
@@ -232,8 +232,8 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
   EStrSub s i1 i2 :=: EStrA t
     | i1 == i2, Just c <- AString.toChar (t ∧ anyChar) -> normRelA $ EStrAt s i1 :=: ECharA c
   -----------------------------------------------------------
-  a :=: ESol x b r | Just r' <- tryEqARel a x b r -> normRelA r'  
-  a :≠: ESol x b r | Just r' <- tryNeARel a x b r -> normRelA r'
+  a :=: ERelA x b r | Just r' <- tryEqARel a x b r -> normRelA r'  
+  a :≠: ERelA x b r | Just r' <- tryNeARel a x b r -> normRelA r'
   -----------------------------------------------------------
   r | [x] <- freeVars r
     , Just b <- typeOfVarInRelA x r
@@ -245,7 +245,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0) $ case r0 of
     | otherwise                               -> Right r
 
 isSol :: AExpr -> Bool
-isSol (ESol _ _ _) = True
+isSol (ERelA _ _ _) = True
 isSol _            = False
 
 pattern Range :: Inf Integer -> Inf Integer -> AInt
@@ -257,7 +257,7 @@ pattern Range a b <- (AInt.intervals -> [AInt.In a b])
 -- For example, @[1,∞] = {x| s[x] ≠ 'a'}@ resolves to @s[[1,∞]] = Σ∖a@.
 tryEqARel :: AExpr -> Name -> Base -> ARel -> Maybe ARel
 tryEqARel a x b = \case
-  r | ESol x1 b1 r1 <- a            -> tryEqARel2 (x1,b1,r1) (x,b,r)
+  r | ERelA x1 b1 r1 <- a            -> tryEqARel2 (x1,b1,r1) (x,b,r)
   r | isConcrete' a, x `notFreeIn` a -> Just $ subst a x r
   -----------------------------------------------------------
   EStrAt (EVar s) i :=: ECharA ĉ    -> Just $ EStrAt (EVar s) (subst a x i) :=: ECharA ĉ
@@ -276,7 +276,7 @@ isConcrete' = \case
   ECharA (AChar.values -> [_]) -> True
   EStrA (AString1 _) -> True
   EAbs _ -> False
-  ESol _ _ _ -> False
+  ERelA _ _ _ -> False
   EReg _ -> False
   _ -> True
 
@@ -377,7 +377,7 @@ abstractVarToValue x b r0 = do
       unless (isNothing e) $
         logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
       case e of
-        Just e'@(ESol _ _ _) -> throwError $ AbstractionToValueImpossible x r e'
+        Just e'@(ERelA _ _ _) -> throwError $ AbstractionToValueImpossible x r e'
         Just (EAbs a) -> return a
         Just e'       -> throwError $ AbstractionToValueImpossible x r e'
         Nothing       -> throwError $ AbstractionImpossible x r
@@ -388,7 +388,7 @@ abstractVar x b r0 = do
     Left True  -> return $ EAbs $ topValue b
     Left False -> return $ EAbs $ botValue b
     Right r -> do
-      let e = fromMaybe (ESol x b r) (abstract x b r)
+      let e = fromMaybe (ERelA x b r) (abstract x b r)
       logMessage $ "⟦" <> pretty r0 <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
       return e
 

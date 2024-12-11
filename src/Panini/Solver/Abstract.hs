@@ -268,7 +268,7 @@ meetValueExprs b es0 = case List.partition isVal es0 of
   ( as, es) -> do a <- valueMeets b (map unVal as)
                   return (EAbs a : es)
  where
-  isVal (ESol _ _ _) = False
+  isVal (ERelA _ _ _) = False
   isVal (EAbs _) = True
   isVal _        = False
   unVal (EAbs a) = a
