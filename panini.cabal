@@ -35,25 +35,18 @@ library
     , panini-core
     , panini-python
     , ansi-terminal
-    , array
-    , bytestring
     , containers
     , directory
     , extra
     , filepath
     , filepattern
-    , githash
     , hashable
     , haskeline
     , language-python
-    , megaparsec == 9.2.*
     , optparse-applicative >= 0.18.1
-    , parser-combinators
-    , pretty
     , prettyprinter
     , process
     , regex-algebra
-    , template-haskell
     , text
     , transformers
     , uniplate
