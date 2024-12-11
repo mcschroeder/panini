@@ -8,6 +8,7 @@ import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.List qualified as List
 import Data.Text (Text)
+import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Panini.Pretty
 import Panini.Provenance
@@ -230,3 +231,48 @@ instance Subable Expr Expr where
     EFun _ es        -> mconcat (map freeVars es)
     ECon _           -> []
     EReg _           -> []
+
+------------------------------------------------------------------------------
+
+-- | Normalize an expression by (partial) evaluation. 
+normExpr :: Expr -> Expr
+normExpr = \case
+  -----------------------------------------------------------
+  ENot (EBool a pv)                           -> EBool (not a) pv
+  ENot (ENot e)                               -> normExpr $ e
+  -----------------------------------------------------------
+  EInt  a _ :+: EInt  b _                     -> EInt (a + b) NoPV
+  a         :+: EInt  0 _                     -> normExpr $ a
+  a         :+: EInt  b pv | b <= 0           -> normExpr $ a :-: EInt (negate b) pv
+  a         :+: b          | a > b            -> normExpr $ b :+: a
+  (a :+: b) :+: c          | (b ⏚), (c ⏚)    -> normExpr $ a :+: (normExpr $ b :+: c)
+  (a :-: b) :+: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ b :-: c)
+  -----------------------------------------------------------
+  EInt  a _ :-: EInt  b _                     -> EInt (a - b) NoPV
+  a         :-: EInt  0 _                     -> normExpr $ a
+  a         :-: EInt  b pv | b <= 0           -> normExpr $ a :+: EInt (negate b) pv
+  (a :-: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :-: (normExpr $ b :+: c)
+  (a :+: b) :-: c          | (b ⏚), (c ⏚)    -> normExpr $ a :+: (normExpr $ b :-: c)
+  (a :+: b) :-: c          | (a ⏚), (c ⏚)    -> normExpr $ b :+: (normExpr $ a :-: c)
+  -----------------------------------------------------------
+  EMod (EInt a _) (EInt b _)                  -> EInt (a `mod` b) NoPV
+  -----------------------------------------------------------
+  EStrLen (EStr s _)                          -> EInt (fromIntegral $ Text.length s) NoPV
+  -----------------------------------------------------------
+  EStrAt (EStr s _) (EInt (fromInteger -> i) _) | i < Text.length s -> normExpr $ EChar (Text.index s i) NoPV
+  -----------------------------------------------------------
+  EStrSub (EStr s _) (EInt (fromInteger -> i) _) (EInt (fromInteger -> j) _) | i >= 0, i <= j, j <= Text.length s -> normExpr $ EStr (Text.take (j - i + 1) $ Text.drop i s) NoPV
+  EStrSub s1 (EInt 0 _) (EStrLen s2 :-: EInt 1 _) | s1 == s2 -> normExpr s1
+  -----------------------------------------------------------
+  EStrComp (EStrComp e)                       -> normExpr $ e  
+  -----------------------------------------------------------
+  EStrConc (EStr  a _) (EStr  b _)            -> normExpr $ EStr (a <> b) NoPV
+  -----------------------------------------------------------
+  EStrConc (EStrSub s1 (EInt i1 pvi1) (EInt j1 _)) (EStrSub s2 (EInt i2 _) (EInt j2 pvj2))
+    | s1 == s2, i1 <= j1, j1 + 1 == i2, i2 <= j2
+    -> normExpr $ EStrSub s1 (EInt i1 pvi1) (EInt j2 pvj2)
+  -----------------------------------------------------------
+  EStrContains (EStr s _) (EStr t _)          -> EBool (t `Text.isInfixOf` s) NoPV
+  -----------------------------------------------------------
+  e | e' <- descend normExpr e, e' /= e       -> normExpr e'
+    | otherwise                               -> e
