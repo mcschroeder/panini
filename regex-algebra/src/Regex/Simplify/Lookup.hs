@@ -83,6 +83,11 @@ lookup _ = \case
         | b == b2, b2 == b3, b3 == b4, a == a2
         -> Just $ Star (a <> b) <> b
 
+      -- ā⋅Σ*⋅a + a⋅(ā*⋅a)*  =  Σ*⋅a
+      (Times [Lit ā1, All, Lit a1], Times [Lit a2, Star (Times [Star (Lit ā2), Lit a3])])
+        | a1 == a2, a2 == a3, ā1 == ā2, ā1 == CS.complement a1
+        -> Just $ All <> Lit a1
+
       _ -> Nothing
     
     go _ []     = []
@@ -185,7 +190,17 @@ lookup _ = \case
     , let y = Times y1
     , (x == z1 && y == z2) || (x == z2 && y == z1)
     -> Star (Plus [x,y])
+  
+  -- ((x⋅(y*⋅x)*)?⋅y)*  =  (x*⋅y)*
+  Star (Times [Opt (Times [x1, Star (Times [Star y1, x2])]), y2])
+    | x1 == x2, y1 == y2
+    -> Star (Times [Star x1, y1])
 
+  -- (a⋅(ā⋅Σ*⋅a)?)*  =  (a⋅(ā*⋅a)*)*
+  Star (Times [Lit a1, Opt (Times [Lit ā, All, Lit a2])])
+    | a1 == a2, ā == CS.complement a1
+    -> Star (Times [Lit a1, Star (Times [Star (Lit ā), Lit a1])])
+  
   r -> r
 
 splitAtStar :: [Regex] -> Maybe ([Regex], Regex, [Regex])
