@@ -163,6 +163,7 @@ prettyCharSet :: CharSet -> Doc ann
 prettyCharSet = \case
   CharSet True s -> case intSetToCharList s of
     [] -> "∅"
+    [x] -> pretty x
     xs -> prettySet xs
   CharSet False s -> case intSetToCharList s of
     [] -> "Σ"
