@@ -21,7 +21,7 @@ type Rel = Rel' Value
 
 -- | Relation between expressions.
 data Rel' a = Rel !Rop !(Expr' a) !(Expr' a)
-  deriving stock (Eq, Ord, Show, Read, Generic, Data)
+  deriving stock (Eq, Ord, Functor, Show, Read, Generic, Data)
 
 data Rop = Eq | Ne | Lt | Le | Gt | Ge | In | NotIn
   deriving stock (Eq, Ord, Show, Read, Generic, Data)

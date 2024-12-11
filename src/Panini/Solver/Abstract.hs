@@ -35,41 +35,7 @@ import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
-import Regex.POSIX.ERE qualified
 import System.Time.Extra
-
--------------------------------------------------------------------------------
-
--- TODO: replace all these with simple fmap fromValue
-
-abstractCon :: Con -> ConA
-abstractCon = \case
-  CHead p -> CHead (abstractPred p)
-  CAnd c1 c2 -> CAnd (abstractCon c1) (abstractCon c2)
-  CAll x b p c -> CAll x b (abstractPred p) (abstractCon c)
-
-abstractPred :: Pred -> PredA
-abstractPred = \case
-    PTrue         -> PTrue
-    PFalse        -> PFalse
-    PAnd ps       -> PAnd $ map abstractPred ps
-    POr ps        -> POr $ map abstractPred ps
-    PImpl p q     -> PImpl (abstractPred p) (abstractPred q)
-    PIff p q      -> PIff (abstractPred p) (abstractPred q)
-    PNot p        -> PNot (abstractPred p)
-    PRel r        -> PRel (abstractRel r)
-    PAppK k ys    -> PAppK k (map abstractExpr ys)
-    PExists x b p -> PExists x b (abstractPred p)
-
-abstractRel :: Rel -> RelA
-abstractRel (Rel op e1 e2) = Rel op (abstractExpr e1) (abstractExpr e2)
-
-abstractExpr :: Expr -> ExprA
-abstractExpr = \case
-  EVar x -> EVar x
-  EFun f es -> EFun f (map abstractExpr es)
-  ECon v -> EAbs (fromValue v)
-  EReg ere -> EAbs (AString $ AString.fromRegex $ Regex.POSIX.ERE.toRegex ere)
 
 -------------------------------------------------------------------------------
 
@@ -163,7 +129,7 @@ solve1 = \case
     solve1 $ PreCon x b k c2
 
   PreCon x b _ c0 -> do
-    let c = abstractCon c0
+    let c = fmap fromValue c0
     c1 <- qelim c
     c2 <- nnf c1               § "Convert to NNF"
     c3 <- simplify c2          § "Simplify predicate"

@@ -32,7 +32,7 @@ data Expr' a
   | EFun !Name ![Expr' a]    -- ^ (uninterpreted) function @f(e₁,e₂,…,eₙ)@
   | EVal !a
   | EReg !ERE                -- ^ regular expression @RE@
-  deriving stock (Eq, Ord, Show, Read, Generic, Data)
+  deriving stock (Eq, Ord, Functor, Show, Read, Generic, Data)
 
 instance Hashable a => Hashable (Expr' a)
 

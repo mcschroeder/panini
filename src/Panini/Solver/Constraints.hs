@@ -33,6 +33,7 @@ data Con' a
   deriving stock 
     ( Eq
     , Ord  -- ^ structural ordering
+    , Functor
     , Show, Read, Generic)
 
 instance Hashable a => Hashable (Con' a)

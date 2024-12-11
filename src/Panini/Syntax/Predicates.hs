@@ -36,6 +36,7 @@ data Pred' a
   deriving stock 
     ( Eq
     , Ord -- ^ structural ordering
+    , Functor
     , Show, Read
     , Generic, Data
     )
