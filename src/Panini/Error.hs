@@ -23,7 +23,7 @@ data Error
   | Unsolvable Name Con
   | IOError String PV
   | AbstractionImpossible Name ARel
-  | AbstractionToValueImpossible Name ARel AExpr
+  | AbstractionToValueImpossible Name ARel AValue
   | ConcretizationImpossible Name Base AValue
   | PythonFrontendError Python.Error
 

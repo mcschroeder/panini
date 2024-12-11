@@ -27,6 +27,7 @@ import Panini.Abstract.AString qualified as AString
 import Panini.Abstract.AString (AString)
 import Panini.Abstract.AValue
 import Panini.Abstract.Semantics
+import Panini.Error
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
@@ -111,6 +112,18 @@ topoSortPreCons pcs =
   gvars                  = Set.fromList [k | PreCon _ _ k _ <- toList pcs]
   k2i (KVar i _ _)       = i
 
+concretizeVar :: Name -> Base -> AValue -> Pan Pred
+concretizeVar x b v = logAndReturn $ case (b,v) of
+  (TUnit  , AUnit   a) -> concretizeUnit   x a
+  (TBool  , ABool   a) -> concretizeBool   x a
+  (TInt   , AInt    a) -> concretizeInt    x a
+  (TChar  , AChar   a) -> concretizeChar   x a
+  (TString, AString a) -> concretizeString x a
+  _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
+ where
+  logAndReturn p = do
+    logMessage $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
+    return p
 
 -- | Solve a single precondition constraint, resulting in an abstract value.
 solve1 :: PreCon -> Pan AValue
@@ -144,6 +157,14 @@ abstractNNF x b = \case
   PAnd xs -> valueMeets b =<< mapM (abstractNNF x b) xs
   POr  xs -> valueJoins b =<< mapM (abstractNNF x b) xs
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
+
+abstractVarToValue :: Name -> Base -> ARel -> Pan AValue
+abstractVarToValue x b r = do
+  let a = abstract x b r
+  logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
+  if groundValue a 
+    then return a 
+    else throwError $ AbstractionToValueImpossible x r a
 
 valueMeets :: Base -> [AValue] -> Pan AValue
 valueMeets b vs0 = do  
@@ -245,13 +266,13 @@ qelim1 x b φ = do
   logMessage $ "qelim1" <+> pretty x <+> pretty b
   logMessage $ "φ ←" <+> pretty φ  
   let rs = [r | r <- φ, x `elem` freeVars r]
-  ξ <- meetValueExprs b =<< mapM (simplifyExpr <=< abstractVar x b) rs  
+  ξ <- partialMeets <$> mapM (simplifyAValue <=< abstractVar x b) rs
   logMessage $ "ξ ←" <+> pretty ξ
-  if any isBotValue ξ then do
+  if any hasBot ξ then do
     logMessage "↯"
     return PFalse
   else do
-    let ψ₁ = [e₁ :=: e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
+    let ψ₁ = [EAbs e₁ :=: EAbs e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
     let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
     normRels (ψ₁ ++ ψ₂) >>= \case
       Nothing -> do
@@ -261,22 +282,11 @@ qelim1 x b φ = do
         logMessage $ "ψ ←" <+> pretty ψ
         return $ meets $ map PRel ψ
 
-meetValueExprs :: Base -> [AExpr] -> Pan [AExpr]
-meetValueExprs b es0 = case List.partition isVal es0 of
-  ( [], es) -> return es
-  ([a], es) -> return (a:es)
-  ( as, es) -> do a <- valueMeets b (map unVal as)
-                  return (EAbs a : es)
- where
-  isVal (ERelA _ _ _) = False
-  isVal (EAbs _) = True
-  isVal _        = False
-  unVal (EAbs a) = a
-  unVal _        = impossible  
-
-isBotValue :: AExpr -> Bool
-isBotValue (EAbs a) = hasBot a
-isBotValue _        = False
+abstractVar :: Name -> Base -> ARel -> Pan AValue
+abstractVar x b r = do
+  let a = abstract x b r
+  logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
+  return a
 
 normRels :: [ARel] -> Pan (Maybe [ARel])
 normRels = go []
@@ -300,11 +310,6 @@ simplifyAValue :: AValue -> Pan AValue
 simplifyAValue = \case
   AString s -> AString <$> simplifyRegex s
   a         -> pure a
-
-simplifyExpr :: AExpr -> Pan AExpr
-simplifyExpr = \case
-  EStrA s -> EStrA <$> simplifyRegex s
-  e       -> pure e
 
 simplifyRegex :: AString -> Pan AString
 simplifyRegex s = do

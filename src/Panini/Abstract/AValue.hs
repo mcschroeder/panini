@@ -80,6 +80,9 @@ typeOfAValue = \case
   AString _ -> TString
   ARel _ b _ -> b
 
+groundValue :: AValue -> Bool
+groundValue (ARel _ _ _) = False
+groundValue _            = True
 
 instance PartialOrder AValue where
   AUnit   a ⊑ AUnit   b = a ⊑ b
