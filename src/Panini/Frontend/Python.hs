@@ -20,7 +20,7 @@ import Panini.Syntax
 import Panini.Pretty
 import Prelude
 
-loadModulePython :: Text -> FilePath -> Pan (Module, Program)
+loadModulePython :: Text -> FilePath -> Pan Error (Module, Program)
 loadModulePython src fp = do
   let src'   = Text.unpack src
   (pyMod,_) <- parseModule src' fp     ? paErr §§ "Parse Python source"

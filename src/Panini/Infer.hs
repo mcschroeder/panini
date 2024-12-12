@@ -30,7 +30,7 @@ type Context = Map Name Type
 -- holes (?). The returned type may be more precise than the given type and will
 -- not contain any holes but may contain κ variables. Proving the VC valid
 -- should provide an assignment for any extant κ variable.
-check :: Context -> Term -> Type -> Pan (Type, Con)
+check :: Context -> Term -> Type -> Pan Error (Type, Con)
 check g e t̃ = do
   (t,c) <- infer g e
   t̂ <- fresh g t̃
@@ -40,7 +40,7 @@ check g e t̃ = do
 -- | Infer the most precise type of a term in the given context, plus a
 -- verification condition that needs to be proven valid. Proving the VC should
 -- provide an assignment for any extant κ variables present in the type.
-infer :: Context -> Term -> Pan (Type, Con)
+infer :: Context -> Term -> Pan Error (Type, Con)
 infer g = \case
   
   -- inf/var ----------------------------------------------
@@ -135,7 +135,7 @@ atomToExpr :: Atom -> Expr
 atomToExpr (Con c) = ECon c
 atomToExpr (Var x) = EVar x
 
-checkBool :: Context -> Atom -> Pan ()
+checkBool :: Context -> Atom -> Pan Error ()
 checkBool g v = do
   (tb,_) <- infer g (Val v)
   _ <- sub tb (TBase dummyName TBool (Known PTrue) NoPV)
@@ -151,7 +151,7 @@ self x = \case
   t -> t
 
 -- | Hole instantiation (▷).
-fresh :: Context -> Type -> Pan Type
+fresh :: Context -> Type -> Pan Error Type
 fresh g0 = go (Map.toList g0)
   where
     -- ins/hole -------------------------------------------
@@ -171,7 +171,7 @@ fresh g0 = go (Map.toList g0)
       t̂ <- go ((x,s):g) t
       return $ TFun x ŝ t̂ (Derived pv "ins/fun")
 
-freshK :: [Base] -> PV -> Pan KVar
+freshK :: [Base] -> PV -> Pan Error KVar
 freshK ts pv = do
   i <- gets kvarCount
   modify $ \s -> s { kvarCount = i + 1}
@@ -183,7 +183,7 @@ shape (TBase v b _ pv) = TBase v b Unknown (Derived pv "shape")
 shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) (Derived pv "shape")
 
 -- | Subtyping (⩽).
-sub :: Type -> Type -> Pan Con
+sub :: Type -> Type -> Pan Error Con
 sub lhs rhs = case (lhs, rhs) of
   
   -- sub/base ---------------------------------------------

@@ -16,6 +16,7 @@ import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Set ((\\))
+import Panini.Error
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Solver.Simplifier
@@ -26,7 +27,7 @@ import Panini.Pretty
 
 -- | Use refinement FUSION to eliminate all acyclic κ variables that are not in
 -- the given exclusion set, returning the (partially) solved constraint.
-solve :: Set KVar -> Con -> Pan Con
+solve :: Set KVar -> Con -> Pan Error Con
 solve ksx c0 = do
   ksc <- cutVars c0                  § "Compute cut variables"
   ks  <- (kvars c0 \\ ksc \\ ksx)    § "Identify non-excluded non-cut variables"
@@ -34,7 +35,7 @@ solve ksx c0 = do
   return c1
   
 -- | Eliminates a set of acyclic κ-variables iteratively via 'elim1'.
-elim :: [KVar] -> Con -> Pan Con
+elim :: [KVar] -> Con -> Pan Error Con
 elim ks c0 = foldM elimOne c0 ks
  where
   elimOne c1 k = do

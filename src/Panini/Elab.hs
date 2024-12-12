@@ -32,18 +32,18 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- | Retrieve a definition from the environment.
-envLookup :: Name -> Pan (Maybe Definition)
+envLookup :: Name -> Pan Error (Maybe Definition)
 envLookup x = Map.lookup x <$> gets environment
 
 -- | Extend the environment with a new definition.
-envExtend :: Name -> Definition -> Pan ()
+envExtend :: Name -> Definition -> Pan Error ()
 envExtend x d = do
   when (isFailed d) $ logError d._error
   modify' $ \s -> s { environment = Map.insert x d s.environment }
 
 -- TODO: do we need this?
 -- -- | Remove a definition from the environment.
--- envDelete :: Name -> Pan ()
+-- envDelete :: Name -> Pan Error ()
 -- envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
 
 -------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ envExtend x d = do
 -- changes to the environment are rolled back. Note that errors during type
 -- inference or VC solving usually merely result in a 'Rejected' or 'Invalid'
 -- definition to be stored in the environment and will *not* cause any rollback.
-elaborate :: Module -> Program -> Pan ()
+elaborate :: Module -> Program -> Pan Error ()
 elaborate thisModule prog = do
   env0 <- get
   unless (thisModule == replModule) $
@@ -74,7 +74,7 @@ elaborate thisModule prog = do
                       -- TODO: add provenance to error
 
 -- | Add an assumed type to the environment.
-assume :: Name -> Type -> Pan ()
+assume :: Name -> Type -> Pan Error ()
 assume x t = do
   logMessage $ "Assume" <+> pretty x <+> ":" <+> pretty t
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
@@ -83,7 +83,7 @@ assume x t = do
 -- | Add a definition to the environment. Infers and verifies the definition's
 -- type and potentially reconciles it with a previously assumed type for the
 -- same name.
-define :: Name -> Term -> Pan ()
+define :: Name -> Term -> Pan Error ()
 define x e = do
   logMessage $ "Define" <+> pretty x <+> "= ..."
   t0m <- envLookup x >>= \case
@@ -126,7 +126,7 @@ define x e = do
           t3 <- makeFinalType s t2 t0m
           envExtend x $ Verified x t0m e t2 vc s t3
 
-makeFinalType :: Assignment -> Type -> Maybe Type -> Pan Type
+makeFinalType :: Assignment -> Type -> Maybe Type -> Pan Error Type
 makeFinalType s t1 t0m = do
   t2 <- apply s t1        § "Apply solution to type"
   t3 <- simplify t2       § "Simplify type"
@@ -168,7 +168,7 @@ matchTypeSig = go
   go _ _ = impossible
 
 -- | Import a module into the environment.
-import_ :: Module -> Pan ()
+import_ :: Module -> Pan Error ()
 import_ otherModule = do
   logMessage $ "Import" <+> pretty otherModule
   redundant <- elem otherModule <$> gets loadedModules

@@ -9,6 +9,7 @@ import Data.Function
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Panini.Error
 import Panini.Monad
 import Panini.SMT.Z3 qualified as Z3
 import Panini.Solver.Abstract (allPreCons, preConKVar)
@@ -33,7 +34,7 @@ data Result
       -- ^ we found a possible assignment but could not finally verify it; 
       --   the string gives the reason why (e.g., "timeout")
 
-solve :: Set KVar -> Con -> Pan Result
+solve :: Set KVar -> Con -> Pan Error Result
 solve kst c0 = do
   logMessage "Phase 1: FUSION — Eliminate local acyclic variables"
   c1  <- simplify c0                     § "Simplify constraint"

@@ -18,6 +18,7 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Panini.CLI.Common
 import Panini.CLI.Options
+import Panini.Error
 import Panini.Elab
 import Panini.Environment
 import Panini.Events
@@ -73,7 +74,7 @@ replMain panOpts = do
   exitSuccess
 
 -- | Panini REPL.
-repl :: PanOptions -> InputT Pan ()
+repl :: PanOptions -> InputT (Pan Error) ()
 repl panOpts = outputStrLn banner >> loop
   where
     banner = version ++ "\nType :help for more information."
@@ -118,14 +119,14 @@ repl panOpts = outputStrLn banner >> loop
     
 -------------------------------------------------------------------------------
 
-commands :: PanOptions -> [(String, String -> InputT Pan ())]
+commands :: PanOptions -> [(String, String -> InputT (Pan Error) ())]
 commands panOpts = 
   [ ("help", const help)
   , ("load", loadFiles panOpts . words)
   , ("show", showEnv panOpts)
   ]
 
-help :: InputT Pan ()
+help :: InputT (Pan Error) ()
 help = outputStrLn "\
   \Commands available in the REPL:\n\
   \\n\
@@ -137,10 +138,10 @@ help = outputStrLn "\
   \  :show                Show all bindings in the environment\n\
   \"
 
-loadFiles :: PanOptions -> [String] -> InputT Pan ()
+loadFiles :: PanOptions -> [String] -> InputT (Pan Error) ()
 loadFiles panOpts = mapM_ (loadFile panOpts)
 
-loadFile :: PanOptions -> FilePath -> InputT Pan ()
+loadFile :: PanOptions -> FilePath -> InputT (Pan Error) ()
 loadFile panOpts f = lift $ continueOnError $ do
   logMessage $ "Read" <+> pretty f
   src <- tryIO NoPV $ Text.readFile f
@@ -152,7 +153,7 @@ loadFile panOpts f = lift $ continueOnError $ do
   elaborate module_ prog
   -- TODO: output summary like "Ok, 23 modules loaded."
 
-showEnv :: PanOptions -> String -> InputT Pan ()
+showEnv :: PanOptions -> String -> InputT (Pan Error) ()
 showEnv panOpts "modules" = do
   env <- lift get
   liftIO $ putDocStdout panOpts $ prettyList env.loadedModules <> "\n"
@@ -175,7 +176,7 @@ showEnv panOpts _ = do
     Unverified{_name,_solvedType,_reason} -> hang 2 $
       "?" <+> pretty _name <+> colon <+> pretty _solvedType <\> pretty _reason
 
-evaluateInput :: PanOptions -> String -> InputT Pan ()
+evaluateInput :: PanOptions -> String -> InputT (Pan Error) ()
 evaluateInput panOpts input = lift $ continueOnError $ do
   let src = Text.pack input
   let loadFunc | panOpts.pythonInput = loadModulePython
@@ -186,7 +187,7 @@ evaluateInput panOpts input = lift $ continueOnError $ do
 -------------------------------------------------------------------------------
 
 -- | Panini REPL settings with working autocomplete.
-replSettings :: Maybe FilePath -> Settings Pan
+replSettings :: Maybe FilePath -> Settings (Pan Error)
 replSettings histFile =
   Settings
     { complete = autocomplete,
@@ -194,7 +195,7 @@ replSettings histFile =
       autoAddHistory = True
     }
 
-autocomplete :: CompletionFunc Pan
+autocomplete :: CompletionFunc (Pan Error)
 autocomplete = (sorted <$>) . fallbackCompletion completeCommands completeFiles
   where
     completeCommands = completeWord' Nothing isSpace $ \case

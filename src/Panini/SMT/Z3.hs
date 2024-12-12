@@ -26,7 +26,7 @@ import System.Process
 
 -------------------------------------------------------------------------------
 
-smtInit :: Pan ()
+smtInit :: Pan Error ()
 smtInit = do
   r <- liftIO $ try @IOException $ readProcessWithExitCode "z3" ["-version"] ""
   let solverError e = SolverError $ "Unable to initialize Z3:\n" <> Text.pack e
@@ -47,7 +47,7 @@ isSat :: Result -> Bool
 isSat Sat = True
 isSat _   = False
 
-smtCheck :: SMTLIB a => [a] -> Pan Result
+smtCheck :: SMTLIB a => [a] -> Pan Error Result
 smtCheck cs = do
   logMessage "Encode SMT-LIB query"
   let foralls = map (Text.unpack . toSMTLIB) cs

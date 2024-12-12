@@ -17,7 +17,7 @@ import System.IO
 
 -------------------------------------------------------------------------------
 
-parseSource :: FilePath -> Text -> Pan Program
+parseSource :: FilePath -> Text -> Pan Panini.Error.Error Program
 parseSource path src = do
   logMessage $ "Parse" <+> pretty path
   prog <- parseProgram path src ? paErr
@@ -27,13 +27,13 @@ parseSource path src = do
   paErr = \(Panini.Parser.ParserError e pv) -> Panini.Error.ParserError e pv
 
 -- TODO: here may not be the right location for this
-loadModule :: Text -> FilePath -> Pan (Module, Program)
+loadModule :: Text -> FilePath -> Pan Panini.Error.Error (Module, Program)
 loadModule src fp = do
   module_ <- liftIO $ getModule fp
   prog <- parseSource (moduleLocation module_) src
   return (module_, prog)
 
-maybeSavePanFile :: PanOptions -> Module -> Program -> Pan ()
+maybeSavePanFile :: PanOptions -> Module -> Program -> Pan Panini.Error.Error ()
 maybeSavePanFile panOpts module_ prog
   | not panOpts.savePanFile = return ()
   | inputIsPan = logMessage $ "Warning:" <+> warnIgnore      

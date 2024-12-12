@@ -81,7 +81,7 @@ preConKVar (PreCon _ _ k _) = k
 -- then tries to solve them sequentially, applying intermediate solutions on the
 -- way. If there are multiple solutions for the same variable (i.e., if some κᵢ
 -- appears multiple times), we take their 'meet'.
-solve :: Con -> Pan Assignment
+solve :: Con -> Pan Error Assignment
 solve c0 = do
   pcs1 <- topoSortPreCons (allPreCons c0) § "Sort precondition variables"
   Map.map snd <$> foldM solve' mempty pcs1
@@ -112,7 +112,7 @@ topoSortPreCons pcs =
   gvars                  = Set.fromList [k | PreCon _ _ k _ <- toList pcs]
   k2i (KVar i _ _)       = i
 
-concretizeVar :: Name -> Base -> AValue -> Pan Pred
+concretizeVar :: Name -> Base -> AValue -> Pan Error Pred
 concretizeVar x b v = logAndReturn $ case (b,v) of
   (TUnit  , AUnit   a) -> concretizeUnit   x a
   (TBool  , ABool   a) -> concretizeBool   x a
@@ -126,7 +126,7 @@ concretizeVar x b v = logAndReturn $ case (b,v) of
     return p
 
 -- | Solve a single precondition constraint, resulting in an abstract value.
-solve1 :: PreCon -> Pan AValue
+solve1 :: PreCon -> Pan Error AValue
 solve1 = \case
   -- TODO: verify this
   -- Trick to solve simple recursions: eliminate recursive κ applications by
@@ -149,7 +149,7 @@ solve1 = \case
     q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
     return q
 
-abstractNNF :: Name -> Base -> APred -> Pan AValue
+abstractNNF :: Name -> Base -> APred -> Pan Error AValue
 abstractNNF x b = \case
   PTrue   -> return $ topValue b
   PFalse  -> return $ botValue b  
@@ -158,7 +158,7 @@ abstractNNF x b = \case
   POr  xs -> valueJoins b =<< mapM (abstractNNF x b) xs
   p       -> panic $ "abstractNNF: unexpected" <+> pretty p
 
-abstractVarToValue :: Name -> Base -> ARel -> Pan AValue
+abstractVarToValue :: Name -> Base -> ARel -> Pan Error AValue
 abstractVarToValue x b r = do
   let a = abstract x b r
   logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
@@ -166,7 +166,7 @@ abstractVarToValue x b r = do
     then return a 
     else throwError $ AbstractionToValueImpossible x r a
 
-valueMeets :: Base -> [AValue] -> Pan AValue
+valueMeets :: Base -> [AValue] -> Pan Error AValue
 valueMeets b vs0 = do  
   logMessage "Meet values"
   let vs = List.sortBy (comparing Down) vs0
@@ -178,7 +178,7 @@ valueMeets b vs0 = do
   meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
   err = panic $ "valueMeets" <+> pretty b <+> pretty vs0
 
-valueJoins :: Base -> [AValue] -> Pan AValue
+valueJoins :: Base -> [AValue] -> Pan Error AValue
 valueJoins b vs0 = do
   logMessage "Join values"
   let vs = List.sortBy (comparing Down) vs0
@@ -192,7 +192,7 @@ valueJoins b vs0 = do
 
 -------------------------------------------------------------------------------
 
-qelim :: ACon -> Pan APred
+qelim :: ACon -> Pan Error APred
 qelim c0 = do
   c1 <- elimAll c0      § "Eliminate ∀"
   c2 <- elimExists c1  §§ "Eliminate ∃"
@@ -206,7 +206,7 @@ qelim c0 = do
       | x `notFreeIn` p, x `notFreeIn` c      -> PImpl p $ elimAll c
       | otherwise -> PNot $ PExists x t $ PNot $ PImpl p $ elimAll c
 
-  elimExists :: APred -> Pan APred
+  elimExists :: APred -> Pan Error APred
   elimExists = \case
     PTrue         -> return PTrue
     PFalse        -> return PFalse
@@ -260,7 +260,7 @@ dnf p0 = case nnf p0 of
 --
 --     𝔐 ⊧ qelim1 x b R  ⟺  𝔐 ⊧ ∃(x:b). R 
 --
-qelim1 :: Name -> Base -> [ARel] -> Pan APred
+qelim1 :: Name -> Base -> [ARel] -> Pan Error APred
 qelim1 x b φ = do
   logMessage $ divider symDivH Nothing
   logMessage $ "qelim1" <+> pretty x <+> pretty b
@@ -282,13 +282,13 @@ qelim1 x b φ = do
         logMessage $ "ψ ←" <+> pretty ψ
         return $ meets $ map PRel ψ
 
-abstractVar :: Name -> Base -> ARel -> Pan AValue
+abstractVar :: Name -> Base -> ARel -> Pan Error AValue
 abstractVar x b r = do
   let a = abstract x b r
   logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
   return a
 
-normRels :: [ARel] -> Pan (Maybe [ARel])
+normRels :: [ARel] -> Pan Error (Maybe [ARel])
 normRels = go []
  where
   go ys [] = return $ Just $ nubOrd ys
@@ -306,12 +306,12 @@ normRels = go []
 
 -------------------------------------------------------------------------------
 
-simplifyAValue :: AValue -> Pan AValue
+simplifyAValue :: AValue -> Pan Error AValue
 simplifyAValue = \case
   AString s -> AString <$> simplifyRegex s
   a         -> pure a
 
-simplifyRegex :: AString -> Pan AString
+simplifyRegex :: AString -> Pan Error AString
 simplifyRegex s = do
   logMessage "Simplify regular expression"
   t <- gets regexTimeout

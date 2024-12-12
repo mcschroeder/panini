@@ -17,6 +17,7 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Map.Strict (Map)
 import Data.Set qualified as Set
+import Panini.Error
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
@@ -28,7 +29,7 @@ import Prelude
 
 -- | Solve non-nested constrained Horn clauses (CHCs) given a set of candidates.
 -- Returns 'Nothing' if no solution could be found.
-solve :: [FlatCon] -> Map [Base] [Pred] -> Pan (Maybe Assignment)
+solve :: [FlatCon] -> Map [Base] [Pred] -> Pan Error (Maybe Assignment)
 solve cs qs = do
   logMessage $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
@@ -63,7 +64,7 @@ solve cs qs = do
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given constraints is found.
-fixpoint :: [FlatCon] -> Assignment -> Pan Assignment
+fixpoint :: [FlatCon] -> Assignment -> Pan Error Assignment
 fixpoint cs s = do
   logData $ sigma <+> symEq <+> pretty s
   r <- filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
@@ -72,7 +73,7 @@ fixpoint cs s = do
     c:_ -> fixpoint cs =<< weaken s c
 
 -- | Weaken an assignment to satisfy a given constraint.
-weaken :: Assignment -> FlatCon -> Pan Assignment
+weaken :: Assignment -> FlatCon -> Pan Error Assignment
 weaken s (FAll xs p (PAppK k ys)) =
   case Map.lookup k s of
     Nothing -> panic $ "missing Horn assignment for" <+> pretty k
