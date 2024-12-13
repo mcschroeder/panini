@@ -6,6 +6,7 @@ module Panini.Elab
   , assume
   , define
   , import_
+  , parseSource
   ) where
 
 import Control.Monad.Extra
@@ -13,14 +14,15 @@ import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
+import Data.Text (Text)
 import Data.Text.IO qualified as Text
-import Panini.CLI.Common
 import Panini.Environment
 import Panini.Error
 import Panini.Infer
 import Panini.Modules
 import Panini.Monad
 import Panini.Panic
+import Panini.Parser qualified
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Assignment
@@ -176,3 +178,11 @@ import_ otherModule = do
     otherSrc <- (tryIO $ Text.readFile $ moduleLocation otherModule) ?? IOError
     otherProg <- parseSource (moduleLocation otherModule) otherSrc ?? ParseError
     elaborate otherModule otherProg
+
+-- TODO: maybe not the right location for this
+parseSource :: FilePath -> Text -> Pan Panini.Parser.Error Program
+parseSource path src = do
+  logMessage $ "Parse" <+> pretty path
+  prog <- Panini.Parser.parseProgram path src ? id
+  logData prog
+  return prog

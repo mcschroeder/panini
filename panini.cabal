@@ -5,8 +5,9 @@ synopsis:           Grammar Inference for Ad Hoc Parsers
 author:             Michael Schröder
 maintainer:         michael.schroeder@tuwien.ac.at
 
-library
-  hs-source-dirs: src
+executable panini
+  hs-source-dirs: app
+  main-is: Main.hs
   default-language: GHC2021
   default-extensions:
     DataKinds
@@ -18,6 +19,7 @@ library
     PatternSynonyms
     ViewPatterns
   ghc-options:
+    -threaded -rtsopts
     -Weverything
     -Wno-missing-exported-signatures
     -Wno-missing-import-lists
@@ -29,65 +31,27 @@ library
     -Wno-missing-safe-haskell-mode
     -Wno-missing-local-signatures
     -Wno-monomorphism-restriction
-    -Wno-missing-kind-signatures
-  build-depends:
+    -Wno-missing-kind-signatures    
+  build-depends: 
       base ^>=4.18
     , panini-lib
     , panini-python
     , ansi-terminal
-    , containers
     , directory
     , extra
     , filepath
     , filepattern
-    , hashable
     , haskeline
     , language-python
     , optparse-applicative >= 0.18.1
     , prettyprinter
-    , process
-    , regex-algebra
     , text
     , transformers
-    , uniplate
-    , unordered-containers
-  exposed-modules:
-    Panini.Abstract.ABool
-    Panini.Abstract.AChar
-    Panini.Abstract.AInt
-    Panini.Abstract.AString
-    Panini.Abstract.AUnit
-    Panini.Abstract.AValue
-    Panini.Abstract.Semantics
+  other-modules:
     Panini.CLI.Common
-    Panini.CLI.Main    
+    Panini.CLI.Error
+    Panini.CLI.Main
     Panini.CLI.Options
     Panini.CLI.REPL
     Panini.CLI.Test
-    Panini.Elab
-    Panini.Environment
-    Panini.Error
-    Panini.Events
     Panini.Frontend.Python
-    Panini.Infer
-    Panini.Modules
-    Panini.Monad
-    Panini.Regex.SMT
-    Panini.SMT.RegLan
-    Panini.SMT.SMTLIB
-    Panini.SMT.Z3
-    Panini.Solver
-    Panini.Solver.Abstract
-    Panini.Solver.Assignment    
-    Panini.Solver.Fusion
-    Panini.Solver.Liquid
-    Panini.Solver.Qualifiers
-    Panini.Solver.Simplifier
-
-executable panini
-  hs-source-dirs: app
-  main-is: Main.hs
-  ghc-options: -threaded -rtsopts
-  build-depends: 
-      base
-    , panini

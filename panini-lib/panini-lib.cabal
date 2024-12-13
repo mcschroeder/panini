@@ -35,6 +35,9 @@ library
     , ansi-terminal
     , bytestring
     , containers
+    , directory
+    , extra
+    , filepath
     , githash
     , hashable
     , megaparsec == 9.2.*
@@ -44,10 +47,26 @@ library
     , regex-algebra
     , template-haskell
     , text
+    , transformers
     , uniplate
     , unordered-containers
   exposed-modules:
     Algebra.Lattice
+    Panini.Abstract.ABool
+    Panini.Abstract.AChar
+    Panini.Abstract.AInt
+    Panini.Abstract.AString
+    Panini.Abstract.AUnit
+    Panini.Abstract.AValue
+    Panini.Abstract.Semantics
+    Panini.Diagnostic
+    Panini.Elab
+    Panini.Environment
+    Panini.Error
+    Panini.Events
+    Panini.Infer
+    Panini.Modules
+    Panini.Monad
     Panini.Panic
     Panini.Parser
     Panini.Pretty
@@ -58,7 +77,18 @@ library
     Panini.Pretty.Style
     Panini.Pretty.Symbols
     Panini.Provenance
+    Panini.Regex.SMT
+    Panini.SMT.RegLan
+    Panini.SMT.SMTLIB
+    Panini.SMT.Z3
+    Panini.Solver
+    Panini.Solver.Abstract
+    Panini.Solver.Assignment    
     Panini.Solver.Constraints
+    Panini.Solver.Fusion
+    Panini.Solver.Liquid
+    Panini.Solver.Qualifiers
+    Panini.Solver.Simplifier
     Panini.Syntax
     Panini.Syntax.AST
     Panini.Syntax.Expressions

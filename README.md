@@ -16,10 +16,8 @@ Static Grammar Inference for Ad Hoc Parsers
   where `<options>` are any command-line options you want to pass on to the
   `panini` executable.
 
-* To start an interactive development session in GHCi, use `cabal repl`. To run
-  Panini from within the current GHCi session, you first need to load the main
-  executable module with `:load app/Main.hs`. You can then use `:main` as if
-  invoking the `panini` executable (e.g., `:main --help`).
+* To start an interactive development session in GHCi, use `cabal repl`. You can
+  then use `:main` as if invoking the `panini` executable (e.g., `:main --help`).
 
 * To build a standalone `panini` executable, run `cabal build exe:panini`. This
   will put the binary somewhere in the `dist-newstyle` directory. You can use
