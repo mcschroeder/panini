@@ -3,9 +3,9 @@ module Panini.CLI.Common where
 import Control.Monad.Extra
 import Data.Text (Text)
 import Data.Text.IO qualified as Text
+import Panini.CLI.Error
 import Panini.CLI.Options
 import Panini.Events
-import Panini.Error
 import Panini.Modules
 import Panini.Monad
 import Panini.Parser
@@ -17,23 +17,30 @@ import System.IO
 
 -------------------------------------------------------------------------------
 
-parseSource :: FilePath -> Text -> Pan Panini.Error.Error Program
+parseSource :: FilePath -> Text -> Pan Panini.Parser.Error Program
 parseSource path src = do
   logMessage $ "Parse" <+> pretty path
-  prog <- parseProgram path src ? paErr
+  prog <- parseProgram path src ? id
   logData prog
   return prog
- where
-  paErr = \(Panini.Parser.ParserError e pv) -> Panini.Error.ParserError e pv
 
 -- TODO: here may not be the right location for this
-loadModule :: Text -> FilePath -> Pan Panini.Error.Error (Module, Program)
+loadModule :: Text -> FilePath -> Pan AppError (Module, Program)
 loadModule src fp = do
   module_ <- liftIO $ getModule fp
-  prog <- parseSource (moduleLocation module_) src
+  prog <- parseSource (moduleLocation module_) src ?? ParseError
   return (module_, prog)
 
-maybeSavePanFile :: PanOptions -> Module -> Program -> Pan Panini.Error.Error ()
+data FileType = PaniniSource | PythonSource
+
+determineFileType :: PanOptions -> FilePath -> FileType
+determineFileType panOpts fp
+  | panOpts.pythonInput || ext == ".py" = PythonSource
+  | otherwise                           = PaniniSource
+ where
+  ext = takeExtension fp
+
+maybeSavePanFile :: PanOptions -> Module -> Program -> Pan AppError ()
 maybeSavePanFile panOpts module_ prog
   | not panOpts.savePanFile = return ()
   | inputIsPan = logMessage $ "Warning:" <+> warnIgnore      

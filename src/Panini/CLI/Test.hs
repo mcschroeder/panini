@@ -10,7 +10,9 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Common
+import Panini.CLI.Error
 import Panini.CLI.Options
+import Panini.Diagnostic
 import Panini.Elab
 import Panini.Environment
 import Panini.Frontend.Python
@@ -76,16 +78,15 @@ testMain globalOpts = assert globalOpts.testMode $ do
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
-      smtInit
+      smtInit ?? PaniniError
       logRegexInfo
-      let ext = takeExtension inFile
-      let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
-                   | otherwise                           = loadModule
-      (module_, prog) <- loadFunc src inFile
+      (module_, prog) <- case determineFileType panOpts inFile of
+        PythonSource -> loadModulePython src inFile ?? PythonError
+        PaniniSource -> loadModule src inFile
       maybeSavePanFile panOpts module_ prog
-      elaborate module_ prog
+      elaborate module_ prog ?? PaniniError
       (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
-      return $ vsep $ (map pretty es) ++ (map pretty ts)
+      return $ vsep $ (map prettyDiagnostic es) ++ (map pretty ts)
 
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
@@ -94,7 +95,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       Left e | Just UserInterrupt <- asyncExceptionFromException e -> throw e
       _ -> return ()
 
-    let output = either viaShow (either pretty fst) result
+    let output = either viaShow (either prettyDiagnostic fst) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
     return (time, actual)
   

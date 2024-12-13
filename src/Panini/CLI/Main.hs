@@ -7,6 +7,7 @@ import Data.Maybe
 import Data.Text.IO qualified as Text
 import Options.Applicative
 import Panini.CLI.Common
+import Panini.CLI.Error
 import Panini.CLI.Options
 import Panini.CLI.REPL
 import Panini.CLI.Test
@@ -22,7 +23,6 @@ import Prelude
 import System.Console.ANSI
 import System.Environment
 import System.Exit
-import System.FilePath
 import System.IO
 
 -------------------------------------------------------------------------------
@@ -65,17 +65,16 @@ batchMain panOpts = do
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ do
-    smtInit
+    smtInit ?? PaniniError
     logRegexInfo
     let fp = fromMaybe "<stdin>" panOpts.inputFile
     logMessage $ "Read" <+> pretty fp
-    src <- tryIO NoPV $ maybe Text.getContents Text.readFile panOpts.inputFile
-    let ext = maybe ".pan" takeExtension panOpts.inputFile
-    let loadFunc | panOpts.pythonInput || ext == ".py" = loadModulePython
-                 | otherwise                           = loadModule
-    (module_, prog) <- loadFunc src fp
+    src <- tryIO (maybe Text.getContents Text.readFile panOpts.inputFile) ?? AppIOError
+    (module_, prog) <- case determineFileType panOpts fp of
+      PythonSource -> loadModulePython src fp ?? PythonError
+      PaniniSource -> loadModule src fp
     maybeSavePanFile panOpts module_ prog
-    elaborate module_ prog
+    elaborate module_ prog ?? PaniniError
     vsep . map pretty . getSolvedTypes <$> gets environment
 
   whenJust traceFile hClose

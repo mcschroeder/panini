@@ -33,12 +33,11 @@ import Data.Function
 import Data.List qualified as List
 import Data.Maybe
 import GHC.Stack
+import Panini.Diagnostic
 import Panini.Environment
-import Panini.Error
 import Panini.Events
 import Panini.Modules
 import Panini.Pretty
-import Panini.Provenance
 import Prelude
 import System.Time.Extra
 
@@ -50,7 +49,7 @@ type Pan e = StateT PanState (ExceptT e IO)
 -- | Run an action in the /Panini/ monad with the given starting state. Returns
 -- either an unrecoverable error or the result of the computation and the final
 -- state (which might contain other kinds of errors and warnings).
-runPan :: PanState -> Pan Error a -> IO (Either Error (a, PanState))
+runPan :: Diagnostic e => PanState -> Pan e a -> IO (Either e (a, PanState))
 runPan s0 m = runExceptT $ runStateT m' s0
   where
     m' = m `catchError` \e -> logError e >> throwError e
@@ -98,7 +97,7 @@ tryError :: Pan e1 a -> Pan e2 (Either e1 a)
 tryError m = catchError (Right <$> m) (return . Left)
 
 -- | Try an action; if an error occurs, log it but don't propagate it further.
-continueOnError :: Pan Error () -> Pan Error ()
+continueOnError :: Diagnostic e => Pan e () -> Pan e ()
 continueOnError m = catchError m logError
 
 liftError :: (e1 -> e2) -> Pan e1 a -> Pan e2 a
@@ -113,15 +112,11 @@ liftE f = either (throwError . f) return
 (?) :: Either e1 a -> (e1 -> e2) -> Pan e2 a
 (?) = flip liftE
 
--- TODO: remove PV argument (enrich PV with other functions)
--- | Try an IO action, transforming any 'IOException' that occurs into a Panini
--- 'IOError' with the given provenance.
-tryIO :: PV -> IO a -> Pan Error a
-tryIO pv m = do
-  r <- liftIO $ try @IOException m
-  case r of
-    Left err -> throwError $ IOError (displayException err) pv
-    Right a -> return a
+-------------------------------------------------------------------------------
+
+-- | Try an IO action, transforming any 'IOError' into a Panini diagnostic.
+tryIO :: IO a -> Pan IOError a
+tryIO m = either throwError return =<< liftIO (try @IOError m)
 
 -------------------------------------------------------------------------------
 
@@ -138,7 +133,7 @@ logEvent d = do
   f <- gets eventHandler
   liftIO $ f d
 
-logError :: Error -> Pan e ()
+logError :: Diagnostic e => e -> Pan e ()
 logError = logEvent . ErrorEvent
 
 logMessage :: HasCallStack => Doc -> Pan e ()

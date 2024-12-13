@@ -1,6 +1,6 @@
 module Panini.Events where
 
-import Panini.Error
+import Panini.Diagnostic
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
@@ -8,7 +8,7 @@ import Prelude
 -------------------------------------------------------------------------------
 
 data Event 
-  = ErrorEvent Error
+  = forall d. Diagnostic d => ErrorEvent d
   | LogMessage String Doc
   | LogData String Doc
   | SMTSolverInitialized { _version :: String }
@@ -26,7 +26,7 @@ instance HasProvenance Event where
 prettyEvent :: Event -> Doc
 prettyEvent = \case
   ErrorEvent err -> 
-    ann Error (divider symDivH (Just $ Right "ERROR")) <\\> pretty err <> "\n"
+    ann Error (divider symDivH (Just $ Right "ERROR")) <\\> prettyDiagnostic err <> "\n"
   LogMessage src msg -> ann Margin ("(" <> pretty src <> ")") <+> align msg
   LogData src dat -> 
     ann Margin (divider symDivH2 (Just $ Left $ "(" <> src <> ")")) <\\> 

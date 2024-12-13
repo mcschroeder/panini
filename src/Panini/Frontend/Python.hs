@@ -4,7 +4,6 @@ import Control.Monad.Extra
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Language.Python.Version3
-import Panini.Error
 import Panini.Frontend.Inliner
 import Panini.Frontend.Python.CFG qualified as CFG
 import Panini.Frontend.Python.DomTree
@@ -20,7 +19,7 @@ import Panini.Syntax
 import Panini.Pretty
 import Prelude
 
-loadModulePython :: Text -> FilePath -> Pan Error (Module, Program)
+loadModulePython :: Text -> FilePath -> Pan Py.Error (Module, Program)
 loadModulePython src fp = do
   let src'   = Text.unpack src
   (pyMod,_) <- parseModule src' fp     ? paErr §§ "Parse Python source"
@@ -36,7 +35,7 @@ loadModulePython src fp = do
  where
   paErr = \e -> pyErr $ Py.ParserError e (getParseErrorPV e)
   tyErr = pyErr . Py.TypeError
-  pyErr = PythonFrontendError
+  pyErr = id --PythonFrontendError
 
   debugTraceGraph dom = whenM (gets debugTraceFrontendGraph) $ do
     let graphFile = fp <> ".dom.svg"

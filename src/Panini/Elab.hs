@@ -173,6 +173,6 @@ import_ otherModule = do
   logMessage $ "Import" <+> pretty otherModule
   redundant <- elem otherModule <$> gets loadedModules
   unless redundant $ do
-    otherSrc <- tryIO NoPV $ Text.readFile $ moduleLocation otherModule
-    otherProg <- parseSource (moduleLocation otherModule) otherSrc
+    otherSrc <- (tryIO $ Text.readFile $ moduleLocation otherModule) ?? IOError
+    otherProg <- parseSource (moduleLocation otherModule) otherSrc ?? ParseError
     elaborate otherModule otherProg
