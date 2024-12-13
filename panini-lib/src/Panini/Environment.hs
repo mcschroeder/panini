@@ -6,13 +6,88 @@ import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
-import Panini.Error
+import Panini.Diagnostic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Panini.Abstract.AValue
+import Panini.Parser qualified
+
+------------------------------------------------------------------------------
+
+-- TODO: move these out of here once the circular dependency is gone
+
+data ElabError where
+  AlreadyDefined  :: Name -> ElabError
+  Unsolvable      :: Name -> Con -> ElabError
+  SolverError     :: SolverError -> ElabError
+  TypeError       :: TypeError -> ElabError
+  ParseError      :: Panini.Parser.Error -> ElabError
+  IOError         :: IOError -> ElabError
+
+data SolverError where
+  AbstractionToValueImpossible  :: Name -> ARel -> AValue -> SolverError
+  SmtSolverError                :: SmtError -> SolverError
+
+data SmtError where
+  SmtError :: String -> SmtError
+
+data TypeError where
+  UnknownVar        :: Name -> TypeError
+  InvalidSubtype    :: Type -> Type -> TypeError
+  ExpectedFunType   :: Term -> Type -> TypeError
+
+instance Diagnostic TypeError where
+  diagnosticMessage = \case
+    UnknownVar x         -> "unknown variable" <\> pretty x
+    InvalidSubtype t1 t2 -> "invalid subtype:" <\> pretty t1 <+> "<:" <+> pretty t2
+    ExpectedFunType _ t  -> "invalid function type:" <\> pretty t
+ 
+instance HasProvenance TypeError where
+  getPV = \case
+    UnknownVar x        -> getPV x
+    InvalidSubtype t _  -> getPV t
+    ExpectedFunType e _ -> getPV e
+  setPV = undefined
+
+instance Diagnostic SmtError where
+  diagnosticMessage = \case
+    SmtError e -> "unexpected SMT solver output:" <\> pretty e
+  
+instance Diagnostic SolverError where
+  diagnosticMessage = \case
+    AbstractionToValueImpossible x r e ->
+      "abstraction to value impossible:" <\> 
+      "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
+    SmtSolverError e -> diagnosticMessage e
+
+instance HasProvenance SolverError where  
+  getPV = \case
+    AbstractionToValueImpossible x _r1 _ -> getPV x -- TODO: getPV r1
+    SmtSolverError _ -> NoPV
+  setPV = undefined
+
+instance Diagnostic ElabError where
+  diagnosticMessage = \case
+    AlreadyDefined x -> "multiple definitions for" <\> pretty x
+    Unsolvable x _ -> "cannot solve constraints of" <\> pretty x
+    TypeError e -> diagnosticMessage e
+    SolverError e -> diagnosticMessage e
+    ParseError e -> diagnosticMessage e
+    IOError e -> diagnosticMessage e
+
+instance HasProvenance ElabError where
+  getPV = \case
+    AlreadyDefined x -> getPV x
+    Unsolvable x _ -> getPV x
+    TypeError e -> getPV e
+    SolverError e -> getPV e
+    ParseError e -> getPV e
+    IOError _ -> NoPV
+  setPV = undefined
 
 -------------------------------------------------------------------------------
 
@@ -78,7 +153,7 @@ data Definition
         { _name        :: Name
         , _assumedType :: Maybe Type
         , _term        :: Term
-        , _error       :: Error
+        , _error       :: ElabError  -- TODO: TypeError
         }
     
     -- | An inferred type may be based on a previously assumed type. Every
@@ -102,7 +177,7 @@ data Definition
         , _term         :: Term
         , _inferredType :: Type
         , _vc           :: Con
-        , _error        :: Error
+        , _error        :: ElabError
         }
 
     -- A verified definition has an assignment for all κ variables that
@@ -166,7 +241,7 @@ sortedDefinitions =
   map snd . List.sortBy (compare `on` getPV . fst) . Map.toList
 
 -- | Returns all type errors in the environment.
-getTypeErrors :: Environment -> [Error]
+getTypeErrors :: Environment -> [ElabError]
 getTypeErrors = map _error . filter isFailed . sortedDefinitions
 
 -- | Return type signatures for all fully solved definitions in the environment,

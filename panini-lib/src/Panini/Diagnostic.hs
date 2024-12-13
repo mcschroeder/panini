@@ -1,38 +1,65 @@
 {-# OPTIONS_GHC -Wno-orphans #-}  -- TODO: remove
-module Panini.Diagnostic (Diagnostic(..), prettyDiagnostic) where
+module Panini.Diagnostic 
+  ( Diagnostic(..)  
+  , DiagnosticEnvelope(..)
+  , Severity(..)
+  , isError
+  , prettyError
+  , prettyErrorDiagnostic
+  ) where
 
-import Control.Exception (displayException)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
 import Prettyprinter qualified as PP
+import Control.Exception
 
 -------------------------------------------------------------------------------
 
--- TODO: remove HasProvenance constraint
-
-class HasProvenance a => Diagnostic a where
+class Diagnostic a where
   diagnosticMessage :: a -> Doc
 
-instance Diagnostic IOError where
-  diagnosticMessage e = pretty $ displayException e
+instance Diagnostic Doc where
+  diagnosticMessage = id
 
--- TODO: remove instance
-instance HasProvenance IOError where
-  getPV _ = NoPV
-  setPV _ = id
+instance Diagnostic IOError where  
+  diagnosticMessage e = pretty $ displayException e
 
 -------------------------------------------------------------------------------
 
-prettyDiagnostic :: Diagnostic a => a -> Doc
-prettyDiagnostic diag = nest 2 $ ann Message (header <+> group message) <> source
+data DiagnosticEnvelope a = DiagnosticEnvelope
+  { rapporteur :: String
+  , severity :: Severity
+  , provenance :: PV
+  , diagnostic :: a
+  } 
+  deriving stock (Functor, Foldable, Traversable)
+
+data Severity = SevError | SevWarning | SevInfo | SevTrace
+  deriving stock (Eq, Ord, Show)
+
+isError :: DiagnosticEnvelope a -> Bool
+isError = (SevError ==) . severity
+
+instance HasProvenance (DiagnosticEnvelope a) where
+  getPV = provenance
+  setPV pv e = e { provenance = pv }
+
+-------------------------------------------------------------------------------
+
+-- TODO: where to put this?
+
+prettyError :: (Diagnostic a, HasProvenance a) => a -> Doc
+prettyError e = prettyErrorDiagnostic (diagnosticMessage e) (getPV e)
+
+prettyErrorDiagnostic :: Doc -> PV -> Doc
+prettyErrorDiagnostic msg pv = nest 2 $ ann Message (header <+> group msg) <> source
  where
-  (loc,src) = prettyLoc $ getPV diag
+  (loc,src) = prettyLoc pv
   header    = loc <> ":" <+> ann Error "error" <> ":"
   source    = (maybe mempty (PP.hardline <>) src)
-  message   = diagnosticMessage diag
 
 prettyLoc :: PV -> (Doc, Maybe Doc)
 prettyLoc = \case

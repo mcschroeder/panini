@@ -30,11 +30,22 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
+import Panini.Diagnostic
+import Panini.Pretty (pretty)
 
 -------------------------------------------------------------------------------
 
 -- TODO
 data Error = ParserError Text PV
+
+instance HasProvenance Error where
+  getPV (ParserError _ pv) = pv
+  setPV pv (ParserError e _) = ParserError e pv
+
+instance Diagnostic Error where
+  diagnosticMessage (ParserError e _) = pretty e
+
+
 
 parseProgram :: FilePath -> Text -> Either Error Program
 parseProgram = parseA $ whitespace >> many statement

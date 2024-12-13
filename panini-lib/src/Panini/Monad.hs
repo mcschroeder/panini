@@ -9,19 +9,21 @@ module Panini.Monad
   , catchError
   , tryError
   , continueOnError
-  , liftError
-  , (??)
   , liftE
   , (?)
+  , liftError
+  , (??)
   , liftIO
   , tryIO
-  , logError
-  , logMessage
-  , logData
-  , logEvent
-  , logRegexInfo
+  , report
+  , warn
+  , info
+  , trace
   , (§)
   , (§§)
+  , logRegexInfo
+  , logMessage
+  , logData
   ) where
 
 import Control.Exception
@@ -35,24 +37,26 @@ import Data.Maybe
 import GHC.Stack
 import Panini.Diagnostic
 import Panini.Environment
-import Panini.Events
 import Panini.Modules
 import Panini.Pretty
+import Panini.Provenance
 import Prelude
 import System.Time.Extra
 
 -------------------------------------------------------------------------------
 
--- | /Panini/ monad.
+-- | The Panini monad, parameterized by the type of errors it produces.
 type Pan e = StateT PanState (ExceptT e IO)
 
--- | Run an action in the /Panini/ monad with the given starting state. Returns
+-- | Run an action in the Panini monad with the given starting state. Returns
 -- either an unrecoverable error or the result of the computation and the final
 -- state (which might contain other kinds of errors and warnings).
-runPan :: Diagnostic e => PanState -> Pan e a -> IO (Either e (a, PanState))
+runPan 
+  :: (Diagnostic e, HasProvenance e) 
+  => PanState -> Pan e a -> IO (Either e (a, PanState))
 runPan s0 m = runExceptT $ runStateT m' s0
   where
-    m' = m `catchError` \e -> logError e >> throwError e
+    m' = m `catchError` \e -> report SevError (getPV e) e >> throwError e
 
 -------------------------------------------------------------------------------
 
@@ -63,7 +67,7 @@ data PanState = PanState {
 
   -- | Function for handling diagnostic events. Called synchronously whenever an
   -- event occurs. Default is @const (return ())@.
-  , eventHandler :: Event -> IO ()
+  , diagnosticHandler :: forall a. Diagnostic a => DiagnosticEnvelope a -> IO ()
 
   , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
   , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
@@ -76,7 +80,7 @@ defaultState = PanState
   { environment = mempty
   , kvarCount = 0
   , loadedModules = []
-  , eventHandler = const (return ())
+  , diagnosticHandler = const (return ())
   , smtTimeout = 1
   , regexTimeout = 5
   , debugTraceFrontendGraph = False
@@ -84,33 +88,38 @@ defaultState = PanState
 
 -------------------------------------------------------------------------------
 
--- | Throw an `Error` in the /Panini/ monad.
+-- | Throw an error in the Panini monad, halting the current computation.
 throwError :: e -> Pan e a
-throwError err = lift $ throwE err
+throwError e = lift (throwE e)
 
--- | Catch an `Error` in the /Panini/ monad.
+-- | Catch an error in the Panini monad.
 catchError :: Pan e1 a -> (e1 -> Pan e2 a) -> Pan e2 a
-catchError m h = StateT $ \s -> runStateT m s `catchE` \e1 -> runStateT (h e1) s
+catchError m h = StateT $ \s -> runStateT m s `catchE` \e -> runStateT (h e) s
 
--- | Try an action and return any thrown `Error`.
+-- | Try an action and return any thrown error event.
 tryError :: Pan e1 a -> Pan e2 (Either e1 a)
 tryError m = catchError (Right <$> m) (return . Left)
 
--- | Try an action; if an error occurs, log it but don't propagate it further.
-continueOnError :: Diagnostic e => Pan e () -> Pan e ()
-continueOnError m = catchError m logError
+-- | Try an action; if an error occurs, report it but don't propagate it further.
+continueOnError :: (Diagnostic e1, HasProvenance e1) => Pan e1 () -> Pan e2 ()
+continueOnError m = m `catchError` \e -> report SevError (getPV e) e
 
-liftError :: (e1 -> e2) -> Pan e1 a -> Pan e2 a
-liftError f m = m `catchError` \e1 -> throwError (f e1)
-
-(??) :: Pan e1 a -> (e1 -> e2) -> Pan e2 a
-(??) = flip liftError
-
+-- | Lift an 'Either' into the Panini monad, treating 'Left' as an error.
 liftE :: (e1 -> e2) -> Either e1 a -> Pan e2 a
 liftE f = either (throwError . f) return
 
+-- | An infix synonym for 'liftE'.
 (?) :: Either e1 a -> (e1 -> e2) -> Pan e2 a
 (?) = flip liftE
+
+-- | Lift a Panini computation with one type of error into a Panini computation
+-- with a different type of error.
+liftError :: (e1 -> e2) -> Pan e1 a -> Pan e2 a
+liftError f m1 = m1 `catchError` \e1 -> throwError (f e1)
+
+-- | An infix synonym for 'liftEvents'.
+(??) :: Pan e1 a -> (e1 -> e2) -> Pan e2 a
+(??) = flip liftError
 
 -------------------------------------------------------------------------------
 
@@ -120,36 +129,52 @@ tryIO m = either throwError return =<< liftIO (try @IOError m)
 
 -------------------------------------------------------------------------------
 
-(§) :: HasCallStack => Pretty a => a -> Doc -> Pan e a
-x § msg = withFrozenCallStack $ logMessage msg >> logData x >> return x
-infix 0 §
-
-(§§) :: HasCallStack => Pretty a => Pan e a -> Doc -> Pan e a
-m §§ msg = withFrozenCallStack $ logMessage msg >> m >>= \x -> logData x >> return x
-infix 0 §§
-
-logEvent :: Event -> Pan e ()
-logEvent d = do
-  f <- gets eventHandler
-  liftIO $ f d
-
-logError :: Diagnostic e => e -> Pan e ()
-logError = logEvent . ErrorEvent
-
-logMessage :: HasCallStack => Doc -> Pan e ()
-logMessage msg = logEvent $ LogMessage src msg
-  where src = getPaniniModuleName callStack
-
-logData :: (HasCallStack, Pretty a) => a -> Pan e ()
-logData = logEvent . LogData src . pretty
-  where src = getPaniniModuleName callStack
+report :: (HasCallStack, Diagnostic a) => Severity -> PV -> a -> Pan e ()
+report severity provenance diagnostic = do
+  let rapporteur = getPaniniModuleName callStack
+  PanState{diagnosticHandler} <- get
+  liftIO $ diagnosticHandler DiagnosticEnvelope{..}
 
 getPaniniModuleName :: CallStack -> String
 getPaniniModuleName cs =
   let loc = srcLocModule $ snd $ head $ getCallStack cs
   in fromMaybe loc $ List.stripPrefix "Panini." loc
 
+warn :: (HasCallStack, Diagnostic e, HasProvenance e) => e -> Pan e ()
+warn w = withFrozenCallStack $ report SevWarning (getPV w) w
+-- TODO: if treatWarningsAsErrors then throwError w else ...
+
+info :: (HasCallStack, Diagnostic a) => a -> Pan e ()
+info = withFrozenCallStack $ report SevInfo NoPV
+
+trace :: (HasCallStack, Diagnostic a) => a -> Pan e ()
+trace = withFrozenCallStack $ report SevTrace NoPV
+
+(§) :: (HasCallStack, Pretty a) => a -> Doc -> Pan e a
+x § msg = withFrozenCallStack $ do 
+  info msg
+  trace (pretty x)
+  return x
+infix 0 §
+
+(§§) :: (HasCallStack, Pretty a) => Pan e a -> Doc -> Pan e a
+m §§ msg = withFrozenCallStack $ do
+  info msg
+  x <- m
+  trace (pretty x)
+  return x
+infix 0 §§
+
+-- TODO: move somewhere else
 logRegexInfo :: Pan e ()
 logRegexInfo = do
   t <- showDuration <$> gets regexTimeout
-  logEvent $ LogMessage "Regex" $ "Simplifier timeout:" <+> pretty t
+  info $ "Simplifier timeout:" <+> pretty t
+
+-- TODO: get rid of this synonym
+logMessage :: HasCallStack => Doc -> Pan e ()
+logMessage = withFrozenCallStack info
+
+-- TODO: get rid of this synonym
+logData :: (HasCallStack, Pretty a) => a -> Pan e ()
+logData = withFrozenCallStack $ trace . pretty 

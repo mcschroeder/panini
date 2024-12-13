@@ -11,9 +11,9 @@ import Panini.CLI.Error
 import Panini.CLI.Options
 import Panini.CLI.REPL
 import Panini.CLI.Test
+import Panini.Diagnostic
 import Panini.Elab
 import Panini.Environment
-import Panini.Events
 import Panini.Frontend.Python
 import Panini.Monad
 import Panini.Pretty as PP
@@ -51,13 +51,13 @@ batchMain panOpts = do
   traceFile <- whenMaybe panOpts.traceToFile 
                 (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)
       
-  let eventHandler ev0 = do
+  let diagnosticHandler ev0 = do
         ev <- updatePV addSourceLines ev0
-        whenJust traceFile (putEventFile panOpts ev)
-        when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
+        whenJust traceFile (putDiagnosticFile panOpts ev)
+        when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
 
   let panState0 = defaultState 
-        { eventHandler
+        { diagnosticHandler
         , Panini.Monad.smtTimeout = panOpts.smtTimeout 
         , Panini.Monad.regexTimeout = panOpts.regexTimeout
         , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
@@ -65,26 +65,28 @@ batchMain panOpts = do
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ do
-    smtInit ?? PaniniError
+    smtInit ?? (ElabError . SolverError . SmtSolverError)
     logRegexInfo
     let fp = fromMaybe "<stdin>" panOpts.inputFile
     logMessage $ "Read" <+> pretty fp
     src <- tryIO (maybe Text.getContents Text.readFile panOpts.inputFile) ?? AppIOError
     (module_, prog) <- case determineFileType panOpts fp of
-      PythonSource -> loadModulePython src fp ?? PythonError
+      PythonSource -> loadModulePython src fp
       PaniniSource -> loadModule src fp
     maybeSavePanFile panOpts module_ prog
-    elaborate module_ prog ?? PaniniError
+    elaborate module_ prog ?? ElabError
     vsep . map pretty . getSolvedTypes <$> gets environment
 
   whenJust traceFile hClose
 
   case result of
-    Left  _ -> exitFailure
+    Left _ -> exitFailure
     Right (doc,panState1) -> do
       case panOpts.outputFile of
         Just outFile -> withFile outFile WriteMode $ putDocFile panOpts doc
         Nothing -> putDocStdout panOpts $ doc <> "\n"
-      if null $ getTypeErrors panState1.environment
-        then exitSuccess
-        else exitFailure
+      case getTypeErrors panState1.environment of
+        [] -> exitSuccess
+        xs -> do
+          putDocStderr panOpts (vsep (map prettyError xs) <> "\n")
+          exitFailure

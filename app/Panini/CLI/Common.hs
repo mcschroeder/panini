@@ -5,8 +5,8 @@ import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Error
 import Panini.CLI.Options
+import Panini.Diagnostic
 import Panini.Elab
-import Panini.Events
 import Panini.Modules
 import Panini.Monad
 import Panini.Pretty as PP
@@ -21,7 +21,7 @@ import System.IO
 loadModule :: Text -> FilePath -> Pan AppError (Module, Program)
 loadModule src fp = do
   module_ <- liftIO $ getModule fp
-  prog <- parseSource (moduleLocation module_) src ?? ParseError
+  prog <- parseSource (moduleLocation module_) src ?? ElabError
   return (module_, prog)
 
 data FileType = PaniniSource | PythonSource
@@ -58,11 +58,24 @@ openLogFileFor f = do
   hSetBuffering h NoBuffering
   return h
 
-putEventFile :: PanOptions -> Event -> Handle -> IO ()
-putEventFile o e = putDocFile o $ prettyEvent e <> "\n"
+putDiagnosticFile :: Diagnostic a => PanOptions -> DiagnosticEnvelope a -> Handle -> IO ()
+putDiagnosticFile o e = putDocFile o $ prettyDiagnostic e <> "\n"
 
-putEventStderr :: PanOptions -> Event -> IO ()
-putEventStderr o e = putDocStderr o $ prettyEvent e <> "\n"
+putDiagnosticStderr :: Diagnostic a => PanOptions -> DiagnosticEnvelope a -> IO ()
+putDiagnosticStderr o e = putDocStderr o $ prettyDiagnostic e <> "\n"
+
+prettyDiagnostic :: Diagnostic a => DiagnosticEnvelope a -> Doc
+prettyDiagnostic diagEnv = case diagEnv.severity of
+  SevError -> prettyErrorDiagnostic msg diagEnv.provenance
+  SevWarning -> ann Error "warning:" <+> align msg
+  SevInfo -> ann Margin (pretty src) <+> align msg
+  SevTrace ->
+    ann Margin (divider symDivH2 (Just $ Left src)) <\\> 
+    msg <\\>
+    ann Margin (divider symDivH2 Nothing)
+ where
+  src = "(" ++ diagEnv.rapporteur ++ ")"
+  msg = diagnosticMessage diagEnv.diagnostic
 
 -------------------------------------------------------------------------------
 

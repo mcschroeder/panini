@@ -17,7 +17,6 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.Environment
-import Panini.Error
 import Panini.Infer
 import Panini.Modules
 import Panini.Monad
@@ -34,18 +33,19 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- | Retrieve a definition from the environment.
-envLookup :: Name -> Pan Error (Maybe Definition)
+envLookup :: Name -> Pan ElabError (Maybe Definition)
 envLookup x = Map.lookup x <$> gets environment
 
 -- | Extend the environment with a new definition.
-envExtend :: Name -> Definition -> Pan Error ()
+envExtend :: Name -> Definition -> Pan ElabError ()
 envExtend x d = do
-  when (isFailed d) $ logError d._error
+  -- TODO: what was this even?
+  -- when (isFailed d) $ logError d._error
   modify' $ \s -> s { environment = Map.insert x d s.environment }
 
 -- TODO: do we need this?
 -- -- | Remove a definition from the environment.
--- envDelete :: Name -> Pan Error ()
+-- envDelete :: Name -> Pan ElabError ()
 -- envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
 
 -------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ envExtend x d = do
 -- changes to the environment are rolled back. Note that errors during type
 -- inference or VC solving usually merely result in a 'Rejected' or 'Invalid'
 -- definition to be stored in the environment and will *not* cause any rollback.
-elaborate :: Module -> Program -> Pan Error ()
+elaborate :: Module -> Program -> Pan ElabError ()
 elaborate thisModule prog = do
   env0 <- get
   unless (thisModule == replModule) $
@@ -76,7 +76,7 @@ elaborate thisModule prog = do
                       -- TODO: add provenance to error
 
 -- | Add an assumed type to the environment.
-assume :: Name -> Type -> Pan Error ()
+assume :: Name -> Type -> Pan ElabError ()
 assume x t = do
   logMessage $ "Assume" <+> pretty x <+> ":" <+> pretty t
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
@@ -85,7 +85,7 @@ assume x t = do
 -- | Add a definition to the environment. Infers and verifies the definition's
 -- type and potentially reconciles it with a previously assumed type for the
 -- same name.
-define :: Name -> Term -> Pan Error ()
+define :: Name -> Term -> Pan ElabError ()
 define x e = do
   logMessage $ "Define" <+> pretty x <+> "= ..."
   t0m <- envLookup x >>= \case
@@ -95,9 +95,9 @@ define x e = do
 
   logMessage $ "Infer type of" <+> pretty x
   let syn = maybe (infer mempty e) (check mempty e) t0m
-  tryError syn >>= \case
+  (tryError syn ?? TypeError) >>= \case
     Left err -> do
-      envExtend x $ Rejected x t0m e err
+      envExtend x $ Rejected x t0m e (TypeError err)
 
     Right (t1,vc) -> do
       logData t1
@@ -113,9 +113,9 @@ define x e = do
 
       logMessage "Solve VC"
       logData vc
-      tryError (Solver.solve ks_ex vc) >>= \case
+      (tryError (Solver.solve ks_ex vc) ?? SolverError) >>= \case
         Left err -> do
-          envExtend x $ Invalid x t0m e t2 vc err
+          envExtend x $ Invalid x t0m e t2 vc (SolverError err)
 
         Right Solver.Invalid -> do
           envExtend x $ Invalid x t0m e t2 vc (Unsolvable x vc)
@@ -128,7 +128,7 @@ define x e = do
           t3 <- makeFinalType s t2 t0m
           envExtend x $ Verified x t0m e t2 vc s t3
 
-makeFinalType :: Assignment -> Type -> Maybe Type -> Pan Error Type
+makeFinalType :: Assignment -> Type -> Maybe Type -> Pan ElabError Type
 makeFinalType s t1 t0m = do
   t2 <- apply s t1        § "Apply solution to type"
   t3 <- simplify t2       § "Simplify type"
@@ -170,19 +170,19 @@ matchTypeSig = go
   go _ _ = impossible
 
 -- | Import a module into the environment.
-import_ :: Module -> Pan Error ()
+import_ :: Module -> Pan ElabError ()
 import_ otherModule = do
   logMessage $ "Import" <+> pretty otherModule
   redundant <- elem otherModule <$> gets loadedModules
   unless redundant $ do
     otherSrc <- (tryIO $ Text.readFile $ moduleLocation otherModule) ?? IOError
-    otherProg <- parseSource (moduleLocation otherModule) otherSrc ?? ParseError
+    otherProg <- parseSource (moduleLocation otherModule) otherSrc
     elaborate otherModule otherProg
 
 -- TODO: maybe not the right location for this
-parseSource :: FilePath -> Text -> Pan Panini.Parser.Error Program
+parseSource :: FilePath -> Text -> Pan ElabError Program
 parseSource path src = do
   logMessage $ "Parse" <+> pretty path
-  prog <- Panini.Parser.parseProgram path src ? id
+  prog <- Panini.Parser.parseProgram path src ? ParseError
   logData prog
   return prog

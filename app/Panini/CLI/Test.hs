@@ -67,9 +67,9 @@ testMain globalOpts = assert globalOpts.testMode $ do
     traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)
     when globalOpts.trace $ putDoc "\n"
     let panState0 = defaultState 
-          { eventHandler = \ev -> do
-              whenJust traceFile (putEventFile globalOpts ev)
-              when globalOpts.trace (putEventStderr globalOpts ev)
+          { diagnosticHandler = \ev -> do
+              whenJust traceFile (putDiagnosticFile globalOpts ev)
+              when globalOpts.trace (putDiagnosticStderr globalOpts ev)
               -- note how we don't log errors to stderr by default here
           
           , Panini.Monad.smtTimeout = globalOpts.smtTimeout
@@ -78,15 +78,15 @@ testMain globalOpts = assert globalOpts.testMode $ do
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
-      smtInit ?? PaniniError
+      smtInit ?? (ElabError . SolverError . SmtSolverError)
       logRegexInfo
       (module_, prog) <- case determineFileType panOpts inFile of
-        PythonSource -> loadModulePython src inFile ?? PythonError
+        PythonSource -> loadModulePython src inFile
         PaniniSource -> loadModule src inFile
       maybeSavePanFile panOpts module_ prog
-      elaborate module_ prog ?? PaniniError
+      elaborate module_ prog ?? ElabError
       (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
-      return $ vsep $ (map prettyDiagnostic es) ++ (map pretty ts)
+      return $ vsep $ (map prettyError es) ++ (map pretty ts)
 
     whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
@@ -95,7 +95,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
       Left e | Just UserInterrupt <- asyncExceptionFromException e -> throw e
       _ -> return ()
 
-    let output = either viaShow (either prettyDiagnostic fst) result
+    let output = either viaShow (either prettyError fst) result
     let actual = renderDoc (fileRenderOptions globalOpts) output
     return (time, actual)
   

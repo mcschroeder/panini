@@ -17,7 +17,6 @@ import Data.List (partition)
 import Data.Map qualified as Map
 import Data.Map.Strict (Map)
 import Data.Set qualified as Set
-import Panini.Error
 import Panini.Monad
 import Panini.Panic
 import Panini.Pretty
@@ -26,10 +25,11 @@ import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
+import Panini.Environment (SolverError(..))
 
 -- | Solve non-nested constrained Horn clauses (CHCs) given a set of candidates.
 -- Returns 'Nothing' if no solution could be found.
-solve :: [FlatCon] -> Map [Base] [Pred] -> Pan Error (Maybe Assignment)
+solve :: [FlatCon] -> Map [Base] [Pred] -> Pan SolverError (Maybe Assignment)
 solve cs qs = do
   logMessage $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
@@ -54,7 +54,7 @@ solve cs qs = do
   logData $ sigma <> parens sym_csp <+> symEq <+> pretty csp2
 
   logMessage $ "Validate" <+> sigma <> parens sym_csp
-  smtCheck csp2 >>= \case
+  (smtCheck csp2 ?? SmtSolverError) >>= \case
     Sat -> return $ Just s
     _   -> return Nothing
  
@@ -64,23 +64,23 @@ solve cs qs = do
 
 -- | Iteratively weaken a candidate solution until an assignment satisfying all
 -- given constraints is found.
-fixpoint :: [FlatCon] -> Assignment -> Pan Error Assignment
+fixpoint :: [FlatCon] -> Assignment -> Pan SolverError Assignment
 fixpoint cs s = do
   logData $ sigma <+> symEq <+> pretty s
-  r <- filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
+  r <- filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs ?? SmtSolverError
   case r of
     []  -> return s
     c:_ -> fixpoint cs =<< weaken s c
 
 -- | Weaken an assignment to satisfy a given constraint.
-weaken :: Assignment -> FlatCon -> Pan Error Assignment
+weaken :: Assignment -> FlatCon -> Pan SolverError Assignment
 weaken s (FAll xs p (PAppK k ys)) =
   case Map.lookup k s of
     Nothing -> panic $ "missing Horn assignment for" <+> pretty k
     Just q0 -> do
       let p' = apply s p
       let keep q = do logMessage $ "Keep" <+> pretty q <+> "?"
-                      isSat <$> smtCheck [FAll xs p' (substN ys (kparams k) q)]
+                      isSat <$> smtCheck [FAll xs p' (substN ys (kparams k) q)] ?? SmtSolverError
       qs' <- meets <$> filterM keep (explode q0)
       return $ Map.insert k qs' s
 

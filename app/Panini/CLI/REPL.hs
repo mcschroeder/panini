@@ -22,7 +22,6 @@ import Panini.CLI.Options
 import Panini.Diagnostic
 import Panini.Elab
 import Panini.Environment
-import Panini.Events
 import Panini.Frontend.Python
 import Panini.Monad
 import Panini.Pretty
@@ -52,21 +51,22 @@ replMain panOpts = do
 
   traceFile <- whenMaybe panOpts.traceToFile (openLogFileFor "repl")
 
-  let eventHandler ev0 = do
+  let diagnosticHandler :: Diagnostic a => DiagnosticEnvelope a -> IO ()
+      diagnosticHandler ev0 = do
         ev <- updatePV addSourceLines ev0
-        whenJust traceFile (putEventFile panOpts ev)
-        when (panOpts.trace || isErrorEvent ev) (putEventStderr panOpts ev)
+        whenJust traceFile (putDiagnosticFile panOpts ev)
+        when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
         -- TODO: consider logging with getExternalPrint instead of to stderr
 
   let panState0 = defaultState 
-        { eventHandler
+        { diagnosticHandler
         , Panini.Monad.smtTimeout = panOpts.smtTimeout
         , Panini.Monad.regexTimeout = panOpts.regexTimeout
         , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
         }
 
   void $ runPan panState0 $ runInputT replConf $ do
-    lift (smtInit ?? PaniniError)
+    lift (smtInit ?? (ElabError . SolverError . SmtSolverError))
     lift logRegexInfo
     repl panOpts
 
@@ -147,10 +147,10 @@ loadFile panOpts f = lift $ continueOnError $ do
   logMessage $ "Read" <+> pretty f
   src <- (tryIO $ Text.readFile f) ?? AppIOError
   (module_, prog) <- case determineFileType panOpts f of
-    PythonSource -> loadModulePython src f ?? PythonError
+    PythonSource -> loadModulePython src f
     PaniniSource -> loadModule src f
   maybeSavePanFile panOpts module_ prog
-  elaborate module_ prog ?? PaniniError
+  elaborate module_ prog ?? ElabError
   -- TODO: output summary like "Ok, 23 modules loaded."
 
 showEnv :: PanOptions -> String -> InputT (Pan AppError) ()
@@ -166,11 +166,11 @@ showEnv panOpts _ = do
     Assumed{_name,_type} -> 
       "⊢" <+> pretty _name <+> colon <+> pretty _type
     Rejected{_name,_error} -> hang 2 $ 
-      "↯" <+> pretty _name <\> prettyDiagnostic _error
+      "↯" <+> pretty _name <\> prettyError _error
     Inferred{_name,_inferredType} -> 
       "⊢" <+> pretty _name <+> colon <+> pretty _inferredType
     Invalid{_name,_inferredType,_error} -> hang 2 $ 
-      "↯" <+> pretty _name <+> colon <+> pretty _inferredType <\> prettyDiagnostic _error
+      "↯" <+> pretty _name <+> colon <+> pretty _inferredType <\> prettyError _error
     Verified{_name,_solvedType} -> 
       "⊨" <+> pretty _name <+> colon <+> pretty _solvedType
     Unverified{_name,_solvedType,_reason} -> hang 2 $
@@ -180,9 +180,9 @@ evaluateInput :: PanOptions -> String -> InputT (Pan AppError) ()
 evaluateInput panOpts input = lift $ continueOnError $ do
   let src = Text.pack input
   (module_, prog) <- case determineFileType panOpts "<repl>" of
-    PythonSource -> loadModulePython src "<repl>" ?? PythonError
+    PythonSource -> loadModulePython src "<repl>"
     PaniniSource -> loadModule src "<repl>"
-  elaborate module_ prog ?? PaniniError
+  elaborate module_ prog ?? ElabError
 
 -------------------------------------------------------------------------------
 

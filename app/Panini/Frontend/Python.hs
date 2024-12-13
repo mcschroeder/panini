@@ -18,8 +18,9 @@ import Panini.Pretty.Graphviz
 import Panini.Syntax
 import Panini.Pretty
 import Prelude
+import Panini.CLI.Error
 
-loadModulePython :: Text -> FilePath -> Pan Py.Error (Module, Program)
+loadModulePython :: Text -> FilePath -> Pan AppError (Module, Program)
 loadModulePython src fp = do
   let src'   = Text.unpack src
   (pyMod,_) <- parseModule src' fp     ? paErr §§ "Parse Python source"
@@ -35,7 +36,7 @@ loadModulePython src fp = do
  where
   paErr = \e -> pyErr $ Py.ParserError e (getParseErrorPV e)
   tyErr = pyErr . Py.TypeError
-  pyErr = id --PythonFrontendError
+  pyErr = PythonError
 
   debugTraceGraph dom = whenM (gets debugTraceFrontendGraph) $ do
     let graphFile = fp <> ".dom.svg"

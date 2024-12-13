@@ -62,8 +62,6 @@ library
     Panini.Diagnostic
     Panini.Elab
     Panini.Environment
-    Panini.Error
-    Panini.Events
     Panini.Infer
     Panini.Modules
     Panini.Monad
