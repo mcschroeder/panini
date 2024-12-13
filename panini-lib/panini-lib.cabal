@@ -1,5 +1,5 @@
 cabal-version:      3.4
-name:               panini-core
+name:               panini-lib
 version:            0.1
 --synopsis:
 author:             Michael Schröder

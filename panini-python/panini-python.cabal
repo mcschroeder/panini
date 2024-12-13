@@ -36,7 +36,7 @@ library
     , containers
     , extra
     , language-python
-    , panini-core
+    , panini-lib
     , pretty
     , prettyprinter
     , text

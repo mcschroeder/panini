@@ -32,7 +32,7 @@ library
     -Wno-missing-kind-signatures
   build-depends:
       base ^>=4.18
-    , panini-core
+    , panini-lib
     , panini-python
     , ansi-terminal
     , containers

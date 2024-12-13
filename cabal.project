@@ -1,6 +1,6 @@
 packages: 
   .
-  panini-core
+  panini-lib
   panini-python
   regex-algebra
 
