@@ -13,24 +13,24 @@ import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
 import Panini.Monad
+import Panini.Pretty
+import Panini.SMT.Error
 import Panini.SMT.SMTLIB
 import Prelude
 import System.Exit
 import System.Process
-import Panini.Environment (SmtError(..))
-import Panini.Pretty
 
 -- TODO: add provenance to solver errors
 
 -------------------------------------------------------------------------------
 
-smtInit :: Pan SmtError ()
+smtInit :: Pan Error ()
 smtInit = do
   r <- liftIO $ try @IOException $ readProcessWithExitCode "z3" ["-version"] ""
   case r of
-    Left err -> throwError $ SmtError (show err)
+    Left err -> throwError $ InitError Nothing (show err)
     Right (code, output, _) -> case code of
-      ExitFailure _ -> throwError $ SmtError output
+      ExitFailure c -> throwError $ InitError (Just c) output
       ExitSuccess -> do
         let version = dropWhileEnd isSpace output
         info $ pretty version
@@ -43,7 +43,7 @@ isSat :: Result -> Bool
 isSat Sat = True
 isSat _   = False
 
-smtCheck :: SMTLIB a => [a] -> Pan SmtError Result
+smtCheck :: SMTLIB a => [a] -> Pan Error Result
 smtCheck cs = do
   let foralls = map (Text.unpack . toSMTLIB) cs
   let declares = []
@@ -62,5 +62,5 @@ smtCheck cs = do
       "unsat"   -> return Unsat
       "unknown" -> return (Unknown "")
       "timeout" -> return (Unknown "timeout")
-      x         -> throwError $ SmtError x
-    ExitFailure _ -> throwError $ SmtError output
+      x         -> throwError $ QueryError args query Nothing x
+    ExitFailure c -> throwError $ QueryError args query (Just c) output

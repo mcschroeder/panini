@@ -135,3 +135,6 @@ symTop, symBot, symInf :: Doc
 symTop = "⊤" `orASCII` "top"
 symBot = "⊥" `orASCII` "bot"
 symInf = "∞" `orASCII` "inf"
+
+bullet :: Doc
+bullet = "•" `orASCII` "o"

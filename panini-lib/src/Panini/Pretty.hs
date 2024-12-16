@@ -13,6 +13,7 @@ module Panini.Pretty
   , parensIf
   , prettyL, prettyR
   , divider
+  , bulletpoints
   , module Panini.Pretty.Doc
   , module Panini.Pretty.Fixity
   , module Panini.Pretty.Render
@@ -159,3 +160,8 @@ divider d label = PP.column $ \c -> PP.pageWidth $ \pw -> case label of
   getW = \case
     PP.AvailablePerLine w _ -> w
     PP.Unbounded            -> 80
+
+-------------------------------------------------------------------------------
+
+bulletpoints :: [Doc] -> Doc
+bulletpoints = PP.concatWith (<\\>) . map (\x -> bullet <+> PP.nest 2 x)

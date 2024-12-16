@@ -12,6 +12,7 @@ import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
 import Panini.Syntax
+import Panini.SMT.Error qualified as SMT
 import Prelude
 import Panini.Abstract.AValue
 import Panini.Parser qualified
@@ -30,10 +31,7 @@ data ElabError where
 
 data SolverError where
   AbstractionToValueImpossible  :: Name -> ARel -> AValue -> SolverError
-  SmtSolverError                :: SmtError -> SolverError
-
-data SmtError where
-  SmtError :: String -> SmtError
+  SmtSolverError                :: SMT.Error -> SolverError
 
 data TypeError where
   UnknownVar        :: Name -> TypeError
@@ -52,10 +50,6 @@ instance HasProvenance TypeError where
     InvalidSubtype t _  -> getPV t
     ExpectedFunType e _ -> getPV e
   setPV = undefined
-
-instance Diagnostic SmtError where
-  diagnosticMessage = \case
-    SmtError e -> "unexpected SMT solver output:" <\> pretty e
   
 instance Diagnostic SolverError where
   diagnosticMessage = \case

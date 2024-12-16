@@ -76,6 +76,7 @@ library
     Panini.Pretty.Symbols
     Panini.Provenance
     Panini.Regex.SMT
+    Panini.SMT.Error
     Panini.SMT.RegLan
     Panini.SMT.SMTLIB
     Panini.SMT.Z3
