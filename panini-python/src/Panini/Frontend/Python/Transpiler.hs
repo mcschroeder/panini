@@ -70,7 +70,7 @@ mangle x = Name (Text.pack x.ident_string) (getPV x)
 blockName :: Label -> Name
 blockName l = Name ("L" <> Text.pack (show l)) NoPV 
 
-returnTypeOf :: (Functor t, Annotated t, HasProvenance a) => Typed t a -> Transpiler PyType
+returnTypeOf :: (Annotated t, HasProvenance (Typed t a)) => Typed t a -> Transpiler PyType
 returnTypeOf a = case typeOf a of
   PyType.Callable _ r -> return r
   _ -> lift $ throwE $ OtherError "expected Callable type" (getPV a)
