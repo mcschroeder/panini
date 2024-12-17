@@ -61,7 +61,9 @@ library
     Panini.Abstract.Semantics
     Panini.Diagnostic
     Panini.Elab
-    Panini.Environment
+    Panini.Elab.Definition
+    Panini.Elab.Environment
+    Panini.Elab.Error
     Panini.Infer
     Panini.Modules
     Panini.Monad

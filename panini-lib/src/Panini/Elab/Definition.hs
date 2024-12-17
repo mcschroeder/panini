@@ -1,75 +1,13 @@
-{-# LANGUAGE RecordWildCards #-}
-module Panini.Environment where
+module Panini.Elab.Definition where
 
-import Data.Function
-import Data.List qualified as List
-import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Maybe
-import Panini.Diagnostic
-import Panini.Parser qualified
-import Panini.Pretty
-import Panini.Provenance
+import Panini.Elab.Error
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
-import Panini.Solver.Error qualified as Solver
 import Panini.Syntax
 import Prelude
 
-------------------------------------------------------------------------------
-
--- TODO: move these out of here once the circular dependency is gone
-
-data ElabError where
-  AlreadyDefined  :: Name -> ElabError
-  Unsolvable      :: Name -> Con -> ElabError
-  SolverError     :: Solver.Error -> ElabError
-  TypeError       :: TypeError -> ElabError
-  ParseError      :: Panini.Parser.Error -> ElabError
-  IOError         :: IOError -> ElabError
-
-data TypeError where
-  UnknownVar        :: Name -> TypeError
-  InvalidSubtype    :: Type -> Type -> TypeError
-  ExpectedFunType   :: Term -> Type -> TypeError
-
-instance Diagnostic TypeError where
-  diagnosticMessage = \case
-    UnknownVar x         -> "unknown variable" <\> pretty x
-    InvalidSubtype t1 t2 -> "invalid subtype:" <\> pretty t1 <+> "<:" <+> pretty t2
-    ExpectedFunType _ t  -> "invalid function type:" <\> pretty t
- 
-instance HasProvenance TypeError where
-  getPV = \case
-    UnknownVar x        -> getPV x
-    InvalidSubtype t _  -> getPV t
-    ExpectedFunType e _ -> getPV e
-
-instance Diagnostic ElabError where
-  diagnosticMessage = \case
-    AlreadyDefined x -> "multiple definitions for" <\> pretty x
-    Unsolvable x _ -> "cannot solve constraints of" <\> pretty x
-    TypeError e -> diagnosticMessage e
-    SolverError e -> diagnosticMessage e
-    ParseError e -> diagnosticMessage e
-    IOError e -> diagnosticMessage e
-
-instance HasProvenance ElabError where
-  getPV = \case
-    AlreadyDefined x -> getPV x
-    Unsolvable x _ -> getPV x
-    TypeError e -> getPV e
-    SolverError e -> getPV e
-    ParseError e -> getPV e
-    IOError _ -> NoPV
-
 -------------------------------------------------------------------------------
-
--- | The elaborator environment stores definitions, i.e., mappings from names
--- (of variables, constants, functions) to their types. During elaboration, the
--- state of these types might change, e.g., an inferred type might be found to
--- have an invalid verification condition during SMT solving (see 'Definition').
-type Environment = Map Name Definition
 
 {- | A 'Definition' maps a 'Name' to a 'Type' and additional related
 information, such as a verification condition (VC), an underlying 'Term', or the
@@ -193,37 +131,3 @@ isSolved = \case
   Verified{}   -> True
   Unverified{} -> True
   _            -> False
-
--------------------------------------------------------------------------------
-
--- | A type signature, with an optional comment.
-data TypeSig = TypeSig Name Type (Maybe String)
-  deriving stock (Eq, Show, Read)
-
-instance Pretty TypeSig where
-  pretty (TypeSig x t c) = pretty x <+> ":" <+> pretty t <> comment
-   where
-    comment | Just m <- c = "  " <> ann Comment ("--" <+> pretty m)
-            | otherwise   = mempty
-
--------------------------------------------------------------------------------
-
--- | All definitions in the environment, sorted by order of appearance
--- (according to provenance information).
-sortedDefinitions :: Environment -> [Definition]
-sortedDefinitions = 
-  map snd . List.sortBy (compare `on` getPV . fst) . Map.toList
-
--- | Returns all type errors in the environment.
-getTypeErrors :: Environment -> [ElabError]
-getTypeErrors = map _error . filter isFailed . sortedDefinitions
-
--- | Return type signatures for all fully solved definitions in the environment,
--- both verified and unverified.
-getSolvedTypes :: Environment -> [TypeSig]
-getSolvedTypes = catMaybes . map go . sortedDefinitions
- where
-  go Verified{..}   = Just $ TypeSig _name _solvedType Nothing
-  go Unverified{..} = Just $ TypeSig _name _solvedType (Just comment)
-                        where comment = "UNVERIFIED (" ++ _reason ++ ")"
-  go _ = Nothing

@@ -13,7 +13,8 @@ import Panini.CLI.REPL
 import Panini.CLI.Test
 import Panini.Diagnostic
 import Panini.Elab
-import Panini.Environment
+import Panini.Elab.Environment
+import Panini.Elab.Error
 import Panini.Frontend.Python
 import Panini.Monad
 import Panini.Pretty as PP

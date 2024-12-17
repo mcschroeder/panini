@@ -36,7 +36,7 @@ import Data.List qualified as List
 import Data.Maybe
 import GHC.Stack
 import Panini.Diagnostic
-import Panini.Environment
+import Panini.Elab.Environment
 import Panini.Modules
 import Panini.Pretty
 import Panini.Provenance

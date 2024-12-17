@@ -1,10 +1,10 @@
 module Panini.CLI.Error where
 
 import Panini.Diagnostic
+import Panini.Elab.Error
 import Panini.Frontend.Python.Error qualified as Py
 import Panini.Provenance
 import Panini.Pretty
-import Panini.Environment
 import Prelude
 
 data AppError where

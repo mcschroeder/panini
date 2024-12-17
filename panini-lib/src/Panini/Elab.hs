@@ -16,7 +16,8 @@ import Data.Maybe
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.IO qualified as Text
-import Panini.Environment
+import Panini.Elab.Definition
+import Panini.Elab.Error
 import Panini.Infer
 import Panini.Modules
 import Panini.Monad
@@ -33,20 +34,15 @@ import Prelude
 -------------------------------------------------------------------------------
 
 -- | Retrieve a definition from the environment.
-envLookup :: Name -> Pan ElabError (Maybe Definition)
+envLookup :: Name -> Pan e (Maybe Definition)
 envLookup x = Map.lookup x <$> gets environment
 
 -- | Extend the environment with a new definition.
-envExtend :: Name -> Definition -> Pan ElabError ()
+envExtend :: Name -> Definition -> Pan e ()
 envExtend x d = do
   -- TODO: what was this even?
   -- when (isFailed d) $ logError d._error
   modify' $ \s -> s { environment = Map.insert x d s.environment }
-
--- TODO: do we need this?
--- -- | Remove a definition from the environment.
--- envDelete :: Name -> Pan ElabError ()
--- envDelete x = modify' $ \s -> s { environment = Map.delete x s.environment }
 
 -------------------------------------------------------------------------------
 

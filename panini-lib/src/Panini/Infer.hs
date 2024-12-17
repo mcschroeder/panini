@@ -5,7 +5,8 @@ import Control.Monad.Trans.State.Strict
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
-import Panini.Environment
+import Panini.Elab.Definition
+import Panini.Elab.Error
 import Panini.Monad
 import Panini.Provenance
 import Panini.Solver.Constraints
