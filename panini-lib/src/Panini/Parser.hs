@@ -21,6 +21,8 @@ import Data.String
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
+import Panini.Diagnostic
+import Panini.Pretty (pretty)
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -30,21 +32,8 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Printf
-import Panini.Diagnostic
-import Panini.Pretty (pretty)
 
 -------------------------------------------------------------------------------
-
--- TODO
-data Error = ParserError Text PV
-
-instance HasProvenance Error where
-  getPV (ParserError _ pv) = pv
-
-instance Diagnostic Error where
-  diagnosticMessage (ParserError e _) = pretty e
-
-
 
 parseProgram :: FilePath -> Text -> Either Error Program
 parseProgram = parseA $ whitespace >> many statement
@@ -64,8 +53,18 @@ parseConstraint = parseA constraint
 parseA :: Parser a -> FilePath -> Text -> Either Error a
 parseA p fp = first transformErrorBundle . parse (p <* eof) fp
 
+-------------------------------------------------------------------------------
+
+data Error = Error Text PV
+
+instance HasProvenance Error where
+  getPV (Error _ pv) = pv
+
+instance Diagnostic Error where
+  diagnosticMessage (Error e _) = pretty e
+
 transformErrorBundle :: ParseErrorBundle Text Void -> Error
-transformErrorBundle b = ParserError errorMessage provenance
+transformErrorBundle b = Error errorMessage provenance
   where
     provenance    = FromSource loc (Just offLine)
     firstError    = NE.head $ b.bundleErrors
