@@ -2,7 +2,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module Panini.Frontend.Python.Provenance where
 
-import Data.Bifunctor
 import Language.Python.Common.AST
 import Language.Python.Common.ParseError
 import Language.Python.Common.SrcLocation
@@ -46,33 +45,13 @@ getParseErrorPV = \case
 
 ------------------------------------------------------------------------------
 
-instance HasProvenance a => HasProvenance (Ident a) where
-  getPV = getPV . annot
-  setPV pv = fmap (setPV pv)
-
-instance HasProvenance a => HasProvenance (Statement a) where
-  getPV = getPV . annot
-  setPV pv = fmap (setPV pv)
-
-instance HasProvenance a => HasProvenance (Expr a) where
-  getPV = getPV . annot
-  setPV pv = fmap (setPV pv)
-
-instance HasProvenance a => HasProvenance (Parameter a) where
-  getPV = getPV . annot
-  setPV pv = fmap (setPV pv)
-
-instance HasProvenance a => HasProvenance (AssignOp a) where
-  getPV = getPV . annot
-  setPV pv = fmap (setPV pv)
-
-instance HasProvenance a => HasProvenance (Op a) where
-  getPV = getPV . annot
-  setPV pv = fmap (setPV pv)
-
-instance (HasProvenance a) => HasProvenance (TypeInfo, a) where
-  getPV = getPV . snd
-  setPV pv = second (setPV pv)
+instance HasProvenance a => HasProvenance (Ident a)     where getPV = getPV . annot
+instance HasProvenance a => HasProvenance (Statement a) where getPV = getPV . annot
+instance HasProvenance a => HasProvenance (Expr a)      where getPV = getPV . annot
+instance HasProvenance a => HasProvenance (Parameter a) where getPV = getPV . annot
+instance HasProvenance a => HasProvenance (AssignOp a)  where getPV = getPV . annot
+instance HasProvenance a => HasProvenance (Op a)        where getPV = getPV . annot
+instance HasProvenance a => HasProvenance (TypeInfo, a) where getPV = getPV . snd
 
 instance Annotated ((,) b) where 
   annot = snd

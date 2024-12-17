@@ -18,7 +18,9 @@ import Prelude
 ------------------------------------------------------------------------------
 
 withPV :: (Type,Con) -> PV -> (Type,Con)
-withPV (t,c) pv = (setPV pv t, c)  -- TODO: Con provenance
+withPV (t,c) pv = case t of
+  TBase x b r _ -> (TBase x b r pv, c)  -- TODO: Con provenance
+  TFun x t1 t2 _ -> (TFun x t1 t2 pv, c)
 
 -- | Mappings of variables to types (Γ)
 type Context = Map Name Type

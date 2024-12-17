@@ -2,7 +2,6 @@ module Panini.Provenance
   ( SrcLoc(..)
   , PV(..)
   , HasProvenance(..)
-  , updatePV
   , addSourceLines
   , readSrcLocLines
   ) where
@@ -63,17 +62,9 @@ instance Ord PV where
 -- | Types with provenance information.
 class HasProvenance a where
   getPV :: a -> PV
-  setPV :: PV -> a -> a
-
-updatePV :: (HasProvenance a, Monad m) => (PV -> m PV) -> a -> m a
-updatePV f a = do
-  let pv = getPV a
-  pv' <- f pv
-  return $ setPV pv' a
 
 instance HasProvenance PV where
   getPV = id
-  setPV = const
 
 -------------------------------------------------------------------------------
 

@@ -47,4 +47,3 @@ prettyKVarName (KVar i _ _) = ann (Identifier VarIdent) $ kappa <> subscript i
 
 instance HasProvenance KVar where
   getPV (KVar _ _ pv) = pv
-  setPV pv (KVar i ts _) = KVar i ts pv

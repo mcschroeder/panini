@@ -53,7 +53,8 @@ replMain panOpts = do
 
   let diagnosticHandler :: Diagnostic a => DiagnosticEnvelope a -> IO ()
       diagnosticHandler ev0 = do
-        ev <- updatePV addSourceLines ev0
+        pv' <- addSourceLines ev0.provenance
+        let ev = ev0 { provenance = pv' }
         whenJust traceFile (putDiagnosticFile panOpts ev)
         when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
         -- TODO: consider logging with getExternalPrint instead of to stderr

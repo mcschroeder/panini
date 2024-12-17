@@ -81,11 +81,6 @@ instance HasProvenance Value where
   getPV (I _ pv) = pv
   getPV (C _ pv) = pv
   getPV (S _ pv) = pv
-  setPV pv (U   _) = U pv
-  setPV pv (B x _) = B x pv
-  setPV pv (I x _) = I x pv
-  setPV pv (C x _) = C x pv
-  setPV pv (S x _) = S x pv
 
 instance Uniplate Value where
   uniplate = plate

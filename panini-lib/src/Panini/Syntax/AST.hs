@@ -193,21 +193,11 @@ instance HasProvenance Term where
     Let _ _ _   pv -> pv
     Rec _ _ _ _ pv -> pv
     If _ _ _    pv -> pv
-  setPV pv = \case
-    Val v           -> Val (setPV pv v)
-    App e v       _ -> App e v pv
-    Lam x t e     _ -> Lam x t e pv
-    Let x e1 e2   _ -> Let x e1 e2 pv
-    Rec x t e1 e2 _ -> Rec x t e1 e2 pv
-    If v e1 e2    _ -> If v e1 e2 pv
 
 instance HasProvenance Atom where
   getPV = \case
     Con c -> getPV c
     Var x -> getPV x
-  setPV pv = \case
-    Con c -> Con $ setPV pv c
-    Var x -> Var $ setPV pv x
 
 instance Subable Atom Atom where
   subst x y = \case
@@ -289,8 +279,6 @@ instance Pretty Type where
 instance HasProvenance Type where
   getPV (TBase _ _ _ pv) = pv
   getPV (TFun _ _ _ pv) = pv
-  setPV pv (TBase v b r _) = TBase v b r pv
-  setPV pv (TFun x t1 t2 _) = TFun x t1 t2 pv
 
 -- see Panini.Syntax.Substitution
 instance Subable Type Expr where

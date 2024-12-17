@@ -20,7 +20,6 @@ data Name = Name !Text !PV
 
 instance HasProvenance Name where
   getPV (Name _ pv) = pv
-  setPV pv (Name x _) = Name x pv
 
 -- | Equality between names ignores provenance.
 instance Eq Name where

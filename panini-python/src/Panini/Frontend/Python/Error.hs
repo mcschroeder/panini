@@ -58,16 +58,3 @@ instance HasProvenance Error where
     UnsupportedOperator op            -> getPV $ annot op
     MissingAxiom _ _ _ pv             -> pv
     OtherError _ pv                   -> pv
-  
-  setPV pv = \case
-    ParserError e                   _ -> ParserError e pv
-    TypeError e                       -> TypeError e  -- TODO: set provenance
-    UnsupportedStatement stmt         -> UnsupportedStatement        $ fmap (setPV pv) stmt
-    UnsupportedExpression expr        -> UnsupportedExpression       $ fmap (setPV pv) expr
-    UnsupportedTypeHint expr          -> UnsupportedTypeHint         $ fmap (setPV pv) expr
-    UnsupportedDefaultParameter expr  -> UnsupportedDefaultParameter $ fmap (setPV pv) expr
-    UnsupportedParameter param        -> UnsupportedParameter        $ fmap (setPV pv) param
-    UnsupportedAtomicExpression expr  -> UnsupportedAtomicExpression $ fmap (setPV pv) expr
-    UnsupportedOperator op            -> UnsupportedOperator         $ fmap (setPV pv) op
-    MissingAxiom f argTys retTy _     -> MissingAxiom f argTys retTy pv
-    OtherError e _                    -> OtherError e pv

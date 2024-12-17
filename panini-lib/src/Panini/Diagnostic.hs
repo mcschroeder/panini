@@ -45,7 +45,6 @@ isError = (SevError ==) . severity
 
 instance HasProvenance (DiagnosticEnvelope a) where
   getPV = provenance
-  setPV pv e = e { provenance = pv }
 
 -------------------------------------------------------------------------------
 

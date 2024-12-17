@@ -26,4 +26,3 @@ instance HasProvenance AppError where
     PythonError e -> getPV e
     ElabError e   -> getPV e
     AppIOError _  -> NoPV
-  setPV = undefined

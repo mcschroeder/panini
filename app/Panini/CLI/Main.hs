@@ -52,7 +52,8 @@ batchMain panOpts = do
                 (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)
       
   let diagnosticHandler ev0 = do
-        ev <- updatePV addSourceLines ev0
+        pv' <- addSourceLines ev0.provenance
+        let ev = ev0 { provenance = pv' }
         whenJust traceFile (putDiagnosticFile panOpts ev)
         when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
 

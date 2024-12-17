@@ -40,7 +40,6 @@ data Error = ParserError Text PV
 
 instance HasProvenance Error where
   getPV (ParserError _ pv) = pv
-  setPV pv (ParserError e _) = ParserError e pv
 
 instance Diagnostic Error where
   diagnosticMessage (ParserError e _) = pretty e

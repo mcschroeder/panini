@@ -49,7 +49,6 @@ instance HasProvenance TypeError where
     UnknownVar x        -> getPV x
     InvalidSubtype t _  -> getPV t
     ExpectedFunType e _ -> getPV e
-  setPV = undefined
   
 instance Diagnostic SolverError where
   diagnosticMessage = \case
@@ -62,7 +61,6 @@ instance HasProvenance SolverError where
   getPV = \case
     AbstractionToValueImpossible x _r1 _ -> getPV x -- TODO: getPV r1
     SmtSolverError _ -> NoPV
-  setPV = undefined
 
 instance Diagnostic ElabError where
   diagnosticMessage = \case
@@ -81,7 +79,6 @@ instance HasProvenance ElabError where
     SolverError e -> getPV e
     ParseError e -> getPV e
     IOError _ -> NoPV
-  setPV = undefined
 
 -------------------------------------------------------------------------------
 
