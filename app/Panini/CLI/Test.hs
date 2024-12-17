@@ -19,6 +19,7 @@ import Panini.Frontend.Python
 import Panini.Monad
 import Panini.Pretty
 import Panini.SMT.Z3
+import Panini.Solver.Error
 import Prelude
 import System.Directory
 import System.Exit
@@ -78,7 +79,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
-      smtInit ?? (ElabError . SolverError . SmtSolverError)
+      smtInit ?? (ElabError . SolverError . SmtError)
       logRegexInfo
       (module_, prog) <- case determineFileType panOpts inFile of
         PythonSource -> loadModulePython src inFile

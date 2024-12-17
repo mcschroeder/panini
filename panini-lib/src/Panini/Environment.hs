@@ -7,15 +7,14 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
 import Panini.Diagnostic
+import Panini.Parser qualified
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Solver.Assignment
 import Panini.Solver.Constraints
+import Panini.Solver.Error qualified as Solver
 import Panini.Syntax
-import Panini.SMT.Error qualified as SMT
 import Prelude
-import Panini.Abstract.AValue
-import Panini.Parser qualified
 
 ------------------------------------------------------------------------------
 
@@ -24,14 +23,10 @@ import Panini.Parser qualified
 data ElabError where
   AlreadyDefined  :: Name -> ElabError
   Unsolvable      :: Name -> Con -> ElabError
-  SolverError     :: SolverError -> ElabError
+  SolverError     :: Solver.Error -> ElabError
   TypeError       :: TypeError -> ElabError
   ParseError      :: Panini.Parser.Error -> ElabError
   IOError         :: IOError -> ElabError
-
-data SolverError where
-  AbstractionToValueImpossible  :: Name -> ARel -> AValue -> SolverError
-  SmtSolverError                :: SMT.Error -> SolverError
 
 data TypeError where
   UnknownVar        :: Name -> TypeError
@@ -49,18 +44,6 @@ instance HasProvenance TypeError where
     UnknownVar x        -> getPV x
     InvalidSubtype t _  -> getPV t
     ExpectedFunType e _ -> getPV e
-  
-instance Diagnostic SolverError where
-  diagnosticMessage = \case
-    AbstractionToValueImpossible x r e ->
-      "abstraction to value impossible:" <\> 
-      "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty e
-    SmtSolverError e -> diagnosticMessage e
-
-instance HasProvenance SolverError where  
-  getPV = \case
-    AbstractionToValueImpossible x _r1 _ -> getPV x -- TODO: getPV r1
-    SmtSolverError _ -> NoPV
 
 instance Diagnostic ElabError where
   diagnosticMessage = \case

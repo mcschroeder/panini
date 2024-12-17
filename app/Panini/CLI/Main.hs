@@ -19,6 +19,7 @@ import Panini.Monad
 import Panini.Pretty as PP
 import Panini.Provenance
 import Panini.SMT.Z3
+import Panini.Solver.Error
 import Prelude
 import System.Console.ANSI
 import System.Environment
@@ -66,7 +67,7 @@ batchMain panOpts = do
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ do
-    smtInit ?? (ElabError . SolverError . SmtSolverError)
+    smtInit ?? (ElabError . SolverError . SmtError)
     logRegexInfo
     let fp = fromMaybe "<stdin>" panOpts.inputFile
     logMessage $ "Read" <+> pretty fp

@@ -27,6 +27,7 @@ import Panini.Monad
 import Panini.Pretty
 import Panini.Provenance
 import Panini.SMT.Z3
+import Panini.Solver.Error
 import Panini.Version
 import Prelude
 import System.Console.Haskeline
@@ -67,7 +68,7 @@ replMain panOpts = do
         }
 
   void $ runPan panState0 $ runInputT replConf $ do
-    lift (smtInit ?? (ElabError . SolverError . SmtSolverError))
+    lift (smtInit ?? (ElabError . SolverError . SmtError))
     lift logRegexInfo
     repl panOpts
 

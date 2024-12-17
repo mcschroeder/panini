@@ -84,6 +84,7 @@ library
     Panini.Solver.Abstract
     Panini.Solver.Assignment    
     Panini.Solver.Constraints
+    Panini.Solver.Error
     Panini.Solver.Fusion
     Panini.Solver.Liquid
     Panini.Solver.Qualifiers
