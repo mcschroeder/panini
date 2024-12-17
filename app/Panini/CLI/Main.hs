@@ -15,7 +15,7 @@ import Panini.Diagnostic
 import Panini.Elab
 import Panini.Elab.Environment
 import Panini.Elab.Error
-import Panini.Frontend.Python
+import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty as PP
 import Panini.Provenance
@@ -70,14 +70,12 @@ batchMain panOpts = do
   result <- runPan panState0 $ do
     smtInit ?? (ElabError . SolverError . SmtError)
     logRegexInfo
-    let fp = fromMaybe "<stdin>" panOpts.inputFile
-    logMessage $ "Read" <+> pretty fp
-    src <- tryIO (maybe Text.getContents Text.readFile panOpts.inputFile) ?? AppIOError
-    (module_, prog) <- case determineFileType panOpts fp of
-      PythonSource -> loadModulePython src fp
-      PaniniSource -> loadModule src fp
-    maybeSavePanFile panOpts module_ prog
-    elaborate module_ prog ?? ElabError
+    moduleOrigin <- case panOpts.inputFile of
+      Nothing -> Stdin <$> tryIO Text.getContents ?? AppIOError
+      Just fp -> return $ File fp
+    module_ <- loadModule panOpts moduleOrigin
+    maybeSavePanFile panOpts module_
+    elaborate module_ ?? ElabError
     vsep . map pretty . getSolvedTypes <$> gets environment
 
   whenJust traceFile hClose

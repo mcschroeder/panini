@@ -1,54 +1,54 @@
 module Panini.CLI.Common where
 
 import Control.Monad.Extra
-import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.CLI.Error
 import Panini.CLI.Options
 import Panini.Diagnostic
-import Panini.Elab
-import Panini.Modules
+import Panini.Elab.Module
 import Panini.Monad
+import Panini.Parser (parseProgram)
 import Panini.Pretty as PP
-import Panini.Syntax
 import Prelude
 import System.FilePath
 import System.IO
+import Panini.Frontend.Python
 
 -------------------------------------------------------------------------------
 
--- TODO: here may not be the right location for this
-loadModule :: Text -> FilePath -> Pan AppError (Module, Program)
-loadModule src fp = do
-  module_ <- liftIO $ getModule fp
-  prog <- parseSource (moduleLocation module_) src ?? ElabError
-  return (module_, prog)
+loadModule :: PanOptions -> ModuleOrigin -> Pan AppError Module
+loadModule panOpts origin = do
+  (path,src) <- case origin of
+    File fp -> do
+      src <- tryIO (Text.readFile fp) ?? AppIOError §§ "Read" <+> pretty fp
+      return (fp,src)
+    Stdin s -> return ("<stdin>", s)
+    REPL s -> return ("<repl>", s)
+  let ext = takeExtension path  
+  let sourceType | panOpts.pythonInput = "python"
+                 | ext == ".py"        = "python"
+                 | otherwise           = "panini"
+  prog <- case sourceType of
+    "python" -> transpilePythonProgram src path
+    _        -> parseProgram path src ? ParseError §§ "Parse source"
+  return $ Module origin sourceType prog
 
-data FileType = PaniniSource | PythonSource
-
-determineFileType :: PanOptions -> FilePath -> FileType
-determineFileType panOpts fp
-  | panOpts.pythonInput || ext == ".py" = PythonSource
-  | otherwise                           = PaniniSource
- where
-  ext = takeExtension fp
-
-maybeSavePanFile :: PanOptions -> Module -> Program -> Pan AppError ()
-maybeSavePanFile panOpts module_ prog
+maybeSavePanFile :: PanOptions -> Module -> Pan AppError ()
+maybeSavePanFile panOpts module_
   | not panOpts.savePanFile = return ()
-  | inputIsPan = logMessage $ "Warning:" <+> warnIgnore      
+  | inputIsPan = logMessage $ "Warning:" <+> warnIgnore
   | otherwise = do
-      let pan = mkPanFile
+      let pan = mkPanFile module_.moduleOrigin
       let opt = RenderOptions Nothing True Nothing
-      let src = renderDoc opt $ pretty prog
+      let src = renderDoc opt $ pretty module_.program
       logMessage $ "Writing transpiled source to" <+> pretty pan
       liftIO $ Text.writeFile pan src
  where
-  inputIsPan = takeExtension (moduleLocation module_) == ".pan"
+  inputIsPan = module_.sourceType == "panini"
   warnIgnore = "ignoring --save-pan option; input is already a .pan file"
-  mkPanFile | module_ == replModule = "repl.pan"
-            | module_ == stdinModule = "stdin.pan"
-            | otherwise = replaceExtension (moduleLocation module_) ".pan"
+  mkPanFile (File  f) = replaceExtension f ".pan"
+  mkPanFile (Stdin _) = "stdin.pan"
+  mkPanFile (REPL  _) = "repl.pan" 
 
 -------------------------------------------------------------------------------
 

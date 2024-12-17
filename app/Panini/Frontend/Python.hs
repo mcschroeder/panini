@@ -1,4 +1,4 @@
-module Panini.Frontend.Python (loadModulePython) where
+module Panini.Frontend.Python (transpilePythonProgram) where
 
 import Control.Monad.Extra
 import Data.Text (Text)
@@ -12,7 +12,6 @@ import Panini.Frontend.Python.Provenance
 import Panini.Frontend.Python.Transpiler
 import Panini.Frontend.Python.Typing.Infer
 import Panini.Frontend.Python.Typing.Pretty ()
-import Panini.Modules
 import Panini.Monad
 import Panini.Pretty.Graphviz
 import Panini.Syntax
@@ -20,8 +19,8 @@ import Panini.Pretty
 import Prelude
 import Panini.CLI.Error
 
-loadModulePython :: Text -> FilePath -> Pan AppError (Module, Program)
-loadModulePython src fp = do
+transpilePythonProgram :: Text -> FilePath -> Pan AppError Program
+transpilePythonProgram src fp = do
   let src'   = Text.unpack src
   (pyMod,_) <- parseModule src' fp     ? paErr §§ "Parse Python source"
   let pyModPV = convertProvenance pyMod
@@ -31,8 +30,7 @@ loadModulePython src fp = do
   debugTraceGraph dom
   prog      <- transpile dom           ? pyErr §§ "Transpile Python to Panini"
   prog2     <- inlineProgram prog               § "Inline bindings"
-  module_   <- liftIO $ getModule fp
-  return     $ (module_, prog2)
+  return     $ prog2
  where
   paErr = \e -> pyErr $ Py.ParserError e (getParseErrorPV e)
   tyErr = pyErr . Py.TypeError
@@ -42,3 +40,6 @@ loadModulePython src fp = do
     let graphFile = fp <> ".dom.svg"
     logMessage $ "Render dominator tree / CFG to" <+> pretty graphFile
     liftIO $ renderGraph graphFile dom
+
+
+

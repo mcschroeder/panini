@@ -16,7 +16,7 @@ import Panini.Diagnostic
 import Panini.Elab
 import Panini.Elab.Environment
 import Panini.Elab.Error
-import Panini.Frontend.Python
+import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty
 import Panini.SMT.Z3
@@ -64,8 +64,6 @@ testMain globalOpts = assert globalOpts.testMode $ do
   -- TODO: read local options from inFile header comment
   execPan :: PanOptions -> FilePath -> IO (Seconds, Text)
   execPan panOpts inFile = do
-    src <- Text.readFile inFile
-
     traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)
     when globalOpts.trace $ putDoc "\n"
     let panState0 = defaultState 
@@ -82,11 +80,9 @@ testMain globalOpts = assert globalOpts.testMode $ do
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
       smtInit ?? (ElabError . SolverError . SmtError)
       logRegexInfo
-      (module_, prog) <- case determineFileType panOpts inFile of
-        PythonSource -> loadModulePython src inFile
-        PaniniSource -> loadModule src inFile
-      maybeSavePanFile panOpts module_ prog
-      elaborate module_ prog ?? ElabError
+      module_ <- loadModule panOpts (File inFile)
+      maybeSavePanFile panOpts module_
+      elaborate module_ ?? ElabError
       (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
       return $ vsep $ (map prettyError es) ++ (map pretty ts)
 

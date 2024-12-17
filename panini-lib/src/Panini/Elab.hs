@@ -6,7 +6,6 @@ module Panini.Elab
   , assume
   , define
   , import_
-  , parseSource
   ) where
 
 import Control.Monad.Extra
@@ -14,22 +13,23 @@ import Control.Monad.Trans.State.Strict
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Set qualified as Set
-import Data.Text (Text)
 import Data.Text.IO qualified as Text
 import Panini.Elab.Definition
 import Panini.Elab.Error
+import Panini.Elab.Module
 import Panini.Infer
-import Panini.Modules
 import Panini.Monad
 import Panini.Panic
-import Panini.Parser qualified
+import Panini.Parser (parseProgram)
 import Panini.Pretty
 import Panini.Provenance
-import Panini.Solver.Assignment
 import Panini.Solver qualified as Solver
+import Panini.Solver.Assignment
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import System.Directory
+import System.FilePath
 
 -------------------------------------------------------------------------------
 
@@ -51,16 +51,14 @@ envExtend x d = do
 -- changes to the environment are rolled back. Note that errors during type
 -- inference or VC solving usually merely result in a 'Rejected' or 'Invalid'
 -- definition to be stored in the environment and will *not* cause any rollback.
-elaborate :: Module -> Program -> Pan ElabError ()
-elaborate thisModule prog = do
+elaborate :: Module -> Pan ElabError ()
+elaborate thisModule = do
   env0 <- get
-  unless (thisModule == replModule) $
-    when (thisModule `elem` env0.loadedModules) $ do
-      panic "reloading modules is not yet implemented" -- TODO
-  tryError (mapM_ elab prog) >>= \case
+  when (thisModule `elem` env0.loadedModules) $ do
+    panic "reloading modules is not yet implemented" -- TODO
+  tryError (mapM_ elab thisModule.program) >>= \case
     Right () -> do
-      unless (thisModule == replModule) $
-        modify' $ \s -> s { loadedModules = thisModule : s.loadedModules }
+      modify' $ \s -> s { loadedModules = thisModule : s.loadedModules }
     Left err -> do
       put env0
       throwError err
@@ -68,8 +66,7 @@ elaborate thisModule prog = do
   elab = \case
     Assume x t  -> assume x t
     Define x e  -> define x e
-    Import fp _ -> import_ $ moduleRelativeTo thisModule fp
-                      -- TODO: add provenance to error
+    Import f pv -> import_ thisModule f pv
 
 -- | Add an assumed type to the environment.
 assume :: Name -> Type -> Pan ElabError ()
@@ -165,20 +162,22 @@ matchTypeSig = go
 
   go _ _ = impossible
 
--- | Import a module into the environment.
-import_ :: Module -> Pan ElabError ()
-import_ otherModule = do
-  logMessage $ "Import" <+> pretty otherModule
-  redundant <- elem otherModule <$> gets loadedModules
+-- TODO: attach provenance from import statement to any errors
+-- | Resolve an import relative to the current module.
+import_ :: Module -> FilePath -> PV -> Pan ElabError ()
+import_ thisModule relPath _ = do
+  logMessage $ "Import" <+> pretty relPath
+  parentDir <- case thisModule.moduleOrigin of
+    File  f -> return $ normalise $ takeDirectory f
+    Stdin _ -> tryIO (makeAbsolute =<< getCurrentDirectory) ?? IOError
+    REPL  _ -> tryIO (makeAbsolute =<< getCurrentDirectory) ?? IOError
+  let path = parentDir </> relPath
+  redundant <- (elem (File path) . map moduleOrigin) <$> gets loadedModules
   unless redundant $ do
-    otherSrc <- (tryIO $ Text.readFile $ moduleLocation otherModule) ?? IOError
-    otherProg <- parseSource (moduleLocation otherModule) otherSrc
-    elaborate otherModule otherProg
-
--- TODO: maybe not the right location for this
-parseSource :: FilePath -> Text -> Pan ElabError Program
-parseSource path src = do
-  logMessage $ "Parse" <+> pretty path
-  prog <- Panini.Parser.parseProgram path src ? ParseError
-  logData prog
-  return prog
+    src <- (tryIO $ Text.readFile path) ?? IOError   §§ "Read" <+> pretty path
+    importProg <- parseProgram path src ? ParseError §§ "Parse source"
+    elaborate Module 
+      { moduleOrigin = File path
+      , sourceType   = "panini"
+      , program      = importProg 
+      }

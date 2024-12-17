@@ -64,8 +64,8 @@ library
     Panini.Elab.Definition
     Panini.Elab.Environment
     Panini.Elab.Error
+    Panini.Elab.Module
     Panini.Infer
-    Panini.Modules
     Panini.Monad
     Panini.Panic
     Panini.Parser

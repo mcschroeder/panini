@@ -37,7 +37,7 @@ import Data.Maybe
 import GHC.Stack
 import Panini.Diagnostic
 import Panini.Elab.Environment
-import Panini.Modules
+import Panini.Elab.Module
 import Panini.Pretty
 import Panini.Provenance
 import Prelude

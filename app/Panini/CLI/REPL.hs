@@ -15,7 +15,6 @@ import Data.Function
 import Data.List (isPrefixOf, groupBy, sortOn, inits)
 import Data.List qualified as List
 import Data.Text qualified as Text
-import Data.Text.IO qualified as Text
 import Panini.CLI.Common
 import Panini.CLI.Error
 import Panini.CLI.Options
@@ -24,7 +23,7 @@ import Panini.Elab
 import Panini.Elab.Definition
 import Panini.Elab.Environment
 import Panini.Elab.Error
-import Panini.Frontend.Python
+import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty
 import Panini.Provenance
@@ -148,13 +147,9 @@ loadFiles panOpts = mapM_ (loadFile panOpts)
 
 loadFile :: PanOptions -> FilePath -> InputT (Pan AppError) ()
 loadFile panOpts f = lift $ continueOnError $ do
-  logMessage $ "Read" <+> pretty f
-  src <- (tryIO $ Text.readFile f) ?? AppIOError
-  (module_, prog) <- case determineFileType panOpts f of
-    PythonSource -> loadModulePython src f
-    PaniniSource -> loadModule src f
-  maybeSavePanFile panOpts module_ prog
-  elaborate module_ prog ?? ElabError
+  module_ <- loadModule panOpts (File f)
+  maybeSavePanFile panOpts module_
+  elaborate module_ ?? ElabError
   -- TODO: output summary like "Ok, 23 modules loaded."
 
 showEnv :: PanOptions -> String -> InputT (Pan AppError) ()
@@ -183,10 +178,8 @@ showEnv panOpts _ = do
 evaluateInput :: PanOptions -> String -> InputT (Pan AppError) ()
 evaluateInput panOpts input = lift $ continueOnError $ do
   let src = Text.pack input
-  (module_, prog) <- case determineFileType panOpts "<repl>" of
-    PythonSource -> loadModulePython src "<repl>"
-    PaniniSource -> loadModule src "<repl>"
-  elaborate module_ prog ?? ElabError
+  module_ <- loadModule panOpts (REPL src)
+  elaborate module_ ?? ElabError
 
 -------------------------------------------------------------------------------
 
