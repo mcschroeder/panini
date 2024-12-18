@@ -1,17 +1,17 @@
 module Panini.Syntax.QQ where  
 
-import Language.Haskell.TH.Quote
-import Panini.Parser
 import Data.Text qualified as Text
-import Prelude
+import Language.Haskell.TH.Quote
+import Panini.Diagnostic
+import Panini.Parser
 import Panini.Pretty
+import Prelude
 
--- TODO: improve error message
 panType :: QuasiQuoter
 panType = QuasiQuoter {
   quoteExp = \s -> do
     case parseType "" (Text.strip $ Text.pack s) of
-      Left (Panini.Parser.Error err _) -> fail $ showPretty err
+      Left e -> fail $ show $ group $ diagnosticMessage e
       Right ty -> dataToExpQ (const Nothing) ty
   
   , quotePat = undefined
