@@ -95,7 +95,7 @@ instance SMTLIB RegLan where
 
 instance SMTLIB Expr where
   encode = \case
-    EVar x           -> encode x
+    EVar x _         -> encode x
     EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
     -- TODO: our built-in might not exactly match the semantics of SMT-LIB !
     EStrFirstIndexOfChar s c -> sexpr ["str.indexof", encode s, encode c, "0"]

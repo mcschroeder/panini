@@ -91,7 +91,10 @@ instance Uniplate (Pred' a) where
     PAppK k ys    -> plate PAppK |- k |- ys
     PExists x b p -> plate PExists |- x |- b |* p
 
-instance Uniplate (Expr' a ) => Biplate (Pred' a) (Expr' a) where
+instance 
+  (Uniplate (Expr' a), Biplate (Rel' a) (Expr' a))
+  => Biplate (Pred' a) (Expr' a) 
+ where
   biplate = \case
     PTrue         -> plate PTrue
     PFalse        -> plate PFalse
@@ -136,7 +139,7 @@ instance (Uniplate (Expr' a), Subable (Expr' a) (Expr' a), Subable (Rel' a) (Exp
       | n `freeIn` x -> PExists ṅ b (subst x y ṗ)  -- (2)
       | otherwise    -> PExists n b (subst x y p)  -- (3)
       where
-        ṗ = subst (EVar ṅ) n p
+        ṗ = subst (EVar ṅ b) n p
         ṅ = freshName n ([y] <> freeVars p <> freeVars x)
 
     PAppK k xs -> PAppK k (map (subst x y) xs)

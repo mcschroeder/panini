@@ -2,7 +2,6 @@
 module Panini.Abstract.AValue where
 
 import Algebra.Lattice
-import Control.Applicative
 import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
@@ -168,33 +167,15 @@ type ACon  = Con'  AValue
 instance Uniplate ARel where
   uniplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
+instance Biplate ARel AExpr where
+  biplate (Rel op a b) = plate Rel |- op |* a |* b
+
 instance Biplate ARel AValue where
   biplate (Rel op a b) = plate Rel |- op |+ a |+ b
 
 instance Subable ARel AExpr where
   subst x y = descendBi (subst @AExpr x y)
   freeVars = mconcat . map (freeVars @AExpr) . childrenBi
-
--- | The type of a variable in a given relation, if locally discernible.
-typeOfVarInRelA :: Name -> ARel -> Maybe Base
-typeOfVarInRelA x = \case
-  EVar y :=: e      | x == y -> typeOfExprA e
-  e      :=: EVar y | x == y -> typeOfExprA e
-  EVar y :≠: e      | x == y -> typeOfExprA e
-  e      :≠: EVar y | x == y -> typeOfExprA e
-  EVar y :<: _      | x == y -> Just TInt
-  _      :<: EVar y | x == y -> Just TInt
-  EVar y :≤: _      | x == y -> Just TInt
-  _      :≤: EVar y | x == y -> Just TInt  
-  EVar y :>: _      | x == y -> Just TInt
-  _      :>: EVar y | x == y -> Just TInt
-  EVar y :≥: _      | x == y -> Just TInt
-  _      :≥: EVar y | x == y -> Just TInt  
-  EVar y :∈: e      | x == y -> typeOfExprA e
-  e      :∈: EVar y | x == y -> typeOfExprA e
-  EVar y :∉: e      | x == y -> typeOfExprA e
-  e      :∉: EVar y | x == y -> typeOfExprA e  
-  Rel _ e1 e2 -> typeOfVarInExpr x e1 <|> typeOfVarInExpr x e2
 
 ------------------------------------------------------------------------------
 
@@ -231,7 +212,7 @@ pattern ERelA x b r = EAbs (ARel x b r)
 -- | The type of the given expression, if locally discernible.
 typeOfExprA :: AExpr -> Maybe Base
 typeOfExprA = \case
-  EVar _        -> Nothing
+  EVar _ b      -> Just b
   ENot _        -> Just TBool
   _ :+: _       -> Just TInt
   _ :-: _       -> Just TInt
@@ -243,27 +224,27 @@ typeOfExprA = \case
   EStrConc _ _ -> Just TString
   EStrStar _ -> Just TString
   EStrContains _ _ -> Just TBool
-  EFun _ es     -> asum $ map typeOfExprA es
+  EFun _ _      -> Nothing
   EReg _        -> Just TString
   EAbs a        -> Just $ typeOfAValue a
 
 instance Uniplate AExpr where
   uniplate = \case
-    EVar x     -> plate EVar |- x
+    EVar x b   -> plate EVar |- x |- b
     EFun f es  -> plate EFun |- f ||* es
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |+ a
 
 instance Biplate AExpr AValue where
   biplate = \case
-    EVar x     -> plate EVar |- x
+    EVar x b   -> plate EVar |- x |- b
     EFun f es  -> plate EFun |- f ||+ es
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |* a
 
 instance Biplate AExpr ARel where
   biplate = \case
-    EVar x     -> plate EVar |- x
+    EVar x b   -> plate EVar |- x |- b
     EFun f es  -> plate EFun |- f ||+ es
     EReg r     -> plate EReg |- r
     EAbs a     -> plate EAbs |+ a
@@ -271,19 +252,19 @@ instance Biplate AExpr ARel where
 -- see Panini.Syntax.Substitution
 instance Subable AExpr AExpr where
   subst x y = \case
-    EVar n | y == n -> x
+    EVar n _ | y == n -> x
     ERelA n b r
       | y == n       -> ERelA n  b            r   -- (1)
       | n `freeIn` x -> ERelA n' b (subst x y r') -- (2)
       | otherwise    -> ERelA n  b (subst x y r ) -- (3)
       where
-        r' = subst (EVar n') n r
+        r' = subst (EVar n' b) n r
         n' = freshName n ([y] <> freeVars r)
     
     e -> descend (subst x y) e
 
   freeVars = \case
-    EVar x           -> [x]
+    EVar x _         -> [x]
     EFun _ es        -> mconcat (map freeVars es)
     EReg _           -> []
     ERelA x _ r       -> freeVars r \\ [x]

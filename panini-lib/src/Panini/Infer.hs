@@ -8,6 +8,7 @@ import Data.Maybe
 import Panini.Elab.Definition
 import Panini.Elab.Error
 import Panini.Monad
+import Panini.Panic
 import Panini.Provenance
 import Panini.Solver.Constraints
 import Panini.Syntax
@@ -59,7 +60,7 @@ infer g = \case
   Val (Con c) -> do
     let v = dummyName
     let b = typeOfValue c
-    let p = PRel $ EVar v :=: ECon c
+    let p = PRel $ EVar v b :=: ECon c
     let t = TBase v b (Known p) (getPV c)
     return (t, CTrue)
   
@@ -71,7 +72,8 @@ infer g = \case
       TFun y t₁ t₂ _ -> do
         (tₓ, _) <- infer g (Val x)
         cₓ <- sub tₓ t₁
-        let t = subst (atomToExpr x) y t₂
+        let bₓ = case tₓ of TBase _ b _ _ -> b; _ -> impossible
+        let t = subst (atomToExpr x bₓ) y t₂
         let c = cₑ ∧ cₓ
         return $ (t, c) `withPV` pv
   
@@ -127,15 +129,15 @@ infer g = \case
     ĉ₁      <- sub t₁ t̂
     (t₂,c₂) <- infer g e₂
     ĉ₂      <- sub t₂ t̂
-    let p₁   = PRel $ atomToExpr v :=: EBool True NoPV
-    let p₂   = PRel $ atomToExpr v :=: EBool False NoPV
+    let p₁   = PRel $ atomToExpr v TBool :=: EBool True NoPV
+    let p₂   = PRel $ atomToExpr v TBool :=: EBool False NoPV
     let y    = freshName "y" (freeVars v <> freeVars c₁ <> freeVars c₂)
     let c    = (CAll y TUnit p₁ (c₁ ∧ ĉ₁)) ∧ (CAll y TUnit p₂ (c₂ ∧ ĉ₂))
     return   $ (t̂,c) `withPV` pv
 
-atomToExpr :: Atom -> Expr
-atomToExpr (Con c) = ECon c
-atomToExpr (Var x) = EVar x
+atomToExpr :: Atom -> Base -> Expr
+atomToExpr (Con c) b = assert (b == typeOfValue c) ECon c
+atomToExpr (Var x) b = EVar x b
 
 checkBool :: Context -> Atom -> Pan TypeError ()
 checkBool g v = do
@@ -148,7 +150,7 @@ self :: Name -> Type -> Type
 self x = \case
   TBase v b (Known p) pv ->
     let v' = if v == x then freshName v (freeVars p) else v
-        p' = (subst (EVar v') x p) ∧ PRel (EVar v' :=: EVar x)
+        p' = (subst (EVar v' b) x p) ∧ PRel (EVar v' b :=: EVar x b)
     in TBase v' b (Known p') pv  
   t -> t
 
@@ -161,7 +163,7 @@ fresh g0 = go (Map.toList g0)
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
       κ <- freshK (b:ts) pv
       let v' = if v `elem` xs then freshName v xs else v
-      let p = PAppK κ (map EVar (v':xs))
+      let p = PAppK κ (zipWith EVar (v':xs) (b:ts))
       return $ TBase v' b (Known p) (Derived pv "ins/hole")
     
     -- ins/conc -------------------------------------------
@@ -194,13 +196,16 @@ sub lhs rhs = case (lhs, rhs) of
       where
         fvs = freeVars lhs <> freeVars rhs
         v₁' = if v₁ `elem` fvs then freshName v₁ fvs else v₁
-        p₁' = subst (EVar v₁') v₁ p₁
-        p₂' = subst (EVar v₁') v₂ p₂
+        p₁' = subst (EVar v₁' b₁) v₁ p₁
+        p₂' = subst (EVar v₁' b₁) v₂ p₂
 
   -- sub/fun ----------------------------------------------
   (TFun x₁ s₁ t₁ _, TFun x₂ s₂ t₂ _) -> do
     cᵢ <- sub s₂ s₁
-    cₒ <- sub (subst (EVar x₂) x₁ t₁) t₂
+    let b₂ = case s₂ of
+              TBase _ b _ _ -> b
+              TFun  _ _ _ _ -> TUnit  -- TODO
+    cₒ <- sub (subst (EVar x₂ b₂) x₁ t₁) t₂
     return $ cᵢ ∧ (cImpl x₂ s₂ cₒ)
 
   _ -> throwError $ InvalidSubtype (unrefined lhs) (unrefined rhs)
@@ -214,5 +219,5 @@ unrefined (TFun _ s t pv) = TFun dummyName (unrefined s) (unrefined t) pv
 -- | Generalized implication that drops binders with non-basic types.
 cImpl :: Name -> Type -> Con -> Con
 cImpl x t c = case t of
-  TBase v b (Known p) _ -> CAll x b (subst (EVar x) v p) c
+  TBase v b (Known p) _ -> CAll x b (subst (EVar x b) v p) c
   _                     -> c

@@ -290,7 +290,7 @@ instance Subable Type Expr where
       | n `freeIn` x -> TBase ṅ b (subst x y ṙ) pv  -- (2)
       | otherwise    -> TBase n b (subst x y r) pv  -- (3)
       where
-        ṙ = subst (EVar ṅ) n r
+        ṙ = subst (EVar ṅ b) n r
         ṅ = freshName n ([y] <> freeVars r <> freeVars x)
 
     -- In a dependent function type (n:t₁) → t₂, the name n binds t₁ in t₂. 
@@ -300,8 +300,11 @@ instance Subable Type Expr where
       | n `freeIn` x -> TFun ṅ (subst x y t₁) (subst x y t₂̇) pv  -- (2)
       | otherwise    -> TFun n (subst x y t₁) (subst x y t₂) pv  -- (3)
       where
-        t₂̇ = subst (EVar ṅ) n t₂
+        t₂̇ = subst (EVar ṅ ḃ) n t₂
         ṅ = freshName n ([y] <> freeVars t₂ <> freeVars x)
+        ḃ = case t₁ of
+              TBase _ b _ _ -> b
+              TFun  _ _ _ _ -> TUnit -- TODO
 
   freeVars = \case
     TBase v _ r _ -> freeVars r \\ [v]

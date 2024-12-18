@@ -70,7 +70,10 @@ instance Biplate (Con' a) (Pred' a) where
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
     CAll x b p c -> plate CAll |- x |- b |* p |+ c
 
-instance Uniplate (Expr' a) => Biplate (Con' a) (Expr' a) where
+instance 
+  (Uniplate (Expr' a), Biplate (Rel' a) (Expr' a)) 
+  => Biplate (Con' a) (Expr' a) 
+ where
   biplate = \case
     CHead p      -> plate CHead |+ p
     CAnd c1 c2   -> plate CAnd |+ c1 |+ c2
@@ -93,8 +96,8 @@ instance (Uniplate (Expr' a), Subable (Expr' a) (Expr' a), Subable (Rel' a) (Exp
       | n `freeIn` x -> CAll ṅ b (subst x y ṗ) (subst x y ċ)  -- (2)
       | otherwise    -> CAll n b (subst x y p) (subst x y c)  -- (3)
       where
-        ṗ = subst (EVar ṅ) n p
-        ċ = subst (EVar ṅ) n c
+        ṗ = subst (EVar ṅ b) n p
+        ċ = subst (EVar ṅ b) n c
         ṅ = freshName n ([y] <> freeVars p <> freeVars c <> freeVars x)
 
     CHead p    -> CHead (subst x y p)
@@ -124,8 +127,8 @@ flat c₀ = [simpl [] [PTrue] c' | c' <- split c₀]
       where
         x' = if x `elem` vs then freshName x vs else x
         vs = Set.fromList (map fst xs) <> mconcat (map freeVars ps)
-        p' = if x' /= x then subst (EVar x') x p else p
-        c' = if x' /= x then subst (EVar x') x c else c
+        p' = if x' /= x then subst (EVar x' b) x p else p
+        c' = if x' /= x then subst (EVar x' b) x c else c
 
     simpl xs ps (CHead q)      = FAll (reverse xs) (meets $ reverse ps) q
     simpl _  _  (CAnd _ _)     = impossible

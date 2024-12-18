@@ -1,10 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Panini.Syntax.Relations where
 
-import Control.Applicative
 import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
+import Data.Maybe
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Panini.Pretty
@@ -40,7 +40,7 @@ pattern a :∉: b = Rel NotIn a b
 instance Hashable a => Hashable (Rel' a)
 instance Hashable Rop
 
-instance Uniplate (Expr' a) => Biplate (Rel' a) (Expr' a) where
+instance Biplate Rel Expr where
   biplate (Rel op a b) = plate Rel |- op |* a |* b
 
 instance Biplate Rel Value where
@@ -79,26 +79,9 @@ inverse = \case
   e1 :∉: e2 -> e1 :∈: e2
 
 -- | The type of a variable in a given relation, if locally discernible.
-typeOfVarInRel :: Name -> Rel -> Maybe Base
-typeOfVarInRel x = \case
-  EVar y :=: e      | x == y -> typeOfExpr e
-  e      :=: EVar y | x == y -> typeOfExpr e
-  EVar y :≠: e      | x == y -> typeOfExpr e
-  e      :≠: EVar y | x == y -> typeOfExpr e
-  EVar y :<: _      | x == y -> Just TInt
-  _      :<: EVar y | x == y -> Just TInt
-  EVar y :≤: _      | x == y -> Just TInt
-  _      :≤: EVar y | x == y -> Just TInt  
-  EVar y :>: _      | x == y -> Just TInt
-  _      :>: EVar y | x == y -> Just TInt
-  EVar y :≥: _      | x == y -> Just TInt
-  _      :≥: EVar y | x == y -> Just TInt  
-  EVar y :∈: e      | x == y -> typeOfExpr e
-  e      :∈: EVar y | x == y -> typeOfExpr e
-  EVar y :∉: e      | x == y -> typeOfExpr e
-  e      :∉: EVar y | x == y -> typeOfExpr e  
-  Rel _ e1 e2 -> typeOfVarInExpr x e1 <|> typeOfVarInExpr x e2
-
+typeOfVarInRel :: forall a. Biplate (Rel' a) (Expr' a) => Name -> Rel' a -> Maybe Base
+typeOfVarInRel x r = 
+  listToMaybe [b | EVar y b <- universeBi @(Rel' a) @(Expr' a) r, x == y]
 
 -------------------------------------------------------------------------------
 

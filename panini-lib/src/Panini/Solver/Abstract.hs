@@ -49,7 +49,7 @@ data PreCon = PreCon Name Base KVar Con
 instance Hashable PreCon
 
 instance Pretty PreCon where
-  pretty (PreCon x b k c) = pretty $ CAll x b (PAppK k [EVar x]) c
+  pretty (PreCon x b k c) = pretty $ CAll x b (PAppK k [EVar x b]) c
 
 -- | Return all precondition constraints within the given constraint.
 allPreCons :: Con -> HashSet PreCon
@@ -57,9 +57,9 @@ allPreCons c0 = HashSet.fromList $
   [ PreCon x b k c | CAll x b p c <- Uniplate.universe c0, k <- preConK x p ]  
  where
   preConK x = \case
-    PAppK k [EVar y] | x == y -> [k]
-    POr ps                    -> concatMap (preConK x) ps
-    _                         -> []
+    PAppK k [EVar y _] | x == y -> [k]
+    POr ps                      -> concatMap (preConK x) ps
+    _                           -> []
 
 preConKVar :: PreCon -> KVar
 preConKVar (PreCon _ _ k _) = k
@@ -90,7 +90,7 @@ solve c0 = do
   --   return $ Map.insert k (AInt bot, PTrue) s -- TODO
 
   solve' s (PreCon x b k c) = do
-    logMessage $ "Solve" <+> pretty @Pred (PAppK k [EVar x])
+    logMessage $ "Solve" <+> pretty @Pred (PAppK k [EVar x b])
     c' <- apply (Map.map snd s) c   § "Apply partial solution"
     a1 <- solve1 (PreCon x b k c')
     a2 <- meet' a1 (Map.lookup k s) § "Meet with previous abstract solution"

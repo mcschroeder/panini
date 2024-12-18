@@ -151,14 +151,17 @@ matchTypeSig = go
       (Known p1, Known p2) -> (TBase v2 b2 r2 pv2, p1 /= p2)
       (Known p1, Unknown ) -> (TBase v2 b1 r  pv1, False) 
         where 
-          r = Known $ subst (EVar v2) v1 p1
+          r = Known $ subst (EVar v2 b2) v1 p1
   
   go (TFun x1 s1 t1 pv1) (TFun x2 s2 t2 _) = 
     (TFun x2 s t pv1, ws || wt)
     where 
       (s, ws) = go s1  s2
       (t, wt) = go t1' t2
-      t1'     = subst (EVar x2) x1 t1
+      t1'     = subst (EVar x2 b2) x1 t1
+      b2      = case s2 of
+                  TBase _ b _ _ -> b
+                  TFun  _ _ _ _ -> TUnit  -- TODO
 
   go _ _ = impossible
 

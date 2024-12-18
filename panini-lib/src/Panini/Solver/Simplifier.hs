@@ -39,14 +39,14 @@ simplifyCon = \case
   -- ∀x:b. P(x) ⇒ (∀y:b. P(y) ∧ y = x ⇒ Q(y)) ∧ ψ   ≡   ∀x:b. P(x) ⇒ Q(x) ∧ ψ
   CAll x b1 p1 (leftmostAnd -> (CAll y b2 (PAnd [p2,r]) (CHead q2), c))
     | b1 == b2
-    , p1 == subst (EVar x) y p2
-    , r  == PRel (EVar y :=: EVar x)
-    , let q1 = subst (EVar x) y q2
+    , p1 == subst (EVar x b1) y p2
+    , r  == PRel (EVar y b2 :=: EVar x b1)
+    , let q1 = subst (EVar x b1) y q2
     -> Just $ CAll x b1 p1 $ CAnd (CHead q1) (fromMaybe CTrue c)
 
   -- ∀x:𝔹. (x = true ⇔ φ) ⇒ x = true ∧ ψ   ≡   φ ∧ ψ
   CAll x TBool (PIff p1 q) (leftmostAnd -> (CHead p2, c))
-    | PRel (EVar x1 :=: EBool True _) <- p1
+    | PRel (EVar x1 TBool :=: EBool True _) <- p1
     , x1 == x, p1 == p2
     , x `notElem` freeVars q
     , x `notElem` maybe mempty freeVars c
@@ -108,18 +108,18 @@ simplifyPredA = \case
     -> Just $ PExists x1 b $ subst y x1 p0
    where
     findAssignment (PRel (e1 :=: e2) : _ ) 
-      | EVar x2 <- e1, x1 == x2, x1 `notFreeIn` e2 = Just e2
-      | EVar x2 <- e2, x1 == x2, x1 `notFreeIn` e1 = Just e1      
+      | EVar x2 _ <- e1, x1 == x2, x1 `notFreeIn` e2 = Just e2
+      | EVar x2 _ <- e2, x1 == x2, x1 `notFreeIn` e1 = Just e1      
     findAssignment (_                : ps)         = findAssignment ps
     findAssignment                     []          = Nothing
 
   -- ∃x:b. y = x   ≡   ⊤
-  PExists x1 _ (PRel (y :=: EVar x2))
+  PExists x1 _ (PRel (y :=: EVar x2 _))
     | x1 == x2, x1 `notElem` freeVars y
     -> Just PTrue
 
   -- ∃x:b. x = y   ≡   ⊤
-  PExists x1 _ (PRel (EVar x2 :=: y))
+  PExists x1 _ (PRel (EVar x2 _ :=: y))
     | x1 == x2, x1 `notElem` freeVars y
     -> Just PTrue
 
@@ -146,28 +146,28 @@ simplifyPred = \case
       PTrue   -> []
       y       -> [y]
   
-  p@(PAnd xs0@(PRel (Rel _ (EVar i) (EInt _ _)) : _))
+  p@(PAnd xs0@(PRel (Rel _ (EVar i _) (EInt _ _)) : _))
     | Just p' <- go top xs0, p' /= p -> Just p'
    where
     go v (PRel r : xs) = case r of
-      EVar i1 :=: EInt c _ | i == i1 -> go (v ∧ AInt.eq c) xs
-      EVar i1 :≠: EInt c _ | i == i1 -> go (v ∧ AInt.ne c) xs
-      EVar i1 :<: EInt c _ | i == i1 -> go (v ∧ AInt.lt c) xs
-      EVar i1 :≤: EInt c _ | i == i1 -> go (v ∧ AInt.le c) xs
-      EVar i1 :>: EInt c _ | i == i1 -> go (v ∧ AInt.gt c) xs
-      EVar i1 :≥: EInt c _ | i == i1 -> go (v ∧ AInt.ge c) xs
+      EVar i1 _ :=: EInt c _ | i == i1 -> go (v ∧ AInt.eq c) xs
+      EVar i1 _ :≠: EInt c _ | i == i1 -> go (v ∧ AInt.ne c) xs
+      EVar i1 _ :<: EInt c _ | i == i1 -> go (v ∧ AInt.lt c) xs
+      EVar i1 _ :≤: EInt c _ | i == i1 -> go (v ∧ AInt.le c) xs
+      EVar i1 _ :>: EInt c _ | i == i1 -> go (v ∧ AInt.gt c) xs
+      EVar i1 _ :≥: EInt c _ | i == i1 -> go (v ∧ AInt.ge c) xs
       _ -> Nothing
     go _ (_:_) = Nothing      
     go v [] = Just $ concretizeInt i v
 
-  PAnd [PRel (EVar i1 :≥: EInt 0 _pv1), PRel (EVar i2 :>: EInt 0 pv2)]
-    | i1 == i2 -> Just $ PRel (EVar i2 :>: EInt 0 pv2)
+  PAnd [PRel (EVar i1 _ :≥: EInt 0 _pv1), PRel (EVar i2 _ :>: EInt 0 pv2)]
+    | i1 == i2 -> Just $ PRel (EVar i2 TInt :>: EInt 0 pv2)
 
-  POr [PRel (EVar i1 :>: EInt 0 _pv1), PRel (EVar i2 :=: EInt 0 pv2)]
-    | i1 == i2 -> Just $ PRel (EVar i2 :≥: EInt 0 pv2)  
+  POr [PRel (EVar i1 _ :>: EInt 0 _pv1), PRel (EVar i2 _ :=: EInt 0 pv2)]
+    | i1 == i2 -> Just $ PRel (EVar i2 TInt :≥: EInt 0 pv2)  
 
-  POr [PRel (EVar i1 :≥: EInt 1 _pv1), PRel (EVar i2 :=: EInt 0 pv2)]
-    | i1 == i2 -> Just $ PRel (EVar i2 :≥: EInt 0 pv2)
+  POr [PRel (EVar i1 _ :≥: EInt 1 _pv1), PRel (EVar i2 _ :=: EInt 0 pv2)]
+    | i1 == i2 -> Just $ PRel (EVar i2 TInt :≥: EInt 0 pv2)
 
   PNot PTrue -> Just PFalse
   PNot PFalse -> Just PTrue
@@ -192,22 +192,22 @@ simplifyPred = \case
     -> Just $ PExists x1 b $ subst y x1 p0
    where
     findAssignment (PRel (e1 :=: e2) : _ ) 
-      | EVar x2 <- e1, x1 == x2, x1 `notFreeIn` e2 = Just e2
-      | EVar x2 <- e2, x1 == x2, x1 `notFreeIn` e1 = Just e1      
+      | EVar x2 _ <- e1, x1 == x2, x1 `notFreeIn` e2 = Just e2
+      | EVar x2 _ <- e2, x1 == x2, x1 `notFreeIn` e1 = Just e1      
     findAssignment (_                : ps)         = findAssignment ps
     findAssignment                     []          = Nothing
 
   -- ∃x:ℤ. x ⋈ c   ≡   ⊤    where c ∈ ℤ, ⋈ ∈ {=,≠,>,≥,<,≤}
-  PExists x1 TInt (PRel (Rel _ (EVar x2) (EInt _ _)))
+  PExists x1 TInt (PRel (Rel _ (EVar x2 _) (EInt _ _)))
     | x1 == x2 -> Just PTrue
 
   -- ∃x:b. y = x   ≡   ⊤
-  PExists x1 _ (PRel (y :=: EVar x2))
+  PExists x1 _ (PRel (y :=: EVar x2 _))
     | x1 == x2, x1 `notElem` freeVars y
     -> Just PTrue
 
   -- ∃x:b. x = y   ≡   ⊤
-  PExists x1 _ (PRel (EVar x2 :=: y))
+  PExists x1 _ (PRel (EVar x2 _ :=: y))
     | x1 == x2, x1 `notElem` freeVars y
     -> Just PTrue
 

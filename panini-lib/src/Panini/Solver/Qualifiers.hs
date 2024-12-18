@@ -39,10 +39,10 @@ extractQualifiers c bs = nubOrd $ map normPred $
             , r <- toList $ relationsOver (map fst bs') c
             , let m = Map.fromListWith (++) $ map (second pure) bs'
             , r' <- renameVars m r ]
-  ++ [ PRel $ Rel op (EVar z) a | (b,z) <- zip bs zs, (op,a) <- constants b ]
+  ++ [ PRel $ Rel op (EVar z b) a | (b,z) <- zip bs zs, (op,a) <- constants b ]
   ++ [ PRel r | (TInt, i) <- zip bs zs
               , (TString, s) <- zip bs zs
-              , let r = EVar i :≤: EStrLen (EVar s) ]
+              , let r = EVar i TInt :≤: EStrLen (EVar s TString) ]
  where
   zs = [Name ("z" <> Text.pack (show i)) NoPV | i <- [0..] :: [Int]]
   constants = \case
@@ -55,24 +55,24 @@ extractQualifiers c bs = nubOrd $ map normPred $
 -- TODO: normalize qualifiers more aggressively to avoid redundancies
 normPred :: Pred -> Pred
 normPred = \case
-  PRel (EVar x :>: EInt i pv) -> PRel (EVar x :≥: EInt (i + 1) pv)
-  PRel (EVar x :<: EInt i pv) -> PRel (EVar x :≤: EInt (i - 1) pv)
-  PRel (EVar x :≠: EBool b pv) -> PRel (EVar x :=: EBool (not b) pv)
+  PRel (EVar x TInt :>: EInt i pv) -> PRel (EVar x TInt :≥: EInt (i + 1) pv)
+  PRel (EVar x TInt :<: EInt i pv) -> PRel (EVar x TInt :≤: EInt (i - 1) pv)
+  PRel (EVar x TBool :≠: EBool b pv) -> PRel (EVar x TBool :=: EBool (not b) pv)
   p -> p
 
 -- | Rename the variables in a relation according to a given (multi-)mapping
 -- based on type, exhausting all possibilities. Note: the given map is expected
 -- to cover all variable types appearing in the relation!
 renameVars :: Map Base [Name] -> Rel -> [Rel]
-renameVars m0 r0 = [ substN (map EVar zs) xs r0 
+renameVars m0 r0 = [ substN (zipWith EVar zs bs) xs r0 
                    | xzs <- renamings m0 (toList $ freeVarsWithTypes r0)
-                   , let (xs,zs) = unzip xzs
+                   , let (xs,bs,zs) = unzip3 xzs
                    ]
  where
   renamings _        []  = [[]]
   renamings m ((x,b):xs) = concatMap go $ fromJust $ Map.lookup b m
    where 
-      go y = map ((x,y):) $ renamings (Map.adjust (List.\\ [y]) b m) xs    
+      go y = map ((x,b,y):) $ renamings (Map.adjust (List.\\ [y]) b m) xs    
 
 -- | Returns the free variables in a relation if they all have known types;
 -- otherwise, returns an empty set.

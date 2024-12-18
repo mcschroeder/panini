@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedLists #-}
 module Panini.Syntax.Expressions where
 
-import Control.Applicative
 import Data.Data (Data)
 import Data.Foldable
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.List qualified as List
+import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
@@ -28,7 +28,7 @@ type Expr = Expr' Value
 -- | Expressions within predicates are built from constants, variables, linear
 -- integer arithmetic, functions over strings, and uninterpreted functions.
 data Expr' a
-  = EVar !Name               -- ^ variable @x@  
+  = EVar !Name !Base         -- ^ variable @x@  
   | EFun !Name ![Expr' a]    -- ^ (uninterpreted) function @f(e₁,e₂,…,eₙ)@
   | EVal !a
   | EReg !ERE                -- ^ regular expression @RE@
@@ -121,7 +121,7 @@ pattern EStrContains s t = EFun "str_contains" [s,t]
 -- | An expression is /ground/ if it contains no variables anywhere, including
 -- inside abstract values.
 ground :: Uniplate (Expr' a) => Expr' a -> Bool
-ground e = and [False | EVar _ <- universe e]
+ground e = and [False | EVar _ _ <- universe e]
 
 -- | Postfix operator for 'ground'.
 (⏚) :: Uniplate (Expr' a) => Expr' a -> Bool
@@ -130,7 +130,7 @@ ground e = and [False | EVar _ <- universe e]
 -- | The type of the given expression, if locally discernible.
 typeOfExpr :: Expr -> Maybe Base
 typeOfExpr = \case
-  EVar _        -> Nothing
+  EVar _ b      -> Just b
   ENot _        -> Just TBool
   _ :+: _       -> Just TInt
   _ :-: _       -> Just TInt
@@ -142,45 +142,19 @@ typeOfExpr = \case
   EStrConc _ _ -> Just TString
   EStrStar _ -> Just TString
   EStrContains _ _ -> Just TBool
-  EFun _ es     -> asum $ map typeOfExpr es
+  EFun _ _      -> Nothing
   ECon c        -> Just $ typeOfValue c
   EReg _        -> Just TString
 
 -- | The type of a variable in a given expression, if locally discernible.
-typeOfVarInExpr :: Name -> Expr' a -> Maybe Base
-typeOfVarInExpr x = \case
-  ENot (EVar y)         | x == y -> Just TBool
-  EVar y :+: _          | x == y -> Just TInt
-  _ :+: EVar y          | x == y -> Just TInt
-  EVar y :-: _          | x == y -> Just TInt
-  _ :-: EVar y          | x == y -> Just TInt
-  EVar y :*: _          | x == y -> Just TInt
-  _ :*: EVar y          | x == y -> Just TInt
-  EMod (EVar y) _       | x == y -> Just TInt
-  EMod _ (EVar y)       | x == y -> Just TInt
-  EStrLen (EVar y)      | x == y -> Just TString
-  EStrAt (EVar y) _     | x == y -> Just TString
-  EStrAt _ (EVar y)     | x == y -> Just TInt
-  EStrSub (EVar y) _ _  | x == y -> Just TString
-  EStrSub _ (EVar y) _  | x == y -> Just TInt
-  EStrSub _ _ (EVar y)  | x == y -> Just TInt
-  EStrFirstIndexOfChar (EVar y) _ | x == y -> Just TString
-  EStrFirstIndexOfChar _ (EVar y) | x == y -> Just TChar
-  EStrStar (EVar y) | x == y -> Just TString
-  EStrConc (EVar y) _ | x == y -> Just TString
-  EStrConc _ (EVar y) | x == y -> Just TString
-  EStrContains (EVar y) _ | x == y -> Just TString
-  EStrContains _ (EVar y) | x == y -> Just TString  
-  EFun _ es                      -> asum $ map (typeOfVarInExpr x) es
-  EVar _                         -> Nothing
-  EReg _                         -> Nothing
-  EVal _                         -> Nothing
+typeOfVarInExpr :: Uniplate (Expr' a) => Name -> Expr' a -> Maybe Base
+typeOfVarInExpr x e = listToMaybe [b | EVar y b <- universe e, y == x]
 
 ------------------------------------------------------------------------------
 
 instance Uniplate Expr where
   uniplate = \case
-    EVar x     -> plate EVar |- x
+    EVar x b   -> plate EVar |- x |- b
     EFun f es  -> plate EFun |- f ||* es
     ECon c     -> plate ECon |- c
     EReg r     -> plate EReg |- r
@@ -188,7 +162,7 @@ instance Uniplate Expr where
 
 instance Biplate Expr Value where
   biplate = \case
-    EVar x     -> plate EVar |- x
+    EVar x b   -> plate EVar |- x |- b
     EFun f es  -> plate EFun |- f ||+ es
     ECon c     -> plate ECon |* c
     EReg r     -> plate EReg |- r
@@ -196,7 +170,7 @@ instance Biplate Expr Value where
 
 instance Pretty a => Pretty (Expr' a) where
   pretty e0 = case e0 of
-    EVar x        -> pretty x
+    EVar x _      -> pretty x
     ENot e        -> symNeg <> parensIf (complex e) (pretty e)
     a :*: b       -> prettyL e0 a <+> "*" <+> prettyR e0 b
     a :+: b       -> prettyL e0 a <+> "+" <+> prettyR e0 b
@@ -223,11 +197,11 @@ instance HasFixity (Expr' a) where
 -- see Panini.Syntax.Substitution
 instance Subable Expr Expr where
   subst x y = \case
-    EVar n | y == n -> x
+    EVar n _ | y == n -> x
     e -> descend (subst x y) e
 
   freeVars = \case
-    EVar x           -> [x]
+    EVar x _         -> [x]
     EFun _ es        -> mconcat (map freeVars es)
     ECon _           -> []
     EReg _           -> []

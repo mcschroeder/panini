@@ -11,6 +11,8 @@ module Panini.Parser
 
 import Control.Monad
 import Control.Monad.Combinators.Expr
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State qualified as MT
 import Data.Bifunctor
 import Data.Char
 import Data.List (foldl')
@@ -51,7 +53,7 @@ parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint
 
 parseA :: Parser a -> FilePath -> Text -> Either Error a
-parseA p fp = first transformErrorBundle . parse (p <* eof) fp
+parseA p fp s = first transformErrorBundle $ MT.evalState (runParserT (p <* eof) fp s) mempty
 
 -------------------------------------------------------------------------------
 
@@ -85,7 +87,23 @@ transformErrorBundle b = Error errorMessage provenance
 
 -------------------------------------------------------------------------------
 
-type Parser = Parsec Void Text
+type VarCtx = [(Name,Base)]
+
+withVar :: Name -> Base -> Parser a -> Parser a
+withVar x b p = do
+  lift $ MT.modify' ((x,b):)
+  a <- p
+  lift $ MT.modify' tail
+  return a
+
+lookupVar :: Name -> Parser Base
+lookupVar x = lift (MT.gets (lookup x)) >>= \case
+  Nothing -> fail $ "unknown refinement variable: " ++ show (pretty x)
+  Just b -> return b
+
+-------------------------------------------------------------------------------
+
+type Parser = ParsecT Void Text (MT.State VarCtx)
 
 -- | Consumes white space, including newlines. Skips comments.
 whitespace :: Parser ()
@@ -241,7 +259,9 @@ term1 = choice
         Nothing -> failWithOffset o "missing binder"
         Just x -> do
           symbol "."
-          e <- term
+          e <- case t of
+            TBase _ b _ _ -> withVar x b term
+            TFun _ _ _ _ -> term
           end <- maybe getSourcePos pure $ getEndSourcePosFromPV $ getPV e
           return $ Lam x t e $ mkPV begin end
 
@@ -293,7 +313,9 @@ type_ = do
   choice 
     [ notFollowedBy arrow *> pure t1
     , do
-        t2 <- arrow *> type_
+        t2 <- case t1 of
+          TBase x1 b1 _ _ -> withVar (fromMaybe x1 x) b1 $ arrow *> type_
+          TFun _ _ _ _  -> arrow *> type_
         end <- getSourcePos
         return $ TFun (fromMaybe dummyName x) t1 t2 (mkPV begin end)
     ]
@@ -323,10 +345,10 @@ type1 = choice
     symbol ":"
     b <- baseType
     symbol "|"
-    r <- refinement
-    void "}"
+    r <- withVar v b refinement
+    void "}"    
     end <- getSourcePos
-    whitespace
+    whitespace    
     pure (Just v, TBase v b r (mkPV begin end))
   
   namedBase = do
@@ -426,7 +448,10 @@ pexprTerm :: Parser Expr
 pexprTerm = choice
   [ try $ EStrLen <$ symbol "|" <*> pexpr <* symbol "|"
   , try $ ECon <$> value <* notFollowedBy "("
-  , try $ EVar <$> name <* notFollowedBy "("
+  , try $ do
+      x <- name <* notFollowedBy "("
+      b <- lookupVar x
+      return $ EVar x b
   , EFun <$> name <*> parens (sepBy1 pexpr ",")
   ]
 
