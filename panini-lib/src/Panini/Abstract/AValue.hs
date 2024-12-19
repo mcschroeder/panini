@@ -155,6 +155,15 @@ fromValue = \case
   C c _ -> AChar $ AChar.eq c
   S t _ -> AString $ AString.eq $ Text.unpack t
 
+isSingleton :: AValue -> Bool
+isSingleton = \case
+  AUnit   a | Unit       <- a              -> True
+  ABool   a | Just _     <- ABool.value  a -> True
+  AInt    a | [_]        <- AInt.values  a -> True
+  AChar   a | [_]        <- AChar.values a -> True
+  AString a | AString1 _ <- a              -> True
+  _                                        -> False
+
 ------------------------------------------------------------------------------
 
 type ARel  = Rel'  AValue
@@ -176,6 +185,17 @@ instance Biplate ARel AValue where
 instance Subable ARel AExpr where
   subst x y = descendBi (subst @AExpr x y)
   freeVars = mconcat . map (freeVars @AExpr) . childrenBi
+
+-- TODO: figure out how to best pretty print
+-- instance {-# OVERLAPPING #-} Pretty ARel where
+--   pretty = \case
+--     Rel Eq a b -> pretty a <+> "≬" <+> pretty b
+--     Rel Ne a b -> pretty a <+> "∥" <+> pretty b
+--     Rel op a b -> pretty a <+> pretty op <+> pretty b
+
+-- | How often does a particular variable occur free in the given relation?
+occurrences :: Name -> ARel -> Int
+occurrences x ρ = sum [1 | EVar y _ <- universeBi @ARel @AExpr ρ, y == x]
 
 ------------------------------------------------------------------------------
 
@@ -208,6 +228,14 @@ pattern EStrA a = EAbs (AString a)
 -- ^ abstract relation @⟨x: ρ⟩@
 pattern ERelA :: Name -> Base -> ARel -> AExpr
 pattern ERelA x b r = EAbs (ARel x b r)
+
+-- | 'True' if all abstract values of in the expression are singletons.
+concreteish :: AExpr -> Bool
+concreteish ω = and [isSingleton â | EVal â <- universe ω]
+
+-- | Whether an abstract expression contains any bottoms.
+anyBot :: AExpr -> Bool
+anyBot ω = any hasBot [â | EVal â <- universe ω]
 
 -- | The type of the given expression, if locally discernible.
 typeOfExprA :: AExpr -> Maybe Base

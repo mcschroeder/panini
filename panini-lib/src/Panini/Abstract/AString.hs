@@ -19,6 +19,7 @@ import Panini.SMT.RegLan (RegLan)
 import Prelude hiding (length)
 import Regex qualified as Regex
 import Regex.CharSet qualified as CS
+import Regex.Inclusion qualified as Regex
 import Regex.Type
 
 ------------------------------------------------------------------------------
@@ -27,9 +28,9 @@ newtype AString = MkAString Regex
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
   deriving newtype (Semigroup, Monoid, Hashable)
 
--- | Based on total structural ordering of 'Regex'.
+-- | Regular language inclusion. CAUTION: this is an expensive operation!
 instance PartialOrder AString where
-  (⊑) = (<=)
+  (⊑) = isIncludedBy
 
 instance JoinSemilattice AString where
   MkAString r1 ∨ MkAString r2 = MkAString $ Plus [r1,r2]
@@ -59,6 +60,11 @@ regex1 r0 = Text.pack <$> go [] r0
   go xs (Times1 (Lit c) r) | [x] <- CS.toList c = go (x:xs) r
   go xs (Lit c)            | [x] <- CS.toList c = Just $ reverse (x:xs)
   go _ _                                        = Nothing
+
+isIncludedBy :: AString -> AString -> Bool
+isIncludedBy (MkAString r1) (MkAString r2)
+  | Just b <- r1 `Regex.isUnambiguouslyIncludedBy` r2 = b
+  | otherwise = r1 `Regex.isIncludedBy` r2
 
 ------------------------------------------------------------------------------
 

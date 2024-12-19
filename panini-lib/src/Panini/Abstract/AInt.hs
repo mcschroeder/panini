@@ -4,6 +4,8 @@ module Panini.Abstract.AInt
   ( AInt
   , pattern AInt0
   , pattern AInt1
+  , pattern AIntFrom
+  , pattern AIntTo
   , count
   , values
   , intervals
@@ -25,6 +27,7 @@ module Panini.Abstract.AInt
   , leA
   , add
   , sub
+  , negate
   , IntervalSequence
   , holes
   , Interval(..)
@@ -38,7 +41,7 @@ import Data.List qualified as List
 import Panini.Abstract.Interval
 import Panini.Panic
 import Panini.Pretty
-import Prelude hiding (minimum, maximum)
+import Prelude hiding (minimum, maximum, negate)
 
 -- TODO: investigate whether it's possible to have a Num instance
 
@@ -63,12 +66,20 @@ instance Pretty AInt where
               $ [pretty a <> comma <> pretty b | In a b <- xs]
 
 pattern AInt0 :: AInt
-pattern AInt0 <- (values -> [0]) where
-  AInt0 = eq 0
+pattern AInt0 = AInt [In (Fin 0) (Fin 0)]
 
 pattern AInt1 :: AInt
-pattern AInt1 <- (values -> [1]) where
-  AInt1 = eq 1
+pattern AInt1 = AInt [In (Fin 1) (Fin 1)]
+
+-- | An abstract integer representing all values from the given integer
+-- (inclusive) to positive infinity.
+pattern AIntFrom :: Integer -> AInt
+pattern AIntFrom n = AInt [In (Fin n) PosInf]
+
+-- | An abstract integer representing all values from negative infinite to the
+-- given integer (inclusive).
+pattern AIntTo :: Integer -> AInt
+pattern AIntTo n = AInt [In NegInf (Fin n)]
 
 -------------------------------------------------------------------------------
 
@@ -219,3 +230,7 @@ add (AInt xs) (AInt ys) = AInt $ joins $ [[addIn x y] | x <- xs, y <- ys]
 -- value represented by the first abstract integer.
 sub :: AInt -> AInt -> AInt
 sub (AInt xs) (AInt ys) = AInt $ joins $ [[subIn x y] | x <- xs, y <- ys]
+
+-- | Negate all values represented by the abstract integer.
+negate :: AInt -> AInt
+negate = sub AInt0
