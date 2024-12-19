@@ -1,6 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Panini.Abstract.AString where
 
 import Algebra.Lattice
