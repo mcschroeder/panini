@@ -1,6 +1,6 @@
 module Panini.Syntax.Primitives where
 
-import Data.Data (Data)
+import Data.Data (Data, toConstr, constrIndex)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.Text (Text)
@@ -51,21 +51,12 @@ instance Eq Value where
 
 -- | Structural ordering between values; ignores provenance.
 instance Ord Value where
-  U   _ <= _     = True
-  B _ _ <= U   _ = False
+  U   _ <= U   _ = True
   B a _ <= B b _ = a <= b
-  B _ _ <= _     = True
-  I _ _ <= U   _ = False
-  I _ _ <= B _ _ = False
   I a _ <= I b _ = a <= b
-  I _ _ <= _     = True
-  C _ _ <= U   _ = False
-  C _ _ <= B _ _ = False
-  C _ _ <= I _ _ = False
   C a _ <= C b _ = a <= b
-  C _ _ <= _     = True
   S a _ <= S b _ = a <= b
-  S _ _ <= _     = False
+  a     <= b     = constrIndex (toConstr a) <= constrIndex (toConstr b)
 
 -- | Hashing values ignores provenance.
 instance Hashable Value where
