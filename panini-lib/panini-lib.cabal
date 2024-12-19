@@ -58,6 +58,7 @@ library
     Panini.Abstract.AString
     Panini.Abstract.AUnit
     Panini.Abstract.AValue
+    Panini.Abstract.Interval
     Panini.Abstract.Semantics
     Panini.Diagnostic
     Panini.Elab
