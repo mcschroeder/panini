@@ -60,6 +60,10 @@ instance Pretty Interval where
     | a == b    = pretty a
     | otherwise = brackets $ pretty a <> comma <> pretty b
 
+-- | Infix pattern synonym for the 'In' constructor.
+pattern (:…) :: Inf Integer -> Inf Integer -> Interval
+pattern a :… b = In a b
+
 -- | Create a singleton interval @[a..a]@.
 singleton :: Integer -> Interval
 singleton a = In (Fin a) (Fin a)

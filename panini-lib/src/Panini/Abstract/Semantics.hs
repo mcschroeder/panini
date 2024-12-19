@@ -12,15 +12,16 @@ import Panini.Abstract.AInt as AInt
 import Panini.Abstract.AString as AString
 import Panini.Abstract.AUnit as AUnit
 import Panini.Abstract.AValue
+import Panini.Abstract.Interval (pattern (:…))
 import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax
 import Prelude
 import Regex qualified as Regex
-import Regex.Type (prettyRegex)
 import Regex.Inclusion qualified as Regex
 import Regex.POSIX.ERE qualified
+import Regex.Type (prettyRegex)
 
 --import Debug.Trace
 trace :: String -> a -> a
@@ -516,27 +517,23 @@ concretizeBool x a = case ABool.value a of
 
 concretizeInt :: Name -> AInt -> Pred
 concretizeInt x a = case AInt.intervals a of
-  []                                        -> PFalse  
-  [NegInf :..: PosInf]                      -> PTrue
-  [NegInf :..: Fin n ]                      -> mk (:≤:) n
-  [Fin m  :..: PosInf]                      -> mk (:≥:) m
-  [Fin m  :..: Fin n ] | m == n             -> mk (:=:) m
-                       | otherwise          -> mk (:≥:) m ∧ mk (:≤:) n
-  [NegInf :..: Fin m, Fin n :..: PosInf]
-                               | n - m == 2 -> mk (:≠:) (m + 1)
-                               | otherwise  -> mk (:≤:) m ∨ mk (:≥:) n
-  (Fin m  :..: _) : (last -> _ :..: Fin n ) -> mk (:≥:) m ∧ mk (:≤:) n ∧ mkHoles
-  (NegInf :..: _) : (last -> _ :..: Fin n ) -> mk (:≤:) n ∧ mkHoles
-  (Fin m  :..: _) : (last -> _ :..: PosInf) -> mk (:≥:) m ∧ mkHoles
-  (NegInf :..: _) : (last -> _ :..: PosInf) -> mkHoles
-  _                                         -> impossible
+  []                                    -> PFalse  
+  [NegInf :… PosInf]                    -> PTrue
+  [NegInf :… Fin n ]                    -> mk (:≤:) n
+  [Fin m  :… PosInf]                    -> mk (:≥:) m
+  [Fin m  :… Fin n ] | m == n           -> mk (:=:) m
+                     | otherwise        -> mk (:≥:) m ∧ mk (:≤:) n
+  [NegInf :… Fin m, Fin n :… PosInf]
+                     | n - m == 2       -> mk (:≠:) (m + 1)
+                     | otherwise        -> mk (:≤:) m ∨ mk (:≥:) n
+  (Fin m  :… _) : (last -> _ :… Fin n ) -> mk (:≥:) m ∧ mk (:≤:) n ∧ mkHoles
+  (NegInf :… _) : (last -> _ :… Fin n ) -> mk (:≤:) n ∧ mkHoles
+  (Fin m  :… _) : (last -> _ :… PosInf) -> mk (:≥:) m ∧ mkHoles
+  (NegInf :… _) : (last -> _ :… PosInf) -> mkHoles
+  _                                     -> impossible
  where
   mk op n = PRel $ op (EVar x TInt) (EInt (fromIntegral n) NoPV)
   mkHoles = meets $ map (mk (:≠:)) $ AInt.holes $ AInt.intervals a
-
--- TODO: move to AInt module
-pattern (:..:) :: Inf Integer -> Inf Integer -> AInt.Interval
-pattern a :..: b = AInt.In a b
 
 concretizeChar :: Name -> AChar -> Pred
 concretizeChar x ĉ

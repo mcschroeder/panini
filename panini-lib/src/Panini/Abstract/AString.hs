@@ -12,8 +12,9 @@ import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Panini.Abstract.AChar (AChar)
 import Panini.Abstract.AChar qualified as AChar
-import Panini.Abstract.AInt (AInt, Inf(..))
+import Panini.Abstract.AInt (AInt)
 import Panini.Abstract.AInt qualified as AInt
+import Panini.Abstract.Interval (Inf(..), pattern (:…))
 import Panini.Panic
 import Panini.Pretty
 import Panini.Regex.SMT qualified as Regex
@@ -169,37 +170,37 @@ strOfLen :: AInt -> AString
 strOfLen (meet (AInt.ge 0) -> n̂)
   | isBot n̂ = bot
   | otherwise = joins $ AInt.intervals n̂ >>= \case
-      AInt.In (Fin a) (Fin b) -> [rep anyChar n | n <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [rep anyChar a <> star anyChar]
-      _                       -> impossible
+      Fin a :… Fin b  -> [rep anyChar n | n <- [a..b]]
+      Fin a :… PosInf -> [rep anyChar a <> star anyChar]
+      _               -> impossible
 
 strNotOfLen :: AInt -> AString
 strNotOfLen (meet (AInt.ge 0) -> n̂)
   | isBot n̂ = top
   | otherwise = meets $ AInt.intervals n̂ >>= \case
-      AInt.In (Fin a) (Fin b) -> [ joins $ [rep anyChar i | i <- [0..n-1]] 
-                                        ++ [rep anyChar (n + 1) <> star anyChar]
-                                 | n <- [a..b] ]
-      AInt.In (Fin a) PosInf  -> [ joins $ [rep anyChar i | i <- [0..a-1]] ]
-      _                       -> impossible
+      Fin a :… Fin b  -> [ joins $ [rep anyChar i | i <- [0..n-1]] ++
+                                   [rep anyChar (n + 1) <> star anyChar]
+                         | n <- [a..b] ]
+      Fin a :… PosInf -> [ joins $ [rep anyChar i | i <- [0..a-1]] ]
+      _               -> impossible
 
 strWithCharAt :: AInt -> AChar -> AString
 strWithCharAt (meet (AInt.ge 0) -> î) ĉ
   | isBot ĉ = strOfLen î  -- TODO: should this be min î ?
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [rep anyChar i <> lit ĉ <> star anyChar | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [rep anyChar a <> star anyChar <> lit ĉ <> star anyChar]
-      _                       -> impossible
+      Fin a :… Fin b  -> [rep anyChar i <> lit ĉ <> star anyChar | i <- [a..b]]
+      Fin a :… PosInf -> [rep anyChar a <> star anyChar <> lit ĉ <> star anyChar]
+      _               -> impossible
 
 strWithoutCharAt :: AInt -> AChar -> AString
 strWithoutCharAt (meet (AInt.ge 0) -> î) ĉ
   | isBot ĉ = strOfLen (AInt.geA î)
   | otherwise = meets $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [ joins $ [rep anyChar n | n <- [0..i]]
-                                        ++ [rep anyChar i <> c̄ <> star anyChar] 
-                                 | i <- [a..b] ]
-      AInt.In (Fin a) PosInf  -> [rep anyChar a <> star c̄]
-      _                       -> impossible
+      Fin a :… Fin b  -> [ joins $ [rep anyChar n | n <- [0..i]] ++
+                                   [rep anyChar i <> c̄ <> star anyChar] 
+                         | i <- [a..b] ]
+      Fin a :… PosInf -> [rep anyChar a <> star c̄]
+      _               -> impossible
  where
   c̄ = lit (neg ĉ)
 
@@ -207,17 +208,17 @@ strWithCharAtRev :: AInt -> AChar -> AString
 strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = bot
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star anyChar <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
-      AInt.In (Fin a) PosInf  -> [star anyChar <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
-      _                       -> impossible
+      Fin a :… Fin b  -> [star anyChar <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
+      Fin a :… PosInf -> [star anyChar <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
+      _               -> impossible
 
 strWithoutCharAtRev :: AInt -> AChar -> AString
 strWithoutCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = top
   | otherwise = meets $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [go a b]
-      AInt.In (Fin a) PosInf  -> [(star c̄ <> rep anyChar (a - 1)) ∨ rep2 anyChar 0 (a - 1)]
-      _                       -> impossible
+      Fin a :… Fin b  -> [go a b]
+      Fin a :… PosInf -> [(star c̄ <> rep anyChar (a - 1)) ∨ rep2 anyChar 0 (a - 1)]
+      _               -> impossible
  where
   c̄ = lit (neg ĉ)
   go a b
@@ -230,15 +231,15 @@ strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
   | isBot î = bot
   | isBot ĵ = strOfLen î
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> AInt.intervals ĵ >>= \case
-        AInt.In (Fin c) (Fin d) -> [str  i j | i <- [a..b], j <- [c..d]]
-        AInt.In (Fin c) PosInf  -> [str' i c | i <- [a..b]]
-        _                       -> impossible
-      AInt.In (Fin a) PosInf  -> AInt.intervals ĵ >>= \case
-        AInt.In (Fin c) (Fin d) -> [str  a j | j <- [c..d], a <= j]
-        AInt.In (Fin c) PosInf  -> [str' a c]
-        _                       -> impossible
-      _                       -> impossible
+      Fin a :… Fin b -> AInt.intervals ĵ >>= \case
+        Fin c :… Fin d  -> [str  i j | i <- [a..b], j <- [c..d]]
+        Fin c :… PosInf -> [str' i c | i <- [a..b]]
+        _               -> impossible
+      Fin a :… PosInf -> AInt.intervals ĵ >>= \case
+        Fin c :… Fin d  -> [str  a j | j <- [c..d], a <= j]
+        Fin c :… PosInf -> [str' a c]
+        _               -> impossible
+      _ -> impossible
  where
   str  i j = rep anyChar i <>  (rep anyChar (j - i + 1)                  ∧ t̂) <> star anyChar
   str' i j = rep anyChar i <> ((rep anyChar (j - i + 1) <> star anyChar) ∧ t̂) <> star anyChar
@@ -252,9 +253,9 @@ strWithFirstIndexOfChar ĉ î
   | Just m <- AInt.minimum î, m < Fin 0 
       = (star c̄) ∨ strWithFirstIndexOfChar ĉ (î ∧ AInt.ge 0)
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [rep c̄ i <> lit ĉ <> star anyChar | i <- [a..b]]
-      AInt.In (Fin a) PosInf  -> [rep c̄ a <> star c̄ <> lit ĉ <> star anyChar]
-      _                       -> impossible
+      Fin a :… Fin b  -> [rep c̄ i <> lit ĉ <> star anyChar | i <- [a..b]]
+      Fin a :… PosInf -> [rep c̄ a <> star c̄ <> lit ĉ <> star anyChar]
+      _               -> impossible
  where
   c̄ = lit (neg ĉ)
 
@@ -264,9 +265,9 @@ strWithFirstIndexOfCharRev ĉ î
   | Just m <- AInt.minimum î, m < Fin 1
       = (star c̄) ∨ strWithFirstIndexOfCharRev ĉ (î ∧ AInt.ge 1)
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star c̄ <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
-      AInt.In (Fin a) PosInf  -> [star c̄ <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
-      _                       -> impossible
+      Fin a :… Fin b  -> [star c̄ <> lit ĉ <> rep2 anyChar (a - 1) (b - 1)]
+      Fin a :… PosInf -> [star c̄ <> lit ĉ <> rep anyChar (a - 1) <> star anyChar]
+      _               -> impossible
  where
   c̄ = lit (neg ĉ)
 
@@ -274,9 +275,9 @@ strWithFirstIndexOfCharFollowedByFirstIndexOfChar :: AChar -> AChar -> AInt -> A
 strWithFirstIndexOfCharFollowedByFirstIndexOfChar ĉ1 ĉ2 (meet (AInt.ge 1) -> î) -- TODO
   | not (isBot (ĉ1 ∧ ĉ2)) = undefined -- TODO
   | otherwise = joins $ AInt.intervals î >>= \case
-      AInt.In (Fin a) (Fin b) -> [star c̄12 <> lit ĉ1 <> rep2 c̄2 a b <> lit ĉ2 <> star anyChar]
-      AInt.In (Fin a) PosInf  -> [star c̄12 <> lit ĉ1 <> rep c̄2 (a - 1) <> star c̄2 <> lit ĉ2 <> star anyChar]
-      _                       -> impossible
+      Fin a :… Fin b  -> [star c̄12 <> lit ĉ1 <> rep2 c̄2 a b <> lit ĉ2 <> star anyChar]
+      Fin a :… PosInf -> [star c̄12 <> lit ĉ1 <> rep c̄2 (a - 1) <> star c̄2 <> lit ĉ2 <> star anyChar]
+      _               -> impossible
  where
   c̄12 = lit (neg ĉ1 ∧ neg ĉ2)
   c̄2  = lit (neg ĉ2)
