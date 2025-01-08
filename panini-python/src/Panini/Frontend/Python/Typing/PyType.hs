@@ -17,16 +17,6 @@ import Data.String
 import Panini.Pretty hiding (Set)
 import Prelude
 
--- TODO: Our typing lattice is incorrect. I'm not even sure if we can use this
--- kind of formulation, because subtyping in Python is not transitive; to wit:
--- "Sequence" is covariant in its element type but "MutableSequence" is not.
--- This leads to the following situation:
---    Sequence Int ≤ Sequence Object
---    MutableSequence Int ≤ Sequence Int
---    MutableSequence Int ≰ Sequence Object
--- So we cannot build a chain of subtype reasonings. It always depends on
--- where we start. Maybe there is some other mathemtical model we can use?
-
 -------------------------------------------------------------------------------
 
 -- | Type of Python types.
