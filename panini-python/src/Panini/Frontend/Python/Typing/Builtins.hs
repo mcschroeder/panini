@@ -339,11 +339,11 @@ dictStub :: ClassStub
 dictStub = ClassStub
   { constructors = []  -- TODO
   , attributes = []
-  , functions = []
-    -- [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
-    -- , ("__contains__", Callable [Dict _KT _VT, Object] Bool)
-    -- -- TODO
-    -- ] 
+  , functions =
+    [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
+    , ("__contains__", Callable [Dict _KT _VT, Object] Bool)
+    -- TODO
+    ] 
   }
 
 globalFunctions :: [(String,PyType)]
