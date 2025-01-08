@@ -48,7 +48,7 @@ instance Pretty Error where
 instance HasProvenance Error where
   getPV = \case
     ParserError _ pv                  -> pv
-    TypeError _                       -> NoPV -- TODO
+    TypeError e                       -> getPV e
     UnsupportedStatement stmt         -> getPV $ annot stmt
     UnsupportedExpression expr        -> getPV $ annot expr
     UnsupportedTypeHint expr          -> getPV $ annot expr

@@ -22,6 +22,7 @@ import Panini.Frontend.Python.Typing.PyType qualified as PyType
 import Panini.Frontend.Python.Typing.TypeInfo
 import Panini.Frontend.Python.Typing.Unify
 import Panini.Panic
+import Panini.Provenance
 import Prelude
 
 --import Debug.Trace
@@ -29,7 +30,7 @@ import Prelude
 
 ------------------------------------------------------------------------------
 
-infer :: Module a -> Either TypeError (Typed Module a)
+infer :: HasProvenance a => Module a -> Either TypeError (Typed Module a)
 infer (Module stmts) = runInfer $ do
   registerVar "__name__" PyType.Str
   stmtsTypedMeta <- mapM inferStmt stmts
@@ -57,7 +58,7 @@ setType e t = fmap (Just t,) e
 
 ------------------------------------------------------------------------------
 
-inferStmt :: Statement a -> Infer (Typed Statement a)
+inferStmt :: HasProvenance a => Statement a -> Infer (Typed Statement a)
 inferStmt = \case
   s@Import{} -> pure (untyped s)
   s@FromImport{} -> pure (untyped s)
@@ -267,7 +268,7 @@ typeOfBuiltinFunction f = case Map.lookup f builtinFunctions of
                             return t
     t -> return t
 
-inferExpr :: Expr a -> Infer (Typed Expr a)
+inferExpr :: HasProvenance a => Expr a -> Infer (Typed Expr a)
 inferExpr = \case
   Var{..} -> do
     let x = var_ident.ident_string
@@ -504,7 +505,7 @@ inferExpr = \case
   e -> return $ fmap (Just PyType.Any,) e
 
 -- | Note: this will add the types of named parameters to the variable context!
-inferParam :: Parameter a -> Infer (Typed Parameter a)
+inferParam :: HasProvenance a => Parameter a -> Infer (Typed Parameter a)
 inferParam = \case
   Param {..} -> do
     typeHintExpr <- mapM typifyHint param_py_annotation
@@ -525,7 +526,7 @@ inferParam = \case
   
   p -> throwE $ UnsupportedParam p
 
-inferArg :: Argument a -> Infer (Typed Argument a)
+inferArg :: HasProvenance a => Argument a -> Infer (Typed Argument a)
 inferArg = \case
   ArgExpr{..} -> do
     expr <- inferExpr arg_expr
@@ -536,7 +537,7 @@ inferArg = \case
 
   a -> throwE $ UnsupportedArg a
 
-inferSlice :: Slice a -> Infer (Typed Slice a)
+inferSlice :: HasProvenance a => Slice a -> Infer (Typed Slice a)
 inferSlice = \case
   SliceProper{..} -> SliceProper <$> mapM inferExpr slice_lower 
                                  <*> mapM inferExpr slice_upper
@@ -594,7 +595,7 @@ typeOfBinaryOp = \case
     PyType.Union xs         -> PyType.Union (map flipArgs xs)
     _                       -> impossible
 
-typifyHint :: Expr a -> Infer (Typed Expr a)
+typifyHint :: HasProvenance a => Expr a -> Infer (Typed Expr a)
 typifyHint e = case e of
   IsVar "bool" -> return $ setType e PyType.Bool
   IsVar "int"  -> return $ setType e PyType.Int

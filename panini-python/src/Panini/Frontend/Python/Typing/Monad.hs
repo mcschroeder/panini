@@ -15,6 +15,7 @@ import Panini.Frontend.Python.Pretty ()
 import Panini.Frontend.Python.Typing.PyType
 import Panini.Panic
 import Panini.Pretty
+import Panini.Provenance
 import Prelude
 
 ------------------------------------------------------------------------------
@@ -27,9 +28,9 @@ runInfer m = evalState (runExceptT m) (Env 0 mempty [] mempty)
 data TypeError 
   = InfiniteType PyType PyType
   | CannotSolve Constraint
-  | forall a. UnsupportedTypeHint (Expr a)
-  | forall a. UnsupportedParam (Parameter a)
-  | forall a. UnsupportedArg (Argument a)
+  | forall a. HasProvenance a => UnsupportedTypeHint (Expr a)
+  | forall a. HasProvenance a => UnsupportedParam (Parameter a)
+  | forall a. HasProvenance a => UnsupportedArg (Argument a)
 
 instance Pretty TypeError where
   pretty = \case
@@ -38,6 +39,14 @@ instance Pretty TypeError where
     UnsupportedTypeHint e -> "unsupported type hint:" <+> pretty e 
     UnsupportedParam p -> "unsupported parameter:" <+> pretty p
     UnsupportedArg a -> "unsupported argument:" <+> pretty a
+
+instance HasProvenance TypeError where
+  getPV = \case
+    InfiniteType _ _ -> NoPV
+    CannotSolve _ -> NoPV
+    UnsupportedTypeHint a -> getPV $ annot a
+    UnsupportedParam a -> getPV $ annot a
+    UnsupportedArg a -> getPV $ annot a
 
 data Env = Env
   { metaVarCount    :: Int
