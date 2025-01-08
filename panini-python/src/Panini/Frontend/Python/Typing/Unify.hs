@@ -135,6 +135,10 @@ biunify = go mempty . Set.toList
       m'    = IntMap.insert a (l',u) m
       cs'   = map (t :≤) (Set.toList u) ++ cs
 
+    t1 :≤ t2 
+      | t1 ⊑ t2  -> go m cs
+      | closed c -> throwE $ CannotSolve c
+
     Callable s1 t1 :≤ Callable s2 t2 | length s1 == length s2 -> 
       go m $ t1 :≤ t2 : zipWith (:≤) s2 s1 ++ cs
 
@@ -149,9 +153,6 @@ biunify = go mempty . Set.toList
       | [t] <- Set.filter ((y ==) . pyTypeName) $ transitiveSuperTypes t1
       -> go m (t :≤ t2 : cs)
     
-    t1 :≤ t2 | t1 ⊑ t2   -> go m cs
-             | otherwise -> throwE $ CannotSolve c
-
     [t1] :*≤ t2 -> go m (t1 :≤ t2 : cs)
 
     -- TODO: this leads to a huge exponential explosion
@@ -166,3 +167,9 @@ biunify = go mempty . Set.toList
             case coalesceUpper u of
               Nothing -> throwE $ CannotSolve c
               Just u' -> return (a, (l',u'))
+
+    _ -> throwE $ CannotSolve c
+
+closed :: Constraint -> Bool
+closed (t1 :≤ t2) = not (hasMetaVars t1) && not (hasMetaVars t2)
+closed (ts :*≤ t) = not (any hasMetaVars ts) && not (hasMetaVars t)

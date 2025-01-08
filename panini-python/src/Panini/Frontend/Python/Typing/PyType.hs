@@ -166,6 +166,9 @@ pattern NoReturn              = PyType "NoReturn" []
 
 -------------------------------------------------------------------------------
 
+-- TODO: add more co/contravariance
+-- TODO: find a more generic way to encode variance
+
 -- | The Python type hierarchy establishes a partial ordering of Python types.
 -- Note that 'Any' is not part of the type hierarchy: it represents an unknown
 -- static type. The common supertype and top element of the typing lattice is
@@ -176,7 +179,10 @@ instance PartialOrder PyType where
   a              ⊑ Union bs       = any (a ⊑) bs
   Union as       ⊑ b              = all (⊑ b) as
   Callable s1 t1 ⊑ Callable s2 t2 = and $ t1 ⊑ t2 : zipWith (⊑) s2 s1
-  a              ⊑ b              = a == b || b `elem` transitiveSuperTypes a
+  Sequence a     ⊑ Sequence b     = a ⊑ b
+  AbstractSet a  ⊑ AbstractSet b  = a ⊑ b
+  Tuple as       ⊑ Tuple bs       = and $ zipWith (⊑) as bs
+  a              ⊑ b              = a == b || any (⊑ b) (transitiveSuperTypes a)
 
 -- | The least upper bound of two Python types is the "lowest" common supertype
 -- of both (including themselves). Either of the original types can be placed
