@@ -31,6 +31,7 @@ data TypeError
   | forall a. HasProvenance a => UnsupportedTypeHint (Expr a)
   | forall a. HasProvenance a => UnsupportedParam (Parameter a)
   | forall a. HasProvenance a => UnsupportedArg (Argument a)
+  | UnknownFunction String PV
 
 instance Pretty TypeError where
   pretty = \case
@@ -39,6 +40,7 @@ instance Pretty TypeError where
     UnsupportedTypeHint e -> "unsupported type hint:" <+> pretty e 
     UnsupportedParam p -> "unsupported parameter:" <+> pretty p
     UnsupportedArg a -> "unsupported argument:" <+> pretty a
+    UnknownFunction f _ -> "unknown function:" <+> pretty f
 
 instance HasProvenance TypeError where
   getPV = \case
@@ -47,6 +49,7 @@ instance HasProvenance TypeError where
     UnsupportedTypeHint a -> getPV $ annot a
     UnsupportedParam a -> getPV $ annot a
     UnsupportedArg a -> getPV $ annot a
+    UnknownFunction _ pv -> pv
 
 data Env = Env
   { metaVarCount    :: Int

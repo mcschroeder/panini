@@ -342,6 +342,7 @@ dictStub = ClassStub
   , functions =
     [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
     , ("__contains__", Callable [Dict _KT _VT, Object] Bool)
+    , ("keys", Callable [Dict _KT _VT] (KeysView _KT))
     -- TODO
     ] 
   }
@@ -402,6 +403,11 @@ globalFunctions =
   , ("sum", Callable [Iterable (Union [Bool,Int])] Int)
   , ("sum", Callable [Iterable (Union [Bool,Int]),Int] Int)
   , ("sum", Callable [Iterable Object] Object)
+  , ("type", Callable [Object] Object)
   , ("vars", Callable [] (Dict Str Object))
   , ("vars", Callable [Object] (Dict Str Object))
+
+  -- TODO: these should be their own class stubs
+  , ("ValueError", Callable [Any] (PyType "ValueError" []))
+  , ("Exception", Callable [Any] (PyType "Exception" []))
   ]

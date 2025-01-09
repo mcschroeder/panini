@@ -58,6 +58,8 @@ setType e t = fmap (Just t,) e
 
 ------------------------------------------------------------------------------
 
+-- TODO: support out-of-order definition of functions
+
 inferStmt :: HasProvenance a => Statement a -> Infer (Typed Statement a)
 inferStmt = \case
   s@Import{} -> pure (untyped s)
@@ -254,9 +256,9 @@ mkFunType params returnType = PyType.Union
   ]
 
 -- TODO: also replace 'Any' w/ fresh metavars?
-typeOfBuiltinFunction :: String -> Infer [PyType]
-typeOfBuiltinFunction f = case Map.lookup f builtinFunctions of
-  Nothing -> List.singleton <$> newMetaVar
+typeOfBuiltinFunction :: String -> PV -> Infer [PyType]
+typeOfBuiltinFunction f pv = case Map.lookup f builtinFunctions of
+  Nothing -> throwE $ UnknownFunction f pv
   Just t0 -> evalStateT (mapM go t0) mempty
  where
   go = transformM $ \case
@@ -295,7 +297,8 @@ inferExpr = \case
   e@UnicodeStrings {} -> pure $ setType e PyType.Str
 
   Call { call_fun = dotExpr@Dot{}, .. } -> do
-    funTy1 <- typeOfBuiltinFunction dotExpr.dot_attribute.ident_string
+    let fun1 = dotExpr.dot_attribute
+    funTy1 <- typeOfBuiltinFunction fun1.ident_string (getPV fun1.ident_annot)
     objExpr <- inferExpr dotExpr.dot_expr
     funArgs <- mapM inferArg call_args
     let argTys = typeOf objExpr : map typeOf funArgs
@@ -313,7 +316,9 @@ inferExpr = \case
       }
 
   Call { call_fun = funExpr@(IsVar x), .. } -> do
-    funTy1 <- typeOfBuiltinFunction x
+    funTy1 <- typeOfVar x >>= \case
+      Just t -> pure [t]
+      Nothing -> typeOfBuiltinFunction x (getPV funExpr.expr_annot)
     funArgs <- mapM inferArg call_args
     μ <- newMetaVar
     let funTy2 = PyType.Callable (map typeOf funArgs) μ
@@ -341,7 +346,7 @@ inferExpr = \case
     e2 <- inferExpr subscript_expr 
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf e1, typeOf e2] μ
-    t2 <- typeOfBuiltinFunction "__getitem__"
+    t2 <- typeOfBuiltinFunction "__getitem__" NoPV
     constrainPV expr_annot $ t2 :*≤ t1
     return Subscript { subscriptee    = e1
                      , subscript_expr = e2
@@ -356,7 +361,7 @@ inferExpr = \case
                 | otherwise = PyType.Tuple $ map typeOf e2
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf e1, sliceTy] μ
-    t2 <- typeOfBuiltinFunction "__getitem__"
+    t2 <- typeOfBuiltinFunction "__getitem__" NoPV
     constrainPV expr_annot $ t2 :*≤ t1
     return SlicedExpr 
       { slicee     = e1
@@ -551,45 +556,48 @@ inferSlice = \case
   SliceEllipsis{..} -> 
     SliceEllipsis <$> pure (Just PyType.Ellipsis, slice_annot)
 
-typeOfUnaryOp :: Op a -> Infer [PyType]
-typeOfUnaryOp = \case
-  Plus   {} -> typeOfBuiltinFunction "__pos__"
-  Minus  {} -> typeOfBuiltinFunction "__neg__"
-  Invert {} -> typeOfBuiltinFunction "__invert__"
+typeOfUnaryOp :: HasProvenance a => Op a -> Infer [PyType]
+typeOfUnaryOp op = case op of
+  Plus   {} -> typeOfBuiltinFunction "__pos__" pv
+  Minus  {} -> typeOfBuiltinFunction "__neg__" pv
+  Invert {} -> typeOfBuiltinFunction "__invert__" pv
   Not    {} -> pure $ [PyType.Callable [PyType.Object] PyType.Bool]
   _         -> impossible  -- all other operators are binary only
+ where
+  pv = getPV op.op_annot
 
-typeOfBinaryOp :: Op a -> Infer [PyType]
-typeOfBinaryOp = \case
+typeOfBinaryOp :: HasProvenance a => Op a -> Infer [PyType]
+typeOfBinaryOp op = case op of
   And               {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
   Or                {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
   Not               {} -> impossible  -- unary only
-  Exponent          {} -> typeOfBuiltinFunction "__pow__"
-  LessThan          {} -> typeOfBuiltinFunction "__lt__"
-  GreaterThan       {} -> typeOfBuiltinFunction "__gt__"
-  Equality          {} -> typeOfBuiltinFunction "__eq__"
-  GreaterThanEquals {} -> typeOfBuiltinFunction "__ge__"
-  LessThanEquals    {} -> typeOfBuiltinFunction "__le__"
-  NotEquals         {} -> typeOfBuiltinFunction "__ne__"
-  NotEqualsV2       {} -> typeOfBuiltinFunction "__ne__"
+  Exponent          {} -> typeOfBuiltinFunction "__pow__" pv
+  LessThan          {} -> typeOfBuiltinFunction "__lt__" pv
+  GreaterThan       {} -> typeOfBuiltinFunction "__gt__" pv
+  Equality          {} -> typeOfBuiltinFunction "__eq__" pv
+  GreaterThanEquals {} -> typeOfBuiltinFunction "__ge__" pv
+  LessThanEquals    {} -> typeOfBuiltinFunction "__le__" pv
+  NotEquals         {} -> typeOfBuiltinFunction "__ne__" pv
+  NotEqualsV2       {} -> typeOfBuiltinFunction "__ne__" pv
   Is                {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
   IsNot             {} -> pure [PyType.Callable [PyType.Object, PyType.Object] PyType.Bool]
-  In                {} -> map flipArgs <$> typeOfBuiltinFunction "__contains__"
-  NotIn             {} -> map flipArgs <$> typeOfBuiltinFunction "__contains__"
-  BinaryOr          {} -> typeOfBuiltinFunction "__or__"
-  Xor               {} -> typeOfBuiltinFunction "__xor__"
-  BinaryAnd         {} -> typeOfBuiltinFunction "__and__"
-  ShiftLeft         {} -> typeOfBuiltinFunction "__lshift__"
-  ShiftRight        {} -> typeOfBuiltinFunction "__rshift__"
-  Multiply          {} -> typeOfBuiltinFunction "__mul__"
-  Plus              {} -> typeOfBuiltinFunction "__add__"
-  Minus             {} -> typeOfBuiltinFunction "__sub__"
-  Divide            {} -> typeOfBuiltinFunction "__truediv__"
-  FloorDivide       {} -> typeOfBuiltinFunction "__floordiv__"
-  MatrixMult        {} -> typeOfBuiltinFunction "__matmul__"
+  In                {} -> map flipArgs <$> typeOfBuiltinFunction "__contains__" pv
+  NotIn             {} -> map flipArgs <$> typeOfBuiltinFunction "__contains__" pv
+  BinaryOr          {} -> typeOfBuiltinFunction "__or__" pv
+  Xor               {} -> typeOfBuiltinFunction "__xor__" pv
+  BinaryAnd         {} -> typeOfBuiltinFunction "__and__" pv
+  ShiftLeft         {} -> typeOfBuiltinFunction "__lshift__" pv
+  ShiftRight        {} -> typeOfBuiltinFunction "__rshift__" pv
+  Multiply          {} -> typeOfBuiltinFunction "__mul__" pv
+  Plus              {} -> typeOfBuiltinFunction "__add__" pv
+  Minus             {} -> typeOfBuiltinFunction "__sub__" pv
+  Divide            {} -> typeOfBuiltinFunction "__truediv__" pv
+  FloorDivide       {} -> typeOfBuiltinFunction "__floordiv__" pv
+  MatrixMult        {} -> typeOfBuiltinFunction "__matmul__" pv
   Invert            {} -> impossible  -- unary only
-  Modulo            {} -> typeOfBuiltinFunction "__mod__"
+  Modulo            {} -> typeOfBuiltinFunction "__mod__" pv
  where
+  pv = getPV op.op_annot
   flipArgs = \case
     PyType.Callable [a,b] c -> PyType.Callable [b,a] c
     PyType.Union xs         -> PyType.Union (map flipArgs xs)
