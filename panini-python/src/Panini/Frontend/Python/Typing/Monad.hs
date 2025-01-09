@@ -43,7 +43,7 @@ instance Pretty TypeError where
 instance HasProvenance TypeError where
   getPV = \case
     InfiniteType _ _ -> NoPV
-    CannotSolve _ -> NoPV
+    CannotSolve c -> getPV c
     UnsupportedTypeHint a -> getPV $ annot a
     UnsupportedParam a -> getPV $ annot a
     UnsupportedArg a -> getPV $ annot a
@@ -94,16 +94,39 @@ popReturnTypeStackFrame = lift $ gets returnTypeStack >>= \case
 
 ------------------------------------------------------------------------------
 
-data Constraint = PyType :≤ PyType | [PyType] :*≤ PyType
+data Constraint = Sub PyType PyType PV | SubChoice [PyType] PyType PV
   deriving stock (Eq, Ord, Show, Read)
+
+pattern (:≤) :: PyType -> PyType -> Constraint
+pattern a :≤ b <- Sub a b _ where
+  a :≤ b = Sub a b NoPV
+
+pattern (:*≤) :: [PyType] -> PyType -> Constraint
+pattern a :*≤ b <- SubChoice a b _ where
+  a :*≤ b = SubChoice a b NoPV
+
+{-# COMPLETE (:≤), (:*≤) #-}
 
 instance Pretty Constraint where
   pretty (a :≤ b) = pretty a <+> "≤" <+> pretty b
   pretty (a :*≤ b) = pretty a <+> "*≤" <+> pretty b 
 
+instance HasProvenance Constraint where
+  getPV = \case
+    Sub _ _ pv -> pv
+    SubChoice _ _ pv -> pv
+
 constrain :: Constraint -> Infer ()
 constrain c = do
   lift $ modify' $ \e -> e { subConstraints = Set.insert c e.subConstraints }
+
+constrainPV :: HasProvenance a => a -> Constraint -> Infer ()
+constrainPV s c = constrain c'
+ where
+  pv = getPV s
+  c' = case c of
+    Sub a b _ -> Sub a b pv
+    SubChoice a b _ -> SubChoice a b pv
 
 ------------------------------------------------------------------------------
 

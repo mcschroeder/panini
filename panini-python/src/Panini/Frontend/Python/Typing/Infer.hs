@@ -69,7 +69,7 @@ inferStmt = \case
                      <*> mapM inferStmt while_else 
                      <*> pure (Nothing, stmt_annot)
 
-  For {..} -> do
+  For{..} -> do
     generator <- inferExpr for_generator
     targets <- mapM inferExpr for_targets
     let elemType = case map typeOf targets of
@@ -77,7 +77,7 @@ inferStmt = \case
                       [t]                    -> t
                       (t:ts) | all (== t) ts -> PyType.Iterable t
                              | otherwise     -> PyType.Iterable PyType.Any
-    constrain $ typeOf generator :≤ PyType.Iterable elemType
+    constrainPV stmt_annot $ typeOf generator :≤ PyType.Iterable elemType
     forM_ targets $ \target -> case target of
       IsVar x -> registerVar x (typeOf target)
       _       -> pure ()
@@ -106,8 +106,8 @@ inferStmt = \case
     pushEmptyReturnTypeStackFrame
     body <- mapM inferStmt fun_body
     popReturnTypeStackFrame >>= \case
-      [] -> constrain $ PyType.None :≤ returnType
-      ts -> mapM_ constrain $ map (:≤ returnType) ts
+      [] -> constrainPV stmt_annot $ PyType.None :≤ returnType
+      ts -> mapM_ (constrainPV stmt_annot) $ map (:≤ returnType) ts
     Fun <$> pure (setType fun_name funType)
         <*> pure parameters
         <*> pure resultHint
@@ -139,7 +139,7 @@ inferStmt = \case
                       [t]                    -> t
                       (t:ts) | all (== t) ts -> PyType.Iterable t
                              | otherwise     -> PyType.Iterable PyType.Any
-    constrain $ typeOf from :≤ targetType
+    constrainPV stmt_annot $ typeOf from :≤ targetType
     forM_ targets $ \target -> case target of
       IsVar x -> registerVar x (typeOf target)
       _       -> pure ()
@@ -154,7 +154,7 @@ inferStmt = \case
     rhs <- inferExpr aug_assign_expr
     let t = PyType.Callable [typeOf rhs, typeOf rhs] (typeOf lhs)
     funType <- typeOfBinaryOp $ assignOpToOp aug_assign_op
-    constrain $ funType :*≤ t
+    constrainPV stmt_annot $ funType :*≤ t
     return AugmentedAssign 
       { aug_assign_to   = lhs
       , aug_assign_op   = fmap (Just t,) aug_assign_op
@@ -165,10 +165,10 @@ inferStmt = \case
   AnnotatedAssign{..} -> do
     hint <- typifyHint ann_assign_annotation
     target <- inferExpr ann_assign_to
-    constrain $ typeOf hint :≤ typeOf target
+    constrainPV stmt_annot $ typeOf hint :≤ typeOf target
     from <- mapM inferExpr ann_assign_expr
     whenJust from $ \e -> do
-      constrain $ typeOf e :≤ typeOf target
+      constrainPV stmt_annot $ typeOf e :≤ typeOf target
       case e of
         IsVar x -> registerVar x (typeOf e)
         _       -> pure ()
@@ -301,7 +301,7 @@ inferExpr = \case
     let argTys = typeOf objExpr : map typeOf funArgs
     μ <- newMetaVar
     let funTy2 = PyType.Callable argTys μ
-    constrain $ funTy1 :*≤ funTy2
+    constrainPV expr_annot $ funTy1 :*≤ funTy2
     return Call
       { call_fun = Dot 
         { dot_expr = objExpr
@@ -317,7 +317,7 @@ inferExpr = \case
     funArgs <- mapM inferArg call_args
     μ <- newMetaVar
     let funTy2 = PyType.Callable (map typeOf funArgs) μ
-    constrain $ funTy1 :*≤ funTy2
+    constrainPV expr_annot $ funTy1 :*≤ funTy2
     return Call
       { call_fun = untyped funExpr
       , call_args = funArgs
@@ -329,7 +329,7 @@ inferExpr = \case
     μ <- newMetaVar
     let funType = PyType.Callable (map typeOf funArgs) μ
     funExpr <- inferExpr call_fun
-    constrain $ typeOf funExpr :≤ funType
+    constrainPV expr_annot $ typeOf funExpr :≤ funType
     return Call 
       { call_fun   = funExpr
       , call_args  = funArgs
@@ -342,7 +342,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf e1, typeOf e2] μ
     t2 <- typeOfBuiltinFunction "__getitem__"
-    constrain $ t2 :*≤ t1
+    constrainPV expr_annot $ t2 :*≤ t1
     return Subscript { subscriptee    = e1
                      , subscript_expr = e2
                      , expr_annot     = (Just μ, expr_annot)
@@ -357,7 +357,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf e1, sliceTy] μ
     t2 <- typeOfBuiltinFunction "__getitem__"
-    constrain $ t2 :*≤ t1
+    constrainPV expr_annot $ t2 :*≤ t1
     return SlicedExpr 
       { slicee     = e1
       , slices     = e2
@@ -370,8 +370,8 @@ inferExpr = \case
     condExpr <- inferExpr ce_condition    
     falsExpr <- inferExpr ce_false_branch
     μ <- newMetaVar
-    constrain $ typeOf trueExpr :≤ μ
-    constrain $ typeOf falsExpr :≤ μ
+    constrainPV expr_annot $ typeOf trueExpr :≤ μ
+    constrainPV expr_annot $ typeOf falsExpr :≤ μ
     return CondExpr 
       { ce_true_branch  = trueExpr
       , ce_condition    = condExpr
@@ -385,7 +385,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf leExpr, typeOf riExpr] μ
     t2 <- typeOfBinaryOp operator
-    constrain $ t2 :*≤ t1
+    constrainPV expr_annot $ t2 :*≤ t1
     return BinaryOp 
       { operator     = setType operator t1
       , left_op_arg  = leExpr
@@ -398,7 +398,7 @@ inferExpr = \case
     μ <- newMetaVar
     let t1 = PyType.Callable [typeOf expr] μ
     t2 <- typeOfUnaryOp operator
-    constrain $ t2 :*≤ t1
+    constrainPV expr_annot $ t2 :*≤ t1
     return UnaryOp 
       { operator   = setType operator t1
       , op_arg     = expr
@@ -446,7 +446,7 @@ inferExpr = \case
   List{..} -> do
     items <- mapM inferExpr list_exprs
     μ <- newMetaVar
-    mapM_ (constrain . (:≤ μ)) (map typeOf items)
+    mapM_ (constrainPV expr_annot . (:≤ μ)) (map typeOf items)
     return List
       { list_exprs = items
       , expr_annot = (Just (PyType.List μ), expr_annot)
@@ -455,14 +455,14 @@ inferExpr = \case
   Dictionary{..} -> do
     keyType <- newMetaVar
     valueType <- newMetaVar
-    constrain $ keyType :≤ PyType.Hashable
+    constrainPV expr_annot $ keyType :≤ PyType.Hashable
     forM_ dict_mappings $ \case
       DictUnpacking _ -> pure () -- TODO
       DictMappingPair k v -> do
         kt <- typeOf <$> inferExpr k
         vt <- typeOf <$> inferExpr v
-        constrain $ kt :≤ keyType
-        constrain $ vt :≤ valueType
+        constrainPV expr_annot $ kt :≤ keyType
+        constrainPV expr_annot $ vt :≤ valueType
     return Dictionary
       { dict_mappings = map untyped dict_mappings
       , expr_annot    = (Just (PyType.Dict keyType valueType), expr_annot)
@@ -471,7 +471,7 @@ inferExpr = \case
   Py.Set{..} -> do
     items <- mapM inferExpr set_exprs
     μ <- newMetaVar
-    mapM_ (constrain . (:≤ μ)) (map typeOf items)
+    mapM_ (constrainPV expr_annot . (:≤ μ)) (map typeOf items)
     return Py.Set
       { set_exprs = items
       , expr_annot = (Just (PyType.Set μ), expr_annot)
@@ -480,7 +480,7 @@ inferExpr = \case
   Starred{..} -> do
     e <- inferExpr starred_expr
     let t = typeOf e
-    constrain $ t :≤ PyType.Iterable PyType.Any
+    constrainPV expr_annot $ t :≤ PyType.Iterable PyType.Any
     Starred 
       <$> pure e
       <*> pure (Just t, expr_annot)
@@ -513,8 +513,8 @@ inferParam = \case
     defaultExpr <- mapM inferExpr param_default
     let defaultType = fmap typeOf defaultExpr
     paramType <- newMetaVar
-    mapM_ (constrain . (:≤ paramType)) hintedType
-    mapM_ (constrain . (:≤ paramType)) defaultType
+    mapM_ (constrainPV param_annot . (:≤ paramType)) hintedType
+    mapM_ (constrainPV param_annot . (:≤ paramType)) defaultType
     let x = param_name.ident_string
     registerVar x paramType
     return Param
