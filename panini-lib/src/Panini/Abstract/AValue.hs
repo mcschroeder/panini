@@ -186,12 +186,11 @@ instance Subable ARel AExpr where
   subst x y = descendBi (subst @AExpr x y)
   freeVars = mconcat . map (freeVars @AExpr) . childrenBi
 
--- TODO: figure out how to best pretty print
--- instance {-# OVERLAPPING #-} Pretty ARel where
---   pretty = \case
---     Rel Eq a b -> pretty a <+> "≬" <+> pretty b
---     Rel Ne a b -> pretty a <+> "∥" <+> pretty b
---     Rel op a b -> pretty a <+> pretty op <+> pretty b
+instance {-# OVERLAPPING #-} Pretty ARel where
+  pretty = \case
+    Rel Eq a b -> pretty a <+> "≬" <+> pretty b
+    Rel Ne a b -> pretty a <+> "∥" <+> pretty b
+    Rel op a b -> pretty a <+> pretty op <+> pretty b
 
 -- | How often does a particular variable occur free in the given relation?
 occurrences :: Name -> ARel -> Int
