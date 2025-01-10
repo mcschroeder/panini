@@ -21,6 +21,7 @@ module Panini.Abstract.AInt
   , ge
   , lt
   , le
+  , fromTo
   , gtA
   , geA
   , ltA
@@ -194,6 +195,12 @@ lt a = AInt [In NegInf (Fin (a - 1))]
 -- | An abstract integer @≤ i@, i.e., @[-∞..i]@.
 le :: Integer -> AInt
 le a = AInt [In NegInf (Fin a)]
+
+-- | An abstract integer from @i@ to @j@ inclusive, i.e., @[i,j]@.
+fromTo :: Integer -> Integer -> AInt
+fromTo a b 
+  | a < b     = AInt [Fin a :… Fin b]
+  | otherwise = AInt [Fin b :… Fin a]
 
 -- | An abstract integer @> α@, i.e., @[(minimum α + 1)..+∞]@.
 gtA :: AInt -> AInt

@@ -111,7 +111,7 @@ test,result,time_ms,language,precision,recall
 220_aSb.py,OK,1856,exact,1.00,1.00
 221_aSb.py,FAIL,874,empty,1.00,0.00
 222_aSb.py,FAIL,66648,error,1.00,0.00
-223_aSb.py,FAIL,10564,error,1.00,0.00
+223_aSb.py,OK,11690,exact,1.00,1.00
 230_abS.py,OK,1866,exact,1.00,1.00
 231_abS.py,FAIL,1401,empty,1.00,0.00
 232_abS.py,FAIL,24927,error,1.00,0.00

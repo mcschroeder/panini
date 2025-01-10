@@ -1,1 +1,1 @@
-f223 : {s:𝕊 | s ∈ a*b} → 𝟙
+f223 : {s:𝕊 | s ∈ a*b} → 𝟙  -- UNVERIFIED (timeout)

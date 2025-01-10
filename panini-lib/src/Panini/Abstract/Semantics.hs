@@ -285,6 +285,32 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EStrIndexOf s c i :∥: 𝗭̂ n̂ -> normRelA $ EStrIndexOf s c i :≬: 𝗭̂ (neg n̂)
   EStrIndexOf s (𝗦̂1 ĉ) (ℤ 0) :≬: 𝗭̂ n̂ 
     -> normRelA $ s :≬: 𝗦̂ (strWithFirstIndexOfChar ĉ (n̂ ∧ AInt.ge (-1)))
+  EStrIndexOf s t i :≬: 𝗭̂ n 
+    | n == AInt.lt 0
+    -> normRelA $ EStrIndexOf s t i :≬: ℤ (-1)
+  -----------------------------------------------------------------------------
+  -- str.indexof(x,ω,|x|+[-i,+∞]) ≬ ψ   ≡   str.indexof(x,ω,|x|-[0,i]) ≬ ψ
+  EStrIndexOf x₁ ω (EStrLen x₂ :+: 𝗭̂ n̂) :≬: ψ
+    | x₁ == x₂
+    , [Fin i :… PosInf] <- AInt.intervals n̂, i < 0
+    , let n̂' = AInt.fromTo 0 (Prelude.negate i)
+    -> normRelA $ EStrIndexOf x₁ ω (EStrLen x₂ :-: 𝗭̂ n̂') :≬: ψ
+  -----------------------------------------------------------------------------
+  -- str.indexof(x,c,[i,+∞]) ≬ -1   ≡   x ≬ ΣⁱΣ*c̄*
+  EStrIndexOf x (𝗦̂1 c) (𝗭̂ (AIntFrom i)) :≬: ℤ (-1) 
+    -> normRelA $ x :≬: 𝗦̂ (rep Σ i ⋅ star Σ ⋅ star (lit (neg c)))
+  -----------------------------------------------------------------------------
+  -- str.indexof(x,c,|x|-[i,+∞]) ≬ -1   ≡   x ≬ Σ*c̄ⁱc̄*
+  EStrIndexOf x₁ (𝗦̂1 c) (EStrLen x₂ :-: 𝗭̂ (AIntFrom i)) :≬: ℤ (-1)
+    | x₁ == x₂, let c̄ = lit (neg c)
+    -> normRelA $ x₁ :≬: 𝗦̂ (star Σ ⋅ rep c̄ i ⋅ star c̄)
+  -----------------------------------------------------------------------------
+  -- TODO: generalize
+  -- str.indexof(x,c,|x|-[0,1]) ≬ -1   ≡   x ≬ Σ*c̄?
+  EStrIndexOf x₁ (𝗦̂1 c) (EStrLen x₂ :-: 𝗭̂ n̂) :≬: ℤ (-1)
+    | x₁ == x₂
+    , [Fin 0 :… Fin 1] <- AInt.intervals n̂
+    -> normRelA $ x₁ :≬: 𝗦̂ (star Σ ⋅ opt (lit (neg c)))
   -----------------------------------------------------------------------------
   i₁ :≬: EStrIndexOf s t i₂ 
     | i₁ == i₂ 
@@ -298,10 +324,29 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EStrLen s₁ :+: 𝗭̂ n̂ :≬: EStrIndexOf s₂ t i 
     | s₁ == s₂, let n̂' = n̂ ∧ AInt.lt 0, n̂' /= n̂ 
     -> normRelA $ EStrLen s₁ :+: 𝗭̂ n̂' :≬: EStrIndexOf s₂ t i
+  i₁ :∥: EStrIndexOf s (𝗦̂1 c) i₂ 
+    | i₁ == i₂
+    -> normRelA $ i₁ :≬: EStrIndexOf s (𝗦̂1 (neg c)) (ℤ 0)
   -----------------------------------------------------------------------------
-  EStrLen s₁ :-: ℤ 1 :≬: EStrIndexOf s₂ (𝗦̂1 ĉ) (ℤ i) 
-    | s₁ == s₂
-    -> normRelA $ s₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg ĉ)) ⋅ lit ĉ)
+  -- |x|-1 ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*c
+  EStrLen x₁ :-: ℤ 1 :≬: EStrIndexOf x₂ (𝗦̂1 c) (ℤ i)
+    | x₁ == x₂
+    -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c)
+  -----------------------------------------------------------------------------
+  -- |x|-[0,+∞] ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*(cΣ*)?
+  EStrLen x₁ :-: 𝗭̂ (AIntFrom 0) :≬: EStrIndexOf x₂ (𝗦̂1 c) (ℤ i)
+    | x₁ == x₂
+    -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg c)) ⋅ opt (lit c ⋅ star Σ))
+  -----------------------------------------------------------------------------
+  -- |x|-[j,+∞] ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*cΣ^(j-1)Σ*
+  EStrLen x₁ :-: 𝗭̂ (AIntFrom j) :≬: EStrIndexOf x₂ (𝗦̂1 c) (ℤ i)
+    | x₁ == x₂, j >= 1
+    -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  -- str.indexof(x,c,str.indexof(x,c̄,0)) ≬ -1   ≡   x ≬ c*c̄*
+  EStrIndexOf x₁ (𝗦̂1 c) (EStrIndexOf x₂ (𝗦̂1 c̄) (ℤ 0)) :≬: ℤ (-1)
+    | x₁ == x₂, c̄ == neg c
+    -> normRelA $ x₁ :≬: 𝗦̂ (star (lit c) ⋅ star (lit c̄))
   -----------------------------------------------------------------------------
   EStrSub s i₁ i₂ :≬: 𝗦̂ t 
     | i₁ == i₂, Just c <- AString.toChar (t ∧ Σ) 
