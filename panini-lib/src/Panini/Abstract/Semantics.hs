@@ -197,6 +197,10 @@ normExprA = rewrite $ \case
   EStrSub (𝕊 s) (𝗭̂ i) (𝗭̂ j)                           -> Just $ 𝗦̂ (strSub s i j)
   EStrSub    ω₁ (ℤ 0) (EStrLen ω₂ :-: ℤ 1) | ω₁ == ω₂ -> Just ω₁
   -----------------------------------------------------------------------------
+  EStrSub (EStrSub s (ℤ i) (ℤ j)) (ℤ k) (ℤ l)
+    | i >= 0, i <= j, k >= 0, k <= l, l - k <= j - i
+    -> Just $ EStrSub s (ℤ (i + k)) (ℤ (i + k + (l - k)))
+  -----------------------------------------------------------------------------
   EStrComp (EStrComp ω) -> Just ω
   -- EStrComp (𝗦̂ s) -> Just $ 𝗦̂ (neg s)
   -- NOTE: We want to defer resolution of EStrComp as long as possible,
@@ -351,6 +355,15 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EStrSub s i₁ i₂ :≬: 𝗦̂ t 
     | i₁ == i₂, Just c <- AString.toChar (t ∧ Σ) 
     -> normRelA $ EStrAt s i₁ :=: 𝗖̂ c
+  -----------------------------------------------------------------------------
+  -- x[i..j] ≬ s   ≡   x ≬ Σⁱ(s ⊓ Σ^(j-i+1))Σ*
+  EStrSub x (ℤ i) (ℤ j) :≬: 𝗦̂ s
+    | i >= 0, i <= j, let s' = s ∧ rep Σ (j - i + 1)
+    -> normRelA $ x :≬: 𝗦̂ (rep Σ i ⋅ s' ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  -- x[i] ≬ c   ≡   x ≬ ΣⁱcΣ*
+  EStrAt x (ℤ i) :≬: 𝗖̂ c
+    | i >= 0 -> normRelA $ x :≬: 𝗦̂ (rep Σ i ⋅ lit c ⋅ star Σ)
   -----------------------------------------------------------------------------
   EStrComp a :≬: EStrComp b -> normRelA $ a :≬: b
   EStrComp a :∥: EStrComp b -> normRelA $ a :∥: b
