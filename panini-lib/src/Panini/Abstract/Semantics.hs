@@ -138,8 +138,8 @@ pattern 𝗭̂⁰, 𝗭̂¹ :: AInt -> AExpr
 pattern 𝗭̂⁰ n̂ <- 𝗭̂ (meet (AInt.ge 0) -> n̂)
 pattern 𝗭̂¹ n̂ <- 𝗭̂ (meet (AInt.ge 1) -> n̂)
 
-pattern X :: AExpr
-pattern X <- EVar _ _
+pattern 𝕍 :: Name -> AExpr
+pattern 𝕍 x <- EVar x _
 
 -------------------------------------------------------------------------------
 
@@ -147,7 +147,7 @@ pattern X <- EVar _ _
 normExprA :: AExpr -> AExpr
 normExprA = rewrite $ \case
   -----------------------------------------------------------------------------
-  ERelA x₁ _ (EVar x₂ _ :=: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
+  ERelA x₁ _ (𝕍 x₂ :≬: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
   -----------------------------------------------------------------------------
   ERelA x b ρ -> case normRelA ρ of
     Left True            -> Just $ EAbs (topValue b)
@@ -187,8 +187,8 @@ normExprA = rewrite $ \case
   -- NOTE: We don't have any efficient way to compute nor represent, in general,
   -- the precise lengths of all strings contained in an abstract string.
   -----------------------------------------------------------------------------
-  EStrAt (𝕊 s)       (𝗭̂ i)                            -> Just $ 𝗖̂ (charAt s i)
-  EStrAt (EVar x₁ _) (EStrLen (EVar x₂ _)) | x₁ == x₂ -> Just $ 𝗖̂ bot
+  EStrAt (𝕊 s) (𝗭̂ i)                        -> Just $ 𝗖̂ (charAt s i)
+  EStrAt (𝕍 x₁) (EStrLen (𝕍 x₂)) | x₁ == x₂ -> Just $ 𝗖̂ bot
   -----------------------------------------------------------------------------
   EStrAt s₁ (EStrLen s₂ :+: 𝗭̂ n) 
     | s₁ == s₂, let n' = n ∧ AInt.lt 0, n' /= n 
@@ -478,14 +478,14 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   -----------------------------------------------------------------------------
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
   -----------------------------------------------------------------------------
-  (EStrFirstIndexOfChar x₁@X (𝗖̂ c) :+: 𝗭̂ i) :≬: EStrLen x₂
+  (EStrFirstIndexOfChar (𝕍 x₁) (𝗖̂ c) :+: 𝗭̂ i) :≬: EStrLen (𝕍 x₂)
     | x₁ == x₂ -> AString $ strWithFirstIndexOfCharRev c i
   -----------------------------------------------------------------------------
-  (EStrFirstIndexOfChar x₁@X (𝗖̂ a) :+: 𝗭̂ (AIntFrom 0)) :≬: EStrFirstIndexOfChar x₂ (𝗖̂ b)
+  (EStrFirstIndexOfChar (𝕍 x₁) (𝗖̂ a) :+: 𝗭̂ (AIntFrom 0)) :≬: EStrFirstIndexOfChar (𝕍 x₂) (𝗖̂ b)
     | x₁ == x₂, a /= b, let ā = neg a, let b̄ = neg b
     -> AString $ star (lit (ā ∧ b̄)) ⋅ opt ((lit b ⋅ star (lit ā)) ∨ (lit a ⋅ star Σ))
   -----------------------------------------------------------------------------
-  (EStrFirstIndexOfChar x₁@X (𝗖̂ a) :-: 𝗭̂ (AIntTo 1)) :≬: EStrFirstIndexOfChar x₂ (𝗖̂ b)
+  (EStrFirstIndexOfChar (𝕍 x₁) (𝗖̂ a) :-: 𝗭̂ (AIntTo 1)) :≬: EStrFirstIndexOfChar (𝕍 x₂) (𝗖̂ b)
     | x₁ == x₂, a /= b, let ā = neg a, let b̄ = neg b
     -> AString $ star (lit (ā ∧ b̄)) ⋅ opt ((lit b ⋅ star (lit ā)) ∨ (lit a ⋅ star Σ))
   -----------------------------------------------------------------------------
@@ -494,7 +494,7 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   -----------------------------------------------------------------------------
   -- NOTE: below here, x occurs only on the LHS (possibly more than once)
   -----------------------------------------------------------------------------
-  X :≬: EVal â -> â
+  𝕍 _ :≬: EVal â -> â
   -----------------------------------------------------------------------------  
   EVar _ TUnit   :∥: 𝗨𝟭̂ â -> AUnit (neg â)
   EVar _ TBool   :∥: 𝗕̂ â  -> ABool (neg â)
@@ -508,41 +508,42 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   -- NOTE: String complement is resolved here instead of during normalization,
   -- in order to exploit opportunities for double-negation elimination.
   -----------------------------------------------------------------------------
-  (X :+: 𝗭̂ c) :≬: ω -> abstract x τ $ EVar x τ :≬: (ω :-: 𝗭̂ c)
-  (X :-: 𝗭̂ c) :≬: ω -> abstract x τ $ EVar x τ :≬: (ω :+: 𝗭̂ c)
+  (𝕍 _ :+: 𝗭̂ c) :≬: ω -> abstract x τ $ EVar x τ :≬: (ω :-: 𝗭̂ c)
+  (𝕍 _ :-: 𝗭̂ c) :≬: ω -> abstract x τ $ EVar x τ :≬: (ω :+: 𝗭̂ c)
   -----------------------------------------------------------------------------
-  EStrLen X :≬: 𝗭̂ n -> AString $ strOfLen n
-  EStrLen X :∥: 𝗭̂ n -> AString $ strNotOfLen n
+  EStrLen (𝕍 _) :≬: 𝗭̂ n -> AString $ strOfLen n
+  EStrLen (𝕍 _) :∥: 𝗭̂ n -> AString $ strNotOfLen n
   -----------------------------------------------------------------------------
-  EStrAt    X (𝗭̂ i)                  :≬: 𝗖̂ c            -> AString $ strWithCharAt i c
-  EStrAt    X (𝗭̂ i)                  :∥: 𝗖̂ c            -> AString $ strWithoutCharAt i c
-  EStrAt s₁@X (EStrLen s₂ :-: 𝗭̂ i)   :≬: 𝗖̂ c | s₁ == s₂ -> AString $ strWithCharAtRev i c
-  EStrAt s₁@X (EStrLen s₂ :-: 𝗭̂ i)   :∥: 𝗖̂ c | s₁ == s₂ -> AString $ strWithoutCharAtRev i c
-  EStrAt s₁@X (EStrLen s₂ :+: 𝗭̂ TOP) :≬: 𝗖̂ c | s₁ == s₂ -> AString $ strWithCharAtRev TOP c
-  EStrAt s₁@X (EStrLen s₂ :+: 𝗭̂ TOP) :∥: 𝗖̂ c | s₁ == s₂ -> AString $ strWithoutCharAtRev TOP c
+  EStrAt (𝕍 _) (𝗭̂ i) :≬: 𝗖̂ c -> AString $ strWithCharAt i c
+  EStrAt (𝕍 _) (𝗭̂ i) :∥: 𝗖̂ c -> AString $ strWithoutCharAt i c
   -----------------------------------------------------------------------------
-  EStrSub X (𝗭̂ i) (𝗭̂ j) :≬: 𝗦̂ t -> AString $ strWithSubstr i j t
-  EStrSub X (𝗭̂ i) (𝗭̂ j) :∥: 𝗦̂ t -> AString $ strWithoutSubstr i j t
+  EStrAt (𝕍 x₁) (EStrLen (𝕍 x₂) :-: 𝗭̂ i)   :≬: 𝗖̂ c | x₁ == x₂ -> AString $ strWithCharAtRev i c
+  EStrAt (𝕍 x₁) (EStrLen (𝕍 x₂) :-: 𝗭̂ i)   :∥: 𝗖̂ c | x₁ == x₂ -> AString $ strWithoutCharAtRev i c
+  EStrAt (𝕍 x₁) (EStrLen (𝕍 x₂) :+: 𝗭̂ TOP) :≬: 𝗖̂ c | x₁ == x₂ -> AString $ strWithCharAtRev TOP c
+  EStrAt (𝕍 x₁) (EStrLen (𝕍 x₂) :+: 𝗭̂ TOP) :∥: 𝗖̂ c | x₁ == x₂ -> AString $ strWithoutCharAtRev TOP c
   -----------------------------------------------------------------------------
-  EStrFirstIndexOfChar X (𝗖̂ c) :≬: 𝗭̂ i -> AString $ strWithFirstIndexOfChar c i
+  EStrSub (𝕍 _) (𝗭̂ i) (𝗭̂ j) :≬: 𝗦̂ t -> AString $ strWithSubstr i j t
+  EStrSub (𝕍 _) (𝗭̂ i) (𝗭̂ j) :∥: 𝗦̂ t -> AString $ strWithoutSubstr i j t
   -----------------------------------------------------------------------------
-  EStrSub s₁@X (ℤ i) (EStrFirstIndexOfChar s₂ (𝗖̂ c) :-: ℤ j) :≬: 𝗦̂ t
-    | s₁ == s₂, i >= 0, j >= 0, let c̄ = lit (neg c)
+  EStrFirstIndexOfChar (𝕍 _) (𝗖̂ c) :≬: 𝗭̂ i -> AString $ strWithFirstIndexOfChar c i
+  -----------------------------------------------------------------------------
+  EStrSub (𝕍 x₁) (ℤ i) (EStrFirstIndexOfChar (𝕍 x₂) (𝗖̂ c) :-: ℤ j) :≬: 𝗦̂ t
+    | x₁ == x₂, i >= 0, j >= 0, let c̄ = lit (neg c)
     -> AString $ rep c̄ i ⋅ (t ∧ star c̄) ⋅ rep c̄ (j-1) ⋅ lit c ⋅ star Σ      
   -----------------------------------------------------------------------------
-  EStrSub s₁@X (EStrFirstIndexOfChar s₂ (𝗖̂ c) :+: ℤ i) (EStrLen s₃ :-: ℤ j) :≬: 𝗦̂ t
-    | s₁ == s₂, s₂ == s₃ -> AString $ strWithSubstrFromFirstIndexOfCharToEnd c i j t
+  EStrSub (𝕍 x₁) (EStrFirstIndexOfChar (𝕍 x₂) (𝗖̂ c) :+: ℤ i) (EStrLen (𝕍 x₃) :-: ℤ j) :≬: 𝗦̂ t
+    | x₁ == x₂, x₂ == x₃ -> AString $ strWithSubstrFromFirstIndexOfCharToEnd c i j t
   -----------------------------------------------------------------------------
-  EStrIndexOf X (𝗦̂1 c) (𝗭̂ AInt0) :≬: 𝗭̂ i -> AString $ strWithFirstIndexOfChar c i
+  EStrIndexOf (𝕍 _) (𝗦̂1 c) (𝗭̂ AInt0) :≬: 𝗭̂ i -> AString $ strWithFirstIndexOfChar c i
   -----------------------------------------------------------------------------
-  EStrIndexOf s₁@X (𝗦̂1 c₁) (EStrIndexOf s₂ (𝗦̂1 c₂) (𝗭̂ AInt0) :+: 𝗭̂ AInt1) :≬: 𝗭̂ k
-    | s₁ == s₂ -> AString $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar c₂ c₁ k
+  EStrIndexOf (𝕍 x₁) (𝗦̂1 c₁) (EStrIndexOf (𝕍 x₂) (𝗦̂1 c₂) (𝗭̂ AInt0) :+: 𝗭̂ AInt1) :≬: 𝗭̂ k
+    | x₁ == x₂ -> AString $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar c₂ c₁ k
   -----------------------------------------------------------------------------
-  EStrAt s₁@X (EStrIndexOf s₂@X (𝗦̂1 c₁) (ℤ i) :+: ℤ n) :≬: 𝗖̂ c₂
-    | s₁ == s₂, let c̄₁ = lit (neg c₁)
+  EStrAt (𝕍 x₁) (EStrIndexOf (𝕍 x₂) (𝗦̂1 c₁) (ℤ i) :+: ℤ n) :≬: 𝗖̂ c₂
+    | x₁ == x₂, let c̄₁ = lit (neg c₁)
     -> AString $ rep Σ i ⋅ star c̄₁ ⋅ lit c₁ ⋅ rep Σ (n - 1) ⋅ lit c₂ ⋅ star Σ
   -----------------------------------------------------------------------------
-  EStrContains X (𝗦̂ s) :≬: 𝔹 doesContain
+  EStrContains (𝕍 _) (𝗦̂ s) :≬: 𝔹 doesContain
     | doesContain -> AString t
     | otherwise   -> abstract x τ $ EVar x τ :≬: EStrComp (𝗦̂ t)
    where
