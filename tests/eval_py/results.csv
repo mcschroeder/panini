@@ -141,7 +141,7 @@ test,result,time_ms,language,precision,recall
 320_aXb.py,OK,43,exact,1.00,1.00
 321_aXb.py,OK,48,exact,1.00,1.00
 322_aXb.py,OK,46,exact,1.00,1.00
-323_aXb.py,FAIL,15,error,1.00,0.00
+323_aXb.py,OK,69,exact,1.00,1.00
 330_(aXb)Q.py,OK,47,exact,1.00,1.00
 331_(aXb)Q.py,OK,59,exact,1.00,1.00
 332_(aXb)Q.py,OK,58,exact,1.00,1.00

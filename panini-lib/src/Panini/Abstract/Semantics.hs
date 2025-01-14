@@ -334,17 +334,17 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | i₁ == i₂
     -> normRelA $ i₁ :≬: EStrIndexOf s (𝗦̂1 (neg c)) (ℤ 0)
   -----------------------------------------------------------------------------
-  -- |x|-1 ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*c
+  --- |x|-1 ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*c
   EStrLen x₁ :-: ℤ 1 :≬: EStrIndexOf x₂ (𝗦̂1 c) (ℤ i)
     | x₁ == x₂
     -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c)
   -----------------------------------------------------------------------------
-  -- |x|-[0,+∞] ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*(cΣ*)?
+  --- |x|-[0,+∞] ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*(cΣ*)?
   EStrLen x₁ :-: 𝗭̂ (AIntFrom 0) :≬: EStrIndexOf x₂ (𝗦̂1 c) (ℤ i)
     | x₁ == x₂
     -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg c)) ⋅ opt (lit c ⋅ star Σ))
   -----------------------------------------------------------------------------
-  -- |x|-[j,+∞] ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*cΣ^(j-1)Σ*
+  --- |x|-[j,+∞] ≬ str.indexof(x,c,i)   ≡   x ≬ Σⁱc̄*cΣ^(j-1)Σ*
   EStrLen x₁ :-: 𝗭̂ (AIntFrom j) :≬: EStrIndexOf x₂ (𝗦̂1 c) (ℤ i)
     | x₁ == x₂, j >= 1
     -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
@@ -354,6 +354,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | x₁ == x₂, c̄ == neg c
     -> normRelA $ x₁ :≬: 𝗦̂ (star (lit c) ⋅ star (lit c̄))
   -----------------------------------------------------------------------------
+  -- s[i..i] ≬ c   ≡   s[i] = c
   EStrSub s i₁ i₂ :≬: 𝗦̂ t 
     | i₁ == i₂, Just c <- AString.toChar (t ∧ Σ) 
     -> normRelA $ EStrAt s i₁ :=: 𝗖̂ c
@@ -362,6 +363,11 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EStrSub x (ℤ i) (ℤ j) :≬: 𝗦̂ s
     | i >= 0, i <= j, let s' = s ∧ rep Σ (j - i + 1)
     -> normRelA $ x :≬: 𝗦̂ (rep Σ i ⋅ s' ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  -- x[i..|x|-1] ≬ s   ≡   x ≬ Σⁱs
+  EStrSub x₁ (ℤ i) (EStrLen x₂ :-: ℤ 1) :≬: 𝗦̂ s
+    | x₁ == x₂, i >= 0
+    -> normRelA $ x₁ :≬: 𝗦̂ (rep Σ i ⋅ s)
   -----------------------------------------------------------------------------
   -- x[i] ≬ c   ≡   x ≬ ΣⁱcΣ*
   EStrAt x (ℤ i) :≬: 𝗖̂ c
