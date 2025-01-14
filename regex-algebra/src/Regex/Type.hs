@@ -42,6 +42,7 @@ module Regex.Type
   , nullable
   , minWordLength
   , maxWordLength
+  , charsAt
   , prettyRegex
   ) where
 
@@ -296,6 +297,21 @@ maxWordLength r0 = Just $ fromMaybe (-1) $ go r0
     Times rs -> sum <$> mapM go rs
     Star _   -> Nothing
     Opt r    -> go r
+
+-- | The set of all characters at position i in all words accepted by the regex.
+charsAt :: Int -> Regex -> CharSet
+charsAt i = \case
+  _ | i < 0          -> CS.empty
+  One                -> CS.empty
+  Lit  c             -> if i == 0 then c else CS.empty
+  Opt  x             -> charsAt i x
+  Star x             -> charsAt i (x <> Star x)
+  Plus xs            -> CS.unions $ map (charsAt i) xs
+  Times1 (Lit  c)  y -> if i == 0 then c else charsAt (i - 1) y
+  Times1 (Plus xs) y -> CS.unions $ map (charsAt i . (<> y)) xs
+  Times1 (Star x)  y -> charsAt i y <> charsAt i (x <> Star x <> y)
+  Times1 (Opt  x)  y -> charsAt i y <> charsAt i (x <> y)
+  Times1 _ _         -> undefined -- impossible
 
 -------------------------------------------------------------------------------
 

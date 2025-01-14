@@ -188,6 +188,7 @@ normExprA = rewrite $ \case
   -- the precise lengths of all strings contained in an abstract string.
   -----------------------------------------------------------------------------
   EStrAt (𝕊 s) (𝗭̂ i)                        -> Just $ 𝗖̂ (charAt s i)
+  EStrAt (𝗦̂ s) (ℤ i)                        -> Just $ 𝗖̂ (charsAt s i)
   EStrAt (𝕍 x₁) (EStrLen (𝕍 x₂)) | x₁ == x₂ -> Just $ 𝗖̂ bot
   -----------------------------------------------------------------------------
   EStrAt s₁ (EStrLen s₂ :+: 𝗭̂ n) 
@@ -195,6 +196,7 @@ normExprA = rewrite $ \case
     -> Just $ EStrAt s₁ (EStrLen s₂ :-: 𝗭̂ (AInt.negate n'))
   -----------------------------------------------------------------------------
   EStrSub (𝕊 s) (𝗭̂ i) (𝗭̂ j)                           -> Just $ 𝗦̂ (strSub s i j)
+  EStrSub (𝗦̂ s) (ℤ i₁) (ℤ i₂) | i₁ == i₂              -> Just $ 𝗦̂ (lit $ charsAt s i₁)
   EStrSub    ω₁ (ℤ 0) (EStrLen ω₂ :-: ℤ 1) | ω₁ == ω₂ -> Just ω₁
   -----------------------------------------------------------------------------
   EStrSub (EStrSub s (ℤ i) (ℤ j)) (ℤ k) (ℤ l)

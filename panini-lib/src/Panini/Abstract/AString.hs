@@ -163,6 +163,11 @@ charAt s a =
  where
   safeBounds = AInt.ge 0 ∧ AInt.lt (fromIntegral $ Text.length s)
 
+-- ⟦ ŝ[i] = c ⟧↑c ≐ ⋁{s∈ŝ} s[i]
+charsAt :: AString -> Integer -> AChar
+charsAt (MkAString r) i = 
+  AChar.fromCharSet $ Regex.Type.charsAt (fromInteger i) r
+
 -- ⟦ s[î..ĵ] = t ⟧↑t ≐ ⋁{i∈î and j∈ĵ} s[i..j]
 strSub :: Text -> AInt -> AInt -> AString
 strSub s a b = 
