@@ -147,7 +147,7 @@ pattern 𝕍 x <- EVar x _
 normExprA :: AExpr -> AExpr
 normExprA = rewrite $ \case
   -----------------------------------------------------------------------------
-  ERelA x₁ _ (𝕍 x₂ :≬: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
+  ERelA x₁ _ (isolate x₁ -> 𝕍 x₂ :≬: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
   -----------------------------------------------------------------------------
   ERelA x b ρ -> case normRelA ρ of
     Left True            -> Just $ EAbs (topValue b)
@@ -219,6 +219,21 @@ normExprA = rewrite $ \case
   -----------------------------------------------------------------------------
   _ -> Nothing
 
+-- | Isolate a variable on the left-hand side of a relation, if possible.
+isolate :: Name -> ARel -> ARel
+isolate x ρ | occurrences x ρ /= 1 = ρ
+isolate x ρ = flip rewrite ρ $ \case
+  ω₁ :≬: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :≬: ω₁
+  ω₁ :∥: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :∥: ω₁
+  ω₁ :<: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :>: ω₁
+  ω₁ :≤: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :≥: ω₁
+  ω₁ :>: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :<: ω₁
+  ω₁ :≥: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :≤: ω₁
+  Rel o (ω₁ :+: ω₂) ω₃ | x `freeIn` ω₁ -> Just $ Rel o ω₁ (ω₃ :-: ω₂)
+  Rel o (ω₁ :+: ω₂) ω₃ | x `freeIn` ω₂ -> Just $ Rel o ω₂ (ω₃ :-: ω₁)
+  Rel o (ω₁ :-: ω₂) ω₃ | x `freeIn` ω₁ -> Just $ Rel o ω₁ (ω₃ :+: ω₂)
+  Rel o (ω₁ :-: ω₂) ω₃ | x `freeIn` ω₂ -> Just $ Rel o ω₂ (ω₁ :-: ω₃)
+  _                                    -> Nothing
 
 -- | Normalize an abstract relation by (partial) evaluation; see 'normRel'.
 normRelA :: ARel -> Either Bool ARel
@@ -557,7 +572,7 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
    where
     t = star Σ ⋅ s ⋅ star Σ
   -----------------------------------------------------------------------------
-  ρ -> ARel x τ ρ
+  ρ -> ARel x τ (isolate x ρ)
 
 -------------------------------------------------------------------------------
 
