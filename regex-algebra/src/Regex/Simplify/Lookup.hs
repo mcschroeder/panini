@@ -3,11 +3,31 @@ module Regex.Simplify.Lookup where
 import Prelude
 import Regex.CharSet qualified as CS
 import Regex.Simplify.Common
+import Regex.Simplify.Factor (splitPrefix, flatTimes)
 import Regex.Type
 
 -- TODO: read syntactic replacements from a file
 
 lookup :: Context -> Regex -> Regex
+
+lookup Starred = \case
+  -- (ab(a?b + …)* + …)*  =  (ab(b + …)* + …)*
+  TimesN ab (Star (Plus xs))
+    | let xs' = map match xs
+    , xs' /= xs
+    -> ab <> Star (Plus xs')
+   where
+    match = \case
+      Times1 (Opt a2) b2
+        | let as = flatTimes a2
+        , (a1, [], b1) <- splitPrefix as (flatTimes ab)
+        , a1 == as
+        , b1 == flatTimes b2
+        -> b2
+      x -> x
+  
+  r -> r
+
 lookup _ = \case  
   Times xs0 -> Times $ go xs0
    where
@@ -200,6 +220,24 @@ lookup _ = \case
   Star (Times [Lit a1, Opt (Times [Lit ā, All, Lit a2])])
     | a1 == a2, ā == CS.complement a1
     -> Star (Times [Lit a1, Star (Times [Star (Lit ā), Lit a1])])
+
+  -- (x+(y+(x+yz)*)z)*  =  (x+y?z)*
+  Star (Plus1 x1 (TimesN (Plus1 y1 (Star (Plus1 x2 yz))) z2))
+    | x1 == x2
+    , let ys = flatTimes y1
+    , (y2, [], z1) <- splitPrefix ys (flatTimes yz)
+    , y2 == ys
+    , z1 == flatTimes z2
+    -> Star (x1 `plus` (Opt y1 `times` z2))
+
+  -- (x+yz+z(x+y?z)*)*  =  (x+y?z)*
+  Star (Plus [x1, yz, TimesN z2 (Star (Plus1 x2 w@(Times1 (Opt y2) z3)))])
+    | x1 == x2, z2 == z3
+    , let ys = flatTimes y2
+    , (y1, [], z1) <- splitPrefix ys (flatTimes yz)
+    , y1 == ys
+    , z1 == flatTimes z2
+    -> Star (x1 `plus` w)
   
   r -> r
 
