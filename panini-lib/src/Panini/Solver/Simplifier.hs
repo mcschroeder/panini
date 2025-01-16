@@ -10,6 +10,7 @@ import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 import Panini.Abstract.AValue (APred)
+import Panini.Panic
 
 -------------------------------------------------------------------------------
 
@@ -146,19 +147,21 @@ simplifyPred = \case
       PTrue   -> []
       y       -> [y]
   
+  -- reduce chains of of simple integer relations via abstract interpretation,
+  -- e.g., x > 0 ∧ x ≥ 1 ∧ φ ≡ x ≥ 1 ∧ φ
   p@(PAnd xs0@(PRel (Rel _ (EVar i _) (EInt _ _)) : _))
-    | Just p' <- go top xs0, p' /= p -> Just p'
+    | p' <- go top xs0, p' /= p -> Just p'
    where
-    go v (PRel r : xs) = case r of
-      EVar i1 _ :=: EInt c _ | i == i1 -> go (v ∧ AInt.eq c) xs
-      EVar i1 _ :≠: EInt c _ | i == i1 -> go (v ∧ AInt.ne c) xs
-      EVar i1 _ :<: EInt c _ | i == i1 -> go (v ∧ AInt.lt c) xs
-      EVar i1 _ :≤: EInt c _ | i == i1 -> go (v ∧ AInt.le c) xs
-      EVar i1 _ :>: EInt c _ | i == i1 -> go (v ∧ AInt.gt c) xs
-      EVar i1 _ :≥: EInt c _ | i == i1 -> go (v ∧ AInt.ge c) xs
-      _ -> Nothing
-    go _ (_:_) = Nothing      
-    go v [] = Just $ concretizeInt i v
+    go v (PRel (Rel op (EVar i1 _) (EInt c _)) : xs) 
+      | i1 == i = case op of
+          Eq -> go (v ∧ AInt.eq c) xs
+          Ne -> go (v ∧ AInt.ne c) xs
+          Lt -> go (v ∧ AInt.lt c) xs
+          Le -> go (v ∧ AInt.le c) xs
+          Gt -> go (v ∧ AInt.gt c) xs
+          Ge -> go (v ∧ AInt.ge c) xs
+          _  -> impossible
+    go v xs = meets $ concretizeInt i v : xs
 
   PAnd [PRel (EVar i1 _ :≥: EInt 0 _pv1), PRel (EVar i2 _ :>: EInt 0 pv2)]
     | i1 == i2 -> Just $ PRel (EVar i2 TInt :>: EInt 0 pv2)
