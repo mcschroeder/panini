@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Panini.Abstract.ABool
   ( ABool
   , value
@@ -9,6 +11,7 @@ import Algebra.Lattice
 import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
+import GHC.IsList
 import Panini.Pretty
 import Prelude
 
@@ -88,3 +91,12 @@ instance Pretty ABool where
     True_  -> symTrue
     False_ -> symFalse
     Bottom -> emptySet
+
+instance IsList ABool where
+  type Item ABool = Bool
+  fromList = joins . map eq
+  toList = \case
+    Top    -> [False,True]
+    True_  -> [True]
+    False_ -> [False]
+    Bottom -> []

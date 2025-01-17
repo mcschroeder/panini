@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Panini.Abstract.AChar
   ( AChar
   , count
@@ -15,6 +17,7 @@ import Data.Coerce
 import Data.Data (Data)
 import Data.Hashable
 import GHC.Generics
+import GHC.IsList
 import Panini.Pretty
 import Prelude
 import Regex.CharSet (CharSet)
@@ -34,8 +37,12 @@ instance BoundedMeetSemilattice AChar where top = coerce CS.full
 instance BoundedJoinSemilattice AChar where bot = coerce CS.empty
 instance ComplementedLattice    AChar where neg = coerce CS.complement
 
-
 instance Hashable AChar
+
+instance IsList AChar where
+  type Item AChar = Char
+  fromList = AChar . CS.fromList
+  toList (AChar cs) = CS.toList cs
 
 -- | The number of concrete values represented by the abstract character.
 count :: AChar -> Int

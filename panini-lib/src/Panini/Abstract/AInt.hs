@@ -1,4 +1,5 @@
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Panini.Abstract.AInt
   ( AInt
@@ -39,6 +40,7 @@ import Algebra.Lattice
 import Data.Data (Data)
 import Data.Hashable
 import Data.List qualified as List
+import GHC.IsList
 import Panini.Abstract.Interval
 import Panini.Panic
 import Panini.Pretty
@@ -81,6 +83,11 @@ pattern AIntFrom n = AInt [In (Fin n) PosInf]
 -- given integer (inclusive).
 pattern AIntTo :: Integer -> AInt
 pattern AIntTo n = AInt [In NegInf (Fin n)]
+
+instance IsList AInt where
+  type Item AInt = Integer
+  fromList = joins . map eq
+  toList = values
 
 -------------------------------------------------------------------------------
 
