@@ -11,7 +11,6 @@ module Panini.Abstract.Semantics
   ) where
 
 import Algebra.Lattice
-import Control.Monad
 import Data.Generics.Uniplate.Operations as Uniplate
 import Data.Maybe
 import Data.Text (Text)
@@ -112,16 +111,6 @@ pattern ω₁ :∥: ω₂ = Rel Ne ω₁ ω₂
 (⋖) :: AInt -> Integer -> Bool
 (⋖) = AInt.isLe
 
--- | a simple abstract relation ⟨x: x ⋈ ω⟩ where x does not occur in ω
-pattern Relₓ :: Base -> ARel -> AExpr
-pattern Relₓ b ρ <- EVal (matchRelₓ -> Just (b,ρ))
-
-matchRelₓ :: AValue -> Maybe (Base, ARel)
-matchRelₓ = \case
-  ARel x₁ b ρ@(Rel _ (EVar x₂ _) ω) 
-    | x₁ == x₂, x₁ `notFreeIn` ω -> Just (b,ρ)
-  _                              -> Nothing
-
 -- | Match both x+n and x; in the latter case, n is taken to be 0.
 pattern (:⨤:) :: Name -> Integer -> AExpr
 pattern x :⨤: n <- (exprToVarPlusN -> Just (x,n))
@@ -147,7 +136,7 @@ pattern 𝕍 x <- EVar x _
 normExprA :: AExpr -> AExpr
 normExprA = rewrite $ \case
   -----------------------------------------------------------------------------
-  ERelA x₁ _ (isolate x₁ -> 𝕍 x₂ :≬: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
+  ERelA x₁ _ (isolate x₁ -> 𝕍 x₂ :=: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
   -----------------------------------------------------------------------------
   ERelA x b ρ -> case normRelA ρ of
     Left True            -> Just $ EAbs (topValue b)
@@ -245,6 +234,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   -- after this, all subexpressions are fully normalized
   ρ | ρ' <- descendBi normExprA ρ, ρ' /= ρ -> normRelA ρ'
   -----------------------------------------------------------------------------
+  ω₁ :≠: ℤ n -> normRelA $ ω₁ :≬: 𝗭̂ (AInt.ne n)
   ω₁ :<: ℤ n -> normRelA $ ω₁ :≬: 𝗭̂ (AInt.lt n)
   ω₁ :≤: ℤ n -> normRelA $ ω₁ :≬: 𝗭̂ (AInt.le n)
   ω₁ :>: ℤ n -> normRelA $ ω₁ :≬: 𝗭̂ (AInt.gt n)
@@ -400,82 +390,63 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EStrComp a :∥: b          -> normRelA $ a :≬: b
   a          :∥: EStrComp b -> normRelA $ a :≬: b
   -----------------------------------------------------------------------------
-  Relₓ _ (_ :≬: ω₁) :≬: ω₂                -> normRelA $ ω₁ :≬: ω₂
-  Relₓ _ (_ :∥: ω₁) :≬: ω₂                -> normRelA $ ω₁ :∥: ω₂
-  Relₓ _ (_ :≬: ω₁) :∥: ω₂                -> normRelA $ ω₁ :∥: ω₂
-  ω₁                :≬: Relₓ _ (_ :≬: ω₂) -> normRelA $ ω₁ :≬: ω₂
-  ω₁                :≬: Relₓ _ (_ :∥: ω₂) -> normRelA $ ω₁ :∥: ω₂
-  ω₁                :∥: Relₓ _ (_ :≬: ω₂) -> normRelA $ ω₁ :∥: ω₂
-  -----------------------------------------------------------------------------  
-  ω :≬: ERelA x b ρ | Just ρ' <- tryEqARel ω x b ρ -> normRelA ρ'
-  ω :∥: ERelA x b ρ | Just ρ' <- tryNeARel ω x b ρ -> normRelA ρ'
+  -- ⟨i: x[i+n] = a⟩ ≬ ⟨j: x[j+m] = b⟩
+  ERelA  i₁ _ (EStrAt x₁ (i₂ :⨤: n) :=: 𝗖̂ a) :≬: 
+   ERelA j₁ _ (EStrAt x₂ (j₂ :⨤: m) :=: 𝗖̂ b)
+    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+    , let k = m - n
+    , let t | k > 0     = star Σ ⋅ lit a ⋅ rep Σ (k - 1) ⋅ lit b ⋅ star Σ
+            | k < 0     = star Σ ⋅ lit b ⋅ rep Σ (k - 1) ⋅ lit a ⋅ star Σ
+            | otherwise = star Σ ⋅ lit (a ∧ b) ⋅ star Σ
+    -> normRelA $ x₁ :≬: 𝗦̂ t
+  -----------------------------------------------------------------------------
+  -- ⟨i: x[i-[2,∞]] = a]⟩ ≬ ⟨j: x[j-[1,∞]] = b]⟩
+  ERelA  i₁ _ (EStrAt x₁ (𝕍 i₂ :-: 𝗭̂¹ (AIntFrom 2)) :=: 𝗖̂ a) :≬:
+   ERelA j₁ _ (EStrAt x₂ (𝕍 j₂ :-: 𝗭̂¹ (AIntFrom 1)) :=: 𝗖̂ b)
+    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+    , let t₁ = lit a ⋅ star Σ ⋅ lit b
+    , let t₂ = lit b ⋅ star Σ ⋅ lit a ⋅ Σ
+    , let t₃ = lit (a ∧ b) ⋅ Σ
+    , let t = star Σ ⋅ (t₁ ∨ t₂ ∨ t₃) ⋅ star Σ
+    -> normRelA $ x₁ :≬: 𝗦̂ t
+  -----------------------------------------------------------------------------
+  -- ⟨i: x[i-[1,∞]] = a]⟩ ≬ ⟨j: x[j-[1,∞]] = b]⟩
+  ERelA  i₁ _ (EStrAt x₁ (𝕍 i₂ :-: 𝗭̂¹ (AIntFrom 1)) :=: 𝗖̂ a) :≬:
+   ERelA j₁ _ (EStrAt x₂ (𝕍 j₂ :-: 𝗭̂¹ (AIntFrom 1)) :=: 𝗖̂ b)
+    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+    , let t₁ = lit a ⋅ star Σ ⋅ lit b
+    , let t₂ = lit b ⋅ star Σ ⋅ lit a
+    , let t₃ = lit (a ∧ b)
+    , let t = star Σ ⋅ (t₁ ∨ t₂ ∨ t₃) ⋅ star Σ
+    -> normRelA $ x₁ :≬: 𝗦̂ t
+  -----------------------------------------------------------------------------
+  -- ⟨i: x[i-1] = a]⟩ ≬ ⟨j: x[j-[1,∞] = b]⟩
+  ERelA  i₁ _ (EStrAt x₁ (𝕍 i₂ :-: 𝗭̂¹ AInt1       ) :=: 𝗖̂ a) :≬:
+   ERelA j₁ _ (EStrAt x₂ (𝕍 j₂ :-: 𝗭̂¹ (AIntFrom 1)) :=: 𝗖̂ b)
+    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+    , let t₂ = lit b ⋅ star Σ ⋅ lit a
+    , let t₃ = lit (a ∧ b)
+    , let t = star Σ ⋅ (t₂ ∨ t₃) ⋅ star Σ
+    -> normRelA $ x₁ :≬: 𝗦̂ t
+  -----------------------------------------------------------------------------
+  -- ⟨i: x[i+[0,∞]] = a]⟩ ≬ ⟨j: x[j-[0,∞] = b]⟩
+  ERelA  i₁ _ (EStrAt x₁ (𝕍 i₂ :+: 𝗭̂⁰ (AIntFrom 0)) :=: 𝗖̂ a) :≬:
+   ERelA j₁ _ (EStrAt x₂ (𝕍 j₂ :-: 𝗭̂⁰ (AIntFrom 0)) :=: 𝗖̂ b)
+    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+     , let t₁ = lit (a ∧ b)
+     , let t₂ = lit a ⋅ star Σ ⋅ lit b
+    , let t = star Σ ⋅ (t₁ ∨ t₂) ⋅ star Σ
+    -> normRelA $ x₁ :≬: 𝗦̂ t
+  -----------------------------------------------------------------------------
+  -- ω₁ ≬ {x:ℤ | x ≠ ω₂}   ≡   ω₁ ≬ ω₂ + [-∞,-1|1,∞]
+  ω₁ :≬: ERelA x TInt (𝕍 x₁ :≠: ω₂) 
+    | x == x₁, x `notFreeIn` ω₂ 
+    -> normRelA $ ω₁ :≬: (ω₂ :+: 𝗭̂ (AInt.ne 0))
+  -----------------------------------------------------------------------------
+  ω :≬: ERelA x _ ρ@(_ :≬: _) | occurrences x ρ == 1 -> normRelA $ subst ω x ρ
+  ω :≬: ERelA x _ ρ           | concreteish ω        -> normRelA $ subst ω x ρ
   -----------------------------------------------------------------------------
   ρ -> Right ρ
-
--- | Try to resolve equality between an expression and an abstract relation.
--- For example, @[1,∞] ≬ ⟨x: s[x] ∥ {a}⟩@ resolves to @s[[1,∞]] ≬ Σ∖{a}@.
-tryEqARel :: AExpr -> Name -> Base -> ARel -> Maybe ARel
-tryEqARel ω x b ρ
-  | ERelA x₁ _ ρ₁ <- ω    = tryEqARel2 b (x₁,ρ₁) (x,ρ)
-  | concreteish ω         = Just $ subst ω x ρ  
-  | occurrences x ρ == 1  = Just $ subst ω x ρ
-  | otherwise             = Nothing
-
--- TODO: not sure about this
--- | Try to resolve inequality between an expressions and an abstract relation.
--- For example, @[1,∞] ∥ ⟨x: s[x] ∥ {a}⟩@ resolves to @s[[1,∞]] ∥ Σ∖{a}@
-tryNeARel :: AExpr -> Name -> Base -> ARel -> Maybe ARel
-tryNeARel a x b r = fmap inverse $ tryEqARel a x b r
-
--- | Try to resolve equality between two abstract relations.
-tryEqARel2 :: Base -> (Name,ARel) -> (Name,ARel) -> Maybe ARel
-tryEqARel2 _ (x₁,ρ₁) (x₂,ρ₂) = case (ρ₁,ρ₂) of
-  -----------------------------------------------------------------------------
-  (EStrAt s₁ (i₁ :⨤: n₁) :≬: 𝗖̂ c₁,
-   EStrAt s₂ (i₂ :⨤: n₂) :≬: 𝗖̂ c₂)
-   | x₁ == i₁, x₂ == i₂, s₁ == s₂ 
-   , let n = n₂ - n₁
-   , let t | n > 0     = star Σ ⋅ lit c₁ ⋅ rep Σ (n-1) ⋅ lit c₂ ⋅ star Σ
-           | n < 0     = star Σ ⋅ lit c₂ ⋅ rep Σ (n-1) ⋅ lit c₁ ⋅ star Σ
-           | otherwise = star Σ ⋅ lit (c₁ ∧ c₂) ⋅ star Σ
-    -> Just $ s₁ :≬: 𝗦̂ t
-  -----------------------------------------------------------------------------
-  -- TODO: generalize/merge with the rules below
-  (EStrAt s₁ (EVar i₁ _ :-: 𝗭̂¹ (AIntFrom 2)) :≬: 𝗖̂ c₁,
-   EStrAt s₂ (EVar i₂ _ :-: 𝗭̂¹ (AIntFrom 1)) :≬: 𝗖̂ c₂)
-   | x₁ == i₁, x₂ == i₂, s₁ == s₂
-   , let t₁ = lit c₁ ⋅ star Σ ⋅ lit c₂
-   , let t₂ = lit c₂ ⋅ star Σ ⋅ lit c₁ ⋅ Σ
-   , let t₃ = lit (c₁ ∧ c₂) ⋅ Σ
-   , let t = star Σ ⋅ (t₁ ∨ t₂ ∨ t₃) ⋅ star Σ
-   -> Just $ s₁ :=: 𝗦̂ t
-  -----------------------------------------------------------------------------
-  (EStrAt s₁ (EVar i₁ _ :-: 𝗭̂¹ (AIntFrom 1)) :≬: 𝗖̂ c₁,
-   EStrAt s₂ (EVar i₂ _ :-: 𝗭̂¹ (AIntFrom 1)) :≬: 𝗖̂ c₂)
-   | x₁ == i₁, x₂ == i₂, s₁ == s₂
-   , let t₁ = lit c₁ ⋅ star Σ ⋅ lit c₂
-   , let t₂ = lit c₂ ⋅ star Σ ⋅ lit c₁
-   , let t₃ = lit (c₁ ∧ c₂)
-   , let t = star Σ ⋅ (t₁ ∨ t₂ ∨ t₃) ⋅ star Σ
-   -> Just $ s₁ :=: 𝗦̂ t
-  -----------------------------------------------------------------------------
-  (EStrAt s₁ (EVar i₁ _ :-: 𝗭̂¹ AInt1) :≬: 𝗖̂ c₁,
-   EStrAt s₂ (EVar i₂ _ :-: 𝗭̂¹ (AIntFrom 1)) :≬: 𝗖̂ c₂)
-   | x₁ == i₁, x₂ == i₂, s₁ == s₂
-   , let t₂ = lit c₂ ⋅ star Σ ⋅ lit c₁
-   , let t₃ = lit (c₁ ∧ c₂)
-   , let t = star Σ ⋅ (t₂ ∨ t₃) ⋅ star Σ
-   -> Just $ s₁ :=: 𝗦̂ t
-  -----------------------------------------------------------------------------
-  (EStrAt s₁ (EVar i₁ _ :+: 𝗭̂⁰ (AIntFrom 0)) :≬: 𝗖̂ c₁,
-   EStrAt s₂ (EVar i₂ _ :-: 𝗭̂⁰ (AIntFrom 0)) :≬: 𝗖̂ c₂)
-   | x₁ == i₁, x₂ == i₂, s₁ == s₂
-   , let t₁ = lit (c₁ ∧ c₂)
-   , let t₂ = lit c₁ ⋅ star Σ ⋅ lit c₂
-   , let t = star Σ ⋅ (t₁ ∨ t₂) ⋅ star Σ
-   -> Just $ s₁ :=: 𝗦̂ t
-  -----------------------------------------------------------------------------
-  _ -> Nothing
 
 -------------------------------------------------------------------------------
 
