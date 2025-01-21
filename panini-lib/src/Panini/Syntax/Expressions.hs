@@ -6,7 +6,6 @@ import Data.Foldable
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
 import Data.List qualified as List
-import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
@@ -123,29 +122,6 @@ ground e = and [False | EVar _ _ <- universe e]
 -- | Postfix operator for 'ground'.
 (⏚) :: Uniplate (Expr' a) => Expr' a -> Bool
 (⏚) = ground
-
--- | The type of the given expression, if locally discernible.
-typeOfExpr :: Expr -> Maybe Base
-typeOfExpr = \case
-  EVar _ b      -> Just b
-  ENot _        -> Just TBool
-  _ :+: _       -> Just TInt
-  _ :-: _       -> Just TInt
-  _ :*: _       -> Just TInt
-  EStrLen _     -> Just TInt
-  EStrAt _ _    -> Just TChar
-  EStrSub _ _ _ -> Just TString
-  EStrConc _ _ -> Just TString
-  EStrIndexOf _ _ _ -> Just TInt
-  EStrStar _ -> Just TString
-  EStrContains _ _ -> Just TBool
-  EFun _ _      -> Nothing
-  ECon c        -> Just $ typeOfValue c
-  EReg _        -> Just TString
-
--- | The type of a variable in a given expression, if locally discernible.
-typeOfVarInExpr :: Uniplate (Expr' a) => Name -> Expr' a -> Maybe Base
-typeOfVarInExpr x e = listToMaybe [b | EVar y b <- universe e, y == x]
 
 ------------------------------------------------------------------------------
 

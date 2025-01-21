@@ -74,13 +74,10 @@ renameVars m0 r0 = [ substN (zipWith EVar zs bs) xs r0
    where 
       go y = map ((x,b,y):) $ renamings (Map.adjust (List.\\ [y]) b m) xs    
 
--- | Returns the free variables in a relation if they all have known types;
--- otherwise, returns an empty set.
+-- | Returns the free variables in a relation and their types.
 freeVarsWithTypes :: Rel -> Set (Name,Base)
-freeVarsWithTypes r = maybe mempty Set.fromList 
-                    $ sequenceA 
-                    $ [ fmap (x,) (typeOfVarInRel x r) 
-                      | x <- Set.toList $ freeVars r ]
+freeVarsWithTypes r = Set.fromList
+  [(x,b) | EVar x b <- universeBi @Rel @Expr r, x `freeIn` r]
 
 -- | Extract all relations from a constraint that involve exactly the given
 -- types as free variables (in any order, with repetitions).

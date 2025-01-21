@@ -4,13 +4,11 @@ module Panini.Syntax.Relations where
 import Data.Data (Data)
 import Data.Generics.Uniplate.Direct
 import Data.Hashable
-import Data.Maybe
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax.Expressions
-import Panini.Syntax.Names
 import Panini.Syntax.Primitives
 import Panini.Syntax.Substitution
 import Prelude
@@ -77,11 +75,6 @@ inverse = \case
   e1 :<: e2 -> e1 :≥: e2
   e1 :∈: e2 -> e1 :∉: e2
   e1 :∉: e2 -> e1 :∈: e2
-
--- | The type of a variable in a given relation, if locally discernible.
-typeOfVarInRel :: forall a. Biplate (Rel' a) (Expr' a) => Name -> Rel' a -> Maybe Base
-typeOfVarInRel x r = 
-  listToMaybe [b | EVar y b <- universeBi @(Rel' a) @(Expr' a) r, x == y]
 
 -------------------------------------------------------------------------------
 
