@@ -5,6 +5,7 @@ module Panini.Parser
   , parseStatement
   , parseTerm
   , parseType
+  , parseRel
   , parseConstraint
   , Error(..)
   ) where
@@ -48,6 +49,9 @@ parseTerm = parseA term
 
 parseType :: FilePath -> Text -> Either Error Type
 parseType = parseA type_
+
+parseRel :: FilePath -> Text -> Either Error Rel
+parseRel = parseA rel
 
 parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint
@@ -386,7 +390,7 @@ predTerm :: Parser Pred
 predTerm = choice
   [ parens predicate
   , try regRel
-  , try predRel
+  , try (PRel <$> rel)
   , PTrue <$ keyword "true"
   , PFalse <$ keyword "false"
   ]
@@ -423,12 +427,12 @@ regRel = do
   e2 <- EReg <$> ERE.ere
   return (PRel (ctor e1 e2))
 
-predRel :: Parser Pred
-predRel = do
+rel :: Parser Rel
+rel = do
   e1 <- pexpr
   ctor <- relation
   e2 <- pexpr
-  return (PRel (ctor e1 e2))
+  return (ctor e1 e2)
 
 relation :: Parser (Expr -> Expr -> Rel)
 relation = choice
