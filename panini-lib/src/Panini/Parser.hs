@@ -141,6 +141,7 @@ identBeginChar = satisfy (\x -> isAlpha x || x == '_')
 -- | Parses a character that is valid inside an identifier.
 identChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
 identChar = satisfy (\x -> isAlphaNum x || x == '_' || x == '\'')
+  <|> try (single '.' <* notFollowedBy (single '.'))
 
 -- | Returns `True` if the given string is a reserved keyword.
 isReserved :: (IsString s, Eq s) => s -> Bool
