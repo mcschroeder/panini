@@ -104,17 +104,17 @@ pattern EStrFirstIndexOfChar :: Expr' a -> Expr' a -> Expr' a
 pattern EStrFirstIndexOfChar s c = EFun "firstIndexOfChar" [s,c]
 
 pattern EStrIndexOf :: Expr' a -> Expr' a -> Expr' a -> Expr' a
-pattern EStrIndexOf s t i = EFun "str_indexof" [s,t,i]
+pattern EStrIndexOf s t i = EFun "str.indexof" [s,t,i]
 
 -- | string concatenation
 pattern EStrConc :: Expr' a -> Expr' a -> Expr' a
 pattern EStrConc a b = EFun "str.++" [a,b]
 
 pattern EStrStar :: Expr' a -> Expr' a
-pattern EStrStar s = EFun "re_star" [s]
+pattern EStrStar s = EFun "re.*" [s]
 
 pattern EStrContains :: Expr' a -> Expr' a -> Expr' a
-pattern EStrContains s t = EFun "str_contains" [s,t]
+pattern EStrContains s t = EFun "str.contains" [s,t]
 
 ------------------------------------------------------------------------------
 

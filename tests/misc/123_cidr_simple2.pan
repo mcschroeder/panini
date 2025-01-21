@@ -7,11 +7,11 @@ int_sub : (a:ℤ) → (b:ℤ) → { c:ℤ | c = a - b }
 
 -- returns index of first occurrence of t in s, beginning at i
 -- returns -1 if t not found
-str_find : (s:𝕊) → (t:𝕊) → (i:ℤ) → { j:ℤ | j = str_indexof(s,t,i) }
+str_find : (s:𝕊) → (t:𝕊) → (i:ℤ) → { j:ℤ | j = str.indexof(s,t,i) }
 
 -- returns index of first occurrence of t in s, beginning at i
 -- asserts that t is found
-str_index : (s:𝕊) → (t:𝕊) → (i:ℤ) → { j:ℤ | j = str_indexof(s,t,i) /\ j >= 0 }
+str_index : (s:𝕊) → (t:𝕊) → (i:ℤ) → { j:ℤ | j = str.indexof(s,t,i) /\ j >= 0 }
 
 is_valid_cidr = \(string_network:string).
 --  let i1 = str_find string_network "b" 0 in
