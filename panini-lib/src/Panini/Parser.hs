@@ -6,6 +6,7 @@ module Panini.Parser
   , parseTerm
   , parseType
   , parseRel
+  , parseExpr
   , parseConstraint
   , Error(..)
   ) where
@@ -19,6 +20,7 @@ import Data.Char
 import Data.List (foldl')
 import Data.List.NonEmpty qualified as NE
 import Data.Maybe
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String
 import Data.Text (Text)
@@ -50,8 +52,11 @@ parseTerm = parseA term
 parseType :: FilePath -> Text -> Either Error Type
 parseType = parseA type_
 
-parseRel :: FilePath -> Text -> Either Error Rel
-parseRel = parseA rel
+parseRel :: FilePath -> Text -> Set (Name,Base) -> Either Error Rel
+parseRel fp s ctx = parseA (withVars ctx rel) fp s
+
+parseExpr :: FilePath -> Text -> Set (Name,Base) -> Either Error Expr
+parseExpr fp s ctx = parseA (withVars ctx pexpr) fp s
 
 parseConstraint :: FilePath -> Text -> Either Error Con
 parseConstraint = parseA constraint
@@ -98,6 +103,14 @@ withVar x b p = do
   lift $ MT.modify' ((x,b):)
   a <- p
   lift $ MT.modify' tail
+  return a
+
+withVars :: Set (Name,Base) -> Parser a -> Parser a
+withVars defs p = do
+  ctx0 <- lift $ MT.get
+  lift $ MT.put (Set.toList defs ++ ctx0)
+  a <- p
+  lift $ MT.put ctx0
   return a
 
 lookupVar :: Name -> Parser Base

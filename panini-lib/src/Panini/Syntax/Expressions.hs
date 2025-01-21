@@ -92,12 +92,13 @@ pattern EStrAt :: Expr' a -> Expr' a -> Expr' a
 pattern EStrAt s i = EFun "str.at" [s,i]
 
 -- | substring @s[i..j]@ (inclusive bounds)
+-- NOTE: this is different from SMT-LIB str.substr
 pattern EStrSub :: Expr' a -> Expr' a -> Expr' a -> Expr' a
 pattern EStrSub s i j = EFun "str.sub" [s,i,j]
 
 -- | string complement
 pattern EStrComp :: Expr' a -> Expr' a
-pattern EStrComp s = EFun "str.comp" [s]
+pattern EStrComp s = EFun "re.comp" [s]
 
 pattern EStrIndexOf :: Expr' a -> Expr' a -> Expr' a -> Expr' a
 pattern EStrIndexOf s t i = EFun "str.indexof" [s,t,i]

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Panini.Abstract.Semantics
   ( normRelA
   , normExprA
@@ -24,6 +25,7 @@ import Panini.Panic
 import Panini.Pretty
 import Panini.Provenance
 import Panini.Syntax hiding (Value(..))
+import Panini.Syntax.QQ
 import Prelude
 import Regex qualified as Regex
 import Regex.POSIX.ERE qualified
@@ -39,64 +41,15 @@ trace _ = id
 -------------------------------------------------------------------------------
 -- In this module, we use some special notation to simplify pattern matching.
 
--- | abstract unit constant
-pattern U :: AUnit -> AExpr
-pattern U u = EVal (AUnit u)
+(.<) :: AInt -> Integer -> Bool
+(.<) = AInt.isLe
 
--- | abstract Boolean constant
-pattern B :: ABool -> AExpr
-pattern B p = EVal (ABool p)
+pattern Relℤ :: AExpr -> ARel -> AExpr
+pattern Relℤ x r <- (matchERelA TInt -> Just (x,r))
 
--- | abstract integer constant
-pattern Z :: AInt -> AExpr
-pattern Z n = EVal (AInt n)
-
--- | Match any abstract integer but return only its positive part, including 0.
-pattern Z⁰ :: AInt -> AExpr
-pattern Z⁰ n̂ <- Z (meet (AInt.ge 0) -> n̂)
-
--- | Match any abstract integer but return only its positive part, excluding 0.
-pattern Z¹ :: AInt -> AExpr
-pattern Z¹ n̂ <- Z (meet (AInt.ge 1) -> n̂)
-
--- | abstract integer addition
-(⊕) :: AInt -> AInt -> AInt
-(⊕) = AInt.add
-
--- | abstract integer subtraction
-(⊖) :: AInt -> AInt -> AInt
-(⊖) = AInt.sub
-
--- | abstract integer comparison with concrete integer
-(⋖) :: AInt -> Integer -> Bool
-(⋖) = AInt.isLe
-
--- | abstract character constant; also matches one-character singleton strings
-pattern C :: AChar -> AExpr
-pattern C c <- EVal (matchChar -> Just c) where
-  C c = EVal (AChar c)
-
-matchChar :: AValue -> Maybe AChar
-matchChar (AChar c)   = Just c
-matchChar (AString s) = AString.toChar s
-matchChar _           = Nothing
-
--- | abstract string constant
-pattern S :: AString -> AExpr
-pattern S s = EVal (AString s)
-
-pattern V :: Name -> AExpr
-pattern V x <- EVar x _
-
--- | Match both x+n and x; in the latter case, n is taken to be 0.
-pattern (:⨤:) :: Name -> Integer -> AExpr
-pattern x :⨤: n <- (exprToVarPlusN -> Just (x,n))
-
-exprToVarPlusN :: AExpr -> Maybe (Name, Integer)
-exprToVarPlusN = \case
-  EVar x TInt           -> Just (x, 0)
-  EVar x TInt :+: Z [n] -> Just (x, n)
-  _                     -> Nothing
+matchERelA :: Base -> AExpr -> Maybe (AExpr, ARel)
+matchERelA b (ERelA v b1 r) | b == b1 = Just (EVar v b, r)
+matchERelA _ _ = Nothing
 
 -------------------------------------------------------------------------------
 
@@ -104,75 +57,79 @@ exprToVarPlusN = \case
 normExprA :: AExpr -> AExpr
 normExprA = rewrite $ \case
   -----------------------------------------------------------------------------
-  ERelA x₁ _ (isolate x₁ -> V x₂ :=: ω) | x₁ == x₂, x₁ `notFreeIn` ω -> Just ω
+  ERelA x _ (isolate x -> EVar x1 _ :=: y) | x == x1, x `notFreeIn` y -> Just y
   -----------------------------------------------------------------------------
-  ERelA x b ρ -> case normRelA ρ of
+  ERelA x b r -> case normRelA r of
     Left True            -> Just $ EAbs (topValue b)
     Left False           -> Just $ EAbs (botValue b)
-    Right ρ' | ρ' /= ρ   -> Just $ ERelA x b ρ'
-             | otherwise -> case abstract x b ρ of
+    Right r' | r' /= r   -> Just $ ERelA x b r'
+             | otherwise -> case abstract x b r of
                               ARel _ _ _ -> Nothing
                               a          -> Just $ EAbs a
   -----------------------------------------------------------------------------
-  ENot (B a)    -> Just $ B (neg a)
-  ENot (ENot ω) -> Just ω
+  [ω| not(p)      |] -> Just $ EBoolA (neg p)
+  [ω| not(not(x)) |] -> Just x
   -----------------------------------------------------------------------------
-  Z a :+: _    | isBot a -> Just $ Z a
-  Z a :-: _    | isBot a -> Just $ Z a
-  _   :+: Z a  | isBot a -> Just $ Z a
-  _   :-: Z a  | isBot a -> Just $ Z a
-  Z a :+: Z b            -> Just $ Z (a ⊕ b)
-  Z a :-: Z b            -> Just $ Z (a ⊖ b)
-  ω   :+: Z [0]          -> Just ω
-  ω   :-: Z [0]          -> Just ω
-  ω   :+: Z a  | a ⋖ 0   -> Just $ ω :-: Z (AInt.negate a)
-  ω   :-: Z a  | a ⋖ 0   -> Just $ ω :+: Z (AInt.negate a)
+  [ω| n + _ |] | isBot n -> Just $ EIntA bot
+  [ω| n - _ |] | isBot n -> Just $ EIntA bot
+  [ω| _ + n |] | isBot n -> Just $ EIntA bot
+  [ω| _ - n |] | isBot n -> Just $ EIntA bot
+  [ω| m + n |]           -> Just $ EIntA (AInt.add m n)
+  [ω| m - n |]           -> Just $ EIntA (AInt.sub m n)
+  [ω| x + 0 |]           -> Just x
+  [ω| x - 0 |]           -> Just x
+  [ω| x + n |] | n .< 0  -> Just [ω| x - n' |] where n' = AInt.negate n
+  [ω| x - n |] | n .< 0  -> Just [ω| x + n' |] where n' = AInt.negate n
   -----------------------------------------------------------------------------
-  (ω   :+: Z a) :+: Z b -> Just $ ω :+: Z (a ⊕ b)
-  (ω   :+: Z a) :-: Z b -> Just $ ω :+: Z (a ⊖ b)
-  (ω   :-: Z a) :+: Z b -> Just $ ω :-: Z (a ⊖ b)
-  (ω   :-: Z a) :-: Z b -> Just $ ω :-: Z (a ⊕ b)
-  (Z a :+: ω  ) :+: Z b -> Just $ ω :+: Z (a ⊕ b)
-  (Z a :+: ω  ) :-: Z b -> Just $ ω :+: Z (a ⊖ b)
-  (Z a :-: ω  ) :+: Z b -> Just $ Z (a ⊕ b) :-: ω
-  (Z a :-: ω  ) :-: Z b -> Just $ Z (a ⊖ b) :-: ω
+  [ω| (x + k) + n |] -> Just [ω| x + (k + n) |]
+  [ω| (x + k) - n |] -> Just [ω| x + (k - n) |]
+  [ω| (k + x) + n |] -> Just [ω| x + (k + n) |]
+  [ω| (k + x) - n |] -> Just [ω| x + (k - n) |]
+  [ω| (x - k) + n |] -> Just [ω| x - (k - n) |]
+  [ω| (x - k) - n |] -> Just [ω| x - (k + n) |]
+  [ω| (k - x) + n |] -> Just [ω| (k + n) - x |]
+  [ω| (k - x) - n |] -> Just [ω| (k - n) - x |]
   -----------------------------------------------------------------------------
-  EMod (Z [a]) (Z [b]) -> Just $ Z [a `mod` b]
-  -----------------------------------------------------------------------------
-  EStrLen (S s) | isTop s             -> Just $ Z (AInt.ge 0)
-                | Just n <- strLen1 s -> Just $ Z [n]
+  [ω| mod(m̂,n̂) |] | [m] <- m̂, [n] <- n̂ -> Just $ EIntA [m `mod` n]
+  -----------------------------------------------------------------------------  
+  [ω| |s| |]
+    | isTop s             -> Just $ EIntA (AIntFrom 0)
+    | Just n <- strLen1 s -> Just $ EIntA [n]
   -- NOTE: We don't have any efficient way to compute nor represent, in general,
   -- the precise lengths of all strings contained in an abstract string.
   -----------------------------------------------------------------------------
-  EStrAt (S (AString1 s)) (Z i)             -> Just $ C (charAt s i)
-  EStrAt (S s) (Z [i])                      -> Just $ C (charsAt s i)
-  EStrAt (V x₁) (EStrLen (V x₂)) | x₁ == x₂ -> Just $ C bot
+  [ω| ŝ[i] |] | AString1 s <- ŝ -> Just $ ECharA (charAt s i)
+  [ω| s[î] |] | [i] <- î        -> Just $ ECharA (charsAt s i)
+  [ω| x[str.len(x)] |] -> Just $ ECharA bot
   -----------------------------------------------------------------------------
-  EStrAt s₁ (EStrLen s₂ :+: Z n) 
-    | s₁ == s₂, let n' = n ∧ AInt.lt 0, n' /= n 
-    -> Just $ EStrAt s₁ (EStrLen s₂ :-: Z (AInt.negate n'))
+  [ω| x[|x|+n] |]
+    | let n' = n ∧ AIntTo (-1)
+    , n' /= n
+    -> Just [ω| x[|x|+n'] |]
   -----------------------------------------------------------------------------
-  EStrSub (S (AString1 s)) (Z i) (Z j)                    -> Just $ S (strSub s i j)
-  EStrSub (S s) (Z [i₁]) (Z [i₂]) | i₁ == i₂              -> Just $ S (lit $ charsAt s i₁)
-  EStrSub    ω₁ (Z [0]) (EStrLen ω₂ :-: Z [1]) | ω₁ == ω₂ -> Just ω₁
+  [ω| ŝ[i..j]     |] | AString1 s <- ŝ -> Just $ EStrA (strSub s i j)
+  [ω| s[î..î]     |] | [i] <- î        -> Just $ EStrA (lit $ charsAt s i)
+  [ω| x[0..|x|-1] |]                   -> Just x
   -----------------------------------------------------------------------------
-  EStrSub (EStrSub s (Z [i]) (Z [j])) (Z [k]) (Z [l])
-    | i >= 0, i <= j, k >= 0, k <= l, l - k <= j - i
-    -> Just $ EStrSub s (Z [i + k]) (Z [i + k + (l - k)])
+  [ω| x[î..ĵ][m̂..n̂] |]
+    | [i] <- î, [j] <- ĵ, [m] <- m̂, [n] <- n̂
+    , i >= 0, i <= j, m >= 0, m <= n, n - m <= j - i
+    -> Just [ω| x[î+m̂..î+m̂+(n̂-m̂)] |]
   -----------------------------------------------------------------------------
-  EStrComp (EStrComp ω) -> Just ω
-  -- EStrComp (S s) -> Just $ S (neg s)
+  [ω| str.comp(str.comp(x)) |] -> Just x
   -- NOTE: We want to defer resolution of EStrComp as long as possible,
   -- in order to exploit opportunities for double-negation cancellation!
   -----------------------------------------------------------------------------
-  EStrConc (S a) (S b) -> Just $ S (a ⋅ b)
-  EStrConc (EStrSub ω₁ (Z [i₁]) (Z [j₁])) (EStrSub ω₂ (Z [i₂]) (Z [j₂]))
-    | ω₁ == ω₂, i₁ <= j₁, j₁ + 1 == i₂, i₂ <= j₂
-    -> Just $ EStrSub ω₁ (Z [i₁]) (Z [j₂])
+  [ω| s ++ t |] -> Just $ EStrA  (s ⋅ t)
   -----------------------------------------------------------------------------
-  EStrStar (S s) -> Just $ S (star s)
+  [ω| x[î..ĵ] ++ x[m̂..n̂] |]
+    | [i] <- î, [j] <- ĵ, [m] <- m̂, [n] <- n̂
+    , i <= j, j + 1 == m, m <= n
+    -> Just [ω| x[î..n̂] |]
   -----------------------------------------------------------------------------
-  EStrContains (S ŝ₁) (S ŝ₂) -> Just $ B [ŝ₂ ⊑ ŝ₁]
+  EStrStar (EStrA s) -> Just $ EStrA (star s)
+  -----------------------------------------------------------------------------
+  [ω| str.contains(s,t) |] -> Just $ EBoolA [t ⊑ s]
   -----------------------------------------------------------------------------
   _ -> Nothing
 
@@ -184,18 +141,18 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
 --normRelA = \case
   -----------------------------------------------------------------------------
   -- after this, all subexpressions are fully normalized
-  ρ | ρ' <- descendBi normExprA ρ, ρ' /= ρ -> normRelA ρ'
+  r | r' <- descendBi normExprA r, r' /= r -> normRelA r'
   -----------------------------------------------------------------------------
-  x :≠: Z [n] -> normRelA $ x :=: Z (AInt.ne n)
-  x :<: Z [n] -> normRelA $ x :=: Z (AInt.lt n)
-  x :≤: Z [n] -> normRelA $ x :=: Z (AInt.le n)
-  x :>: Z [n] -> normRelA $ x :=: Z (AInt.gt n)
-  x :≥: Z [n] -> normRelA $ x :=: Z (AInt.ge n)
+  [ρ| x ≠ n |] -> normRelA [ρ| x = n' |] where n' = neg n
+  [ρ| x < n |] -> normRelA [ρ| x = n' |] where n' = AInt.ltA n
+  [ρ| x ≤ n |] -> normRelA [ρ| x = n' |] where n' = AInt.leA n
+  [ρ| x > n |] -> normRelA [ρ| x = n' |] where n' = AInt.gtA n
+  [ρ| x ≥ n |] -> normRelA [ρ| x = n' |] where n' = AInt.geA n
   -----------------------------------------------------------------------------
-  x :<: y -> normRelA $ x :=: (y :-: Z (AInt.gt 0))
-  x :≤: y -> normRelA $ x :=: (y :-: Z (AInt.ge 0))
-  x :>: y -> normRelA $ x :=: (y :+: Z (AInt.gt 0))
-  x :≥: y -> normRelA $ x :=: (y :+: Z (AInt.ge 0))
+  [ρ| x < y |] -> normRelA [ρ| x = y - n |] where n = AInt.ge 1
+  [ρ| x ≤ y |] -> normRelA [ρ| x = y - n |] where n = AInt.ge 0
+  [ρ| x > y |] -> normRelA [ρ| x = y + n |] where n = AInt.ge 1
+  [ρ| x ≥ y |] -> normRelA [ρ| x = y + n |] where n = AInt.ge 0
   -----------------------------------------------------------------------------
   -- NOTE: ">" is the structural ordering on 'AExpr'; after 
   -- this block, the "smaller" expression will be on the LHS,
@@ -211,210 +168,197 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   x :≠: _ | anyBot x -> Left True
   _ :≠: x | anyBot x -> Left True
   -----------------------------------------------------------------------------
-  x           :=: y           | x == y -> Left True
-  x           :=: (y :+: Z n) | x == y -> Left (AInt.member 0 n)
-  x           :=: (y :-: Z n) | x == y -> Left (AInt.member 0 n)
-  (x :+: Z n) :=: y           | x == y -> Left (AInt.member 0 n)
-  (x :-: Z n) :=: y           | x == y -> Left (AInt.member 0 n)
+  [ρ| x = x     |] -> Left True
+  [ρ| x = x + n |] -> Left (AInt.member 0 n)
+  [ρ| x = x - n |] -> Left (AInt.member 0 n)
+  [ρ| x + n = x |] -> Left (AInt.member 0 n)
+  [ρ| x - n = x |] -> Left (AInt.member 0 n)
   -----------------------------------------------------------------------------
-  x           :≠: y           | x == y -> Left False
-  x           :≠: (y :+: Z n) | x == y -> Left (not $ AInt.member 0 n)
-  x           :≠: (y :-: Z n) | x == y -> Left (not $ AInt.member 0 n)
-  (x :+: Z n) :≠: y           | x == y -> Left (not $ AInt.member 0 n)
-  (x :-: Z n) :≠: y           | x == y -> Left (not $ AInt.member 0 n)
+  [ρ| x ≠ x     |] -> Left False
+  [ρ| x ≠ x + n |] -> Left (not $ AInt.member 0 n)
+  [ρ| x ≠ x - n |] -> Left (not $ AInt.member 0 n)
+  [ρ| x + n ≠ x |] -> Left (not $ AInt.member 0 n)
+  [ρ| x - n ≠ x |] -> Left (not $ AInt.member 0 n)
   -----------------------------------------------------------------------------
-  Rel o (Z a :+: x) (Z b)       -> normRelA $ Rel o x (Z (b ⊖ a))
-  Rel o (Z a :+: x) (Z b :+: y) -> normRelA $ Rel o x (y :+: Z (b ⊖ a))
-  Rel o (Z a :+: x) (y :+: Z b) -> normRelA $ Rel o x (y :+: Z (b ⊖ a))
-  Rel o (Z a :+: x) (Z b :-: y) -> normRelA $ Rel o x (Z (b ⊖ a) :-: y)
-  Rel o (Z a :+: x) (y :-: Z b) -> normRelA $ Rel o x (y :-: Z (a ⊕ b))
-  Rel o (Z a :-: x) (Z b)       -> normRelA $ Rel o x (Z (a ⊖ b))
-  Rel o (Z a :-: x) (Z b :+: y) -> normRelA $ Rel o x (Z (a ⊖ b) :-: y)
-  Rel o (Z a :-: x) (y :+: Z b) -> normRelA $ Rel o x (Z (a ⊖ b) :-: y)
-  Rel o (Z a :-: x) (Z b :-: y) -> normRelA $ Rel o x (y :+: Z (a ⊖ b))
-  Rel o (Z a :-: x) (y :-: Z b) -> normRelA $ Rel o x (Z (a ⊕ b) :-: y)
-  Rel o (x :+: Z a) (Z b)       -> normRelA $ Rel o x (Z (b ⊖ a))
-  Rel o (x :+: Z a) (Z b :+: y) -> normRelA $ Rel o x (y :+: Z (b ⊖ a))
-  Rel o (x :+: Z a) (y :+: Z b) -> normRelA $ Rel o x (y :+: Z (b ⊖ a))
-  Rel o (x :+: Z a) (Z b :-: y) -> normRelA $ Rel o x (Z (b ⊖ a) :-: y)
-  Rel o (x :+: Z a) (y :-: Z b) -> normRelA $ Rel o x (y :-: Z (a ⊕ b))
-  Rel o (x :-: Z a) (Z b)       -> normRelA $ Rel o x (Z (a ⊕ b))
-  Rel o (x :-: Z a) (Z b :+: y) -> normRelA $ Rel o x (y :+: Z (a ⊕ b))
-  Rel o (x :-: Z a) (y :+: Z b) -> normRelA $ Rel o x (y :+: Z (a ⊕ b))
-  Rel o (x :-: Z a) (Z b :-: y) -> normRelA $ Rel o x (Z (a ⊕ b) :-: y)
-  Rel o (x :-: Z a) (y :-: Z b) -> normRelA $ Rel o x (y :+: Z (a ⊖ b))
+  Rel o [ω| k + x |] [ω| n     |] -> normRelA $ Rel o x [ω| n - k       |]
+  Rel o [ω| x + k |] [ω| n     |] -> normRelA $ Rel o x [ω| n - k       |]
+  Rel o [ω| k + x |] [ω| n + y |] -> normRelA $ Rel o x [ω| y + (n - k) |]
+  Rel o [ω| x + k |] [ω| n + y |] -> normRelA $ Rel o x [ω| y + (n - k) |]
+  Rel o [ω| k + x |] [ω| y + n |] -> normRelA $ Rel o x [ω| y + (n - k) |]
+  Rel o [ω| x + k |] [ω| y + n |] -> normRelA $ Rel o x [ω| y + (n - k) |]
+  Rel o [ω| k + x |] [ω| n - y |] -> normRelA $ Rel o x [ω| (n - k) - y |]
+  Rel o [ω| x + k |] [ω| n - y |] -> normRelA $ Rel o x [ω| (n - k) - y |]
+  Rel o [ω| k + x |] [ω| y - n |] -> normRelA $ Rel o x [ω| y - (k + n) |]
+  Rel o [ω| x + k |] [ω| y - n |] -> normRelA $ Rel o x [ω| y - (k + n) |]
+  Rel o [ω| k - x |] [ω| n     |] -> normRelA $ Rel o x [ω| k - n       |]
+  Rel o [ω| x - k |] [ω| n     |] -> normRelA $ Rel o x [ω| k + n       |]
+  Rel o [ω| k - x |] [ω| n + y |] -> normRelA $ Rel o x [ω| (k - n) - y |]
+  Rel o [ω| x - k |] [ω| n + y |] -> normRelA $ Rel o x [ω| y + (k + n) |]
+  Rel o [ω| k - x |] [ω| y + n |] -> normRelA $ Rel o x [ω| (k - n) - y |]
+  Rel o [ω| x - k |] [ω| y + n |] -> normRelA $ Rel o x [ω| y + (k + n) |]
+  Rel o [ω| k - x |] [ω| n - y |] -> normRelA $ Rel o x [ω| y + (k - n) |]
+  Rel o [ω| x - k |] [ω| n - y |] -> normRelA $ Rel o x [ω| (k + n) - y |]
+  Rel o [ω| k - x |] [ω| y - n |] -> normRelA $ Rel o x [ω| (k + n) - y |]
+  Rel o [ω| x - k |] [ω| y - n |] -> normRelA $ Rel o x [ω| y + (k - n) |]
   -----------------------------------------------------------------------------
-  -- str.indexof(x,y,0) = n   ≡   str.indexof(x,y,0) = n ⊓ [-1,∞]
-  EStrIndexOf x y (Z [0]) :=: Z n
-    | let n' = n ∧ AIntFrom (-1), n' /= n
-    -> normRelA $ EStrIndexOf x y (Z [0]) :=: Z n'
-  -----------------------------------------------------------------------------  
-  -- str.indexof(x,c,0) = n   ≡   x = strWithFirstIndexOfChar c n
-  EStrIndexOf x (C c) (Z [0]) :=: Z n
-    -> normRelA $ x :=: S (strWithFirstIndexOfChar c n)
+  [ρ| str.indexof(x,y,0) = n |] 
+    | let n' = n ∧ AIntFrom (-1)
+    , n' /= n
+    -> normRelA $ [ρ| str.indexof(x,y,0) = n' |]
   -----------------------------------------------------------------------------
-  -- str.indexof(s,t,i) = [-∞,-1]   ≡   str.indexof(s,t,i) = -1
-  EStrIndexOf s t i :=: Z (AIntTo (-1)) 
-    -> normRelA $ EStrIndexOf s t i :=: Z [-1]
+  [ρ| str.indexof(x,c,0) = n |] 
+    -> normRelA $ x :=: EStrA (strWithFirstIndexOfChar c n)
   -----------------------------------------------------------------------------
-  -- str.indexof(x,y,|x|+[-i,+∞]) = z   ≡   str.indexof(x,y,|x|-[0,i]) = z
-  EStrIndexOf x₁ y (EStrLen x₂ :+: Z n) :=: z 
-    | x₁ == x₂
-    , [Fin i :… PosInf] <- AInt.intervals n, i < 0
+  [ρ| str.indexof(x,y,|x|+n) = z |]
+    | [Fin i :… PosInf] <- AInt.intervals n
+    , i < 0
     , let n' = AInt.fromTo 0 (Prelude.negate i)
-    -> normRelA $ EStrIndexOf x₁ y (EStrLen x₂ :-: Z n') :=: z
+    -> normRelA $ [ρ| str.indexof(x,y,|x|-n') = z |]
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,[i,+∞]) = -1   ≡   x = ΣⁱΣ*c̄*
-  EStrIndexOf x (C c) (Z (AIntFrom i)) :=: Z [-1]
-    -> normRelA $ x :=: S (rep Σ i ⋅ star Σ ⋅ star (lit (neg c)))
+  [ρ| str.indexof(x,c,n) = -1 |] 
+    | AIntFrom i <- n
+    , let c̄ = lit (neg c)
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ star c̄)
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,|x|-[i,+∞]) = -1   ≡   x = Σ*c̄ⁱc̄*
-  EStrIndexOf x₁ (C c) (EStrLen x₂ :-: Z (AIntFrom i)) :=: Z [-1] | x₁ == x₂
-    -> normRelA $ x₁ :=: S (star Σ ⋅ rep c̄ i ⋅ star c̄) where c̄ = lit (neg c)
+  [ρ| str.indexof(x,c,|x|-n) = -1 |]
+    | AIntFrom i <- n
+    , let c̄ = lit (neg c)
+    -> normRelA $ x :=: EStrA (star Σ ⋅ rep c̄ i ⋅ star c̄)
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,|x|-[0,1]) = -1   ≡   x = Σ*c̄?
-  EStrIndexOf x₁ (C c) (EStrLen x₂ :-: Z [0,1]) :=: Z [-1] | x₁ == x₂
-    -> normRelA $ x₁ :=: S (star Σ ⋅ opt (lit (neg c)))
+  [ρ| str.indexof(x,c,|x|-n) = -1 |]
+    | [0,1] <- n
+    , let c̄ = lit (neg c)
+    -> normRelA $ x :=: EStrA (star Σ ⋅ opt c̄)
   -----------------------------------------------------------------------------
-  -- i = str.indexof(s,t,i)   ≡   s[i..i+|t|-1] = t
-  i₁ :=: EStrIndexOf s t i₂ 
-    | i₁ == i₂ 
-    -> normRelA $ EStrSub s i₂ (i₂ :+: (EStrLen t :-: Z [1])) :=: t
+  [ρ| z = str.indexof(x,y,z) |] -> normRelA [ρ| x[z..z+|y|-1] = y |]
   -----------------------------------------------------------------------------
-  -- i + n = str.indexof(s,t,i)   ≡   i + (n ⊓ [0,∞]) = str.indexof(s,t,i)
-  i₁ :+: Z n̂ :=: EStrIndexOf s t i₂ 
-    | i₁ == i₂, let n̂' = n̂ ∧ AInt.ge 0, n̂' /= n̂ 
-    -> normRelA $ i₁ :+: Z n̂' :=: EStrIndexOf s t i₂
+  [ρ| z + n = str.indexof(x,y,z) |]
+    | let n' = n ∧ AIntFrom 0
+    , n' /= n
+    -> normRelA [ρ| z + n' = str.indexof(x,y,z) |]
   -----------------------------------------------------------------------------
-  -- i - n = str.indexof(s,t,i)   ≡   i - (n ⊓ [-∞,0]) = str.indexof(s,t,i)
-  i₁ :-: Z n̂ :=: EStrIndexOf s t i₂ 
-    | i₁ == i₂, let n̂' = n̂ ∧ AInt.le 0, n̂' /= n̂ 
-    -> normRelA $ i₁ :-: Z n̂' :=: EStrIndexOf s t i₂
+  [ρ| z - n = str.indexof(x,y,z) |]
+    | let n' = n ∧ AIntTo 0
+    , n' /= n
+    -> normRelA [ρ| z - n' = str.indexof(x,y,z) |]
   -----------------------------------------------------------------------------
-  --- |s| + n = str.indexof s t i   ≡   s + (n ⊓ [-∞,-1]) = str.indexof(s,t,i)
-  EStrLen s₁ :+: Z n̂ :=: EStrIndexOf s₂ t i 
-    | s₁ == s₂, let n̂' = n̂ ∧ AInt.lt 0, n̂' /= n̂ 
-    -> normRelA $ EStrLen s₁ :+: Z n̂' :=: EStrIndexOf s₂ t i
+  [ρ| |x| + n = str.indexof(x,y,z) |]
+    | let n' = n ∧ AIntTo (-1)
+    , n' /= n
+    -> normRelA [ρ| |x| + n' = str.indexof(x,y,z) |]
   -----------------------------------------------------------------------------
-  -- i ≠ str.indexof(s,c,i)   ≡   i = str.indexof(s,c̄,0)
-  i₁ :≠: EStrIndexOf s (C c) i₂ 
-    | i₁ == i₂
-    -> normRelA $ i₁ :=: EStrIndexOf s (C (neg c)) (Z [0])
+  [ρ| z ≠ str.indexof(x,c,z) |]
+    | let c̄ = neg c
+    -> normRelA [ρ| z = str.indexof(x,c̄,0) |]
   -----------------------------------------------------------------------------
-  --- |x|-1 = str.indexof(x,c,i)   ≡   x = Σⁱc̄*c
-  EStrLen x₁ :-: Z [1] :=: EStrIndexOf x₂ (C c) (Z [i])
-    | x₁ == x₂
-    -> normRelA $ x₁ :=: S (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c)
+  [ρ| |x| - 1 = str.indexof(x,c,î) |]
+    | [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c)
   -----------------------------------------------------------------------------
-  --- |x|-[0,+∞] = str.indexof(x,c,i)   ≡   x = Σⁱc̄*(cΣ*)?
-  EStrLen x₁ :-: Z (AIntFrom 0) :=: EStrIndexOf x₂ (C c) (Z [i])
-    | x₁ == x₂
-    -> normRelA $ x₁ :=: S (rep Σ i ⋅ star (lit (neg c)) ⋅ opt (lit c ⋅ star Σ))
+  [ρ| |x| - n = str.indexof(x,c,î) |]
+    | AIntFrom 0 <- n
+    , [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ opt (lit c ⋅ star Σ))
   -----------------------------------------------------------------------------
-  --- |x|-[j,+∞] = str.indexof(x,c,i)   ≡   x = Σⁱc̄*cΣ^(j-1)Σ*
-  EStrLen x₁ :-: Z (AIntFrom j) :=: EStrIndexOf x₂ (C c) (Z [i])
-    | x₁ == x₂, j >= 1
-    -> normRelA $ x₁ :=: S (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
+  [ρ| |x| - n = str.indexof(x,c,î) |]
+    | AIntFrom j <- n
+    , j >= 1
+    , [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,str.indexof(x,c̄,0)) = -1   ≡   x = c*c̄*
-  EStrIndexOf x₁ (C c) (EStrIndexOf x₂ (C c̄) (Z [0])) :=: Z [-1]
-    | x₁ == x₂, c̄ == neg c
-    -> normRelA $ x₁ :=: S (star (lit c) ⋅ star (lit c̄))
+  [ρ| str.indexof(x,c,str.indexof(x,c̄,0)) = -1 |] 
+    | c̄ == neg c
+    -> normRelA $ x :=: EStrA (star (lit c) ⋅ star (lit c̄))
   -----------------------------------------------------------------------------
-  -- s[i..i] = c   ≡   s[i] = c
-  EStrSub s i₁ i₂ :=: S t 
-    | i₁ == i₂, Just c <- AString.toChar (t ∧ Σ) 
-    -> normRelA $ EStrAt s i₁ :=: C c
+  [ρ| x[y..y] = s |] 
+    | Just c <- AString.toChar (s ∧ Σ) 
+    -> normRelA $ [ρ| x[y] = c |]
   -----------------------------------------------------------------------------
-  -- x[i..j] = s   ≡   x = Σⁱ(s ⊓ Σ^(j-i+1))Σ*
-  EStrSub x (Z [i]) (Z [j]) :=: S s
-    | i >= 0, i <= j, let s' = s ∧ rep Σ (j - i + 1)
-    -> normRelA $ x :=: S (rep Σ i ⋅ s' ⋅ star Σ)
+  [ρ| x[î..ĵ] = s |]
+    | [i] <- î, [j] <- ĵ
+    , i >= 0, i <= j
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ (s ∧ rep Σ (j - i + 1)) ⋅ star Σ)
   -----------------------------------------------------------------------------
-  -- x[i..|x|-1] = s   ≡   x = Σⁱs
-  EStrSub x₁ (Z [i]) (EStrLen x₂ :-: Z [1]) :=: S s
-    | x₁ == x₂, i >= 0
-    -> normRelA $ x₁ :=: S (rep Σ i ⋅ s)
+  [ρ| x[î..|x|-1] = s |]
+    | [i] <- î
+    , i >= 0
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s)
   -----------------------------------------------------------------------------
-  -- x[i] = c   ≡   x = ΣⁱcΣ*
-  EStrAt x (Z [i]) :=: C c
-    | i >= 0 -> normRelA $ x :=: S (rep Σ i ⋅ lit c ⋅ star Σ)
-  -----------------------------------------------------------------------------  
-  EStrComp a :=: EStrComp b -> normRelA $ a :=: b
-  EStrComp a :≠: EStrComp b -> normRelA $ a :≠: b
-  EStrComp a :=: b          -> normRelA $ a :≠: b
-  EStrComp a :≠: b          -> normRelA $ a :=: b
-  a          :≠: EStrComp b -> normRelA $ a :=: b
+  [ρ| x[i] = c |] 
+    | [î] <- i
+    , î >= 0 
+    -> normRelA $ x :=: EStrA (rep Σ î ⋅ lit c ⋅ star Σ)
   -----------------------------------------------------------------------------
-  -- {i:ℤ | x[i+n] = a} = {j:ℤ | x[j+m] = b}
-  ERelA  i₁ _ (EStrAt x₁ (i₂ :⨤: n) :=: C a) :=: 
-   ERelA j₁ _ (EStrAt x₂ (j₂ :⨤: m) :=: C b)
-    | i₁ == i₂, x₁ == x₂, j₁ == j₂
-    , let k = m - n
+  [ρ| str.comp(x) = str.comp(y) |] -> normRelA $ x :=: y
+  [ρ| str.comp(x) ≠ str.comp(y) |] -> normRelA $ x :≠: y
+  [ρ| str.comp(x) = y           |] -> normRelA $ x :≠: y
+  -----------------------------------------------------------------------------
+  Relℤ y [ρ| x[y] = a |] :=: Relℤ z [ρ| x[z] = b |]
+    | let t = star Σ ⋅ lit (a ∧ b) ⋅ star Σ
+    -> normRelA [ρ| x = t |]
+  -----------------------------------------------------------------------------
+  Relℤ y [ρ| x[y+m̂] = a |] :=: Relℤ z [ρ| x[z+n̂] = b |]
+    | [m] <- m̂, [n] <- n̂
+    , let k = n - m
     , let t | k > 0     = star Σ ⋅ lit a ⋅ rep Σ (k - 1) ⋅ lit b ⋅ star Σ
             | k < 0     = star Σ ⋅ lit b ⋅ rep Σ (k - 1) ⋅ lit a ⋅ star Σ
             | otherwise = star Σ ⋅ lit (a ∧ b) ⋅ star Σ
-    -> normRelA $ x₁ :=: S t
+    -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
-  -- ⟨i: x[i-[2,∞]] = a]⟩ = ⟨j: x[j-[1,∞]] = b]⟩
-  ERelA  i₁ _ (EStrAt x₁ (V i₂ :-: Z¹ (AIntFrom 2)) :=: C a) :=:
-   ERelA j₁ _ (EStrAt x₂ (V j₂ :-: Z¹ (AIntFrom 1)) :=: C b)
-    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+  Relℤ y [ρ| x[y-m̂] = a |] :=: Relℤ z [ρ| x[z-n̂] = b |]
+    | AIntFrom 2 <- m̂ ∧ AIntFrom 1
+    , AIntFrom 1 <- n̂ ∧ AIntFrom 1
     , let t₁ = lit a ⋅ star Σ ⋅ lit b
     , let t₂ = lit b ⋅ star Σ ⋅ lit a ⋅ Σ
     , let t₃ = lit (a ∧ b) ⋅ Σ
     , let t = star Σ ⋅ (t₁ ∨ t₂ ∨ t₃) ⋅ star Σ
-    -> normRelA $ x₁ :=: S t
+    -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
-  -- ⟨i: x[i-[1,∞]] = a]⟩ = ⟨j: x[j-[1,∞]] = b]⟩
-  ERelA  i₁ _ (EStrAt x₁ (V i₂ :-: Z¹ (AIntFrom 1)) :=: C a) :=:
-   ERelA j₁ _ (EStrAt x₂ (V j₂ :-: Z¹ (AIntFrom 1)) :=: C b)
-    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+  Relℤ y [ρ| x[y-m̂] = a |] :=: Relℤ z [ρ| x[z-n̂] = b |]
+    | AIntFrom 1 <- m̂ ∧ AIntFrom 1
+    , AIntFrom 1 <- n̂ ∧ AIntFrom 1
     , let t₁ = lit a ⋅ star Σ ⋅ lit b
     , let t₂ = lit b ⋅ star Σ ⋅ lit a
     , let t₃ = lit (a ∧ b)
     , let t = star Σ ⋅ (t₁ ∨ t₂ ∨ t₃) ⋅ star Σ
-    -> normRelA $ x₁ :=: S t
+    -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
-  -- ⟨i: x[i-1] = a]⟩ = ⟨j: x[j-[1,∞] = b]⟩
-  ERelA  i₁ _ (EStrAt x₁ (V i₂ :-: Z¹ AInt1       ) :=: C a) :=:
-   ERelA j₁ _ (EStrAt x₂ (V j₂ :-: Z¹ (AIntFrom 1)) :=: C b)
-    | i₁ == i₂, x₁ == x₂, j₁ == j₂
+  Relℤ y [ρ| x[y-1] = a |] :=: Relℤ z [ρ| x[z-n̂] = b |]
+    | AIntFrom 1 <- n̂ ∧ AIntFrom 1
     , let t₂ = lit b ⋅ star Σ ⋅ lit a
     , let t₃ = lit (a ∧ b)
     , let t = star Σ ⋅ (t₂ ∨ t₃) ⋅ star Σ
-    -> normRelA $ x₁ :=: S t
+    -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
-  -- ⟨i: x[i+[0,∞]] = a]⟩ = ⟨j: x[j-[0,∞] = b]⟩
-  ERelA  i₁ _ (EStrAt x₁ (V i₂ :+: Z⁰ (AIntFrom 0)) :=: C a) :=:
-   ERelA j₁ _ (EStrAt x₂ (V j₂ :-: Z⁰ (AIntFrom 0)) :=: C b)
-    | i₁ == i₂, x₁ == x₂, j₁ == j₂
-     , let t₁ = lit (a ∧ b)
-     , let t₂ = lit a ⋅ star Σ ⋅ lit b
+  Relℤ y [ρ| x[y+m̂] = a |] :=: Relℤ z [ρ| x[z-n̂] = b |]
+    | AIntFrom 0 <- m̂ ∧ AIntFrom 0
+    , AIntFrom 0 <- n̂ ∧ AIntFrom 0
+    , let t₁ = lit (a ∧ b)
+    , let t₂ = lit a ⋅ star Σ ⋅ lit b
     , let t = star Σ ⋅ (t₁ ∨ t₂) ⋅ star Σ
-    -> normRelA $ x₁ :=: S t
+    -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
-  -- [0,∞] = {x:ℤ | x % n = m}   ≡   ⊤   where n ≥ 0 and m ≥ 0
-  Z (AIntFrom 0) :=: ERelA x₁ TInt (EMod (V x₂) (Z [n]) :=: Z [m])
-    | x₁ == x₂, n >= 0, m >= 0
+  EIntA (AIntFrom 0) :=: Relℤ y [ρ| mod(y,n̂) = m̂ |]
+    | [n] <- n̂, [m] <- m̂
+    , n >= 0, m >= 0
     -> Left True
   -----------------------------------------------------------------------------
-  -- ω₁ = {x:ℤ | x ≠ ω₂}   ≡   ω₁ = ω₂ + [-∞,-1|1,∞]
-  ω₁ :=: ERelA x TInt (V x₁ :≠: ω₂) 
-    | x == x₁, x `notFreeIn` ω₂ 
-    -> normRelA $ ω₁ :=: (ω₂ :+: Z (AInt.ne 0))
+  y :=: Relℤ v [ρ| v ≠ z |]
+    | EVar x _ <- v, x `notFreeIn` z
+    , let n = AInt.ne 0
+    -> normRelA [ρ| y = z + n |]
+  -----------------------------------------------------------------------------  
+  x :=: ERelA v _ r@(_ :=: _) | occurrences v r == 1 -> normRelA $ subst x v r
+  x :=: ERelA v _ r           | concreteish x        -> normRelA $ subst x v r
   -----------------------------------------------------------------------------
-  ω :=: ERelA x _ ρ@(_ :=: _) | occurrences x ρ == 1 -> normRelA $ subst ω x ρ
-  ω :=: ERelA x _ ρ           | concreteish ω        -> normRelA $ subst ω x ρ
-  -----------------------------------------------------------------------------
-  ρ -> Right ρ
+  r -> Right r
 
 -------------------------------------------------------------------------------
 
 -- | Isolate a variable on the left-hand side of a relation, if possible.
 isolate :: Name -> ARel -> ARel
-isolate x ρ | occurrences x ρ /= 1 = ρ
-isolate x ρ = flip rewrite ρ $ \case
+isolate x r | occurrences x r /= 1 = r
+isolate x r = flip rewrite r $ \case
   ω₁ :=: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :=: ω₁
   ω₁ :≠: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :≠: ω₁
   ω₁ :<: ω₂            | x `freeIn` ω₂ -> Just $ ω₂ :>: ω₁
@@ -446,7 +390,8 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
  Left True  -> topValue τ
  Left False -> botValue τ
  Right r    -> go r 
- where 
+ where
+ x̲ = EVar x τ
  go = \case
   -----------------------------------------------------------------------------
   r | x `notFreeIn` r  -> ARel x τ r
@@ -456,87 +401,85 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   -----------------------------------------------------------------------------
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,0)+î = |x|
-  (EStrIndexOf (V x₁) (C c) (Z [0]) :+: Z i) :=: EStrLen (V x₂)
-    | x₁ == x₂ -> AString $ strWithFirstIndexOfCharRev c i
+  [ρ| str.indexof(x̲,c,0) + i = |x̲| |] -> AString $ strWithFirstIndexOfCharRev c i
   -----------------------------------------------------------------------------
-  -- ⟦str.indexof(x,a,0) + [0,∞] = str.indexof(x,b)⟧↑x  ≐  (ā ⊓ b̄)*((bā*)+(aΣ*))?
-  (EStrIndexOf (V x₁) (C a) (Z [0]) :+: Z (AIntFrom 0)) :=: EStrIndexOf (V x₂) (C b) (Z [0])
-    | x₁ == x₂, a /= b, let ā = neg a, let b̄ = neg b
+  [ρ| str.indexof(x̲,a,0) + n = str.indexof(x̲,b,0) |]
+    | AIntFrom 0 <- n, a /= b, let ā = neg a, let b̄ = neg b
     -> AString $ star (lit (ā ∧ b̄)) ⋅ opt ((lit b ⋅ star (lit ā)) ∨ (lit a ⋅ star Σ))
   -----------------------------------------------------------------------------
-  -- ⟦str.indexof(x,a,0) - [-∞,1] = str.indexof(x,b)⟧↑x  ≐  (ā ⊓ b̄)*((bā*)+(aΣ*))?
-  (EStrIndexOf (V x₁) (C a) (Z [0]) :-: Z (AIntTo 1)) :=: EStrIndexOf (V x₂) (C b) (Z [0])
-    | x₁ == x₂, a /= b, let ā = neg a, let b̄ = neg b
+  [ρ| str.indexof(x̲,a,0) - n = str.indexof(x̲,b,0) |]
+    | AIntTo 1 <- n, a /= b, let ā = neg a, let b̄ = neg b
     -> AString $ star (lit (ā ∧ b̄)) ⋅ opt ((lit b ⋅ star (lit ā)) ∨ (lit a ⋅ star Σ))
   -----------------------------------------------------------------------------
-  ρ@(ω₁ :=: ω₂) | x `freeIn` ω₁, x `freeIn` ω₂ -> ARel x τ ρ
-  ρ@(ω₁ :≠: ω₂) | x `freeIn` ω₁, x `freeIn` ω₂ -> ARel x τ ρ
+  r@(ω₁ :=: ω₂) | x `freeIn` ω₁, x `freeIn` ω₂ -> ARel x τ r
+  r@(ω₁ :≠: ω₂) | x `freeIn` ω₁, x `freeIn` ω₂ -> ARel x τ r
   -----------------------------------------------------------------------------
   -- NOTE: below here, x occurs only on the LHS (possibly more than once)
   -----------------------------------------------------------------------------
-  V _ :=: EVal â -> â
+  [ρ| x̲ = _1 |] -> AUnit _1
+  [ρ| x̲ = p  |] -> ABool p
+  [ρ| x̲ = n  |] -> AInt n
+  [ρ| x̲ = s  |] -> AString s
+  [ρ| x̲ = c  |] -> AChar c 
+  -- NOTE: The char case needs to come after the string case here, so that it
+  -- doesn't accidentally match one-character singleton strings.
   -----------------------------------------------------------------------------  
-  EVar _ TUnit   :≠: U â -> AUnit (neg â)
-  EVar _ TBool   :≠: B â -> ABool (neg â)
-  EVar _ TBool   :≠: ω   -> abstract x τ $ EVar x τ :=: ENot ω 
-  EVar _ TInt    :≠: Z â -> AInt (neg â)
-  EVar _ TChar   :≠: C â -> AChar (neg â)
-  EVar _ TString :≠: S â -> AString (neg â)
-  EVar _ TString :≠: ω   -> abstract x τ $ EVar x τ :=: EStrComp ω 
+  [ρ| x̲ ≠ _1 |] -> AUnit (neg _1)
+  [ρ| x̲ ≠ p  |] -> ABool (neg p)
+  [ρ| x̲ ≠ n  |] -> AInt (neg n)
+  [ρ| x̲ ≠ s  |] -> AString (neg s)
+  [ρ| x̲ ≠ c  |] -> AChar (neg c)  -- see note above
+  -----------------------------------------------------------------------------  
+  [ρ| x̲ ≠ e |] | τ == TBool   -> abstract x τ [ρ| x̲ = not(e)      |]
+               | τ == TString -> abstract x τ [ρ| x̲ = str.comp(e) |]
   -----------------------------------------------------------------------------
-  EVar _ TString :=: EStrComp (S â) -> AString (neg â)
+  [ρ| x̲ = str.comp(s) |] -> AString (neg s)
   -- NOTE: String complement is resolved here instead of during normalization,
   -- in order to exploit opportunities for double-negation elimination.
   -----------------------------------------------------------------------------
-  (V _ :+: Z c) :=: ω -> abstract x τ $ EVar x τ :=: (ω :-: Z c)
-  (V _ :-: Z c) :=: ω -> abstract x τ $ EVar x τ :=: (ω :+: Z c)
+  [ρ| x̲ + n = e |] -> abstract x τ [ρ| x̲ = e - n |]
+  [ρ| x̲ - n = e |] -> abstract x τ [ρ| x̲ = e + n |]
   -----------------------------------------------------------------------------
-  EStrLen (V _) :=: Z n -> AString $ strOfLen n
-  EStrLen (V _) :≠: Z n -> AString $ strNotOfLen n
+  [ρ| |x̲| = n |] -> AString $ strOfLen n
+  [ρ| |x̲| ≠ n |] -> AString $ strNotOfLen n
   -----------------------------------------------------------------------------
-  EStrAt (V _) (Z i) :=: C c -> AString $ strWithCharAt i c
-  EStrAt (V _) (Z i) :≠: C c -> AString $ strWithoutCharAt i c
+  [ρ| x̲[i] = c |] -> AString $ strWithCharAt i c
+  [ρ| x̲[i] ≠ c |] -> AString $ strWithoutCharAt i c
   -----------------------------------------------------------------------------
-  EStrAt (V x₁) (EStrLen (V x₂) :-: Z i)   :=: C c | x₁ == x₂ -> AString $ strWithCharAtRev i c
-  EStrAt (V x₁) (EStrLen (V x₂) :-: Z i)   :≠: C c | x₁ == x₂ -> AString $ strWithoutCharAtRev i c
-  EStrAt (V x₁) (EStrLen (V x₂) :+: Z TOP) :=: C c | x₁ == x₂ -> AString $ strWithCharAtRev TOP c
-  EStrAt (V x₁) (EStrLen (V x₂) :+: Z TOP) :≠: C c | x₁ == x₂ -> AString $ strWithoutCharAtRev TOP c
+  [ρ| x̲[|x̲|-i] = c |] -> AString $ strWithCharAtRev i c
+  [ρ| x̲[|x̲|-i] ≠ c |] -> AString $ strWithoutCharAtRev i c
   -----------------------------------------------------------------------------
-  EStrSub (V _) (Z i) (Z j) :=: S t -> AString $ strWithSubstr i j t
-  EStrSub (V _) (Z i) (Z j) :≠: S t -> AString $ strWithoutSubstr i j t
+  [ρ| x̲[i..j] = t |] -> AString $ strWithSubstr i j t
+  [ρ| x̲[i..j] ≠ t |] -> AString $ strWithoutSubstr i j t
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,0) = i
-  EStrIndexOf (V _) (C c) (Z [0]) :=: Z i -> AString $ strWithFirstIndexOfChar c i
+  [ρ| str.indexof(x̲,c,0) = i |] -> AString $ strWithFirstIndexOfChar c i
   -----------------------------------------------------------------------------
-  -- x[i..str.indexof(x,c,0)-j] = t   ≡   c̄ⁱ(t ⊓ c̄*)c̄^(j-1)cΣ*
-  EStrSub (V x₁) (Z [i]) (EStrIndexOf (V x₂) (C c) (Z [0]) :-: Z [j]) :=: S t
-    | x₁ == x₂, i >= 0, j >= 0, let c̄ = lit (neg c)
-    -> AString $ rep c̄ i ⋅ (t ∧ star c̄) ⋅ rep c̄ (j-1) ⋅ lit c ⋅ star Σ      
+  [ρ| x̲[î..str.indexof(x̲,c,0)-ĵ] = t |]
+    | [i] <- î, [j] <- ĵ
+    , i >= 0, j >= 0, let c̄ = lit (neg c)
+    -> AString $ rep c̄ i ⋅ (t ∧ star c̄) ⋅ rep c̄ (j-1) ⋅ lit c ⋅ star Σ
   -----------------------------------------------------------------------------
-  -- x[str.indexof(x,c,0)+i..|x|-j] = t
-  EStrSub (V x₁) (EStrIndexOf (V x₂) (C c) (Z [0]) :+: Z [i]) (EStrLen (V x₃) :-: Z [j]) :=: S t
-    | x₁ == x₂, x₂ == x₃ -> AString $ strWithSubstrFromFirstIndexOfCharToEnd c i j t
+  [ρ| x̲[str.indexof(x̲,c,0)-î..|x̲|-ĵ] = t |]
+    | [i] <- î, [j] <- ĵ
+    -> AString $ strWithSubstrFromFirstIndexOfCharToEnd c i j t
   -----------------------------------------------------------------------------
-  -- str.indexof(x,c,0) = î
-  EStrIndexOf (V _) (C c) (Z [0]) :=: Z i -> AString $ strWithFirstIndexOfChar c i
+  [ρ| str.indexof(x̲,c,0) = i |] -> AString $ strWithFirstIndexOfChar c i
   -----------------------------------------------------------------------------
-  -- str.indexof(x,a,str.indexof(x,b,0)+1) = î
-  EStrIndexOf (V x₁) (C a) (EStrIndexOf (V x₂) (C b) (Z [0]) :+: Z [1]) :=: Z î
-    | x₁ == x₂ -> AString $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar b a î
+  [ρ| str.indexof(x̲,a,str.indexof(x̲,b,0)+1) = i |]
+    -> AString $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar b a i
   -----------------------------------------------------------------------------
-  -- x[str.indexof(x,a,i)+n] = b   ≡   Σⁱā*aΣ^(n-1)bΣ*
-  EStrAt (V x₁) (EStrIndexOf (V x₂) (C a) (Z [i]) :+: Z [n]) :=: C b
-    | x₁ == x₂, let ā = lit (neg a)
+  [ρ| x̲[str.indexof(x̲,a,î)+n̂] = b |]
+    | [i] <- î, [n] <- n̂
+    , let ā = lit (neg a)
     -> AString $ rep Σ i ⋅ star ā ⋅ lit a ⋅ rep Σ (n - 1) ⋅ lit b ⋅ star Σ
   -----------------------------------------------------------------------------
-  EStrContains (V _) (S s) :=: B [doesContain]
-    | doesContain -> AString t
-    | otherwise   -> abstract x τ $ EVar x τ :=: EStrComp (S t)
+  [ρ| str.contains(x̲,s) = p̂ |]
+    | [True]  <- p̂ -> AString t
+    | [False] <- p̂ -> abstract x τ [ρ| x̲ = str.comp(t) |]
    where
     t = star Σ ⋅ s ⋅ star Σ
   -----------------------------------------------------------------------------
-  ρ -> ARel x τ (isolate x ρ)
+  r -> ARel x τ (isolate x r)
 
 -------------------------------------------------------------------------------
 
