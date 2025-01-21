@@ -457,16 +457,16 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   -- NOTE: below here, x occurs on the LHS and may also occur on the RHS
   -----------------------------------------------------------------------------
   -- str.indexof(x,c,0)+î = |x|
-  (EStrFirstIndexOfChar (V x₁) (C c) :+: Z i) :=: EStrLen (V x₂)
+  (EStrIndexOf (V x₁) (C c) (Z [0]) :+: Z i) :=: EStrLen (V x₂)
     | x₁ == x₂ -> AString $ strWithFirstIndexOfCharRev c i
   -----------------------------------------------------------------------------
   -- ⟦str.indexof(x,a,0) + [0,∞] = str.indexof(x,b)⟧↑x  ≐  (ā ⊓ b̄)*((bā*)+(aΣ*))?
-  (EStrFirstIndexOfChar (V x₁) (C a) :+: Z (AIntFrom 0)) :=: EStrFirstIndexOfChar (V x₂) (C b)
+  (EStrIndexOf (V x₁) (C a) (Z [0]) :+: Z (AIntFrom 0)) :=: EStrIndexOf (V x₂) (C b) (Z [0])
     | x₁ == x₂, a /= b, let ā = neg a, let b̄ = neg b
     -> AString $ star (lit (ā ∧ b̄)) ⋅ opt ((lit b ⋅ star (lit ā)) ∨ (lit a ⋅ star Σ))
   -----------------------------------------------------------------------------
   -- ⟦str.indexof(x,a,0) - [-∞,1] = str.indexof(x,b)⟧↑x  ≐  (ā ⊓ b̄)*((bā*)+(aΣ*))?
-  (EStrFirstIndexOfChar (V x₁) (C a) :-: Z (AIntTo 1)) :=: EStrFirstIndexOfChar (V x₂) (C b)
+  (EStrIndexOf (V x₁) (C a) (Z [0]) :-: Z (AIntTo 1)) :=: EStrIndexOf (V x₂) (C b) (Z [0])
     | x₁ == x₂, a /= b, let ā = neg a, let b̄ = neg b
     -> AString $ star (lit (ā ∧ b̄)) ⋅ opt ((lit b ⋅ star (lit ā)) ∨ (lit a ⋅ star Σ))
   -----------------------------------------------------------------------------
@@ -507,15 +507,15 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   EStrSub (V _) (Z i) (Z j) :≠: S t -> AString $ strWithoutSubstr i j t
   -----------------------------------------------------------------------------
   -- str.indexof(x,c,0) = i
-  EStrFirstIndexOfChar (V _) (C c) :=: Z i -> AString $ strWithFirstIndexOfChar c i
+  EStrIndexOf (V _) (C c) (Z [0]) :=: Z i -> AString $ strWithFirstIndexOfChar c i
   -----------------------------------------------------------------------------
   -- x[i..str.indexof(x,c,0)-j] = t   ≡   c̄ⁱ(t ⊓ c̄*)c̄^(j-1)cΣ*
-  EStrSub (V x₁) (Z [i]) (EStrFirstIndexOfChar (V x₂) (C c) :-: Z [j]) :=: S t
+  EStrSub (V x₁) (Z [i]) (EStrIndexOf (V x₂) (C c) (Z [0]) :-: Z [j]) :=: S t
     | x₁ == x₂, i >= 0, j >= 0, let c̄ = lit (neg c)
     -> AString $ rep c̄ i ⋅ (t ∧ star c̄) ⋅ rep c̄ (j-1) ⋅ lit c ⋅ star Σ      
   -----------------------------------------------------------------------------
   -- x[str.indexof(x,c,0)+i..|x|-j] = t
-  EStrSub (V x₁) (EStrFirstIndexOfChar (V x₂) (C c) :+: Z [i]) (EStrLen (V x₃) :-: Z [j]) :=: S t
+  EStrSub (V x₁) (EStrIndexOf (V x₂) (C c) (Z [0]) :+: Z [i]) (EStrLen (V x₃) :-: Z [j]) :=: S t
     | x₁ == x₂, x₂ == x₃ -> AString $ strWithSubstrFromFirstIndexOfCharToEnd c i j t
   -----------------------------------------------------------------------------
   -- str.indexof(x,c,0) = î

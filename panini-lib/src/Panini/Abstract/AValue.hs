@@ -241,7 +241,7 @@ typeOfExprA = \case
   EStrLen _     -> Just TInt
   EStrAt _ _    -> Just TChar
   EStrSub _ _ _ -> Just TString
-  EStrFirstIndexOfChar _ _ -> Just TInt
+  EStrIndexOf _ _ _ -> Just TInt
   EStrConc _ _ -> Just TString
   EStrStar _ -> Just TString
   EStrContains _ _ -> Just TBool

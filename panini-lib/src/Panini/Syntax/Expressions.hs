@@ -100,9 +100,6 @@ pattern EStrSub s i j = EFun "str.sub" [s,i,j]
 pattern EStrComp :: Expr' a -> Expr' a
 pattern EStrComp s = EFun "str.comp" [s]
 
-pattern EStrFirstIndexOfChar :: Expr' a -> Expr' a -> Expr' a
-pattern EStrFirstIndexOfChar s c = EFun "firstIndexOfChar" [s,c]
-
 pattern EStrIndexOf :: Expr' a -> Expr' a -> Expr' a -> Expr' a
 pattern EStrIndexOf s t i = EFun "str.indexof" [s,t,i]
 
@@ -138,8 +135,8 @@ typeOfExpr = \case
   EStrLen _     -> Just TInt
   EStrAt _ _    -> Just TChar
   EStrSub _ _ _ -> Just TString
-  EStrFirstIndexOfChar _ _ -> Just TInt
   EStrConc _ _ -> Just TString
+  EStrIndexOf _ _ _ -> Just TInt
   EStrStar _ -> Just TString
   EStrContains _ _ -> Just TBool
   EFun _ _      -> Nothing

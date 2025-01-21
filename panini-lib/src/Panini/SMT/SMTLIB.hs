@@ -97,9 +97,7 @@ instance SMTLIB Expr where
   encode = \case
     EVar x _         -> encode x
     EStrSub p1 p2 p3 -> encodeSubstring p1 p2 p3
-    -- TODO: our built-in might not exactly match the semantics of SMT-LIB !
-    EStrFirstIndexOfChar s c -> sexpr ["str.indexof", encode s, encode c, "0"]
-    EStrStar s -> sexpr ["re.*", sexpr ["str.to_re", encode s]]
+    EStrStar s       -> sexpr ["re.*", sexpr ["str.to_re", encode s]]
     EFun f es        -> sexpr (encode f : map encode es)
     ECon c           -> encode c
     EReg r           -> encode $ Regex.toRegLan $ ERE.toRegex r
