@@ -302,3 +302,9 @@ strWithSubstrFromFirstIndexOfCharToEnd ĉ i j t̂
   | otherwise = star c̄ ⋅ lit ĉ ⋅ rep Σ (i-1) ⋅ t̂ ⋅ rep Σ (j-1)
  where
   c̄ = lit (neg ĉ)
+
+strWithCharGapChar :: AChar -> Integer -> AChar -> AString
+strWithCharGapChar a k b
+  | k > 0     = star Σ ⋅ lit a ⋅ rep Σ (k - 1) ⋅ lit b ⋅ star Σ
+  | k < 0     = star Σ ⋅ lit b ⋅ rep Σ (k - 1) ⋅ lit a ⋅ star Σ
+  | otherwise = star Σ ⋅ lit (a ∧ b) ⋅ star Σ

@@ -294,16 +294,19 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   [ρ| str.comp(x) = y           |] -> normRelA $ x :≠: y
   -----------------------------------------------------------------------------
   Relℤ y [ρ| x[y] = a |] :=: Relℤ z [ρ| x[z] = b |]
-    | let t = star Σ ⋅ lit (a ∧ b) ⋅ star Σ
-    -> normRelA [ρ| x = t |]
+    -> normRelA $ x :=: EStrA (strWithCharGapChar a 0 b)
+  -----------------------------------------------------------------------------
+  Relℤ y [ρ| x[y] = a |] :=: Relℤ z [ρ| x[z+n̂] = b |]
+    | [n] <- n̂
+    -> normRelA $ x :=: EStrA (strWithCharGapChar a n b)
+  -----------------------------------------------------------------------------
+  Relℤ y [ρ| x[y+m̂] = a |] :=: Relℤ z [ρ| x[z] = b |]
+    | [m] <- m̂
+    -> normRelA $ x :=: EStrA (strWithCharGapChar a (0 - m) b)
   -----------------------------------------------------------------------------
   Relℤ y [ρ| x[y+m̂] = a |] :=: Relℤ z [ρ| x[z+n̂] = b |]
     | [m] <- m̂, [n] <- n̂
-    , let k = n - m
-    , let t | k > 0     = star Σ ⋅ lit a ⋅ rep Σ (k - 1) ⋅ lit b ⋅ star Σ
-            | k < 0     = star Σ ⋅ lit b ⋅ rep Σ (k - 1) ⋅ lit a ⋅ star Σ
-            | otherwise = star Σ ⋅ lit (a ∧ b) ⋅ star Σ
-    -> normRelA [ρ| x = t |]
+    -> normRelA $ x :=: EStrA (strWithCharGapChar a (n - m) b)
   -----------------------------------------------------------------------------
   Relℤ y [ρ| x[y-m̂] = a |] :=: Relℤ z [ρ| x[z-n̂] = b |]
     | AIntFrom 2 <- m̂ ∧ AIntFrom 1
