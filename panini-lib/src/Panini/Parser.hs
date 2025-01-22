@@ -390,7 +390,7 @@ predicate = makeExprParser predTerm predOps
 
 predTerm :: Parser Pred
 predTerm = choice
-  [ parens predicate
+  [ try $ parens predicate
   , try regRel
   , try (PRel <$> rel)
   , PTrue <$ keyword "true"
@@ -453,7 +453,8 @@ pexpr = makeExprParser pexprTerm pexprOps
 
 pexprTerm :: Parser Expr
 pexprTerm = choice
-  [ try $ EStrLen <$ symbol "|" <*> pexpr <* symbol "|"
+  [ parens pexpr
+  , try $ EStrLen <$ symbol "|" <*> pexpr <* symbol "|"
   , try $ ECon <$> value <* notFollowedBy "("
   , try $ do
       x <- name <* notFollowedBy "("
