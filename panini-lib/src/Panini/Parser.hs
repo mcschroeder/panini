@@ -144,9 +144,14 @@ identBeginChar = satisfy (\x -> isAlpha x || x == '_')
 
 -- | Parses a character that is valid inside an identifier.
 identChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
-identChar = satisfy (\x -> isAlphaNum x || x == '_' || x == '\'' || x == combCirc)
+identChar = satisfy (\x -> isAlphaNum x || x == '_' || x == '\'' 
+                                        || x == hat || x == bar1 || x == bar2 
+                                        || x == undr)
  where
-  combCirc = '\x0302' -- U+0302 ◌̂ COMBINING CIRCUMFLEX ACCENT
+  hat  = '\x0302' -- U+0302 ◌̂ COMBINING CIRCUMFLEX ACCENT
+  bar1 = '\x0304' -- U+0305 ◌̄ COMBINING MACRON
+  bar2 = '\x0305' -- U+0305 ◌̅ COMBINING OVERLINE
+  undr = '\x0332' -- U+0332 ◌̲ COMBINING LOW LINE
 
 -- | Returns `True` if the given string is a reserved keyword.
 isReserved :: (IsString s, Eq s) => s -> Bool
