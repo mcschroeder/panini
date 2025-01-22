@@ -145,7 +145,6 @@ identBeginChar = satisfy (\x -> isAlpha x || x == '_')
 -- | Parses a character that is valid inside an identifier.
 identChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
 identChar = satisfy (\x -> isAlphaNum x || x == '_' || x == '\'' || x == combCirc)
-  <|> try (single '.' <* notFollowedBy (single '.'))
  where
   combCirc = '\x0302' -- U+0302 ◌̂ COMBINING CIRCUMFLEX ACCENT
 
@@ -190,7 +189,8 @@ withPV p = do
 name :: Parser Name
 name = label "name" $ do
   o <- getOffset
-  (ident, pv) <- withPV $ (:) <$> identBeginChar <*> many identChar
+  let sep = try $ single '.' <* notFollowedBy (single '.')
+  (ident, pv) <- withPV $ (:) <$> identBeginChar <*> many (identChar <|> sep)
   whitespace
   if isReserved ident
     then failWithOffset o $ printf "unexpected keyword \"%s\"" ident
