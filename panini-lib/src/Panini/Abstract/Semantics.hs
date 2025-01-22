@@ -232,6 +232,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   -----------------------------------------------------------------------------
   [ρ| z = str.indexof(x,y,z) |] -> normRelA [ρ| x[z..z+|y|-1] = y |]
   -----------------------------------------------------------------------------
+  [ρ| z ≠ str.indexof(x,c,z) |]
+    | let c̄ = neg c
+    -> normRelA [ρ| z = str.indexof(x,c̄,0) |]
+  -----------------------------------------------------------------------------
   [ρ| z + n = str.indexof(x,y,z) |]
     | let n' = n ∧ AIntFrom 0
     , n' /= n
@@ -247,9 +251,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , n' /= n
     -> normRelA [ρ| |x| + n' = str.indexof(x,y,z) |]
   -----------------------------------------------------------------------------
-  [ρ| z ≠ str.indexof(x,c,z) |]
-    | let c̄ = neg c
-    -> normRelA [ρ| z = str.indexof(x,c̄,0) |]
+  [ρ| |x| - n = str.indexof(x,y,z) |]
+    | let n' = n ∧ AIntFrom 1
+    , n' /= n
+    -> normRelA [ρ| |x| - n' = str.indexof(x,y,z) |]
   -----------------------------------------------------------------------------
   [ρ| |x| - 1 = str.indexof(x,c,î) |]
     | [i] <- î
@@ -261,8 +266,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ opt (lit c ⋅ star Σ))
   -----------------------------------------------------------------------------
   [ρ| |x| - n = str.indexof(x,c,î) |]
-    | AIntFrom j <- n
-    , j >= 1
+    | AIntFrom j <- n, j >= 1
     , [i] <- î
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
   -----------------------------------------------------------------------------
