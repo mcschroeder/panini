@@ -478,7 +478,7 @@ pexprTerm = choice
       x <- name <* notFollowedBy "("
       b <- lookupVar x
       return $ EVar x b
-  , EFun <$> name <*> parens (sepBy1 pexpr ",")
+  , EFun <$> name <*> parens (sepBy1 pexpr (symbol ","))
   ]
 
 pexprOps :: [[Operator Parser Expr]]
