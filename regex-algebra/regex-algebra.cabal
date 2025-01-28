@@ -55,6 +55,31 @@ library
         PatternSynonyms
         ViewPatterns
 
+executable regex
+  hs-source-dirs: app
+  main-is: Main.hs
+  other-modules:
+    FuzzingBook
+    Options
+  default-language: GHC2021
+  default-extensions:
+    DerivingStrategies
+    DerivingVia
+    LambdaCase
+    OverloadedRecordDot
+  ghc-options:
+    -threaded -rtsopts
+  build-depends:
+      base ^>=4.18    
+    , regex-algebra
+    , aeson
+    , bytestring
+    , containers
+    , megaparsec
+    , optparse-applicative
+    , parser-combinators
+    , text
+    , transformers
 
 benchmark regex-simplify
   type: exitcode-stdio-1.0
