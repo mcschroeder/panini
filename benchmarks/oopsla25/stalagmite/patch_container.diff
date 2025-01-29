@@ -1,0 +1,83 @@
+diff --git a/Dockerfile b/Dockerfile
+old mode 100644
+new mode 100755
+index 7bb5a36..34b8aa4
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -94,7 +94,7 @@ RUN cd /staminag/klee && \
+ # Run grammar mining
+ CMD cp -rT /staminag/data_backup/ /staminag/data/ && \
+ 	cd /staminag/eval && \
+-    ./tmux_mine_all.sh
++    ./run_eval.sh
+ 
+ 
+ # => Data is available at /data/paper/accuracy/csv
+diff --git a/eval/precision.py b/eval/precision.py
+old mode 100644
+new mode 100755
+index 607405a..a4abae6
+--- a/eval/precision.py
++++ b/eval/precision.py
+@@ -18,7 +18,8 @@ def _compute_precision(put, grammar, max_depth: int, count: int):
+     inputs = set()
+     valid = []
+     invalid = []
+-    while len(inputs) < count:
++    rep_inps = 0
++    while len(inputs) < count and rep_inps < count:
+         signal.signal(signal.SIGALRM, fuzz_alarm_handler)
+         signal.alarm(1)
+         try:
+@@ -42,12 +43,14 @@ def _compute_precision(put, grammar, max_depth: int, count: int):
+                     assert False, "unmatched"
+             print(f"Inp ({len(inputs)}/{count} {repr(inp)} is valid=", parsed)
+             inputs.add(inp)
++        else:
++            rep_inps += 1
+ 
+     print("invalid: ", invalid)
+     print("valid: ", valid)
+     print(f"Precision ({len(valid)}/{len(valid)+len(invalid)})")
+     precision = len(valid)/(len(valid)+len(invalid))
+-    assert count == len(valid)+len(invalid)
++    assert count == len(valid)+len(invalid) or rep_inps >= count
+     return precision, valid
+ 
+ def compute_precision(put, grammar, max_depth: int, count: int) -> float:
+diff --git a/eval/recall.py b/eval/recall.py
+old mode 100644
+new mode 100755
+index 19d0ee3..12ed69f
+--- a/eval/recall.py
++++ b/eval/recall.py
+@@ -14,13 +14,19 @@ def timeout_handler(signum, frame):
+ def compute_recall(put, goldengrammar, minedgrammar, max_depth: int, count: int) -> float:
+     f = LimitFuzzer(goldengrammar)
+     inputs = set()
+-    while len(inputs) < count:
++    rep_inps = 0
++    while len(inputs) < count and rep_inps < count:
+         inp, _ = f.fuzz('<start>', max_depth=max_depth)
+         print("recall -- generated inp: ", inp)
+         if inp not in inputs:
+             if put_can_parse(put, inp) == True:
+                 inputs.add(inp)
+                 print("inputs: ", len(inputs))
++            else:
++                print("WARNING: parser does not accept golden grammar input")
++                rep_inps += 1
++        else:
++            rep_inps += 1
+ 
+     parser = P.IterativeEarleyParser(P.non_canonical(minedgrammar), start_symbol='<start>')
+     valid = []
+@@ -53,7 +59,7 @@ def compute_recall(put, goldengrammar, minedgrammar, max_depth: int, count: int)
+     print("invalid: ", invalid)
+     print("valid: ", valid)
+     print(f"Recall ({len(valid)}/{len(valid)+len(invalid)})")
+-    recall = len(valid)/(len(valid)+len(invalid))
++    recall = len(valid)/(len(valid)+len(invalid)) if len(valid)+len(invalid) > 0 else 0
+     return recall
+ 
+ def main():

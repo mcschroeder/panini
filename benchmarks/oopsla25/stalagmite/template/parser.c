@@ -1,0 +1,28 @@
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "__SUBJECT__.c"
+
+int main(int argc, char *argv[]) {
+  char my_string[10240];
+  if (argc == 1) {
+    int chars = read(fileno(stdin), my_string, 10240);
+    if (!chars) {
+      exit(1);
+    }
+  } else {
+    int fd = open(argv[1], O_RDONLY);
+    int chars = read(fd, my_string, 10240);
+    if (!chars) {
+      exit(3);
+    } 
+    close(fd);
+  }
+  printf("val: <%s>\n", my_string);
+  f__SUBJECT__(my_string);
+  return 0;
+}
