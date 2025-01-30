@@ -1,3 +1,3 @@
-def f001(s: str):
+def f002(s: str):
   if s != "":
     raise Exception  
