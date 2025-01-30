@@ -46,6 +46,7 @@ main = do
 -------------------------------------------------------------------------------
 
 fromPOSIX :: FilePath -> String -> IO Regex
+fromPOSIX _ "" = return One
 fromPOSIX fp str = case parse (ere @Void) fp str of
   Left err -> putStr (errorBundlePretty err) >> exitFailure
   Right ere -> return $ ERE.toRegex ere 
