@@ -19,9 +19,16 @@ mine_and_refine() {
   elapsed_time=\$((end_time - start_time))
   echo -n "(\$elapsed_time sec) "
   echo "\$1,\$elapsed_time" >> "/staminag/data/paper/time.csv"
-  echo -n "data"
+  echo -n "data "
   python3 eval.py --subject "\$1" --data &> "logs/eval_mine_log_\$1"
-  echo "."
+  data_file="/staminag/data/paper/accuracy/csv/accuracy_\$1.csv"
+  if [[ -f "\$data_file" ]]; then
+    read precision recall <<< \$(awk -F, '\$1=="refined" {print \$2, \$3}' "\$data_file")
+  else
+    precision=0
+    recall=0
+  fi
+  printf "(%.2f P, %.2f R)\n" \$precision \$recall
 }
 EOF
 
