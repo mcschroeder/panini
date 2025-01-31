@@ -10,6 +10,11 @@ cat <<EOF > $eval_script
 echo "subject,time_seconds" > "/staminag/data/paper/time.csv"
 mine_and_refine() {
   echo -n "\$1 "
+  data_file="/staminag/data/paper/accuracy/csv/accuracy_\$1.csv"
+  if [[ -f "\$data_file" ]]; then
+    echo "skipped (data file already exists)"
+    return
+  fi
   start_time=\$(date +%s)
   echo -n "mine "
   timeout 1h python3 eval.py --subject "\$1" --mine &> "logs/eval_mine_log_\$1"
@@ -20,8 +25,7 @@ mine_and_refine() {
   echo -n "(\$elapsed_time sec) "
   echo "\$1,\$elapsed_time" >> "/staminag/data/paper/time.csv"
   echo -n "data "
-  python3 eval.py --subject "\$1" --data &> "logs/eval_mine_log_\$1"
-  data_file="/staminag/data/paper/accuracy/csv/accuracy_\$1.csv"
+  python3 eval.py --subject "\$1" --data &> "logs/eval_mine_log_\$1"  
   if [[ -f "\$data_file" ]]; then
     read precision recall <<< \$(awk -F, '\$1=="refined" {print \$2, \$3}' "\$data_file")
   else
