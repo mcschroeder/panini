@@ -12,7 +12,7 @@ mine_and_refine() {
   echo -n "\$1 "
   start_time=\$(date +%s)
   echo -n "mine "
-  python3 eval.py --subject "\$1" --mine &> "logs/eval_mine_log_\$1"
+  timeout 1h python3 eval.py --subject "\$1" --mine &> "logs/eval_mine_log_\$1"
   echo -n "refine "
   python3 eval.py --subject "\$1" --refine &> "logs/eval_mine_log_\$1"
   end_time=\$(date +%s)
