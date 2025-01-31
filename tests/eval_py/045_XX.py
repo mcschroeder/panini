@@ -1,2 +1,2 @@
-def f046(s: str):
+def f045(s: str):
   a,b = s
