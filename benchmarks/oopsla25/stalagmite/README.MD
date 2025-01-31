@@ -37,8 +37,9 @@ The ground truth of the Panini evaluation dataset is in the form of regular expr
 
 This patch
 
-  1. ensures that we can calculate precision and recall of grammars with <1000 productions;
-  2. changes the Dockerfile to run our own `run_eval.sh` script when starting the container.
+  1. ensures that Stalagmite's grammar refinement step does not run into an endless loop if a fuzz input crashes the program (i.e., we simply count crash-causing inputs as invalid inputs);
+  2. ensures that we can calculate precision and recall of grammars with <1000 productions;
+  3. changes the Dockerfile to run our own `run_eval.sh` script when starting the container.
 
 You can apply it by running the following command:
 

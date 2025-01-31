@@ -13,10 +13,23 @@ index 7bb5a36..34b8aa4
  
  
  # => Data is available at /data/paper/accuracy/csv
+diff --git a/eval/eval.py b/eval/eval.py
+index 13582ca..2cc266e 100644
+--- a/eval/eval.py
++++ b/eval/eval.py
+@@ -99,7 +99,7 @@ def data_accuracy(subject: Subject):
+             precisions.append(precision)
+             recall = compute_recall(subject.put, golden_grammar, grammar, max_depth, config.cnt_inputs)
+             recalls.append(recall)
+-            f1 = 2*(precision*recall)/(precision+recall)
++            f1 = 2*(precision*recall)/(precision+recall) if (precision+recall) > 0 else 0
+             f1s.append(f1)
+ 
+         with open(output_csv_file, "a") as f:
 diff --git a/eval/precision.py b/eval/precision.py
 old mode 100644
 new mode 100755
-index 607405a..a4abae6
+index 607405a..7e1da24
 --- a/eval/precision.py
 +++ b/eval/precision.py
 @@ -18,7 +18,8 @@ def _compute_precision(put, grammar, max_depth: int, count: int):
@@ -29,7 +42,13 @@ index 607405a..a4abae6
          signal.signal(signal.SIGALRM, fuzz_alarm_handler)
          signal.alarm(1)
          try:
-@@ -42,12 +43,14 @@ def _compute_precision(put, grammar, max_depth: int, count: int):
+@@ -37,17 +38,19 @@ def _compute_precision(put, grammar, max_depth: int, count: int):
+                 case False:
+                     invalid.append(inp)
+                 case None:
+-                    continue
++                    invalid.append(inp)
+                 case _:
                      assert False, "unmatched"
              print(f"Inp ({len(inputs)}/{count} {repr(inp)} is valid=", parsed)
              inputs.add(inp)
@@ -81,3 +100,26 @@ index 19d0ee3..12ed69f
      return recall
  
  def main():
+diff --git a/generalize/reduce_overapproximation.py b/generalize/reduce_overapproximation.py
+index bcb1823..42d0c37 100644
+--- a/generalize/reduce_overapproximation.py
++++ b/generalize/reduce_overapproximation.py
+@@ -227,7 +227,7 @@ def generate_and_classify_inputs(grammar, put, count):
+     valid = set()
+     invalid = set()
+     i = 0
+-    while i < count or len(valid) < config.min_count_valid:
++    while i < count or (len(valid) < config.min_count_valid and len(invalid) < 1):
+         signal.signal(signal.SIGALRM, fuzz_alarm_handler)
+         signal.alarm(1)
+         try:
+@@ -239,7 +239,8 @@ def generate_and_classify_inputs(grammar, put, count):
+             signal.alarm(0)
+ 
+         can_parse = put_can_parse(put, inp)
+-        if can_parse == None: continue # core dumped, e.g. div-by-zero / semantic error
++        if can_parse == None: # core dumped, e.g. div-by-zero / semantic error
++            invalid.add(inp)
+         elif can_parse == False:
+             invalid.add(inp)
+         else:
