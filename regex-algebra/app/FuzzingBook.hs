@@ -133,7 +133,7 @@ fromRegex r0 = inline
   allASCIIExcept xs = NE.fromList 
                     $ map (Con . NE.singleton . T . pure)
                     $ filter (\x -> x `notElem` xs)
-                    $ map toEnum [0..127]
+                    $ map toEnum [32..126]  -- printable ASCII only
 
 fuseCons :: Grammar -> Grammar
 fuseCons (Grammar g) = Grammar $ Map.map goAlt g
