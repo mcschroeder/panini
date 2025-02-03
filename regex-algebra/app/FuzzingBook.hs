@@ -80,7 +80,6 @@ fromRegex r0 = inline
   go = \case
     Zero -> error "FuzzingBookGrammar.fromRegex: ∅ unsupported"    
     One -> newRule (Alt $ NE.singleton eps)
-    All -> newRule (Alt $ allASCIIExcept [])
 
     Lit cs -> case CS.fromCharSet cs of
       (True, xs) -> do
