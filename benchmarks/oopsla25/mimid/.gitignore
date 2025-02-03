@@ -1,0 +1,6 @@
+mimid.box
+mimid/
+.vagrant/
+Vagrantfile
+subjects/
+results.csv

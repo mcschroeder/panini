@@ -1,16 +1,10 @@
 # Evaluation of Stalagmite on the Panini benchmark dataset
 
-This is a step-by-step guide on how to evaluate the Stalagmite grammar mining system on the Panini benchmark dataset.
-
-References:
-
-* Leon Bettscheider and Andreas Zeller. 2024. Look Ma, No Input Samples! Mining Input Grammars from Code with Symbolic Parsing. FSE 2024. https://doi.org/10.1145/3663529.3663790
-
-* Andreas Zeller, Rahul Gopinath, Marcel Böhme, Gordon Fraser, and Christian Holler. 2024. The Fuzzing Book. https://www.fuzzingbook.org
+This is a step-by-step guide on how to evaluate the Stalagmite grammar mining system (Bettscheider and Zeller 2024) on the Panini benchmark dataset. The Stalagmite artifact runs inside a Docker container (<https://www.docker.com>).
 
 ## 1. Download and unpack Stalagmite artifact
 
-Download the artifact from https://doi.org/10.5281/zenodo.11186613 and unpack it into a subdirectory named `stalagmite`.
+Download the artifact from <https://doi.org/10.5281/zenodo.11186613> and unpack it into a subdirectory named `stalagmite`.
 
 ```shell
 curl -o stalagmite.zip https://zenodo.org/api/records/11186613/files/stalagmite.zip/content
@@ -27,7 +21,7 @@ Stalagmite requires elaborate scaffolding in order to be able to infer the gramm
 
 ## 3. Prepare golden grammars
 
-The ground truth of the Panini evaluation dataset is in the form of regular expressions. Stalagmite's recall computation requires a golden grammar in Fuzzing Book format. The `prepare_grammars.sh` script uses the `regex` tool from our `regex-algebra` package to do the conversion and copies the grammars into the right location.
+The ground truth of the Panini evaluation dataset is in the form of regular expressions. Stalagmite's recall computation requires a golden grammar in Fuzzing Book format (Zeller et al. 2024). The `prepare_grammars.sh` script uses the `regex` tool from our `regex-algebra` package to do the conversion and copies the grammars into the right location.
 
 ```shell
 ./prepare_grammars.sh
@@ -59,9 +53,15 @@ mkdir output
 docker run -it -v $(pwd)/output:/staminag/data symbolic-grammar-mining
 ```
 
-After everything is done (about TBD hours), the results can be found in the `stalagmite/output` folder. To produce a single `results.csv`, run the following command:
+After everything is done (about 2-3 hours), the results can be found in the `stalagmite/output` folder. To produce a single `results.csv`, run the following command:
 
 ```shell
 cd ..
 ./collate_results.sh
 ```
+
+## References
+
+* Leon Bettscheider and Andreas Zeller. 2024. Look Ma, No Input Samples! Mining Input Grammars from Code with Symbolic Parsing. FSE 2024. <https://doi.org/10.1145/3663529.3663790>
+
+* Andreas Zeller, Rahul Gopinath, Marcel Böhme, Gordon Fraser, and Christian Holler. 2024. The Fuzzing Book. <https://www.fuzzingbook.org>
