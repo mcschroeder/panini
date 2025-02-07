@@ -1,0 +1,18 @@
+import sys
+
+def f122(s: str):
+  if s[0] == "a":
+    return
+  else:
+    raise Exception
+
+if __name__ == '__main__':
+  my_string = ""
+  if len(sys.argv) == 1:
+    my_string = sys.stdin.read()
+  else:
+    fd = open(sys.argv[1], 'r')
+    my_string = fd.read()
+    fd.close()
+  
+  f122(my_string)

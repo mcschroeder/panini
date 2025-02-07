@@ -1,0 +1,38 @@
+diff --git a/Dockerfile b/Dockerfile
+old mode 100644
+new mode 100755
+index 7bb5a36..34b8aa4
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -94,7 +94,7 @@ RUN cd /staminag/klee && \
+ # Run grammar mining
+ CMD cp -rT /staminag/data_backup/ /staminag/data/ && \
+ 	cd /staminag/eval && \
+-    ./tmux_mine_all.sh
++    ./run_eval.sh
+ 
+ 
+ # => Data is available at /data/paper/accuracy/csv
+diff --git a/generalize/reduce_overapproximation.py b/generalize/reduce_overapproximation.py
+index bcb1823..42d0c37 100644
+--- a/generalize/reduce_overapproximation.py
++++ b/generalize/reduce_overapproximation.py
+@@ -227,7 +227,7 @@ def generate_and_classify_inputs(grammar, put, count):
+     valid = set()
+     invalid = set()
+     i = 0
+-    while i < count or len(valid) < config.min_count_valid:
++    while i < count or (len(valid) < config.min_count_valid and len(invalid) < 1):
+         signal.signal(signal.SIGALRM, fuzz_alarm_handler)
+         signal.alarm(1)
+         try:
+@@ -239,7 +239,8 @@ def generate_and_classify_inputs(grammar, put, count):
+             signal.alarm(0)
+ 
+         can_parse = put_can_parse(put, inp)
+-        if can_parse == None: continue # core dumped, e.g. div-by-zero / semantic error
++        if can_parse == None: # core dumped, e.g. div-by-zero / semantic error
++            invalid.add(inp)
+         elif can_parse == False:
+             invalid.add(inp)
+         else:

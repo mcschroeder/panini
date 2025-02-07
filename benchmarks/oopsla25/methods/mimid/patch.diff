@@ -1,0 +1,15 @@
+diff --git a/Cmimid/src/generateinputs.py b/Cmimid/src/generateinputs.py
+index 88ba43f..146ebb9 100644
+--- a/Cmimid/src/generateinputs.py
++++ b/Cmimid/src/generateinputs.py
+@@ -31,7 +31,10 @@ def main(args):
+     fuzzer = F.LimitFuzzer(grammar)
+     i = 0
+     seen = set()
++    j = 0
+     while True:
++        j += 1
++        if j >= 2*count: break
+         try:
+             v = fuzzer.fuzz(start)
+             if not v.strip(): continue
