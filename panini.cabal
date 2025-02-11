@@ -36,7 +36,6 @@ executable panini
       base ^>=4.18
     , panini-lib
     , panini-python
-    , ansi-terminal
     , directory
     , extra
     , filepath
@@ -45,6 +44,7 @@ executable panini
     , language-python
     , optparse-applicative >= 0.18.1
     , prettyprinter
+    , terminal-size
     , text
     , transformers
   other-modules:
