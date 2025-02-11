@@ -410,4 +410,12 @@ globalFunctions =
   -- TODO: these should be their own class stubs
   , ("ValueError", Callable [Any] (PyType "ValueError" []))
   , ("Exception", Callable [Any] (PyType "Exception" []))
+
+  -- TODO: this is a stopgap hack until we have better dot resolution
+  , ("read", Callable [Object] Str)
+
+  -- TODO: more precise types (file object)
+  , ("open", Callable [Str] Object)
+  , ("open", Callable [Str, Str] Object)
+  , ("close", Callable [Object] None)
   ]
