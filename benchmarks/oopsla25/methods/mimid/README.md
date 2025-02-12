@@ -38,7 +38,7 @@ vagrant@ubuntu1804:~$ /vagrant/run_eval.sh
 
 This will take about 1-2 hours. The mined grammars will be in the `results` directory (outside the VM), which will also contain a `results.csv` with the collected run times and exit codes.
 
-Note that Mimid requires a golden grammar for each evaluation subject to derive the positive sample inputs required by the approach. By default, the Mimid artifact generates up to 1.000 sample inputs from each golden grammar (in Fuzzing Book format) as part of the mining process.
+Note that Mimid requires a golden grammar for each evaluation subject to derive the positive sample inputs required by the approach. By default, the Mimid artifact generates up to 100 sample inputs from each golden grammar (in Fuzzing Book format) as part of the mining process.
 
 ## References
 
