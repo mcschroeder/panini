@@ -1,11 +1,14 @@
 #!/bin/bash
 
-subjects_dir="../../subjects"
-results_dir="results"
+# NOTE: this is intended to be run from within the Panini Docker container
+# see README for more information
+
+subjects_dir="/benchmark/subjects"
+results_dir="/benchmark/methods/panini/results"
 results_table="$results_dir/results.csv"
 
-cabal build -v0 panini
-cabal build -v0 regex
+#cabal build panini
+#cabal build regex
 
 mkdir -p $results_dir
 
@@ -32,8 +35,15 @@ for file in "$subjects_dir"/*.py; do
   printf "%-10s %-8s " $elapsed_time $exit_code
 
   if [ "$exit_code" -eq 0 ]; then
-    sed -n 's/.*∈ \(.*\)}.*/\1/p; s/.*= "\(.*\)".*/\1/p; s/.*: (s:𝕊) → .*/\.\*/p; s/.*: {s:𝕊 | false} → .*/\[\]/p' $outfile | head -n 1 > $results_dir/$subject.regex
+    sed -n 's/.*∈ \(.*\)}.*/\1/p; s/.*= "\(.*\)".*/\1/p; s/.*: (s:𝕊) → .*/\.\*/p; s/.*: {s:𝕊 | false} → .*/\[\]/p' $outfile | head -n 1 | sed -z 's/\n$//' > $results_dir/$subject.regex
     cat $results_dir/$subject.regex
+    echo
+    
+    if [ "$(cat $results_dir/$subject.regex)" == "[]" ]; then
+      echo '{"<start>":[]}' > "$results_dir/$subject.grammar"
+    else
+      cabal run -v0 regex -- -f posix -t fuzzingbook -o "$results_dir/$subject.grammar" "$results_dir/$subject.regex"
+    fi
   else
     printf "\n"
   fi  
