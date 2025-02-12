@@ -9,9 +9,9 @@ cabal build -v0 regex
 
 mkdir -p $results_dir
 
-echo "subject,time_seconds,status" > $results_table
+echo "subject,time_ms,status" > $results_table
 
-printf "%-10s %-10s %-8s %-30s\n" "Subject" "Time (s)" "Status" "Regex"
+printf "%-10s %-10s %-8s %-30s\n" "Subject" "Time (ms)" "Status" "Regex"
 printf "%-10s %-10s %-8s %-30s\n" "----------" "----------" "--------" "--------------------"
 
 for file in "$subjects_dir"/*.py; do
@@ -21,10 +21,10 @@ for file in "$subjects_dir"/*.py; do
 
   printf "%-10s " $subject
 
-  start_time=$(date +%s)
+  start_time=$(date +%s%3N)
   cabal run -v0 panini -- --no-color "$file" > $outfile 2>&1
   exit_code=$?
-  end_time=$(date +%s)
+  end_time=$(date +%s%3N)
   elapsed_time=$((end_time - start_time))
 
   echo "$subject,$elapsed_time,$exit_code" >> $results_table

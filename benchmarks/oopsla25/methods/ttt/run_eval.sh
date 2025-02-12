@@ -7,9 +7,9 @@ results_table="$results_dir/results.csv"
 
 mkdir -p $results_dir
 
-echo "subject,time_seconds,status" > $results_table
+echo "subject,time_ms,status" > $results_table
 
-printf "%-10s %-10s %-8s\n" "Subject" "Time (s)" "Status"
+printf "%-10s %-10s %-8s\n" "Subject" "Time (ms)" "Status"
 printf "%-10s %-10s %-8s\n" "----------" "----------" "--------"
 
 for file in "$subjects_dir"/*.py; do
@@ -20,10 +20,10 @@ for file in "$subjects_dir"/*.py; do
 
   printf "%-10s " $subject
 
-  start_time=$(date +%s)
+  start_time=$(date +%s%3N)
   java -cp target/ttt-eval-1.0-SNAPSHOT.jar org.example.Main $file $golden $SAMPLE_COUNT $output
   exit_code=$?
-  end_time=$(date +%s)
+  end_time=$(date +%s%3N)
   elapsed_time=$((end_time - start_time))
 
   echo "$subject,$elapsed_time,$exit_code" >> $results_table

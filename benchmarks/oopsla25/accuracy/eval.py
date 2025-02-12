@@ -47,7 +47,7 @@ for method in methods:
     for row in csv.DictReader(file):
       subject = row['subject']
       results[method][subject] = {}
-      results[method][subject]['time_seconds'] = row['time_seconds']
+      results[method][subject]['time_ms'] = row['time_ms']
       results[method][subject]['status'] = row['status']
 
   for subject in results[method]:
@@ -65,7 +65,7 @@ with open(output_file, 'w') as file:
   writer.writerow([
     "method",
     "subject",
-    "time_seconds",
+    "time_ms",
     "status",
     "precision",
     "recall"
@@ -76,7 +76,7 @@ with open(output_file, 'w') as file:
         writer.writerow([
           method, 
           subject, 
-          results[method][subject]['time_seconds'],
+          results[method][subject]['time_ms'],
           results[method][subject]['status'],
           results[method][subject]['precision'],
           results[method][subject]['recall']
@@ -100,7 +100,7 @@ for method in methods:
   results_agg[method] = {}
   for category in subjects_by_category:
     num_subjects = len(subjects_by_category[category])
-    time_seconds_list = []
+    time_ms_list = []
     precision_list = []
     recall_list = []
     precision_list_without_errors = []
@@ -108,7 +108,7 @@ for method in methods:
     num_errors = 0
     for subject in subjects_by_category[category]:
       result = results[method][subject]
-      time_seconds_list.append(result['time_seconds'])
+      time_ms_list.append(result['time_ms'])
       precision_list.append(result['precision'])
       recall_list.append(result['recall'])
       if result['status'] == 0:
@@ -118,8 +118,8 @@ for method in methods:
         num_errors += 1
     results_agg[method][category] = {
       'num_subjects': num_subjects,
-      'time_seconds_mean': statistics.mean(time_seconds_list),
-      'time_seconds_stdev': statistics.stdev(time_seconds_list),
+      'time_ms_mean': statistics.mean(time_ms_list),
+      'time_ms_stdev': statistics.stdev(time_ms_list),
       'precision_mean': statistics.mean(precision_list),
       'recall_mean': statistics.mean(recall_list),
       'num_errors': num_errors,
@@ -133,8 +133,8 @@ with open(output_agg_file, 'w') as file:
     "method",
     "category",
     "num_subjects",
-    "time_seconds_mean",
-    "time_seconds_stdev",
+    "time_ms_mean",
+    "time_ms_stdev",
     "precision_mean",
     "recall_mean",
     "num_errors",
@@ -149,8 +149,8 @@ with open(output_agg_file, 'w') as file:
           method,
           category,
           result['num_subjects'],
-          result['time_seconds_mean'],
-          result['time_seconds_stdev'],
+          result['time_ms_mean'],
+          result['time_ms_stdev'],
           result['precision_mean'],
           result['recall_mean'],
           result['num_errors'],

@@ -9,7 +9,7 @@ results_table="$results_dir/results.csv"
 
 mkdir -p $results_dir
 
-echo "subject,time_seconds,status" > $results_table
+echo "subject,time_ms,status" > $results_table
 
 for file in "$subjects_dir"/*.c; do
   filename=$(basename -- "$file")
@@ -21,15 +21,15 @@ for file in "$subjects_dir"/*.c; do
   cp "$subjects_dir/$subject.c" "examples/$subject.c"
   echo "{\"[start]\": \"<start>\",\"[grammar]\":$(cat "$subjects_dir/$subject.grammar")}" > "examples/$subject.grammar"
 
-  start_time=$(date +%s)
+  start_time=$(date +%s%3N)
   make build/$subject.pgrammar
   exit_code=$?
-  end_time=$(date +%s)
+  end_time=$(date +%s%3N)
   elapsed_time=$((end_time - start_time))
 
   echo "$subject,$elapsed_time,$exit_code" >> $results_table
 
-  echo "Subject $subject done after $elapsed_time seconds; status: $exit_code"
+  echo "Subject $subject done after $elapsed_time ms; status: $exit_code"
 
   jq '."[grammar]"' build/$subject.pgrammar > "$results_dir/$subject.grammar"
 done
