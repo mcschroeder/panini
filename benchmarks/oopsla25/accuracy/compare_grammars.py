@@ -4,15 +4,25 @@ import argparse
 import json
 import fuzzingbook.Parser as P
 from common import LimitFuzzer, tree_to_str
-from collections import Counter
+
+# we stop trying to generate inputs from the source grammar 
+# if we haven't generated anything new after this many attempts
+SOURCE_INPUTS_MAX_STABLE_ITERATIONS = 1000
 
 # what proportion of strings in the source grammar are accepted by the target grammar?
 def compare_grammars(source_grammar, target_grammar, max_depth: int, max_count: int):
   source_fuzzer = LimitFuzzer(source_grammar)
-  source_inputs = Counter()  
-  while len(source_inputs) < max_count and all(count < max_count * len(source_inputs) for _,count in source_inputs.most_common(1)):
+  source_inputs = set()
+  source_inputs_stable = 0  
+  while len(source_inputs) < max_count:
     inp, _ = source_fuzzer.fuzz("<start>", max_depth=max_depth)
-    source_inputs[inp] += 1
+    if inp not in source_inputs:
+      source_inputs.add(inp)
+      source_inputs_stable = 0
+    else:
+      source_inputs_stable += 1
+      if source_inputs_stable > SOURCE_INPUTS_MAX_STABLE_ITERATIONS:
+        break
 
   if len(source_inputs) == 0:
     return 1.0,[],[]

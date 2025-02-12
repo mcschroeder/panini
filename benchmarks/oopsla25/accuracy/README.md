@@ -1,12 +1,12 @@
 # Computing precision and recall of inferred grammars
 
-To compute precision, the inferred grammar is used to generate up to 1.000 inputs which are fed into a parser for the golden grammar.
+Our procedure is closely modeled after the precision and recall calculations performed by the Mimid and Stalagmite artifacts: to compute precision, we generate up to 1.000 inputs from the inferred grammar and check how many the golden grammar accepts; to compute recall, we generate up to 1.000 inputs from the golden grammar and check how many the inferred grammar accepts.
 
-To compute recall, the golden grammar is used to generate up to 1.000 inputs which are fed into a parser for the inferred grammar. The inputs are generated 
+Run the following commands to compute precision and recall for the inferred grammars of each subject by each method, as well as some aggregate statistics:
 
-To ensure a fair comparison, the same inputs are used for all
-
-```
+```shell
 docker build -t grammar-accuracy .
-docker run -v $(realpath ../..):/benchmark grammar-accuracy
+docker run -v $(realpath ../):/benchmark grammar-accuracy
 ```
+
+This will take about TBD hours. The results will appear in the `results` directory.
