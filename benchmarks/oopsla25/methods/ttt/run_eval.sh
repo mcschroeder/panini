@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# NOTE: this script is intended to be run from inside the provided Docker container
+# see README.md for more information
+
 SAMPLE_COUNT=10000
-subjects_dir="../../subjects"
-results_dir="results"
+subjects_dir="/benchmark/subjects"
+results_dir="/benchmark/methods/ttt/results"
 results_table="$results_dir/results.csv"
 
 mkdir -p $results_dir
