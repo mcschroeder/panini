@@ -115,17 +115,16 @@ with open(output_file, 'w') as file:
     "precision",
     "recall"
   ])
-  for result in results:
-    for method in methods:
-      for subject in results[method]:
-        writer.writerow([
-          method, 
-          subject, 
-          results[method][subject]['time_ms'],
-          results[method][subject]['status'],
-          results[method][subject]['precision'],
-          results[method][subject]['recall']
-        ])
+  for method in results:
+    for subject in results[method]:
+      writer.writerow([
+        method, 
+        subject, 
+        results[method][subject]['time_ms'],
+        results[method][subject]['status'],
+        results[method][subject]['precision'],
+        results[method][subject]['recall']
+      ])
 
 print(f"All results written to {output_file}", flush=True)
 
@@ -170,21 +169,20 @@ with open(output_agg_file, 'w') as file:
     "precision_mean_without_errors",
     "recall_mean_without_errors"
   ])
-  for result in results_agg:
-    for method in methods:
-      for category in results_agg[method]:
-        result = results_agg[method][category]
-        writer.writerow([
-          method,
-          category,
-          result['num_subjects'],
-          result['time_ms_mean'],
-          result['time_ms_stdev'],
-          result['precision_mean'],
-          result['recall_mean'],
-          result['num_errors'],
-          result['precision_mean_without_errors'],
-          result['recall_mean_without_errors']
-        ])
+  for method in results_agg:
+    for category in results_agg[method]:
+      result = results_agg[method][category]
+      writer.writerow([
+        method,
+        category,
+        result['num_subjects'],
+        result['time_ms_mean'],
+        result['time_ms_stdev'],
+        result['precision_mean'],
+        result['recall_mean'],
+        result['num_errors'],
+        result['precision_mean_without_errors'],
+        result['recall_mean_without_errors']
+      ])
 
 print(f"All aggregated results written to {output_agg_file}", flush=True)
