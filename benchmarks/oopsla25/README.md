@@ -11,11 +11,11 @@ This directory contains all materials necessary to reproduce the comparative eva
 
 ## Evaluation
 
-1) Go into the subdirectory of each approach (`methods/panini/`, `methods/mimid/`, `methods/stalagmite/`, `methods/ttt/`) and follow the instructions in the respective `README.md`. You should end up with a `methods/*/results/` folder for each method, containing the inferred grammars of all subjects and additional information about each inference attempt. This might altogether take about TBD hours.
+1) Go into the subdirectory of each approach (`methods/panini/`, `methods/mimid/`, `methods/stalagmite/`, `methods/ttt/`) and follow the instructions in the respective `README.md`. You should end up with a `methods/*/results/` folder for each method, containing the inferred grammars of all subjects and additional information about each inference attempt. This might altogether take about 5-6 hours.
 
     > The `methods/*/results_paper/` folders contain archived versions of the inferred grammars from our evaluation run. The results in our paper are based on these.
 
-2) Go into the `accuracy/` subdirectory and follow the instructions in `README.md` to compute precision and recall of all grammars in all `methods/*/results/` folders. This will produce an `accuracy/results/` folder containing the final results per individual subject and method as well as aggregated in various ways. This will take about TBD hours.
+2) Go into the `accuracy/` subdirectory and follow the instructions in `README.md` to compute precision and recall of all grammars in all `methods/*/results/` folders. This will produce an `accuracy/results/` folder containing the final results per individual subject and method as well as aggregated by subject category. This will take about TBD hours.
 
     > The `accuracy/results_paper/` folder contains archived versions of the final results as they appear in our paper.
 

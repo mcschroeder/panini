@@ -41,7 +41,7 @@ mkdir output
 docker run -it -v $(pwd)/output:/staminag/data symbolic-grammar-mining
 ```
 
-This will take about 2-3 hours. To collect all the results in one place, continue with the following commands:
+This will take about 3-4 hours. To collect all the results in one place, continue with the following commands:
 
 ```shell
 cd ..

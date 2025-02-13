@@ -11,7 +11,7 @@ docker build -t ttt .
 docker run -v $(realpath ../../):/benchmark ttt
 ```
 
-This will take about 1-2 hours. The inferred grammars can be found in the `results` directory, which will also contain a `results.csv` with the collected run times and exit codes.
+This will take about 30 minutes to an hour. The inferred grammars can be found in the `results` directory, which will also contain a `results.csv` with the collected run times and exit codes.
 
 ## References
 
