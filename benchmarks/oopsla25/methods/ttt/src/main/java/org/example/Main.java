@@ -67,10 +67,7 @@ public class Main {
         JSONObject grammar = new JSONObject();
         List<String> start = new ArrayList<>();
         start.add("<s" + dfa.getInitialState().toString() + ">");
-        if (dfa.isAccepting(dfa.getInitialState())) {
-            start.add("");
-        }
-        grammar.put("<START>", new JSONArray(start));
+        grammar.put("<start>", new JSONArray(start));
         int i = 0;
         Map<Set<Character>, String> terminals = new HashMap<>();
         for (Integer state : dfa.getStates()) {
@@ -100,6 +97,9 @@ public class Main {
                         p.put(t);
                     }
                 }
+            }
+            if (state == dfa.getInitialState() && dfa.isAccepting(state)) {
+                p.put("");
             }
             grammar.put("<s" + state.toString() + ">", p);
         }
