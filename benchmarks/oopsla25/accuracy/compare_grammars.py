@@ -22,7 +22,7 @@ def compare_grammars(source_grammar, target_grammar, max_depth: int, max_count: 
   source_inputs_stable = 0  
   while len(source_inputs) < max_count:
     inp, _ = source_fuzzer.fuzz("<start>", max_depth=max_depth)
-    if inp not in source_inputs:
+    if inp is not None and inp not in source_inputs:
       source_inputs.add(inp)
       source_inputs_stable = 0
     else:

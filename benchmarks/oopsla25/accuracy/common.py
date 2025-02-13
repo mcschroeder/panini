@@ -1,4 +1,4 @@
-# Copied from Stalagmite.
+# Adapted from Stalagmite.
 
 import random
 import string
@@ -84,6 +84,7 @@ class LimitFuzzer(Fuzzer):
             (depth, item), *queue = queue
             key = item[0]
             if item[1] is not None: continue
+            if depth > max_depth: return None
             grammar = self.grammar if depth < max_depth else cheap_grammar
             if first_choice:
                 chosen_rule = grammar[key][first_choice]
@@ -117,6 +118,7 @@ class LimitFuzzer(Fuzzer):
 
     def fuzz(self, key='<start>', max_depth=10, first_choice = None):
         tree = self.iter_gen_key(key=key, max_depth=max_depth, first_choice=first_choice)
+        if tree is None: return None, None
         inp = tree_to_str(tree)
         return inp, tree
 
