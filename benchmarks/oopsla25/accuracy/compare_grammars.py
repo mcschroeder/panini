@@ -9,8 +9,14 @@ from common import LimitFuzzer, tree_to_str
 # if we haven't generated anything new after this many attempts
 SOURCE_INPUTS_MAX_STABLE_ITERATIONS = 1000
 
+def is_empty(grammar):
+  return grammar["<start_>"] == [] or grammar["<start>"] == []
+
 # what proportion of strings in the source grammar are accepted by the target grammar?
 def compare_grammars(source_grammar, target_grammar, max_depth: int, max_count: int):
+  if is_empty(source_grammar):
+    return [],[]
+
   source_fuzzer = LimitFuzzer(source_grammar)
   source_inputs = set()
   source_inputs_stable = 0  
@@ -25,7 +31,10 @@ def compare_grammars(source_grammar, target_grammar, max_depth: int, max_count: 
         break
 
   if len(source_inputs) == 0:
-    return 1.0,[],[]
+    return [], []
+
+  if is_empty(target_grammar):
+    return [], list(source_inputs)
 
   target_parser = P.IterativeEarleyParser(P.non_canonical(target_grammar), start_symbol="<start>")  
   valid = []

@@ -48,13 +48,13 @@ def compute_results(method):
     
     p_val, p_inv = compare_grammars(mined_grammar, golden_grammar, FUZZ_DEPTH, FUZZ_COUNT)
     p_tot = len(p_val) + len(p_inv)
-    p = len(p_val)/p_tot if p_tot > 0 else 0
+    p = len(p_val)/p_tot if p_tot > 0 else 1.0
     result['precision'] = p
     print(f"{p}", end = "\t", flush=True)
 
     r_val, r_inv = compare_grammars(golden_grammar, mined_grammar, FUZZ_DEPTH, FUZZ_COUNT)
     r_tot = len(r_val) + len(r_inv)
-    r = len(r_val)/r_tot if r_tot > 0 else 0
+    r = len(r_val)/r_tot if r_tot > 0 else 1.0
     result['recall'] = r
     print(f"{r}", flush=True)
   
