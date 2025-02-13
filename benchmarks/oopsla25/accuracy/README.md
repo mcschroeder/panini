@@ -9,4 +9,4 @@ docker build -t grammar-accuracy .
 docker run -v $(realpath ../):/benchmark grammar-accuracy
 ```
 
-This will take about TBD hours. The results will appear in the `results` directory.
+This will take about 15-30 minutes. The results will appear in the `results` directory.

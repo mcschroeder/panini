@@ -15,7 +15,7 @@ This directory contains all materials necessary to reproduce the comparative eva
 
     > The `methods/*/results_paper/` folders contain archived versions of the inferred grammars from our evaluation run. The results in our paper are based on these.
 
-2) Go into the `accuracy/` subdirectory and follow the instructions in `README.md` to compute precision and recall of all grammars in all `methods/*/results/` folders. This will produce an `accuracy/results/` folder containing the final results per individual subject and method as well as aggregated by subject category. This will take about TBD hours.
+2) Go into the `accuracy/` subdirectory and follow the instructions in `README.md` to compute precision and recall of all grammars in all `methods/*/results/` folders. This will produce an `accuracy/results/` folder containing the final results per individual subject and method as well as aggregated by subject category. This will take about 15-30 minutes.
 
     > The `accuracy/results_paper/` folder contains archived versions of the final results as they appear in our paper.
 
