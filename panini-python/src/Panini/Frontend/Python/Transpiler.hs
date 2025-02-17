@@ -244,6 +244,20 @@ transpileStmts returnType stmts k0 = go stmts
  where
   go []          = return k0
   go (stmt:rest) = case stmt of
+
+    -- HACK to allow some simple dictionary literals w/o ADTs
+    Assign { assign_to = [Py.Var x _], assign_expr = Dictionary {..} }
+      | PyType.Dict kt _ <- typeOf x -> do
+        let pv            = getPV stmt
+        let x'            = mangle x
+        let containsFunc  = "__contains__" <> x'
+        containsLam      <- mkDictContainsFunc kt dict_mappings pv
+        next             <- go rest
+        let e2            = Let containsFunc containsLam next pv
+        let getItemFunc   = "__getitem__" <> x'
+        getitemLam       <- mkDictGetItemFunc kt dict_mappings pv
+        return            $ Let getItemFunc getitemLam e2 pv
+
     Assign { assign_to = [Py.Var x _], ..} ->
       withTerm assign_expr $ \e1 -> do
         let v   = mangle x
@@ -310,6 +324,11 @@ transpileStmts returnType stmts k0 = go stmts
     -- strip docstrings and other free-standing string literals
     StmtExpr { stmt_expr = Strings{} } -> go rest
 
+    StmtExpr {..} -> 
+      withTerm stmt_expr $ \e -> do
+        k <- go rest
+        return $ Let dummyName e k (getPV stmt)
+
     Raise {} -> do
       let ax@(fn,_) = assertWithType returnType
       addAxiom ax
@@ -342,6 +361,15 @@ withTerm expr k = case expr of
     let expr' = BinaryOp { operator = Is {..}, .. }
     k =<< applyAxiom "not" [expr'] [typeOf expr'] PyType.Bool (getPV expr)
   
+  -- HACK to support simple baked-in dictionaries
+  BinaryOp { operator = Py.In{}, .. }
+    | PyType.Dict keyTy _ <- typeOf right_op_arg
+    , keyTy == typeOf left_op_arg
+    , PyType.Bool <- typeOf expr
+    , IsVar dict <- right_op_arg
+    , let fun = "__contains__" ++ dict
+    -> k =<< applyAxiom fun [left_op_arg] [keyTy] PyType.Bool (getPV expr)
+
   BinaryOp {..} -> do
     let opFun  = desugarBinaryOp operator
     let args   = [left_op_arg, right_op_arg]
@@ -360,6 +388,15 @@ withTerm expr k = case expr of
     let tyExpr = typeOf expr
     let pv     = getPV operator
     k =<< applyAxiom opFun arg tyArg tyExpr pv
+
+  -- HACK to support simple baked-in dictionaries
+  Subscript {..}
+    | PyType.Dict keyTy valTy <- typeOf subscriptee
+    , keyTy == typeOf subscript_expr
+    , valTy == typeOf expr
+    , IsVar dict <- subscriptee
+    , let fun = "__getitem__" ++ dict
+    -> k =<< applyAxiom fun [subscript_expr] [keyTy] valTy (getPV expr)
 
   Subscript {..} -> do
     let args   = [subscriptee, subscript_expr]
@@ -435,6 +472,55 @@ withAssertStringLength str n pv k = do
   let e3     = Let dummyName (mkApp assertFun [Var predicate]) e4 pv
   let e2     = Let predicate (mkApp eqFun [Var strLength, expN]) e3 pv
   return     $ Let strLength (mkApp lengthFun [str]) e2 pv
+
+------------------------------------------------------------------------------
+
+mkDictContainsFunc 
+  :: HasProvenance a 
+  => PyType -> [Typed DictKeyDatumList a] -> PV -> Transpiler Term
+mkDictContainsFunc keyType elems pv = do
+  let false  = Val (Con (B False NoPV))
+  arg       <- newVar
+  ifChain   <- foldrM (go arg) false elems
+  varTy     <- baseTypeFromPyType pv keyType
+  let lamTy  = TBase dummyName varTy (Known PTrue) pv
+  return     $ Lam arg lamTy ifChain pv
+ where
+  go arg (DictMappingPair k _) e = do
+    key     <- transpileAtom k
+    p       <- newVar
+    eqFun   <- getAxiom "__eq__" [keyType, typeOf k] PyType.Bool (getPV k)
+    let eq   = mkApp eqFun [Var arg, key]
+    let true = Val (Con (B True NoPV))
+    let if_  = If (Var p) true e pv
+    return   $ Let p eq if_ pv
+  go _ (DictUnpacking e) _ = 
+    lift $ throwE $ OtherError "unsupported dictionary element" (getPV e)
+
+mkDictGetItemFunc 
+  :: HasProvenance a 
+  => PyType -> [Typed DictKeyDatumList a] -> PV -> Transpiler Term
+mkDictGetItemFunc keyType elems pv = do
+  assertFun <- getAxiom "assert" [PyType.Bool] PyType.None pv
+  let assApp = mkApp assertFun [Con (B False NoPV)]
+  let assRet = (Val (Con (I (-1) NoPV)))
+  let assLet = Let dummyName assApp assRet pv
+  arg       <- newVar
+  ifChain   <- foldrM (go arg) assLet elems
+  varTy     <- baseTypeFromPyType pv keyType
+  let lamTy  = TBase dummyName varTy (Known PTrue) pv
+  return     $ Lam arg lamTy ifChain pv
+ where
+  go arg (DictMappingPair k v) e = do
+    key     <- transpileAtom k
+    val     <- transpileAtom v
+    p       <- newVar
+    eqFun   <- getAxiom "__eq__" [keyType, typeOf k] PyType.Bool (getPV k)
+    let eq   = mkApp eqFun [Var arg, key]
+    let if_  = If (Var p) (Val val) e pv
+    return   $ Let p eq if_ pv
+  go _ (DictUnpacking e) _ = 
+    lift $ throwE $ OtherError "unsupported dictionary element" (getPV e)
 
 ------------------------------------------------------------------------------
 
