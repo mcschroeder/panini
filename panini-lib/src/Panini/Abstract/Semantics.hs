@@ -163,6 +163,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EAbs a :=: EAbs b | Just c <- a ∧? b -> Left (not $ hasBot c)
   EAbs a :≠: EAbs b | Just c <- a ∧? b -> Left (hasBot c)
   -----------------------------------------------------------------------------
+  x :∈: EReg r -> normRelA $ x :=: EStrA (AString.fromRegex $ Regex.POSIX.ERE.toRegex r)
+  x :∉: EReg r -> normRelA $ x :≠: EStrA (AString.fromRegex $ Regex.POSIX.ERE.toRegex r)
+  -----------------------------------------------------------------------------
   x :=: _ | anyBot x -> Left False
   _ :=: x | anyBot x -> Left False
   x :≠: _ | anyBot x -> Left True
