@@ -407,10 +407,12 @@ applyAxiom fun args argTys retTy pv = do
     
     _ -> withAtoms args $ return . mkApp f
 
+-- TODO: emit MissingAxiom warning/error if no local definition found?
 getAxiom :: String -> [PyType] -> PyType -> PV -> Transpiler Name
 getAxiom fun argTys retTy pv = do
   case axiomForFunction fun argTys retTy of
-    Nothing -> lift $ throwE $ MissingAxiom fun argTys retTy pv
+    -- Nothing -> lift $ throwE $ MissingAxiom fun argTys retTy pv
+    Nothing -> return $ Name (fromString fun) pv
     Just ax@(fn,_) -> do
       addAxiom ax
       return $ Name (fromString fn) pv
