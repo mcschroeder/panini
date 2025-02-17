@@ -40,6 +40,10 @@ instance IsString Name where
 instance Pretty Name where
   pretty (Name x _) = ann (Identifier VarIdent) $ pretty x
 
+-- | Concatenates two names, preserving the provenance of the right-hand one.
+instance Semigroup Name where
+  Name a _ <> Name b pv = Name (a <> b) pv
+
 dummyName :: Name
 dummyName = "_"
 
