@@ -48,6 +48,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("len"    , _           , _   ) -> axiomForFunction "__len__" args ret
   ("not"    , [Bool], Bool) -> Just ("not", [panType| (a:𝔹) → {b:𝔹 | b = ¬a} |])
   ("or"     , [Bool, Bool], Bool) -> Just ("or", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∨ b = true)} |])
+  ("chr"    , [Int], Str) -> Just ("chr", [panType| (i:ℤ) -> {c:𝕊 | c = str.from_code(i)} |])
 
   -- comparison methods
   ("__lt__", [Int, Int], Bool) -> Just ("lt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a < b} |])
@@ -75,6 +76,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__add__", [Int, Int], Int) -> Just ("add", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a + b} |])
   ("__sub__", [Int, Int], Int) -> Just ("sub", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a - b} |])
   ("__neg__", [Int], Int) -> Just ("neg", [panType| (a:ℤ) → {c:ℤ | c = 0-a } |])
+  ("__mul__", [Int, Int], Int) -> Just ("mul", [panType| (a:ℤ) → (b:ℤ) → {c:ℤ | c = a * b} |])
   
   -- string methods
   ("__add__", [Str, Str], Str) -> Just ("concat", [panType| (a:𝕊) → (b:𝕊) → {c:𝕊 | c = a ++ b} |])
