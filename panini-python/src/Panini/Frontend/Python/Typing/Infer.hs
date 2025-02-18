@@ -461,15 +461,16 @@ inferExpr = \case
     keyType <- newMetaVar
     valueType <- newMetaVar
     constrainPV expr_annot $ keyType :≤ PyType.Hashable
-    forM_ dict_mappings $ \case
-      DictUnpacking _ -> pure () -- TODO
+    dict_mappings' <- forM dict_mappings $ \case
+      m@(DictUnpacking _) -> return $ untyped m -- TODO
       DictMappingPair k v -> do
-        kt <- typeOf <$> inferExpr k
-        vt <- typeOf <$> inferExpr v
-        constrainPV expr_annot $ kt :≤ keyType
-        constrainPV expr_annot $ vt :≤ valueType
+        k' <- inferExpr k
+        v' <- inferExpr v
+        constrainPV expr_annot $ typeOf k' :≤ keyType
+        constrainPV expr_annot $ typeOf v' :≤ valueType
+        return $ DictMappingPair k' v'
     return Dictionary
-      { dict_mappings = map untyped dict_mappings
+      { dict_mappings = dict_mappings'
       , expr_annot    = (Just (PyType.Dict keyType valueType), expr_annot)
       }    
     
