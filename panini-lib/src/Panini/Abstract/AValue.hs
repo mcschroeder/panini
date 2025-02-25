@@ -68,7 +68,7 @@ instance Pretty AValue where
     AInt    a -> pretty a
     AChar   a -> pretty a
     AString a -> pretty a
-    ARel x _ r -> mangles $ pretty x <> colon <+> pretty r
+    ARel x b r -> braces $ pretty x <> colon <> pretty b <+> mid <+> pretty r
 
 typeOfAValue :: AValue -> Base
 typeOfAValue = \case
