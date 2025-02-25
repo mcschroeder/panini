@@ -206,18 +206,6 @@ strWithCharAt (meet (AInt.ge 0) -> î) ĉ
       Fin a :… PosInf -> [rep Σ a ⋅ star Σ ⋅ lit ĉ ⋅ star Σ]
       _               -> impossible
 
-strWithoutCharAt :: AInt -> AChar -> AString
-strWithoutCharAt (meet (AInt.ge 0) -> î) ĉ
-  | isBot ĉ = strOfLen (AInt.geA î)
-  | otherwise = meets $ AInt.intervals î >>= \case
-      Fin a :… Fin b  -> [ joins $ [rep Σ n | n <- [0..i]] ++
-                                   [rep Σ i ⋅ c̄ ⋅ star Σ] 
-                         | i <- [a..b] ]
-      Fin a :… PosInf -> [rep Σ a ⋅ star c̄]
-      _               -> impossible
- where
-  c̄ = lit (neg ĉ)
-
 strWithCharAtRev :: AInt -> AChar -> AString
 strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
   | isBot ĉ = bot
@@ -225,20 +213,6 @@ strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
       Fin a :… Fin b  -> [star Σ ⋅ lit ĉ ⋅ rep2 Σ (a - 1) (b - 1)]
       Fin a :… PosInf -> [star Σ ⋅ lit ĉ ⋅ rep Σ (a - 1) ⋅ star Σ]
       _               -> impossible
-
-strWithoutCharAtRev :: AInt -> AChar -> AString
-strWithoutCharAtRev (meet (AInt.ge 1) -> î) ĉ
-  | isBot ĉ = top
-  | otherwise = meets $ AInt.intervals î >>= \case
-      Fin a :… Fin b  -> [go a b]
-      Fin a :… PosInf -> [(star c̄ ⋅ rep Σ (a - 1)) ∨ rep2 Σ 0 (a - 1)]
-      _               -> impossible
- where
-  c̄ = lit (neg ĉ)
-  go a b
-    | a >  b    = impossible
-    | a == b    = (star Σ ⋅ c̄ ⋅ rep Σ (a - 1)) ∨ rep2 Σ 0 (a - 1)    
-    | otherwise = opt $ go a (b - 1) ⋅ Σ    
 
 strWithSubstr :: AInt -> AInt -> AString -> AString
 strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂

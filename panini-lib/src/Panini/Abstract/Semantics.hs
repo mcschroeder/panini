@@ -291,10 +291,17 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , i >= 0
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ s)
   -----------------------------------------------------------------------------
-  [ρ| x[i] = c |] 
-    | [î] <- i
-    , î >= 0 
-    -> normRelA $ x :=: EStrA (rep Σ î ⋅ lit c ⋅ star Σ)
+  [ρ| x[î] = c |] 
+    | [i] <- î
+    , i >= 0 
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ lit c ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  [ρ| x[î] = c |]
+    | [Fin m  :… PosInf] <- AInt.intervals î
+    , let t = rep Σ m ⋅ star Σ ⋅ lit c ⋅ star Σ
+    -> normRelA [ρ| x = t |]
+  -----------------------------------------------------------------------------
+  [ρ| x[y] ≠ c |] -> normRelA [ρ| x[y] = c̄ |] where c̄ = neg c
   -----------------------------------------------------------------------------
   [ρ| str.comp(x) = str.comp(y) |] -> normRelA $ x :=: y
   [ρ| str.comp(x) ≠ str.comp(y) |] -> normRelA $ x :≠: y
@@ -348,6 +355,35 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let t = star Σ ⋅ (t₁ ∨ t₂) ⋅ star Σ
     -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
+  [ω| |x| - î |] :=: Relℤ y [ρ| x[y] = c |]
+    | [Fin 1 :… PosInf] <- AInt.intervals (î ∧ AIntFrom 1)
+    , let t = star Σ ⋅ lit c ⋅ star Σ
+    -> normRelA $ x :=: EStrA t
+  -----------------------------------------------------------------------------
+  [ω| i |] :=: Relℤ y [ρ| x[y] = c |] 
+    -> normRelA $ x :=: EStrA (strWithCharAt i c)
+  -----------------------------------------------------------------------------
+  [ω| i |] :=: Relℤ y [ρ| x[y - j] = c |] 
+    -> normRelA $ x :=: EStrA (strWithCharAt (AInt.sub i j) c)
+  -----------------------------------------------------------------------------
+  [ω| i |] :=: Relℤ y [ρ| x[y + j] = c |] 
+    -> normRelA $ x :=: EStrA (strWithCharAt (AInt.add i j) c)
+  -----------------------------------------------------------------------------
+  [ω| |x| - i |] :=: Relℤ y [ρ| x[y] = c |] 
+    -> normRelA $ x :=: EStrA (strWithCharAtRev i c)
+  -----------------------------------------------------------------------------
+  [ω| |x| - i |] :=: Relℤ y [ρ| x[y - j] = c |]
+    -> normRelA $ x :=: EStrA (strWithCharAtRev (AInt.add i j) c)
+  -----------------------------------------------------------------------------
+  [ω| |x| - i |] :=: Relℤ y [ρ| x[y + j] = c |]
+    -> normRelA $ x :=: EStrA (strWithCharAtRev (AInt.sub i j) c)
+  -----------------------------------------------------------------------------
+  [ω| |x| + i |] :=: Relℤ y [ρ| x[y] = c |] 
+    -> normRelA $ x :=: EStrA (strWithCharAtRev (AInt.negate i) c)
+  -----------------------------------------------------------------------------
+  (z@(Relℤ _ _) :+: EIntA i) :=: EStrLen x
+    -> normRelA $ [ω| |x| - i |] :=: z
+  -----------------------------------------------------------------------------
   EIntA (AIntFrom 0) :=: Relℤ y [ρ| mod(y,n̂) = m̂ |]
     | [n] <- n̂, [m] <- m̂
     , n >= 0, m >= 0
@@ -357,9 +393,8 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | EVar x _ <- v, x `notFreeIn` z
     , let n = AInt.ne 0
     -> normRelA [ρ| y = z + n |]
-  -----------------------------------------------------------------------------  
-  x :=: ERelA v _ r@(_ :=: _) | occurrences v r == 1 -> normRelA $ subst x v r
-  x :=: ERelA v _ r           | concreteish x        -> normRelA $ subst x v r
+  -----------------------------------------------------------------------------
+  x :=: ERelA v _ r | concreteish x -> normRelA $ subst x v r
   -----------------------------------------------------------------------------
   r -> Right r
 
@@ -454,10 +489,10 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   [ρ| |x̲| ≠ n |] -> AString $ strNotOfLen n
   -----------------------------------------------------------------------------
   [ρ| x̲[i] = c |] -> AString $ strWithCharAt i c
-  [ρ| x̲[i] ≠ c |] -> AString $ strWithoutCharAt i c
+  [ρ| x̲[i] ≠ c |] -> AString $ strWithCharAt i (neg c)
   -----------------------------------------------------------------------------
   [ρ| x̲[|x̲|-i] = c |] -> AString $ strWithCharAtRev i c
-  [ρ| x̲[|x̲|-i] ≠ c |] -> AString $ strWithoutCharAtRev i c
+  [ρ| x̲[|x̲|-i] ≠ c |] -> AString $ strWithCharAtRev i (neg c)
   -----------------------------------------------------------------------------
   [ρ| x̲[i..j] = t |] -> AString $ strWithSubstr i j t
   [ρ| x̲[i..j] ≠ t |] -> AString $ strWithoutSubstr i j t
