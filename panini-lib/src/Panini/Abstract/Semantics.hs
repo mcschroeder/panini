@@ -356,11 +356,6 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let t = star Σ ⋅ (t₁ ∨ t₂) ⋅ star Σ
     -> normRelA [ρ| x = t |]
   -----------------------------------------------------------------------------
-  [ω| |x| - î |] :=: Relℤ y [ρ| x[y] = c |]
-    | [Fin 1 :… PosInf] <- AInt.intervals (î ∧ AIntFrom 1)
-    , let t = star Σ ⋅ lit c ⋅ star Σ
-    -> normRelA $ x :=: EStrA t
-  -----------------------------------------------------------------------------
   [ω| i |] :=: Relℤ y [ρ| x[y] = c |] 
     -> normRelA $ x :=: EStrA (strWithCharAt i c)
   -----------------------------------------------------------------------------
