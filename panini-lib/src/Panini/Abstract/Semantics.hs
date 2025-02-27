@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE QuasiQuotes #-}
 module Panini.Abstract.Semantics
@@ -381,19 +382,16 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   [ω| |x| + i |] :=: Relℤ y [ρ| x[y] = c |] 
     -> normRelA $ x :=: EStrA (strWithCharAtRev (AInt.negate i) c)
   -----------------------------------------------------------------------------
-  (z@(Relℤ _ _) :+: EIntA i) :=: EStrLen x
-    -> normRelA $ [ω| |x| - i |] :=: z
-  -----------------------------------------------------------------------------
   EIntA (AIntFrom 0) :=: Relℤ y [ρ| mod(y,n̂) = m̂ |]
     | [n] <- n̂, [m] <- m̂
     , n >= 0, m >= 0
     -> Left True
   -----------------------------------------------------------------------------
-  y :=: Relℤ v [ρ| v ≠ z |]
-    | EVar x _ <- v, x `notFreeIn` z
-    , let n = AInt.ne 0
-    -> normRelA [ρ| y = z + n |]
+  Relℤ y [ρ| x[y] = c |] :=: Relℤ z [ρ| z ≠ |x| |]
+    -> normRelA $ x :=: EStrA (star Σ ⋅ lit c ⋅ star Σ)
   -----------------------------------------------------------------------------
+  [ρ| |x| = i |] | let i' = i ∧ AInt.ge 0, i' /= i -> normRelA [ρ| |x| = i' |]
+  ----------------------------------------------------------------------------
   x :=: ERelA v _ r | concreteish x -> normRelA $ subst x v r
   -----------------------------------------------------------------------------
   r -> Right r
@@ -415,6 +413,40 @@ isolate x r = flip rewrite r $ \case
   Rel o (ω₁ :-: ω₂) ω₃ | x `freeIn` ω₁ -> Just $ Rel o ω₁ (ω₃ :+: ω₂)
   Rel o (ω₁ :-: ω₂) ω₃ | x `freeIn` ω₂ -> Just $ Rel o ω₂ (ω₁ :-: ω₃)
   _                                    -> Nothing
+
+
+
+
+
+pattern ARelℤ :: AExpr -> ARel -> AValue
+pattern ARelℤ x r <- (matchARel TInt -> Just (x,r)) where
+  ARelℤ (EVar x _) r = ARel x TInt r
+  ARelℤ _ _ = undefined
+
+matchARel :: Base -> AValue -> Maybe (AExpr, ARel)
+matchARel b (ARel v b1 r) | b == b1 = Just (EVar v b, r)
+matchARel _ _ = Nothing
+
+instance PartialMeetSemilattice AValue where
+  AUnit   a ∧? AUnit   b = Just $ AUnit   (a ∧ b)
+  ABool   a ∧? ABool   b = Just $ ABool   (a ∧ b)
+  AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
+  AChar   a ∧? AChar   b = Just $ AChar   (a ∧ b)
+  AString a ∧? AString b = Just $ AString (a ∧ b)
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = |x| - i |] ∧? ARelℤ z [ρ| z ≠ |x| |]
+    | let j = AInt.negate i ∧ AInt.ne 0
+    = Just $ ARelℤ y [ρ| y = |x| + j |]
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = |x| + i |] ∧? ARelℤ z [ρ| z ≠ |x| |]
+    | let j = i ∧ AInt.ne 0
+    = Just $ ARelℤ y [ρ| y = |x| + j |]
+  -----------------------------------------------------------------------------
+  a ∧? b = if a == b then Just a else Nothing
+
+
+
+
 
 
 -- | Variable-focused abstract semantics function ⟦ρ⟧↑x.
