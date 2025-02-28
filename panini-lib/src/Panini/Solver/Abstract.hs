@@ -36,6 +36,7 @@ import Panini.Solver.Error
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import Regex.Simplify.Common qualified as Regex
 import System.Time.Extra
 
 -------------------------------------------------------------------------------
@@ -319,9 +320,13 @@ simplifyRegex s = do
   case r of
     Nothing -> do
       logMessage "Timeout trying to simplify regular expression"
-      logData s
+      logData $ safePretty s
       return s    
     Just s' -> do
       unless (s == s') $ do
-        logData $ group $ pretty s <\> "  ⇝  " <\> pretty s'
+        logData $ group $ safePretty s <\> "  ⇝  " <\> safePretty s'
       return s'
+ where
+  safePretty r = 
+    let n = Regex.size $ AString.toRegex r
+    in if n <= 100 then pretty r else mangles ("regex of size" <+> pretty n)
