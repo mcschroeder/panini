@@ -429,13 +429,45 @@ instance PartialMeetSemilattice AValue where
   AChar   a ∧? AChar   b = Just $ AChar   (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
   -----------------------------------------------------------------------------
-  ARelℤ y [ρ| y = |x| - i |] ∧? ARelℤ z [ρ| z ≠ |x| |]
-    | let j = AInt.negate i ∧ AInt.ne 0
-    = Just $ ARelℤ y [ρ| y = |x| + j |]
+  ARelℤ y [ρ| y = x + i |] ∧? ARelℤ z [ρ| z = x + j |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x + k |] 
+    where k = i ∧ j
   -----------------------------------------------------------------------------
-  ARelℤ y [ρ| y = |x| + i |] ∧? ARelℤ z [ρ| z ≠ |x| |]
-    | let j = i ∧ AInt.ne 0
-    = Just $ ARelℤ y [ρ| y = |x| + j |]
+  ARelℤ y [ρ| y = x - i |] ∧? ARelℤ z [ρ| z = x + j |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x + k |] 
+    where k = AInt.negate i ∧ j
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = x + i |] ∧? ARelℤ z [ρ| z = x - j |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x + k |] 
+    where k = i ∧ AInt.negate j
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = x - i |] ∧? ARelℤ z [ρ| z = x - j |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x - k |] 
+    where k = i ∧ j
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = x + i |] ∧? ARelℤ z [ρ| z = x |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x + k |] 
+    where k = i ∧ AInt.eq 0
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = x - i |] ∧? ARelℤ z [ρ| z = x |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x - k |] 
+    where k = i ∧ AInt.eq 0
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = x |] ∧? ARelℤ z [ρ| z = x + i |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x + k |] 
+    where k = i ∧ AInt.eq 0
+  -----------------------------------------------------------------------------
+  ARelℤ y [ρ| y = x |] ∧? ARelℤ z [ρ| z = x - i |]
+    | isBot k   = Just $ AInt bot
+    | otherwise = Just $ ARelℤ y [ρ| y = x - k |] 
+    where k = i ∧ AInt.eq 0
   -----------------------------------------------------------------------------
   a ∧? b = if a == b then Just a else Nothing
 
@@ -502,8 +534,10 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   [ρ| x̲ ≠ s  |] -> AString (neg s)
   [ρ| x̲ ≠ c  |] -> AChar (neg c)  -- see note above
   -----------------------------------------------------------------------------  
-  [ρ| x̲ ≠ e |] | τ == TBool   -> abstract x τ [ρ| x̲ = not(e)      |]
-               | τ == TString -> abstract x τ [ρ| x̲ = str.comp(e) |]
+  [ρ| x̲ ≠ e |]
+    | τ == TBool   -> abstract x τ [ρ| x̲ = not(e)      |]               
+    | τ == TInt    -> let k = AInt.ne 0 in abstract x τ [ρ| x̲ = e + k |]
+    | τ == TString -> abstract x τ [ρ| x̲ = str.comp(e) |]
   -----------------------------------------------------------------------------
   [ρ| x̲ = str.comp(s) |] -> AString (neg s)
   -- NOTE: String complement is resolved here instead of during normalization,
