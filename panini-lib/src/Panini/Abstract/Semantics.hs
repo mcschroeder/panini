@@ -368,6 +368,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   [ω| |x| - i |] :=: Relℤ y [ρ| x[y] = c |] 
     -> normRelA $ x :=: EStrA (strWithCharAtRev i c)
   -----------------------------------------------------------------------------
+  (Relℤ y [ρ| x[y] = c |] :+: EIntA i) :=: [ω| |x| |]
+    -> normRelA $ x :=: EStrA (strWithCharAtRev i c)
+  -----------------------------------------------------------------------------
   [ω| |x| - i |] :=: Relℤ y [ρ| x[y - j] = c |]
     -> normRelA $ x :=: EStrA (strWithCharAtRev (AInt.add i j) c)
   -----------------------------------------------------------------------------
