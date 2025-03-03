@@ -205,10 +205,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   Rel o [ω| k - x |] [ω| y - n |] -> normRelA $ Rel o x [ω| (k + n) - y |]
   Rel o [ω| x - k |] [ω| y - n |] -> normRelA $ Rel o x [ω| y + (k - n) |]
   -----------------------------------------------------------------------------
-  [ρ| str.indexof(x,y,0) = n |] 
+  [ρ| str.indexof(x,y,z) = n |] 
     | let n' = n ∧ AIntFrom (-1)
     , n' /= n
-    -> normRelA $ [ρ| str.indexof(x,y,0) = n' |]
+    -> normRelA $ [ρ| str.indexof(x,y,z) = n' |]
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,c,0) = n |] 
     -> normRelA $ x :=: EStrA (strWithFirstIndexOfChar c n)
@@ -223,6 +223,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | AIntFrom i <- n
     , let c̄ = lit (neg c)
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ star c̄)
+  -----------------------------------------------------------------------------
+  [ρ| str.indexof(x,c,|x|-1) = -1 |] 
+    -> normRelA $ x :=: EStrA (star Σ ⋅ lit (neg c))
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,c,|x|-n) = -1 |]
     | AIntFrom i <- n
@@ -273,6 +276,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | AIntFrom j <- n, j >= 1
     , [i] <- î
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  [ρ| |x| - n = str.indexof(x,_,|x|-1) |]
+    | AIntFrom j <- n, j > 1
+    -> Left False
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,c,str.indexof(x,c̄,0)) = -1 |] 
     | c̄ == neg c
