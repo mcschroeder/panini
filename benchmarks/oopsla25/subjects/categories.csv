@@ -13,6 +13,7 @@ subject,category
 030,straight
 031,straight
 032,cond
+033,loop
 040,straight
 041,straight
 042,cond
@@ -197,6 +198,7 @@ subject,category
 540,loop
 550,straight
 551,loop
+560,cond
 970,straight
 971,straight
 980,cond
