@@ -311,6 +311,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   Relℤ y [ρ| x[y] = a |] :=: Relℤ z [ρ| x[z] = b |]
     -> normRelA $ x :=: EStrA (strWithCharGapChar a 0 b)
   -----------------------------------------------------------------------------
+  Relℤ y [ρ| x[y-1] = a |] :=: Relℤ z [ρ| x[z-1] = b |]
+    -> normRelA $ x :=: EStrA (strWithCharGapChar a 0 b)
+  -----------------------------------------------------------------------------
   Relℤ y [ρ| x[y] = a |] :=: Relℤ z [ρ| x[z+n̂] = b |]
     | [n] <- n̂
     -> normRelA $ x :=: EStrA (strWithCharGapChar a n b)
