@@ -289,6 +289,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | Just c <- AString.toChar (s ∧ Σ) 
     -> normRelA $ [ρ| x[y] = c |]
   -----------------------------------------------------------------------------
+  [ρ| x[y..y] ≠ s |] 
+    | Just c <- AString.toChar (s ∧ Σ)
+    -> normRelA $ [ρ| x[y] ≠ c |]
+  -----------------------------------------------------------------------------
   [ρ| x[î..ĵ] = s |]
     | [i] <- î, [j] <- ĵ
     , i >= 0, i <= j
