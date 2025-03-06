@@ -29,12 +29,13 @@ import Regex.CharSet (CharSet)
 import Regex.CharSet qualified as CS
 import Text.Megaparsec
 import Text.Megaparsec.Char
+import Data.Proxy
 
 -- TODO: escaping
--- TODO: support character classes
 -- TODO: support equivalence classes
 -- TODO: support collating symbols
 -- TODO: more efficient conversion from/to CharSet (recognize ranges)
+-- TODO: support different locales for character classes
 
 -------------------------------------------------------------------------------
 
@@ -48,13 +49,29 @@ data BE
 data Exp
   = Ord Char       -- ^ ordinary character @a@
   | Ran Char Char  -- ^ range of consecutive characters @a-z@
-  -- | Cls         -- ^ character class @[:alpha:]@
+  | Cls CharClass  -- ^ character class @[:alpha:]@ (ASCII only)
   -- | Equ         -- ^ equivalence class @[=a=]@
   -- | Col         -- ^ collating symbol @[.ch.]@
   deriving stock (Eq, Ord, Show, Read, Generic, Data)
 
+data CharClass
+  = Upper -- ^ uppercase letters @[A-Z]@
+  | Lower -- ^ lowercase letters @[a-z]@
+  | Alpha -- ^ upper- and lowercase letters @[[:upper:][:lower:]]@
+  | Alnum -- ^ digits, upper- and lowercase letters @[[:alpha:][:digit:]]@
+  | Digit -- ^ digits @[0-9]@
+  | Xdigit -- ^ hexadecimal digits @[0-9A-Fa-f]@
+  | Punct -- ^ punctuation @[.,!?:…]@
+  | Blank -- ^ space and TAB characters only @[ \t]@
+  | Space -- ^ blank (whitespace) characters @[ \t\n\r\f\v]@
+  | Cntrl -- ^ control characters
+  | Graph -- ^ printed characters @[^\t\n\r\f\v]@
+  | Print -- ^ printed characters and space @[^ \t\n\r\f\v]@
+  deriving stock (Eq, Ord, Show, Read, Generic, Data)
+
 instance Hashable BE
 instance Hashable Exp
+instance Hashable CharClass
 
 -------------------------------------------------------------------------------
 
@@ -66,6 +83,18 @@ printBE = \case
   go = \case
     Ord c     -> [c]
     Ran c1 c2 -> c1:'-':c2:[]
+    Cls Upper -> "[:upper:]"
+    Cls Lower -> "[:lower:]"
+    Cls Alpha -> "[:alpha:]"
+    Cls Alnum -> "[:alnum:]"
+    Cls Digit -> "[:digit:]"
+    Cls Xdigit -> "[:xdigit:]"
+    Cls Punct -> "[:punct:]"
+    Cls Blank -> "[:blank:]"
+    Cls Space -> "[:space:]"
+    Cls Cntrl -> "[:cntrl:]"
+    Cls Graph -> "[:graph:]"
+    Cls Print -> "[:print:]"
 
 parseBE :: String -> Maybe BE
 parseBE = parseMaybe @Void be
@@ -75,10 +104,29 @@ be = char '[' *> choice [non, mat] <* char ']'
  where
   non = Non <$ char '^' <*> NE.some exp
   mat = Mat <$>             NE.some exp
-  exp = choice [try ran, ord]
+  exp = choice [try ran, try cls, ord]
   ran = Ran <$> chr <* char '-' <*> chr
+  cls = Cls <$> charClass
   ord = Ord <$> chr
   chr = satisfy (\x -> x /= ']')
+
+charClass :: forall e s m. (MonadParsec e s m, Token s ~ Char) => m CharClass
+charClass = choice 
+  [ Upper <$ str "[:upper:]"
+  , Lower <$ str "[:lower:]"
+  , Alpha <$ str "[:alpha:]"
+  , Alnum <$ str "[:alnum:]"
+  , Digit <$ str "[:digit:]"
+  , Xdigit <$ str "[:xdigit:]"
+  , Punct <$ str "[:punct:]"
+  , Blank <$ str "[:blank:]"
+  , Space <$ str "[:space:]"
+  , Cntrl <$ str "[:cntrl:]"
+  , Graph <$ str "[:graph:]"
+  , Print <$ str "[:print:]"
+  ]
+ where
+  str s = string (tokensToChunk (Proxy :: Proxy s) s)
 
 -------------------------------------------------------------------------------
 
@@ -117,3 +165,16 @@ toCharSet = \case
   go = \case
     Ord c     -> [c]
     Ran c1 c2 -> enumFromTo c1 c2
+    Cls Upper -> ['A'..'Z']
+    Cls Lower -> ['a'..'z']
+    Cls Alpha -> ['A'..'Z'] <> ['a'..'z']
+    Cls Alnum -> ['A'..'Z'] <> ['a'..'z'] <> ['0'..'9']
+    Cls Digit -> ['0'..'9']
+    Cls Xdigit -> ['0'..'9'] <> ['A'..'F'] <> ['a'..'f']
+    Cls Punct -> ".,!?:…"
+    Cls Blank -> " \t"
+    Cls Space -> " \t\n\r\f\v"
+    Cls Cntrl -> ['\x00'..'\x1F'] <> "\x7F"
+    Cls Graph -> ['\x21'..'\x7E']
+    Cls Print -> ['\x20'..'\x7E']
+  
