@@ -249,6 +249,14 @@ transpileStmts returnType stmts k0 = go stmts
         let v   = mangle x
         k      <- go rest
         return  $ Let v e1 k (getPV stmt)
+
+    -- HACK to support dictionary assignments w/o tracking information
+    -- TODO: issue warning?
+    Assign { assign_to = [Subscript {}], ..} -> 
+      withTerm assign_expr $ \e1 -> do
+        let v   = dummyName
+        k      <- go rest
+        return  $ Let v e1 k (getPV stmt)
     
     Assign { assign_to = [Tuple (expectVars -> Just xs) _], ..}
       | typeOf assign_expr == PyType.Str
@@ -384,6 +392,9 @@ withTerm expr k = case expr of
     k =<< applyAxiom "__getitem__" args tyArgs tyItem (getPV expr)
   
   Paren {..} -> withTerm paren_expr k
+
+  -- HACK to support x = {}
+  Dictionary { dict_mappings = [] } -> k (Val (Con (U (getPV expr))))
 
   _ -> lift $ throwE $ UnsupportedExpression expr
 
