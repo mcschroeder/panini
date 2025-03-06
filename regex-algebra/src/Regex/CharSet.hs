@@ -30,6 +30,7 @@ module Regex.CharSet
   , prettyCharSet
   ) where
 
+import Data.Char
 import Data.Data (Data)
 import Data.Foldable qualified
 import Data.Hashable
@@ -163,10 +164,10 @@ prettyCharSet :: CharSet -> Doc ann
 prettyCharSet = \case
   CharSet True s -> case intSetToCharList s of
     [] -> "∅"
-    [x] -> pretty x
+    [x] -> pretty $ showLitChar x ""
     xs -> prettySet xs
   CharSet False s -> case intSetToCharList s of
     [] -> "Σ"
     xs -> "Σ∖" <> prettySet xs
   where
-    prettySet = braces . mconcat . intersperse "," . map pretty
+    prettySet = braces . pretty . foldr showLitChar "" . intersperse ','
