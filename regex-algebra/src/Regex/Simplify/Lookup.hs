@@ -189,6 +189,11 @@ lookup _ = \case
     , abc == a1 `CS.union` b1 `CS.union` c1
     -> Times [Opt (Lit a1), Opt (Lit b1), Opt (Lit c1)]
 
+  -- (x + y⋅x?)*  = (x + y)*
+  Star (Plus1 x1 (TimesN y (Opt x2)))
+    | x1 == x2
+    -> Star (x1 `plus` y)
+
   -- (x + (y ⋅ (x + y)*))*  =  (x + y)*
   Star (Plus [x1, Times (unsnoc -> Just (y1, Star (Plus [x2, Times y2])))])
     | x1 == x2, y1 == y2 -> Star (Plus [x1, Times y1])
@@ -279,6 +284,13 @@ lookup _ = \case
   Star (Times1 b1 (Opt (Times1 a1 (Star (Times [Star a2, b2, Opt a3])))))
     | a1 == a2, a2 == a3, b1 == b2
     -> Star (b1 `times` Star (Star a1 `times` b1) `times` Opt a1)
+
+  -- (x + x?y((x?y)*z)+(x+y)*)*  =  (x+yz?)*
+  Star (Plus1 x (Times [Opt x2, y, Plus1 (Times1 (Star q) z) (Star p)]))
+    | p == Plus [x,y]
+    , q == Times [Opt x, y]
+    , x == x2
+    -> Star (x `plus` (y `times` Opt z))
   
   r -> r
 
