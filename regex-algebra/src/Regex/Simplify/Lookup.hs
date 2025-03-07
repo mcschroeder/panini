@@ -1,9 +1,10 @@
 module Regex.Simplify.Lookup where
 
+import Data.List qualified as List
 import Prelude hiding (lookup)
 import Regex.CharSet qualified as CS
 import Regex.Simplify.Common
-import Regex.Simplify.Factor (splitPrefix, flatTimes)
+import Regex.Simplify.Factor (splitPrefix, splitSuffix, flatTimes)
 import Regex.Type
 
 -- TODO: read syntactic replacements from a file
@@ -11,6 +12,21 @@ import Regex.Type
 lookup :: Context -> Regex -> Regex
 
 lookup Starred = \case
+
+  -- (a⋅((c⋅a)*⋅b + c + …))*  =  (a⋅(b+c+…))*
+  TimesN a p@(Plus xs)
+    | let as = flatTimes a
+    , Just xs' <- deleteFindMatch [] as xs    
+    -> a `times` Plus xs'
+   where
+    deleteFindMatch _ _ [] = Nothing
+    deleteFindMatch ys as ((Times1 (Star (Times ca)) b) : zs)
+      | (cs,[],_) <- splitSuffix ca as
+      , let c = Times cs
+      , c `isChoiceOf` p
+      = Just (b : ys ++ zs)
+    deleteFindMatch ys as (z:zs) = deleteFindMatch (z:ys) as zs
+
   -- (ab(a?b + …)* + …)*  =  (ab(b + …)* + …)*
   TimesN ab (Star (Plus xs))
     | let xs' = map match xs
@@ -292,6 +308,18 @@ lookup _ = \case
     , x == x2
     -> Star (x `plus` (y `times` Opt z))
   
+  -- (x⋅(y* + …) + y + …)*  = (x⋅(…)? + y + …)*
+  Star r@(Plus xs0)
+    | Just xs' <- go [] xs0
+    -> Star (Plus xs')
+   where
+    go zs (TimesN x (Plus ys) : xs)
+      | (y:_) <- [y | Star y <- ys, y `isChoiceOf` r]
+      , let ys' = List.delete (Star y) ys
+      = Just $ (x `times` Opt (Plus ys')) : zs ++ xs
+    go zs (x:xs) = go (x:zs) xs
+    go _ [] = Nothing
+  
   r -> r
 
 splitAtStar :: [Regex] -> Maybe ([Regex], Regex, [Regex])
@@ -300,3 +328,9 @@ splitAtStar = go []
   go _            []  = Nothing
   go ys (Star x : xs) = Just (reverse ys, x, xs)
   go ys (     x : xs) = go (x:ys) xs
+
+isChoiceOf :: Regex -> Regex -> Bool
+isChoiceOf (Lit a) (Lit b) = CS.isSubsetOf a b
+isChoiceOf (Lit a) (Plus1 (Lit b) _) = CS.isSubsetOf a b
+isChoiceOf x (Plus ys) = x `elem` ys
+isChoiceOf _ _ = False
