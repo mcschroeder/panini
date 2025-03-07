@@ -1,6 +1,6 @@
 module Regex.Simplify.Lookup where
 
-import Prelude
+import Prelude hiding (lookup)
 import Regex.CharSet qualified as CS
 import Regex.Simplify.Common
 import Regex.Simplify.Factor (splitPrefix, flatTimes)
@@ -26,7 +26,9 @@ lookup Starred = \case
         -> b2
       x -> x
   
-  r -> r
+  r -> lookup Optional r
+
+lookup Optional = lookup Free
 
 lookup _ = \case  
   Times xs0 -> Times $ go xs0
