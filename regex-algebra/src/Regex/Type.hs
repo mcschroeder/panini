@@ -201,6 +201,8 @@ unconsPlus = \case
 {-# INLINE unconsPlus #-}
 
 deleteFindChoice :: Regex -> Regex -> Maybe Regex
+deleteFindChoice (Lit a) (Lit b) 
+  | CS.isSubsetOf a b = Just $ Lit (CS.difference b a)
 deleteFindChoice x (Plus_ xs e) 
   | Set.member x xs, let xs' = Set.delete x xs 
   = Just $ Plus_ xs' (e && all nullable xs')

@@ -17,6 +17,7 @@ module Regex.CharSet
   , union
   , unions
   , intersection
+  , difference
   , null
   , isFull
   , isSubsetOf
@@ -100,6 +101,10 @@ intersection (CharSet True  xs) (CharSet True  ys) = CharSet True  (I.intersecti
 intersection (CharSet False xs) (CharSet False ys) = CharSet False (I.union        xs ys)
 intersection (CharSet True  xs) (CharSet False ys) = CharSet True  (I.difference   xs ys)
 intersection (CharSet False xs) (CharSet True  ys) = CharSet True  (I.difference   ys xs)
+
+-- | The elements of the first set that are not in the second set.
+difference :: CharSet -> CharSet -> CharSet
+difference a b = intersection a (complement b)
 
 -- | Whether the set is empty.
 null :: CharSet -> Bool
