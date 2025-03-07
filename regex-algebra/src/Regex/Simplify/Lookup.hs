@@ -67,6 +67,25 @@ lookup _ = \case
       , let zx = Times (z ++ x1)
       = go $ x1 ++ Star (Plus [y1, zx]) : rest
 
+    -- a ⋅ ((b*a)*a)* ⋅ b ⋅ b* ⋅ (a(b(b*a)?)*)?  =  a(a+b)*ba?
+    go (a1 : Star x : b2 : Star b3 : Opt y : xs)
+      | Times1 (Star (Times1 (Star b1) a2)) a3 <- x
+      , Times1 a4 (Star (Times1 b4 (Opt (Times1 (Star b5) a5)))) <- y
+      , a1 == a2, a2 == a3, a3 == a4, a4 == a5
+      , b1 == b2, b2 == b3, b3 == b4, b4 == b5
+      = go $ a1 : Star (a1 `plus` b1) : b1 : Opt a1 : xs
+
+    -- bb*(a(a*ba?)*)?  =  b(a*b)*a?
+    go (b1 : Star b2 : Opt (Times1 a1 (Star (Times [Star a2, b3, Opt a3]))) : xs)
+      | a1 == a2, a2 == a3, b1 == b2, b2 == b3
+      = go $ b1 : Star (Star a1 `times` b1) : Opt a1 : xs
+
+    -- b*(b+a(a*ba?)*)  =  a+(a+b)*ba?
+    go (Star b1 : Plus1 b2 (Times1 a1 (Star (Times [Star a2, b3, Opt a3]))) : xs)
+      | a1 == a2, a2 == a3
+      , b1 == b2, b2 == b3
+      = go $ (a1 `plus` (Star (a1 `plus` b1) `times` b1 `times` Opt a1)) : xs
+
     go (y:ys) = y : go ys
     go [] = []
   
@@ -238,6 +257,26 @@ lookup _ = \case
     , y1 == ys
     , z1 == flatTimes z2
     -> Star (x1 `plus` w)
+
+  -- ((bb*a)*a)*  =  ((b*a)*a)*
+  Star (Times1 (Star (Times [b1, Star b2, a1])) a2)
+    | b1 == b2, a1 == a2
+    -> Star ((Star ((Star b1) `times` a1)) `times` a1)
+  
+  -- (a(a+b)*ba?+b(b*a)?)*  =  (a*ba?)*
+  -- (a{a,b}*ba?+b(b*a)?)*  =  (a*ba?)*
+  Star (Plus1 x y)
+    | Times1 b1 (Opt (Times1 (Star b2) a1)) <- y
+    , Times [a2, Star z, b3, Opt a3] <- x
+    , a1 == a2, a2 == a3
+    , b1 == b2, b2 == b3
+    , z == Plus [a1,b1]
+    -> Star (Star a1 `times` b1 `times` Opt a1)
+
+  -- (b(a(a*ba?)*)?)*  =  (b(a*b)*a?)*
+  Star (Times1 b1 (Opt (Times1 a1 (Star (Times [Star a2, b2, Opt a3])))))
+    | a1 == a2, a2 == a3, b1 == b2
+    -> Star (b1 `times` Star (Star a1 `times` b1) `times` Opt a1)
   
   r -> r
 
