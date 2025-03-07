@@ -50,7 +50,11 @@ fuse ctx r = case (ctx, r) of
   -- ((x* + y)⋅x)? = x* + y⋅x -----------------------------------
   (Optional, Times1 ys x)
     | Just ys' <- deleteFindChoice (Star x) ys -> (Star x) `plus` (ys' <> x)
-  
+
+  -- (x⋅(x+y)*)? = (x⋅y*)* --------------------------------------
+  (Optional, TimesN x (Star ys))
+    | Just ys' <- deleteFindChoice x ys -> Star (x `times` Star ys')
+
   -- (x?y?)* = (x+y?)* = (x+y*)* = (x+y)* -----------------------
   (Starred, Times xs) | nullable r -> Plus $ map flatNullable xs
   (Starred, Plus xs)               -> Plus $ map flatNullable xs
