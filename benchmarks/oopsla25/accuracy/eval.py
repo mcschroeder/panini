@@ -70,28 +70,23 @@ def aggregate_results(results, subjects_by_category):
     time_ms_list = []
     precision_list = []
     recall_list = []
-    precision_list_without_errors = []
-    recall_list_without_errors = []
     num_errors = 0
     for subject in subjects_by_category[category]:
       result = results[subject]
       time_ms_list.append(result['time_ms'])
-      precision_list.append(result['precision'])
-      recall_list.append(result['recall'])
       if result['status'] == 0:
-        precision_list_without_errors.append(result['precision'])
-        recall_list_without_errors.append(result['recall'])
+        precision_list.append(result['precision'])
+        recall_list.append(result['recall'])
       else:
         num_errors += 1
     results_agg[category] = {
       'num_subjects': num_subjects,
-      'time_ms_mean': statistics.mean(time_ms_list),
-      'time_ms_stdev': statistics.stdev(time_ms_list),
+      'num_errors': num_errors,
+      'success_rate': (num_subjects - num_errors) / num_subjects,
       'precision_mean': statistics.mean(precision_list),
       'recall_mean': statistics.mean(recall_list),
-      'num_errors': num_errors,
-      'precision_mean_without_errors': statistics.mean(precision_list_without_errors),
-      'recall_mean_without_errors': statistics.mean(recall_list_without_errors)
+      'time_ms_mean': statistics.mean(time_ms_list),
+      'time_ms_stdev': statistics.stdev(time_ms_list)
     }
 
   return results_agg
@@ -161,13 +156,12 @@ with open(output_agg_file, 'w') as file:
     "method",
     "category",
     "num_subjects",
-    "time_ms_mean",
-    "time_ms_stdev",
+    "num_errors",
+    "success_rate",
     "precision_mean",
     "recall_mean",
-    "num_errors",
-    "precision_mean_without_errors",
-    "recall_mean_without_errors"
+    "time_ms_mean",
+    "time_ms_stdev"
   ])
   for method in results_agg:
     for category in results_agg[method]:
@@ -176,13 +170,12 @@ with open(output_agg_file, 'w') as file:
         method,
         category,
         result['num_subjects'],
-        result['time_ms_mean'],
-        result['time_ms_stdev'],
+        result['num_errors'],
+        result['success_rate'],
         result['precision_mean'],
         result['recall_mean'],
-        result['num_errors'],
-        result['precision_mean_without_errors'],
-        result['recall_mean_without_errors']
+        result['time_ms_mean'],
+        result['time_ms_stdev']
       ])
 
 print(f"All aggregated results written to {output_agg_file}", flush=True)
