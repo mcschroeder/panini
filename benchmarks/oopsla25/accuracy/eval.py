@@ -72,6 +72,8 @@ def aggregate_results(results, subjects_by_category):
     recall_list = []
     num_errors = 0
     for subject in subjects_by_category[category]:
+      if subject not in results:
+        continue
       result = results[subject]
       time_ms_list.append(result['time_ms'])
       if result['status'] == 0:
@@ -79,15 +81,17 @@ def aggregate_results(results, subjects_by_category):
         recall_list.append(result['recall'])
       else:
         num_errors += 1
-    results_agg[category] = {
-      'num_subjects': num_subjects,
-      'num_errors': num_errors,
-      'success_rate': (num_subjects - num_errors) / num_subjects,
-      'precision_mean': statistics.mean(precision_list),
-      'recall_mean': statistics.mean(recall_list),
-      'time_ms_mean': statistics.mean(time_ms_list),
-      'time_ms_stdev': statistics.stdev(time_ms_list)
-    }
+    assert len(precision_list) == len(recall_list) == len(time_ms_list)
+    if len(precision_list) > 0:
+      results_agg[category] = {
+        'num_subjects': num_subjects,
+        'num_errors': num_errors,
+        'success_rate': (num_subjects - num_errors) / num_subjects,
+        'precision_mean': statistics.mean(precision_list),
+        'recall_mean': statistics.mean(recall_list),
+        'time_ms_mean': statistics.mean(time_ms_list),
+        'time_ms_stdev': statistics.stdev(time_ms_list)
+      }
 
   return results_agg
 
