@@ -213,6 +213,11 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   [ρ| str.indexof(x,c,0) = n |] 
     -> normRelA $ x :=: EStrA (strWithFirstIndexOfChar c n)
   -----------------------------------------------------------------------------
+  [ρ| str.indexof(x,s,î) = n |]
+    | AIntFrom 0 <- n
+    , [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ neg (star Σ ⋅ s ⋅ star Σ) ⋅ s ⋅ star Σ)
+  -----------------------------------------------------------------------------
   [ρ| str.indexof(x,y,|x|+n) = z |]
     | [Fin i :… PosInf] <- AInt.intervals n
     , i < 0
@@ -276,6 +281,12 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | AIntFrom j <- n, j >= 1
     , [i] <- î
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star (lit (neg c)) ⋅ lit c ⋅ rep Σ (j-1) ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  [ρ| |x| - ĵ = str.indexof(x,s,î) |]
+    | Just n <- strLen1 s
+    , [j] <- ĵ ∧ AIntFrom n
+    , [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ neg (star Σ ⋅ s ⋅ star Σ) ⋅ s ⋅ rep Σ (j - n))
   -----------------------------------------------------------------------------
   [ρ| |x| - n = str.indexof(x,_,|x|-1) |]
     | AIntFrom j <- n, j > 1
