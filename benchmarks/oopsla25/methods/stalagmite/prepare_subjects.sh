@@ -17,6 +17,11 @@ for file in "$subjects_dir"/*.c; do
     cp -r "$template_dir"/* "$dest_dir/$subject/"
     for file2 in "$dest_dir/$subject"/*; do
       sed -i "" "s/__SUBJECT__/$subject/g" "$file2"
+      if [[ $subject =~ ^[0-9] ]]; then
+        sed -i "" "s/__SUBJECT_FUNC__/f$subject/g" "$file2"
+      else
+        sed -i "" "s/__SUBJECT_FUNC__/$subject/g" "$file2"
+      fi
     done
     echo "mine_and_refine $subject" >> $eval_script
   fi

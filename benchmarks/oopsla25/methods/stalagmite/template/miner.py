@@ -12,7 +12,7 @@ class ParserMiner(Miner):
         with open("__SUBJECT__.c", "r") as f:
             content = f.read()
             # Extract function signature
-            re_function_header = r"(.+ (f__SUBJECT__\_.+)\(.*\)\s*\{)"
+            re_function_header = r"(.+ (__SUBJECT_FUNC__\_.+)\(.*\)\s*\{)"
             pattern = re.compile(re_function_header, re.MULTILINE) # '{' is in next line
             matches = pattern.finditer(content)
 
