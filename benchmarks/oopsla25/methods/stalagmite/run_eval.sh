@@ -12,7 +12,7 @@ mine_and_refine() {
   
   start_time=$(date +%s%3N)
   python3 eval.py --subject "$1" --mine &> "logs/eval_mine_log_$1"  
-  python3 eval.py --subject "$1" --refine &> "logs/eval_mine_log_$1"
+  python3 eval.py --subject "$1" --refine &> "logs/eval_refine_log_$1"
   exit_code=$?
   end_time=$(date +%s%3N)
   elapsed_time=$((end_time - start_time))
