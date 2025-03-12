@@ -320,6 +320,13 @@ lookup _ = \case
     go zs (x:xs) = go (x:zs) xs
     go _ [] = Nothing
   
+  -- (ā(ā*a)? + aΣ*āa?)*  =  (a*āa?)*
+  Star (Plus [Times [b1, Opt (Times1 (Star b2) a1)], Times [a2, All, b3, Opt a3]])
+    | b1 == b2, b2 == b3, a1 == a2, a2 == a3
+    , Lit a <- a1, Lit b <- b1
+    , a == CS.complement b
+    -> Star (Star a1 `times` b1 `times` Opt a1)
+  
   r -> r
 
 splitAtStar :: [Regex] -> Maybe ([Regex], Regex, [Regex])
