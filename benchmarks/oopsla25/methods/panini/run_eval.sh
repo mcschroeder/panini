@@ -38,7 +38,7 @@ for file in "$subjects_dir"/*.py; do
   printf "%-10s %-8s " $elapsed_time $exit_code
 
   if [ "$exit_code" -eq 0 ]; then
-    sed -n 's/.*∈ \(.*\)}.*/\1/p; s/.*= "\(.*\)".*/\1/p; s/.*: (s:𝕊) → .*/\.\*/p; s/.*: {s:𝕊 | false} → .*/\[\]/p' $outfile | head -n 1 | sed -z 's/\n$//' > $results_dir/$subject.regex
+    sed -n '$ s/.*∈ \(.*\)}.*/\1/p; s/.*= "\(.*\)".*/\1/p; s/.*: (s:𝕊) → .*/\.\*/p; s/.*: {s:𝕊 | false} → .*/\[\]/p' $outfile | head -n 1 | sed -z 's/\n$//' > $results_dir/$subject.regex
     cat $results_dir/$subject.regex
     echo
     
