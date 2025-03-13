@@ -104,6 +104,25 @@ lookup _ = \case
       , b1 == b2, b2 == b3
       = go $ (a1 `plus` (Star (a1 `plus` b1) `times` b1 `times` Opt a1)) : xs
 
+    -- (a?ā)*a?aa.*  =  (a?ā)*aa.*
+    go (r@(Star (Times1 (Opt a1) ā1)) : Opt a2 : a3 : a4 : All : xs)
+      | a1 == a2, a2 == a3, a3 == a4
+      , Lit a <- a1
+      , Lit ā <- ā1, CS.complement a == ā
+      = go $ r : a3 : a4 : All : xs
+
+    -- b*(a(b(b*a)?)*)?  =  (a?b)*a?
+    go (Star b1 : Opt (Times1 a1 (Star (Times1 b2 (Opt (Times1 (Star b3) a2))))) : xs)
+      | a1 == a2
+      , b1 == b2, b2 == b3
+      = go $ Star (Opt a1 <> b1) : Opt a1 : xs
+    
+    -- [^a]*(a([^ab]b*)*)*  =  b*(a|[^ab]b*)*
+    go (Star (Lit ā) : Star (Times1 (Lit a) (Star r@(Times1 (Lit nab) (Star (Lit b))))) : xs)
+      | ā == CS.complement a
+      , nab == CS.complement (CS.union a b)
+      = go $ Star (Lit b) : Star (Lit a `plus` r) : xs
+
     go (y:ys) = y : go ys
     go [] = []
   

@@ -100,17 +100,55 @@ complement r0 = fromMaybe (complement' r0) (lookupComplement r0)
 -- | Look up known regex complements.
 lookupComplement :: Regex -> Maybe Regex
 lookupComplement = \case
-  -- ¬(Σ*abΣ*)  =  ((Σ∖a) + a(Σ∖b))*a?
-  Times [Star AnyChar, Lit a, Lit b, Star AnyChar]
-    -> Just $ Star (Plus [Lit a <> Lit (CS.complement b), Lit (CS.complement a)]) <> Opt (Lit a)
+  -- ¬(.*ab.*)  =  b*(a|[^ab]b*)*
+  Times [All, a@(Lit a0), b@(Lit b0), All]
+    | CS.intersection a0 b0 == CS.empty
+    , let c = Lit (CS.complement (CS.union a0 b0))
+    -> Just $ Star b <> Star (a `plus` (c <> Star b))
   
+  -- ¬(.*aa.*)  =  (a?[^a])*a?
+  Times [All, a@(Lit a0), a2, All]
+    | a == a2
+    , let ā = Lit (CS.complement a0)
+    -> Just $ Star (Opt a <> ā) <> Opt a
+  
+  -- ¬(b*(a|[^ab]b*)*)  =  .*ab.*
+  Times1 (Star b) (Star (Plus1 a (Times1 c (Star b2))))
+    | b == b2    
+    , Lit a0 <- a
+    , Lit b0 <- b
+    , CS.intersection a0 b0 == CS.empty
+    , Lit c0 <- c, c0 == CS.complement (CS.union a0 b0)    
+    -> Just $ All <> a <> b <> All
+
+  -- ¬((a?[^a])*a?)  =  .*aa.*
+  Times1 (Star (Times1 (Opt a) (Lit ā))) (Opt a2)
+    | a == a2
+    , Lit a0 <- a
+    , ā == CS.complement a0
+    -> Just $ All <> a <> a <> All
+
+  -- ¬((a?[^a])*a?aa)  =  .*aa.*aa|(a*[^a])*a?
+  Times [Star (Times1 (Opt a) (Lit ā)), Opt a2, a3, a4]
+    | a == a2, a2 == a3, a3 == a4
+    , Lit a0 <- a
+    , ā == CS.complement a0
+    -> Just $ (All <> a <> a <> All <> a <> a) `plus` (Star (Star a <> Lit ā) <> Opt a)
+    
   -- ¬(Σ*a)  =  (Σ*(Σ∖a))?
-  Times [Star AnyChar, Lit a] 
-    -> Just $ Opt (Star AnyChar <> Lit (CS.complement a))
+  Times [All, Lit a] 
+    -> Just $ Opt (All <> Lit (CS.complement a))
   
-  -- ¬(Σ*aΣ?)  =  ((Σ*(Σ∖a))?(Σ∖a))?
-  Times [Star AnyChar, Lit a, Opt AnyChar]
-    -> Just $ Opt (Opt (Star AnyChar <> Lit (CS.complement a)) <> Lit (CS.complement a))
+  -- ¬(.*a.?)  =  ((.*[^a])?[^a])?
+  Times [All, Lit a0, Opt AnyChar]
+    | let ā = Lit (CS.complement a0)
+    -> Just $ Opt (Opt (All <> ā) <> ā)
+  
+  -- ¬(((.*[^a])?[^a])?)  =  .*a.?
+  Opt (Times1 (Opt (Times1 All (Lit ā0))) (Lit ā1))
+    | ā0 == ā1
+    , let a = Lit (CS.complement ā0)
+    -> Just $ All <> a <> Opt AnyChar
 
   _ -> Nothing
 
