@@ -18,6 +18,9 @@ printf "%-10s %-10s %-8s %-30s\n" "Subject" "Time (ms)" "Status" "Regex"
 printf "%-10s %-10s %-8s %-30s\n" "----------" "----------" "--------" "--------------------"
 
 for file in "$subjects_dir"/*.py; do
+  if [ -e "${file%.py}.pan" ]; then
+    file="${file%.py}.pan"
+  fi
   filename=$(basename -- "$file")
   subject="${filename%.*}"
   outfile="$results_dir/$subject.out"  
