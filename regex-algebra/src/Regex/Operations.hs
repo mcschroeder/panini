@@ -97,6 +97,7 @@ complement r0 = fromMaybe (complement' r0) (lookupComplement r0)
 
     in (c0 `plus` c1, Map.fromListWith plus cx)
 
+-- TODO: move this into simplification module
 -- | Look up known regex complements.
 lookupComplement :: Regex -> Maybe Regex
 lookupComplement = \case
@@ -111,6 +112,13 @@ lookupComplement = \case
     | a == a2
     , let ā = Lit (CS.complement a0)
     -> Just $ Star (Opt a <> ā) <> Opt a
+
+  -- ¬(.*abb.*) = b*(ab?|[^ab]b*)*
+  Times [All, a@(Lit a0), b@(Lit b0), b2, All]
+    | b == b2
+    , CS.intersection a0 b0 == CS.empty
+    , let c = Lit (CS.complement (CS.union a0 b0))
+    -> Just $ Star b <> Star ((a <> Opt b) `plus` (c <> Star b))
   
   -- ¬(b*(a|[^ab]b*)*)  =  .*ab.*
   Times1 (Star b) (Star (Plus1 a (Times1 c (Star b2))))
@@ -128,6 +136,25 @@ lookupComplement = \case
     , ā == CS.complement a0
     -> Just $ All <> a <> a <> All
 
+  -- ¬(b*(ab?|[^ab]b*)*) = .*abb.*
+  Times1 (Star b) (Star (Plus1 (Times1 a (Opt b2)) (Times1 c (Star b3))))
+    | b == b2, b2 == b3
+    , Lit a0 <- a
+    , Lit b0 <- b
+    , CS.intersection a0 b0 == CS.empty
+    , Lit c0 <- c, c0 == CS.complement (CS.union a0 b0)
+    -> Just $ All <> a <> b <> b <> All
+  
+  -- ¬(b*(ab?|[^ab]b*)*abb.*) = b*(ab?|[^ab]b*)*
+  Times [Star b, r@(Star (Plus1 (Times1 c (Star b3)) (Times1 a (Opt b2)))), a2, b4, b5, All]
+    | a == a2
+    , b == b2, b2 == b3, b3 == b4, b4 == b5
+    , Lit a0 <- a
+    , Lit b0 <- b
+    , CS.intersection a0 b0 == CS.empty
+    , Lit c0 <- c, c0 == CS.complement (CS.union a0 b0)
+    -> Just $ Star b <> r
+
   -- ¬((a?[^a])*a?aa)  =  .*aa.*aa|(a*[^a])*a?
   Times [Star (Times1 (Opt a) (Lit ā)), Opt a2, a3, a4]
     | a == a2, a2 == a3, a3 == a4
@@ -135,6 +162,13 @@ lookupComplement = \case
     , ā == CS.complement a0
     -> Just $ (All <> a <> a <> All <> a <> a) `plus` (Star (Star a <> Lit ā) <> Opt a)
     
+  -- ¬((a?[^a])*a?aa.*)  =  (a?[^a])*a?
+  Times [Star (Times1 (Opt a) (Lit ā)), Opt a2, a3, a4, All]
+    | a == a2, a2 == a3, a3 == a4
+    , Lit a0 <- a
+    , ā == CS.complement a0
+    -> Just $ Star (Opt a <> Lit ā) <> Opt a
+
   -- ¬(Σ*a)  =  (Σ*(Σ∖a))?
   Times [All, Lit a] 
     -> Just $ Opt (All <> Lit (CS.complement a))
