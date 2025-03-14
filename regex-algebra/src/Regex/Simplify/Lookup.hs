@@ -142,13 +142,13 @@ lookup _ = \case
   Plus xs0 -> Plus $ go g xs0
    where
     g = \case
-      -- x⋅Σ* + x*  =  (x⋅Σ*)?
-      (Times [x1, All], Star x2) 
+      -- x* + x⋅Σ*  =  (x⋅Σ*)?
+      (Star x1, Times [x2, All])
         | x1 == x2 
         -> Just $ Opt (Times [x1, All])
-
-      -- (b*a(āb*a)*(āb*)? + b*)  =  (b+aā)*(ab*)?
-      (Times [Star b1, a1, Star (Times [ā1, Star b2, a2]), Opt (Times [ā2, Star b3])], Star b4)
+        
+      -- b* + b*a(āb*a)*(āb*)?  =  (b+aā)*(ab*)?
+      (Star b4, Times [Star b1, a1, Star (Times [ā1, Star b2, a2]), Opt (Times [ā2, Star b3])])
         | b1 == b2, b2 == b3, b3 == b4, a1 == a2, ā1 == ā2
         , Lit a  <- a1
         , Lit a' <- ā1, a' == CS.complement a
@@ -163,13 +163,18 @@ lookup _ = \case
       (Times [Lit ā1, All, Lit a1], Times [Lit a2, Star (Times [Star (Lit ā2), Lit a3])])
         | a1 == a2, a2 == a3, ā1 == ā2, ā1 == CS.complement a1
         -> Just $ All <> Lit a1
+      
+      -- x* + (x*⋅y⋅x*)*  =  (x + y)*
+      (Star x, Star (Times [Star x1, y, Star x2]))
+        | x == x1, x1 == x2
+        -> Just $ Star (x `plus` y)
 
       _ -> Nothing
     
     go _ []     = []
     go f (x:xs) = go1 xs []
      where
-      go1 []     zs                      = x : go f zs
+      go1 []     zs                      = x : go f (reverse zs)
       go1 (y:ys) zs | Just x' <- f (x,y) = go f (x' : ys ++ zs)
       go1 (y:ys) zs                      = go1 ys (y:zs)
 
