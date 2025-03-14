@@ -425,6 +425,18 @@ lookupComplement = \case
     , Lit c0 <- c, c0 == CS.complement (CS.union a0 b0)
     -> Just $ Star b <> r
 
+  -- ¬(b*(ab?|[^ab]b*)*abb) = bb?|(b*([^b]|([^b]|([^a]|abb.*a)b)b))*
+  Times [Star b, Star (Plus1 (Times1 c (Star b3)) (Times1 a (Opt b2))), a2, b4, b5]
+    | a == a2
+    , b == b2, b2 == b3, b3 == b4, b4 == b5
+    , Lit a0 <- a
+    , Lit b0 <- b
+    , CS.intersection a0 b0 == CS.empty
+    , Lit c0 <- c, c0 == CS.complement (CS.union a0 b0)
+    , let ā = Lit (CS.complement a0)
+    , let b̄ = Lit (CS.complement b0)
+    -> Just $ (b <> Opt b) `plus` Star (Star b <> (b̄ `plus` ((b̄ `plus` ((ā `plus` (a <> b <> b <> All <> a)) <> b)) <> b)))
+
   -- ¬((a?[^a])*a?aa)  =  .*aa.*aa|(a*[^a])*a?
   Times [Star (Times1 (Opt a) (Lit ā)), Opt a2, a3, a4]
     | a == a2, a2 == a3, a3 == a4
