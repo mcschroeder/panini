@@ -60,17 +60,22 @@ import Regex.Type
 -- (Keil and Thiemann 2014) to partition the alphabet into equivalence classes;
 -- see the 'next' function below.
 intersection :: Regex -> Regex -> Regex
-intersection = curry $ solve $ \(x1,x2) ->
-  let
-    c0 | nullable x1, nullable x2 = One
-       | otherwise                = Zero
+intersection All r = r
+intersection r All = r
+intersection r1 r2 | r1 == r2 = r1
+intersection r1 r2 = intersection' r1 r2
+ where
+  intersection' = curry $ solve $ \(x1,x2) ->
+    let
+      c0 | nullable x1, nullable x2 = One
+         | otherwise                = Zero
 
-    cx = [ (x, Lit p) | p <- Set.toList $ next x1 ⋈ next x2
-                      , Just c <- [CS.choose p]
-                      , let x = (derivative c x1, derivative c x2)
-         ]
+      cx = [ (x, Lit p) | p <- Set.toList $ next x1 ⋈ next x2
+                        , Just c <- [CS.choose p]
+                        , let x = (derivative c x1, derivative c x2)
+          ]
 
-  in (c0, Map.fromListWith plus cx)
+    in (c0, Map.fromListWith plus cx)
 
 -- | Compute the complement of a regex.
 --
