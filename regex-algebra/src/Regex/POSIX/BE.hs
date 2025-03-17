@@ -18,6 +18,7 @@ References:
 module Regex.POSIX.BE where
 
 import Control.Monad.Combinators.NonEmpty qualified as NE
+import Data.Char (showLitChar)
 import Data.Data (Data)
 import Data.Hashable
 import Data.List.NonEmpty (NonEmpty)
@@ -81,8 +82,8 @@ printBE = \case
   Non xs -> "[^" <> mconcat (map go $ NE.toList xs) <> "]"
  where  
   go = \case
-    Ord c     -> [c]
-    Ran c1 c2 -> c1:'-':c2:[]
+    Ord c     -> showLitChar c ""  -- TODO: ensure this escaping matches POSIX
+    Ran c1 c2 -> foldr showLitChar "" [c1,'-',c2]
     Cls Upper -> "[:upper:]"
     Cls Lower -> "[:lower:]"
     Cls Alpha -> "[:alpha:]"
