@@ -146,7 +146,7 @@ fromCharSet (CS.fromCharSet -> (b,s)) = case (b, NE.nonEmpty $ CS.intSetToCharLi
   (True,  Nothing) -> Nothing
   (True,  Just xs) -> Just $ Mat $ NE.fromList $ rangeChunks $ NE.toList xs
   (False, Nothing) -> Just $ Mat $ NE.singleton $ Ran '\NUL' (maxBound @Char)
-  (False, Just xs) -> Just $ Non $ NE.map Ord xs
+  (False, Just xs) -> Just $ Non $ NE.fromList $ rangeChunks $ NE.toList xs
 
 rangeChunks :: [Char] -> [Exp]
 rangeChunks = foldr go []
