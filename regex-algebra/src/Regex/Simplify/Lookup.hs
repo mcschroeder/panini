@@ -169,6 +169,18 @@ lookup _ = \case
         | x == x1, x1 == x2
         -> Just $ Star (x `plus` y)
 
+      -- .*a|a*  =  (ā*a)*
+      (Times1 All a1, Star a2)
+        | a1 == a2 
+        , Lit a <- a1
+        , let ā = Lit (CS.complement a)
+        -> Just $ Star (Star ā <> a1)
+      
+      -- (a*b)*b + b*  =  ((a*b)*b)*
+      (Times1 (Star (Times1 (Star a) b1)) b2, Star b3)
+        | b1 == b2, b2 == b3
+        -> Just $ Star (Star (Star a <> b1) <> b1)
+
       _ -> Nothing
     
     go _ []     = []
@@ -228,6 +240,13 @@ lookup _ = \case
     | b1 == b2, b2 == b3, c1 == c2
     , abc == a1 `CS.union` b1 `CS.union` c1
     -> Times [Opt (Lit a1), Opt (Lit b1), Opt (Lit c1)]
+
+  -- ((.*a)?a)?  =  ((ā*a)*a)?
+  Opt (Times1 (Opt (Times1 All a1)) a2)
+    | a1 == a2
+    , Lit a <- a1
+    , let ā = Lit (CS.complement a)
+    -> Opt (Star (Star ā <> a1) <> a1)
 
   -- (x + y⋅x?)*  = (x + y)*
   Star (Plus1 x1 (TimesN y (Opt x2)))
@@ -376,6 +395,14 @@ lookupComplement = \case
     | CS.intersection a0 b0 == CS.empty
     , let c = Lit (CS.complement (CS.union a0 b0))
     -> Just $ Star b <> Star (a `plus` (c <> Star b))
+  
+  -- ¬(.*a[^b].*) = ([^ab]|a?b)*a?
+  Times [All, a@(Lit a0), Lit b̄0, All]
+    | let b0 = CS.complement b̄0
+    , CS.intersection a0 b0 == CS.empty
+    , let b = Lit b0
+    , let c = Lit (CS.complement (CS.union a0 b0))
+    -> Just $ Star (c `plus` (Opt a <> b)) <> Opt a
   
   -- ¬(.*aa.*)  =  (a?[^a])*a?
   Times [All, a@(Lit a0), a2, All]
