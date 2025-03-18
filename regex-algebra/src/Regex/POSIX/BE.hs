@@ -78,9 +78,9 @@ instance Hashable CharClass
 
 printBE :: BE -> String
 printBE = \case
-  Mat xs -> "["  <> mconcat (map go $ NE.toList xs) <> "]"
-  Non xs -> "[^" <> mconcat (map go $ NE.toList xs) <> "]"
- where  
+  Mat xs -> "["  <> mconcat (map go $ fixup $ NE.toList xs) <> "]"
+  Non xs -> "[^" <> mconcat (map go $ fixup $ NE.toList xs) <> "]"
+ where
   go = \case
     Ord c     -> showLitChar c ""  -- TODO: ensure this escaping matches POSIX
     Ran c1 c2 -> foldr showLitChar "" [c1,'-',c2]
@@ -97,19 +97,23 @@ printBE = \case
     Cls Graph -> "[:graph:]"
     Cls Print -> "[:print:]"
 
+  fixup xs | Ord ']' `elem` xs = Ord ']' : filter (/= Ord ']') xs
+  fixup xs = xs
+
 parseBE :: String -> Maybe BE
 parseBE = parseMaybe @Void be
 
 be :: (MonadParsec e s m, Token s ~ Char) => m BE
 be = char '[' *> choice [non, mat] <* char ']'
  where
-  non = Non <$ char '^' <*> NE.some exp
-  mat = Mat <$>             NE.some exp
+  non = Non <$ char '^' <*> exs
+  mat = Mat <$>             exs
   exp = choice [try ran, try cls, ord]
   ran = Ran <$> chr <* char '-' <*> chr
   cls = Cls <$> charClass
   ord = Ord <$> chr
   chr = satisfy (\x -> x /= ']')
+  exs = try ((NE.:|) <$> (Ord ']' <$ char ']') <*> many exp) <|> NE.some exp
 
 charClass :: forall e s m. (MonadParsec e s m, Token s ~ Char) => m CharClass
 charClass = choice 

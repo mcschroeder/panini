@@ -23,6 +23,7 @@ import Data.Hashable
 import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
+import Data.Maybe
 import Data.Void
 import GHC.Generics
 import Prelude hiding (exp, min)
@@ -83,6 +84,7 @@ printERE (Alt xs) = concat $ List.intersperse "|" $ map printCon $ NE.toList xs
  where
   printCon (Con ys) = concatMap printExp $ NE.toList ys
   printExp = \case
+    Chr '[' -> "\\["
     Chr c   -> [c]
     Per     -> "."
     Bra b   -> BE.printBE b
@@ -109,7 +111,7 @@ ere = Alt <$> NE.sepBy1 con (char '|')
     e <- choice [chr, per, bra, cir, dol, grp]
     d <- optional $ choice [ast, pls, que, try exa, try min, inv]
     return $ maybe e (Dup e) d
-  chr = Chr <$> satisfy (`notElem` ("|.[]^$()*?{}" :: [Char]))
+  chr = try esc <|> (Chr <$> satisfy (`notElem` ("|.[]^$()*?{}" :: [Char])))
   per = Per <$ char '.'
   bra = Bra <$> BE.be
   cir = Cir <$ char '^'
@@ -121,6 +123,7 @@ ere = Alt <$> NE.sepBy1 con (char '|')
   exa = Exa <$ char '{' <*> L.decimal                           <* char '}'
   min = Min <$ char '{' <*> L.decimal <* char ','               <* char '}'
   inv = Inv <$ char '{' <*> L.decimal <* char ',' <*> L.decimal <* char '}'
+  esc = Chr '[' <$ char '\\' <* char '['
 
 ------------------------------------------------------------------------------
 
@@ -164,6 +167,7 @@ fromRegex = regexToAlt
     _        -> error "impossible"
 
   litToExp cs
+    | [']'] <- CS.toList cs        = Just $ Bra (fromJust $ BE.fromCharSet cs)
     | [c] <- CS.toList cs          = Just $ Chr c
     | CS.isFull cs                 = Just $ Per  -- note: deviation from standard
     | Just be <- BE.fromCharSet cs = Just $ Bra be
