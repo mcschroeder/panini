@@ -13,7 +13,7 @@ void f202(const char* s) {
         }
         i++;
     }
-    assert(i == strlen(s) - 2);
+    assert(i == strlen(s) - 1);
 }
 
 int main(int argc, char *argv[]) {

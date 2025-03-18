@@ -6,7 +6,7 @@ def f202(s: str):
     if s[i] != "a":
       break
     i += 1
-  assert i == len(s)-2
+  assert i == len(s)-1
 
 if __name__ == '__main__':
   my_string = ""
