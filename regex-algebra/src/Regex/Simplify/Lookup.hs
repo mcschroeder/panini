@@ -63,6 +63,15 @@ lookup Starred = \case
     , let ab' = CS.complement $ CS.union a b1
     -> Star ((Lit ab' `plus` (Star (Lit b1) <> Lit a)) <> Star (Lit b̄1) <> Lit b1)
   
+  -- ([^a] + a[ab]*[^ab])*  =  (b + a*[^ab])*
+  Plus [Lit ā, Times [Lit a, Star (Lit ab), Lit ab']]
+    | ā == CS.complement a
+    , let b = CS.difference ab a
+    , not $ CS.null b
+    , ab == CS.union a b
+    , ab' == CS.complement ab
+    -> Star (Lit b `plus` (Star (Lit a) <> Lit ab))
+
   r -> lookup Optional r
 
 lookup Optional = lookup Free
