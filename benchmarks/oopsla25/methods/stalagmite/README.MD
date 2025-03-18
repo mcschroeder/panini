@@ -36,9 +36,9 @@ The evaluation is run inside a Docker container using the following commands:
 ```shell
 cd stalagmite
 sudo chmod -R 777 .
-docker build . -t symbolic-grammar-mining
+docker build . --platform linux/amd64 -t symbolic-grammar-mining
 mkdir output
-docker run -it -v $(pwd)/output:/staminag/data symbolic-grammar-mining
+docker run --platform linux/amd64 -it -v $(pwd)/output:/staminag/data symbolic-grammar-mining
 ```
 
 This will take about 3-4 hours. To collect all the results in one place, continue with the following commands:
