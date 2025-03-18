@@ -51,7 +51,7 @@ cgi_decode = λs:𝕊.
           let digit_low = slice1 s v6 in
           let v4 = hex_values digit_high in
           let v5 = hex_values digit_low in
-          let i = add i 2 in
+          let i = add i 3 in
           L1 i
         else
           let i = add i 1 in
