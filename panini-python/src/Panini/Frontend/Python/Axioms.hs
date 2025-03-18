@@ -83,5 +83,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   
   -- string methods
   ("__add__", [Str, Str], Str) -> Just ("concat", [panType| (a:𝕊) → (b:𝕊) → {c:𝕊 | c = a ++ b} |])
+  ("lower", [Str], Str) -> Just ("lower", [panType| (a:𝕊) → (b:𝕊) |])
+  ("__contains__", [Str, Str], Bool) -> Just ("contains", [panType| (t:𝕊) → (s:𝕊) → {b:𝔹 | b = str.contains(s,t)} |])
 
   _ -> Nothing
