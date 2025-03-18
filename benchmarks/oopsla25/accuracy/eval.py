@@ -6,7 +6,7 @@ import os
 
 subjects_dir="/benchmark/subjects"
 methods_dir="/benchmark/methods"
-methods = ["mimid","panini","stalagmite","ttt"]
+methods = ["panini","stalagmite","mimid","ttt"]
 
 output_file = "/benchmark/accuracy/results/results_by_subject.csv"
 output_agg_file = "/benchmark/accuracy/results/results_by_category.csv"
@@ -21,7 +21,10 @@ def compute_results(method):
   
   results = {}  
 
-  results_dir = methods_dir + "/" + method + "/results"  
+  results_dir = methods_dir + "/" + method + "/results"
+  if not os.path.exists(results_dir):
+    return results
+  
   with open(results_dir + "/results.csv", mode='r') as file:
     results = {}
     for row in csv.DictReader(file):
@@ -81,7 +84,7 @@ def aggregate_results(results, subjects_by_category):
         recall_list.append(result['recall'])
       else:
         num_errors += 1
-    assert len(precision_list) == len(recall_list) == len(time_ms_list)
+    assert len(precision_list) == len(recall_list)
     if len(precision_list) > 0:
       results_agg[category] = {
         'num_subjects': num_subjects,
@@ -101,7 +104,9 @@ print(f"Compute all results for {methods} ...", flush=True)
 
 results = {}
 for method in methods:
-  results[method] = compute_results(method)
+  results_for_method = compute_results(method)
+  if results_for_method:
+    results[method] = results_for_method
 
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 with open(output_file, 'w') as file:
@@ -150,7 +155,7 @@ with open(subjects_dir + "/categories.csv", mode='r') as file:
 subjects_by_category = dict(subjects_by_category)
 
 results_agg = {}
-for method in methods:
+for method in results:
   results_agg[method] = aggregate_results(results[method], subjects_by_category)
 
 os.makedirs(os.path.dirname(output_agg_file), exist_ok=True)
