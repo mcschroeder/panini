@@ -1,0 +1,2 @@
+/benchmark/subjects/400.py:3:10-11: error: abstraction to value impossible: ⟦{i:ℤ | i + [1,+∞] = |s[i..i]|} ≠ {i:ℤ | i + [0,+∞] = |s[i..i]|}⟧↑s ≐ {s:𝕊 | {i:ℤ | i + [1,+∞] = |s[i..i]|} ≠ {i:ℤ | i + [0,+∞] = |s[i..i]|}}
+

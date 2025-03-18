@@ -1,0 +1,2 @@
+/benchmark/subjects/481.py:3:10-11: error: abstraction to value impossible: ⟦{i:ℤ | s[i] = Σ∖{0}} ≠ {i:ℤ | s[i - 1] = 1}⟧↑s ≐ {s:𝕊 | {i:ℤ | s[i] = Σ∖{0}} ≠ {i:ℤ | s[i - 1] = 1}}
+

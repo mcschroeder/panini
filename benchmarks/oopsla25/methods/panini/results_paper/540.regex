@@ -1,0 +1,1 @@
+abb([^a]|([^a]abb|abb([^a]|abb)*[^a])(abb)*)*|([^a](abb([^a]*([^a]abb|abb([^a]|abb)*[^a])(abb)*)?)*)*|(abb)*

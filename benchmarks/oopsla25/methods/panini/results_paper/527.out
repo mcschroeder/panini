@@ -1,0 +1,2 @@
+/benchmark/subjects/527.py:3:10-11: error: abstraction to value impossible: ⟦s[0..0] = s[1..1]⟧↑s ≐ {s:𝕊 | s[0..0] = s[1..1]}
+

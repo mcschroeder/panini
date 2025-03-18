@@ -1,0 +1,4 @@
+/benchmark/subjects/urlparse.py:85:18-23: error: type error: unknown function: clear
+     │
+  85 │     _parse_cache.clear()
+     │                  ^^^^^
