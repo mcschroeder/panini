@@ -340,6 +340,11 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , i >= 0
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ s)
   -----------------------------------------------------------------------------
+  [ρ| x[î..|x|-1] ≠ s |]
+    | [i] <- î
+    , i >= 0
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ neg s)
+  -----------------------------------------------------------------------------
   [ρ| x[î] = c |] 
     | [i] <- î
     , i >= 0 
@@ -480,8 +485,14 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EIntA (AIntFrom k) :=: Relℤ y [ρ| x[y+1..|x|-1] ≠ s |]
     -> normRelA $ x :=: EStrA (rep Σ (k + 1) ⋅ star Σ ⋅ neg s)
   -----------------------------------------------------------------------------
-  EIntA (AIntFrom 0) :=: Relℤ y [ρ| x[0..y-1] = s |]
-    -> normRelA $ x :=: EStrA (s ⋅ star Σ)
+  EIntA (AIntFrom 0) :=: Relℤ y [ρ| x[î..y-1] = s |]
+    | [i] <- î    
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  EIntA (AIntFrom 0) :=: Relℤ y [ρ| x[î..y-1] ≠ s |]
+    | [i] <- î
+    , let s̄ = neg s
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄ ⋅ star Σ)
   -----------------------------------------------------------------------------
   [ω| |x| + i |] :=: Relℤ y [ρ| x[0..y-1] = s |]
     | Just n <- strLen1 s
@@ -494,10 +505,21 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let t' = t ∧ s̄
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ t' ⋅ s ⋅ star Σ)
   -----------------------------------------------------------------------------
+  [ρ| x[î..str.indexof(x,s,î)-1] ≠ t |]
+    | [i] <- î
+    , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
+    , let t' = (neg t) ∧ s̄
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ t' ⋅ s ⋅ star Σ)
+  -----------------------------------------------------------------------------
   [ρ| x[str.indexof(x,s,î)..|x|-1] = t |]
     | [i] <- î
     , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄ ⋅ t)
+  -----------------------------------------------------------------------------
+  [ρ| x[str.indexof(x,s,î)..|x|-1] ≠ t |]
+    | [i] <- î
+    , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄ ⋅ neg t)
   -----------------------------------------------------------------------------
   [ρ| x[|x|-î..|x|-ĵ] = s |]
     | [i] <- î
