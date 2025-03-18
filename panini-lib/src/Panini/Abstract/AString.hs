@@ -20,6 +20,7 @@ import Prelude hiding (length)
 import Regex qualified as Regex
 import Regex.CharSet qualified as CS
 import Regex.Inclusion qualified as Regex
+import Regex.POSIX.ERE qualified
 import Regex.Type
 
 ------------------------------------------------------------------------------
@@ -48,7 +49,10 @@ instance ComplementedLattice AString where
   neg (MkAString r) = MkAString $ Regex.complement r
 
 instance Pretty AString where
-  pretty (MkAString r) = ann (Literal AbstractLit) $ prettyRegex r
+  pretty (MkAString r) = 
+    ann (Literal AbstractLit) $ case Regex.POSIX.ERE.fromRegex r of
+      Nothing -> prettyRegex r
+      Just re -> pretty $ Regex.POSIX.ERE.printERE re
 
 -- TODO
 pattern AString1 :: Text -> AString
