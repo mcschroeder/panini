@@ -1,0 +1,16 @@
+"<start>": [
+    "<url>"
+  ],
+  "<url>": [
+    "<scheme>://<authority><path><query>"
+  ],
+  "<scheme>": ["http","https","ftp","ftps"],
+  "<authority>": ["<host>","<host>:<port>","<userinfo>@<host>","<userinfo>@<host>:<port>"],
+  "<port>": ["<nat>"],
+  "<userinfo>": ["<user>:<pass>"],
+  "<path>": ["","/","/<id>","/<id><path>"],
+  "<id>": ["folder"],
+  "<query>": ["","?<params>"],
+  "<params>": ["<param>","<param>&<params>"],
+  "<param>": ["<key>=<value>"],
+]

@@ -588,6 +588,8 @@ instance PartialMeetSemilattice AValue where
   AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
   AChar   a ∧? AChar   b = Just $ AChar   (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
+  -- AString a ∧? AString b
+  --   = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (neg a ∨ neg b))) where x = EVar "x" TString
   -----------------------------------------------------------------------------
   ARel𝕊 x [ρ| x = re.comp(s) |] ∧? ARel𝕊 y [ρ| y = re.comp(t) |]
     = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∨ t)))
@@ -648,15 +650,21 @@ instance PartialJoinSemilattice AValue where
   AString a ∨? AString b = Just $ AString (a ∨ b)
   -----------------------------------------------------------------------------
   ARel𝕊 x [ρ| x = re.comp(s) |] ∨? ARel𝕊 y [ρ| y = re.comp(t) |]
-    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ t)))
+    -- = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ t)))
+    = Just $ AString (neg s ∨ neg t)
+    -- = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (neg (neg s ∨ neg t))))
   -----------------------------------------------------------------------------
   ARel𝕊 x [ρ| x = re.comp(s) |] ∨? AString t
-    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ neg t)))
+    | isBot t   = Just $ ARel𝕊 x [ρ| x = re.comp(s) |]
+    -- | otherwise = Just $ AString (neg s ∨ t)
+    | otherwise = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (neg (neg s ∨ t))))
   -----------------------------------------------------------------------------
   AString t ∨? ARel𝕊 x [ρ| x = re.comp(s) |]
-    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ neg t)))
+    | isBot t   = Just $ ARel𝕊 x [ρ| x = re.comp(s) |]
+    -- | otherwise = Just $ AString (neg s ∨ t)
+    | otherwise = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (neg (neg s ∨ t))))
   -----------------------------------------------------------------------------
-  a         ∨? b         = if a == b then Just a else Nothing
+  a ∨? b = if a == b then Just a else Nothing
 
 -- | Variable-focused abstract semantics function ⟦ρ⟧↑x.
 --

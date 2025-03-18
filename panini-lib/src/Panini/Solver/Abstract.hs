@@ -179,7 +179,11 @@ valueMeets b vs0 = do
   logData $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
   return v
  where
-  meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
+  meet' x y = do
+    logMessage (pretty x <+> "∧" <+> pretty y)
+    z <- simplifyAValue $ fromMaybe err (partialMeet x y)
+    logData z
+    return z
   err = panic $ "valueMeets" <+> pretty b <+> pretty vs0
 
 valueJoins :: Base -> [AValue] -> Pan Error AValue
@@ -191,7 +195,11 @@ valueJoins b vs0 = do
   logData $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
   return v
  where
-  join' x y = simplifyAValue $ fromMaybe err (partialJoin x y)
+  join' x y = do
+    logMessage (pretty x <+> "∨" <+> pretty y)
+    z <- simplifyAValue $ fromMaybe err (partialJoin x y)
+    logData z
+    return z
   err = panic $ "valueJoins" <+> pretty b <+> pretty vs0
 
 -------------------------------------------------------------------------------
@@ -224,7 +232,12 @@ qelim c0 = do
     PExists x t p -> do p' <- elimExists p
                         logMessage $ "Eliminate ∃" <> pretty x
                         logData $ PExists x t p'
-                        q <- joins <$> mapM (qelim1 x t) (dnf p')
+                        qs <- mapM (qelim1 x t) (dnf p')
+                        --logData qs
+                        --let qs' = filter (/= PTrue) qs
+                        --logData qs'
+                        --let q = if null qs' then PTrue else joins qs'
+                        let q = joins qs
                         logData q
                         return q
 

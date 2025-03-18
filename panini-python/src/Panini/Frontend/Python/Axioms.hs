@@ -52,7 +52,8 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("chr"    , [Int], Str) -> Just ("chr", [panType| (i:ℤ) -> {c:𝕊 | c = str.from_code(i)} |])
   
   -- TODO: keep track of integer value
-  ("int", [Str], Int) -> Just ("int", [panType| {s:𝕊 | s ∈ [[:space:]]*(+|-)?[0-9](_?[0-9])*[[:space:]]*} → (i:ℤ) |])
+  --("int", [Str], Int) -> Just ("int", [panType| {s:𝕊 | s ∈ [[:space:]]*(+|-)?[0-9](_?[0-9])*[[:space:]]*} → (i:ℤ) |])
+  ("int", [Str], Int) -> Just ("int", [panType| {s:𝕊 | s ∈ [0-9]*} → (i:ℤ) |])
 
   -- comparison methods
   ("__lt__", [Int, Int], Bool) -> Just ("lt", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a < b} |])

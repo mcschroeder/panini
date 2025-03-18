@@ -340,12 +340,12 @@ dictStub :: ClassStub
 dictStub = ClassStub
   { constructors = []  -- TODO
   , attributes = []
-  , functions =
-    [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
-    , ("__contains__", Callable [Dict _KT _VT, Object] Bool)
-    , ("keys", Callable [Dict _KT _VT] (KeysView _KT))
-    -- TODO
-    ] 
+  , functions = []
+    -- [ ("__getitem__", Callable [Dict _KT _VT, _KT] _VT)
+    -- , ("__contains__", Callable [Dict _KT _VT, Object] Bool)
+    -- , ("keys", Callable [Dict _KT _VT] (KeysView _KT))
+    -- -- TODO
+    -- ] 
   }
 
 globalFunctions :: [(String,PyType)]
@@ -379,8 +379,9 @@ globalFunctions =
   , ("locals", Callable [] (Dict Str Object))
   , ("max", Callable [_T,_T] _T)
   , ("max", Callable [Iterable _T] _T)
-  , ("min", Callable [_T,_T] _T)
-  , ("min", Callable [Iterable _T] _T)
+  , ("min", Callable [Int,Int] Int)
+  --, ("min", Callable [_T,_T] _T)
+  --, ("min", Callable [Iterable _T] _T)
   , ("next", Callable [SupportsNext _T] _T)
   , ("next", Callable [SupportsNext _T, _VT] (Union [_T,_VT]))
   , ("oct", Callable [Union [Int,SupportsIndex]] Str)
