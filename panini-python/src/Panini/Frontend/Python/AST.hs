@@ -9,6 +9,7 @@ module Panini.Frontend.Python.AST
   ( module Language.Python.Common.AST
   , pattern IsVar
   , pattern IsString
+  , pattern IsInt
   , expectVars
   , assignOpToOp
   , pattern ArgExprs
@@ -49,6 +50,9 @@ expectVars = go []
 
 pattern IsString :: String -> Expr annot
 pattern IsString str <- Strings { strings_strings = [decodeStringLiteral -> Just str] }
+
+pattern IsInt :: Integer -> Expr annot
+pattern IsInt n <- Int { int_value = n }
 
 ------------------------------------------------------------------------------
 

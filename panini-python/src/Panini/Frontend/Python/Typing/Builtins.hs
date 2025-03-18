@@ -305,6 +305,7 @@ strStub = ClassStub
     , ("split", Callable [Str] (List Str))
     , ("split", Callable [Str,Optional Str] (List Str))
     , ("split", Callable [Str,Optional Str,SupportsIndex] (List Str))
+    , ("split", Callable [Str,Str,SupportsIndex] (Tuple [Str, Str])) 
     , ("splitlines", Callable [Str] (List Str))
     , ("splitlines", Callable [Str,Bool] (List Str))
     , ("startswith", Callable [Str,Str] Bool)

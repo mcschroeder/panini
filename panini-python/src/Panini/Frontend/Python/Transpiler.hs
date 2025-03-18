@@ -287,6 +287,44 @@ transpileStmts returnType stmts k0 = go stmts
         let v = mangle x
         return $ Let v e1 e2 (getPV stmt)
 
+    -- x,y = s.split(d,1)
+    -- 
+    -- let v0 = index s d in
+    -- let x  = sliceTo s v0 in
+    -- let v1 = add v0 1 in
+    -- let y  = sliceFrom s v1 in
+    -- ...
+    Assign
+      { assign_to = [Tuple (expectVars -> Just [x,y]) _]
+      , assign_expr = Call 
+          { call_fun = Dot (Py.Var s _) (Ident "split" _) _
+          , call_args = 
+              [ ArgExpr (IsString d) d_annot
+              , ArgExpr (IsInt 1) i_annot
+              ]
+          }
+      } -> do
+        let pv     = getPV stmt
+        let x'     = mangle x
+        let y'     = mangle y
+        let s'     = mangle s
+        let d'     = Con (S (Text.pack d) (getPV d_annot))
+        v0        <- newVar
+        v1        <- newVar
+        sliceFrom <- getAxiom "__getitem__" [PyType.Str,PyType.Int,PyType.None] PyType.Str pv
+        add       <- getAxiom "__add__" [PyType.Int,PyType.Int] PyType.Int pv
+        sliceTo   <- getAxiom "__getitem__" [PyType.Str,PyType.None,PyType.Int] PyType.Str pv
+        index     <- getAxiom "index" [PyType.Str, PyType.Str] PyType.Int pv
+        k         <- go rest
+        let e7     = mkApp sliceFrom [Var s', Var v1]
+        let e6     = Let y' e7 k pv
+        let e5     = mkApp add [Var v0, Con (I 1 (getPV i_annot))]
+        let e4     = Let v1 e5 e6 pv
+        let e3     = mkApp sliceTo [Var s', Var v0]
+        let e2     = Let x' e3 e4 pv        
+        let e1     = mkApp index [Var s', d']
+        return     $ Let v0 e1 e2 pv
+
     AnnotatedAssign { ann_assign_to = Py.Var x _, ..} -> do      
       case ann_assign_expr of
         Nothing -> go rest
