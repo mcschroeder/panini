@@ -199,7 +199,7 @@ subject,category
 550,straight
 551,loop
 560,cond
-970,straight
-971,straight
-980,cond
-990,loop
+970_getAddrSpec,straight
+971_getAddrSpec,straight
+980_parser,cond
+990_lsb_check,loop

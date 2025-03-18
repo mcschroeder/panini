@@ -5,13 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 
-void lsb_check(const char *s) {
-    int i = 0;
-    while (i < strlen(s) - 1) {
-        assert(s[i] == '0');
-        i++;
-    }
-    assert(s[i] == '1');
+char* f970_getAddrSpec(const char *email) {
+    char *b = strchr(email, '<') + 1;
+    size_t length = strchr(b, '>') - b;
+    char *addrSpec = malloc(length + 1);
+    strncpy(addrSpec, b, length);
+    addrSpec[length] = '\0';
+    return addrSpec;
 }
 int main(int argc, char *argv[]) {
   char my_string[10240] = {0};
@@ -22,6 +22,7 @@ int main(int argc, char *argv[]) {
     read(fd, my_string, 10240);
     close(fd);
   }
-  lsb_check(my_string);
+  char *s = f970_getAddrSpec(my_string);
+  printf("%s\n", s);
   return 0;
 }

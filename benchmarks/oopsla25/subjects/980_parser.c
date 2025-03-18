@@ -5,16 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 
-char* getAddrSpec(const char *email) {
-    char *b1 = strchr(email, '<') + 1;
-    char *b2 = strchr(b1, '>');
-    size_t length = b2 - b1;
-    char *addrSpec = malloc(length + 1);
-    strncpy(addrSpec, b1, length);
-    addrSpec[length] = '\0';
-    return addrSpec;
+void f980_parser(char *s) {
+  if (s[0] == 'a') {
+    assert(strlen(s) == 1);
+  } else {
+    assert(s[1] == 'b');
+  }
 }
-
 int main(int argc, char *argv[]) {
   char my_string[10240] = {0};
   if (argc == 1) {
@@ -24,7 +21,6 @@ int main(int argc, char *argv[]) {
     read(fd, my_string, 10240);
     close(fd);
   }
-  char *s = getAddrSpec(my_string);
-  printf("%s\n", s);
+  f980_parser(my_string);
   return 0;
 }

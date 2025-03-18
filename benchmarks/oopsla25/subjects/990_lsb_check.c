@@ -5,12 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 
-void parser(char *s) {
-  if (s[0] == 'a') {
-    assert(strlen(s) == 1);
-  } else {
-    assert(s[1] == 'b');
-  }
+void f990_lsb_check(const char *s) {
+    int i = 0;
+    while (i < strlen(s) - 1) {
+        assert(s[i] == '0');
+        i++;
+    }
+    assert(s[i] == '1');
 }
 int main(int argc, char *argv[]) {
   char my_string[10240] = {0};
@@ -21,6 +22,6 @@ int main(int argc, char *argv[]) {
     read(fd, my_string, 10240);
     close(fd);
   }
-  parser(my_string);
+  f990_lsb_check(my_string);
   return 0;
 }
