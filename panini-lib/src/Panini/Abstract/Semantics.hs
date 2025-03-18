@@ -218,6 +218,13 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , [i] <- î
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ s ⋅ star Σ)
   -----------------------------------------------------------------------------
+  [ρ| x[str.indexof(x,s,î)+ĵ..|x|-1] = t |]
+    | [j] <- ĵ
+    , Just n <- strLen1 s
+    , n == j
+    , [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ s ⋅ t)    
+  -----------------------------------------------------------------------------
   [ρ| str.indexof(x,y,|x|+n) = z |]
     | [Fin i :… PosInf] <- AInt.intervals n
     , i < 0
@@ -413,6 +420,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   Relℤ y [ρ| x[y] = c |] :=: Relℤ z [ρ| z ≠ |x| |]
     -> normRelA $ x :=: EStrA (star Σ ⋅ lit c ⋅ star Σ)
   -----------------------------------------------------------------------------
+  EIntA (AIntFrom 0) :=: Relℤ y [ρ| x[y+î..|x|-1] = s |]
+    | [i] <- AInt.values î
+    -> normRelA $ x :=: EStrA (star Σ ⋅ rep Σ i ⋅ s)
+  -----------------------------------------------------------------------------
   [ρ| |x| = i |] | let i' = i ∧ AInt.ge 0, i' /= i -> normRelA [ρ| |x| = i' |]
   ----------------------------------------------------------------------------
   x :=: ERelA v _ r | concreteish x -> normRelA $ subst x v r
@@ -606,6 +617,9 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
     | [i] <- î, [n] <- n̂
     , let ā = lit (neg a)
     -> AString $ rep Σ i ⋅ star ā ⋅ lit a ⋅ rep Σ (n - 1) ⋅ lit b ⋅ star Σ
+  -----------------------------------------------------------------------------
+  [ρ| str.contains(x̲,s) ≠ p |]
+    -> abstract x τ [ρ| str.contains(x̲,s) = p̄ |] where p̄ = neg p
   -----------------------------------------------------------------------------
   [ρ| str.contains(x̲,s) = p̂ |]
     | [True]  <- p̂ -> AString t
