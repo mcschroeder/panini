@@ -29,7 +29,7 @@ public class Main {
         Integer numPosSamples = Integer.valueOf(args[2]);
         String outputFile = args[3];
 
-        String goldenGrammar = Files.readString(Paths.get(goldenFile));
+        String goldenGrammar = fixupGrammar(Files.readString(Paths.get(goldenFile)));
         ProgramOracle oracle = new ProgramOracle(program, goldenGrammar);
         Set<String> positiveSamples = oracle.generatePositiveSamples(numPosSamples);
         CompactDFA<Character> result = learn(oracle, positiveSamples);
@@ -104,6 +104,13 @@ public class Main {
             grammar.put("<s" + state.toString() + ">", p);
         }
         return grammar;
+    }
+
+    // convert a standard POSIX regex to the slightly off Java regex format
+    private static String fixupGrammar(String g) {        
+        g = g.replace("[]]", "\\]");
+        g = g.replace("[^][]", "[^]\\[]");
+        return g;
     }
 
 }
