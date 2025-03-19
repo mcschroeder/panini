@@ -1,0 +1,33 @@
+{
+ "<f223_loop_0>": [
+  [
+   "<f223_loop_0_exit>"
+  ],
+  [
+   "aab",
+   "<f223_loop_0_refined_1>"
+  ]
+ ],
+ "<f223_loop_0_exit>": [
+  [
+   "ab"
+  ],
+  [],
+  [
+   "b"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f223_loop_0>"
+  ]
+ ],
+ "<f223_loop_0_exit_refined_1>": [
+  []
+ ],
+ "<f223_loop_0_refined_1>": [
+  [
+   "<f223_loop_0_exit_refined_1>"
+  ]
+ ]
+}

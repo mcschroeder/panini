@@ -1,0 +1,32 @@
+{
+ "<f220_loop_0>": [
+  [
+   "<f220_loop_0_exit>"
+  ],
+  [
+   "aab",
+   "<f220_loop_0_refined_1>"
+  ]
+ ],
+ "<f220_loop_0_exit>": [
+  [
+   "ab"
+  ],
+  [
+   "b"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f220_loop_0>"
+  ]
+ ],
+ "<f220_loop_0_exit_refined_1>": [
+  []
+ ],
+ "<f220_loop_0_refined_1>": [
+  [
+   "<f220_loop_0_exit_refined_1>"
+  ]
+ ]
+}

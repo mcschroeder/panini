@@ -1,0 +1,93 @@
+{
+ "<f240>": [
+  [
+   "<f240_loop_0_refined_1>",
+   "<opt_f240_loop_1>"
+  ],
+  [
+   "<opt_f240_loop_0>"
+  ]
+ ],
+ "<f240_loop_0>": [
+  [
+   "<f240_loop_0_exit>"
+  ],
+  [
+   "<f240_loop_0_continue>",
+   "<f240_loop_0>"
+  ]
+ ],
+ "<f240_loop_0_exit>": [
+  [],
+  [
+   "abb"
+  ],
+  [
+   "b"
+  ],
+  [
+   "a"
+  ],
+  [
+   "bb"
+  ],
+  [
+   "ab"
+  ]
+ ],
+ "<f240_loop_0_continue>": [
+  [
+   "aabb"
+  ],
+  [
+   "aa"
+  ],
+  [
+   "aab"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f240>"
+  ]
+ ],
+ "<opt_f240_loop_0>": [
+  [
+   ""
+  ],
+  [
+   "<f240_loop_0>"
+  ]
+ ],
+ "<opt_f240_loop_1>": [
+  [
+   ""
+  ],
+  [
+   "<opt_f240_loop_1>"
+  ]
+ ],
+ "<f240_loop_0_continue_refined_0>": [
+  [
+   "aa"
+  ]
+ ],
+ "<f240_loop_0_refined_1>": [
+  [
+   "<f240_loop_0_exit>"
+  ],
+  [
+   "<f240_loop_0_continue_refined_0>",
+   "<f240_loop_0_refined_22>"
+  ]
+ ],
+ "<f240_loop_0_refined_22>": [
+  [
+   "<f240_loop_0_exit>"
+  ],
+  [
+   "<f240_loop_0_continue_refined_0>",
+   "<f240_loop_0>"
+  ]
+ ]
+}

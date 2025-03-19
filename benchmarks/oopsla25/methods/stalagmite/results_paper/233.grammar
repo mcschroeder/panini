@@ -1,0 +1,33 @@
+{
+ "<f233_loop_0>": [
+  [
+   "<f233_loop_0_exit>"
+  ],
+  [
+   "abb",
+   "<f233_loop_0_refined_1>"
+  ]
+ ],
+ "<f233_loop_0_exit>": [
+  [
+   "a"
+  ],
+  [],
+  [
+   "ab"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f233_loop_0>"
+  ]
+ ],
+ "<f233_loop_0_exit_refined_1>": [
+  []
+ ],
+ "<f233_loop_0_refined_1>": [
+  [
+   "<f233_loop_0_exit_refined_1>"
+  ]
+ ]
+}

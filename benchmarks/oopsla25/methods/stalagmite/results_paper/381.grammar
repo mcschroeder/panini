@@ -1,0 +1,66 @@
+{
+ "<f381>": [
+  [
+   "<f381_loop_0>",
+   "\u0000"
+  ],
+  [
+   "<opt_f381_loop_0>"
+  ]
+ ],
+ "<f381_loop_0>": [
+  [
+   "<f381_loop_0_exit>"
+  ],
+  [
+   "aa",
+   "<f381_loop_0_refined_0>"
+  ]
+ ],
+ "<f381_loop_0_exit>": [
+  [
+   "b"
+  ],
+  [],
+  [
+   "a"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f381>"
+  ]
+ ],
+ "<opt_f381_loop_0>": [
+  [
+   ""
+  ],
+  [
+   "<f381_loop_0>"
+  ]
+ ],
+ "<f381_loop_0_exit_refined_0>": [
+  [],
+  [
+   "a"
+  ]
+ ],
+ "<f381_loop_0_refined_0>": [
+  [
+   "<f381_loop_0_exit_refined_0>"
+  ],
+  [
+   "aa",
+   "<f381_loop_0_refined_1>"
+  ]
+ ],
+ "<f381_loop_0_refined_1>": [
+  [
+   "<f381_loop_0_exit_refined_0>"
+  ],
+  [
+   "aa",
+   "<f381_loop_0_refined_0>"
+  ]
+ ]
+}

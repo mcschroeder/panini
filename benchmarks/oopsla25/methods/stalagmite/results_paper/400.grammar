@@ -1,0 +1,216 @@
+{
+ "<lower_ascii_str>": [
+  [
+   "<lower_ascii_char>",
+   "<opt_lower_ascii_str>"
+  ]
+ ],
+ "<lower_ascii_char>": [
+  [
+   "a"
+  ],
+  [
+   "b"
+  ],
+  [
+   "c"
+  ],
+  [
+   "d"
+  ],
+  [
+   "e"
+  ],
+  [
+   "f"
+  ],
+  [
+   "g"
+  ],
+  [
+   "h"
+  ],
+  [
+   "i"
+  ],
+  [
+   "j"
+  ],
+  [
+   "k"
+  ],
+  [
+   "l"
+  ],
+  [
+   "m"
+  ],
+  [
+   "n"
+  ],
+  [
+   "o"
+  ],
+  [
+   "p"
+  ],
+  [
+   "q"
+  ],
+  [
+   "r"
+  ],
+  [
+   "s"
+  ],
+  [
+   "t"
+  ],
+  [
+   "u"
+  ],
+  [
+   "v"
+  ],
+  [
+   "w"
+  ],
+  [
+   "x"
+  ],
+  [
+   "y"
+  ],
+  [
+   "z"
+  ]
+ ],
+ "<f400>": [
+  [
+   "<opt_f400_loop_0>"
+  ],
+  [
+   "<f400_loop_0_refined_0>",
+   "<opt_f400_loop_1>"
+  ]
+ ],
+ "<f400_loop_0>": [
+  [
+   "<f400_loop_0_exit>"
+  ],
+  [
+   "<f400_loop_0_continue>",
+   "<f400_loop_0>"
+  ]
+ ],
+ "<f400_loop_0_exit>": [
+  [
+   "<opt_lower_ascii_str>"
+  ],
+  [
+   "a"
+  ],
+  [
+   "b"
+  ],
+  [
+   "bb"
+  ]
+ ],
+ "<f400_loop_0_continue>": [
+  [
+   "aa"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f400>"
+  ]
+ ],
+ "<opt_lower_ascii_str>": [
+  [
+   ""
+  ],
+  [
+   "<lower_ascii_str>"
+  ]
+ ],
+ "<opt_f400_loop_0>": [
+  [
+   ""
+  ],
+  [
+   "<f400_loop_0>"
+  ]
+ ],
+ "<opt_f400_loop_1>": [
+  [
+   ""
+  ],
+  [
+   "<opt_f400_loop_1>"
+  ]
+ ],
+ "<lower_ascii_char_refined_0>": [
+  [
+   "b"
+  ]
+ ],
+ "<lower_ascii_str_refined_0>": [
+  [
+   "<lower_ascii_char_refined_0>",
+   "<opt_lower_ascii_str_refined_2>"
+  ]
+ ],
+ "<lower_ascii_str_refined_1>": [
+  [
+   "<lower_ascii_char_refined_0>",
+   "<opt_lower_ascii_str_refined_26>"
+  ]
+ ],
+ "<opt_lower_ascii_str_refined_2>": [
+  [
+   ""
+  ],
+  [
+   "<lower_ascii_str_refined_1>"
+  ]
+ ],
+ "<f400_loop_0_exit_refined_0>": [
+  [
+   "<opt_lower_ascii_str_refined_2>"
+  ],
+  [
+   "a"
+  ],
+  [
+   "b"
+  ],
+  [
+   "bb"
+  ]
+ ],
+ "<f400_loop_0_refined_0>": [
+  [
+   "<f400_loop_0_exit_refined_0>"
+  ],
+  [
+   "<f400_loop_0_continue>",
+   "<f400_loop_0>"
+  ]
+ ],
+ "<lower_ascii_str_refined_13>": [
+  [
+   "<lower_ascii_char_refined_0>",
+   "<opt_lower_ascii_str>"
+  ]
+ ],
+ "<opt_lower_ascii_str_refined_26>": [
+  [
+   ""
+  ],
+  [
+   "<lower_ascii_str_refined_13>"
+  ]
+ ]
+}

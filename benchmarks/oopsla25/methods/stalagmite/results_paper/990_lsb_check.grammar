@@ -1,0 +1,33 @@
+{
+ "<f990_lsb_check_loop_0>": [
+  [
+   "<f990_lsb_check_loop_0_exit>"
+  ],
+  [
+   "001",
+   "<f990_lsb_check_loop_0_refined_1>"
+  ]
+ ],
+ "<f990_lsb_check_loop_0_exit>": [
+  [
+   "01"
+  ],
+  [],
+  [
+   "1"
+  ]
+ ],
+ "<start>": [
+  [
+   "<f990_lsb_check_loop_0>"
+  ]
+ ],
+ "<f990_lsb_check_loop_0_exit_refined_1>": [
+  []
+ ],
+ "<f990_lsb_check_loop_0_refined_1>": [
+  [
+   "<f990_lsb_check_loop_0_exit_refined_1>"
+  ]
+ ]
+}
