@@ -20,6 +20,8 @@ vagrant up
 vagrant ssh
 ```
 
+> If you are on an Apple Silicon machine, you might need to first enable X86 emulation in VirtualBox by issuing the following command: `VBoxManage setextradata global "VBoxInternal2/EnableX86OnArm" 1`
+
 From here on out, all commands are executed inside the Mimid VM.
 
 ## 3. Patch Mimid
