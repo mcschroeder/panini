@@ -11,7 +11,7 @@ void f450(const char *s) {
         assert(s[i + 0] == 'a');
         assert(s[i + 1] != 'a' && s[i + 1] != 'b');
         assert(s[i + 2] == 'b');
-        i++;
+        i = i+3;
     }
 }
 

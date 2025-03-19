@@ -16,7 +16,7 @@ void f451(const char *s) {
         assert(b == 'b');
         assert(x != 'a' && x != 'b');
         
-        i += 1;
+        i += 3;
     }
 }
 

@@ -7,7 +7,7 @@ def f451(s: str):
     assert a == "a"
     assert b == "b"
     assert x != "a" and x != "b"
-    i += 1
+    i += 3
 
 if __name__ == '__main__':
   my_string = ""

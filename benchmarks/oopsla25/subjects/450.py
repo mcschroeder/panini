@@ -7,7 +7,7 @@ def f450(s: str):
     assert s[i+1] != "a"
     assert s[i+1] != "b"
     assert s[i+2] == "b"
-    i += 1
+    i += 3
 
 if __name__ == '__main__':
   my_string = ""
