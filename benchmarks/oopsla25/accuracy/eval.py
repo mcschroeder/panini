@@ -6,7 +6,7 @@ import os
 
 subjects_dir="/benchmark/subjects"
 methods_dir="/benchmark/methods"
-methods = ["panini","stalagmite","mimid","ttt"]
+methods = ["panini","stalagmite","mimid","ttt","treevada"]
 
 output_file = "/benchmark/accuracy/results/results_by_subject.csv"
 output_agg_file = "/benchmark/accuracy/results/results_by_category.csv"
