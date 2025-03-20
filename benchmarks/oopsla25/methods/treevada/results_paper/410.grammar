@@ -1,1 +1,1 @@
-{"<start>": [["<t0>"]], "<t0>": [["a"], ["ba"], ["aaa"], ["abb"], ["aab"], ["aa"], ["b"], ["bbaa"], ["abaa"]]}
+{"<start>": [["<t0>"]], "<t0>": [["ab"], ["aaabbabb"], ["bbaa"], ["aabb"], ["baab"], ["a"], ["ba"], ["bbbb"], ["aaaa"], ["aa"], ["bb"], ["bbab"], ["baa"], ["bbb"], ["aaa"], ["b"], ["bbbba"], ["baabbbb"], ["bbba"]]}

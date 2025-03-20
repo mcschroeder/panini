@@ -3,7 +3,7 @@
 subjects_dir="../../subjects"
 dest_dir="subjects"
 
-SAMPLE_COUNT=10
+SAMPLE_COUNT=20
 SAMPLE_DEPTH=1000
 
 mkdir -p "$dest_dir"

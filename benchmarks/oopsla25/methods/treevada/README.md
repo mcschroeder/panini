@@ -26,7 +26,7 @@ From here on out, all commands are run inside the Docker container.
 [root@77095aca9b64 treevada]# /panini/run_eval.sh
 ```
 
-This will take about 2-3 hours.
+This will take about 4-5 hours.
 
 The mined grammars will now be in the `results` directory, which will also contain a `results.csv` with the collected run times and exit codes.
 

@@ -11,7 +11,7 @@ This directory contains all materials necessary to reproduce the comparative eva
 
 ## Evaluation
 
-1) Go into the subdirectory of each approach (`methods/panini/`, `methods/mimid/`, `methods/stalagmite/`, `methods/ttt/`, `methods/treevada/`) and follow the instructions in the respective `README.md`. You should end up with a `methods/*/results/` folder for each method, containing the inferred grammars of all subjects and additional information about each inference attempt. This might altogether take about 7-8 hours.
+1) Go into the subdirectory of each approach (`methods/panini/`, `methods/mimid/`, `methods/stalagmite/`, `methods/ttt/`, `methods/treevada/`) and follow the instructions in the respective `README.md`. You should end up with a `methods/*/results/` folder for each method, containing the inferred grammars of all subjects and additional information about each inference attempt. This might altogether take about 8-9 hours.
 
     > The `methods/*/results_paper/` folders contain archived versions of the inferred grammars from our evaluation run. The results in our paper are based on these.
 
