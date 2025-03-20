@@ -820,7 +820,7 @@ treevada,971_getAddrSpec,449769,0,1.0,0.488
 treevada,980_parser,69332,0,0.949,0.421
 treevada,990_lsb_check,1008,0,1.0,1.0
 treevada,cgidecode,288402,0,0.962,0.6
-treevada,urlparse,198,1,0,0
+treevada,urlparse,625353,0,0.001,0.449
 ttt,000,94,0,0.0,1.0
 ttt,001,88,0,0.0,1.0
 ttt,002,87,0,0.0,1.0
