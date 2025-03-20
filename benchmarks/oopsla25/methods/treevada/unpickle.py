@@ -18,7 +18,7 @@ def main():
   
   fb_dict = {}
   for key, rule in grammar_dict.items():
-    fb_dict[f"<{key}>"] = [[t.strip('"') if t.startswith('"') else f"<{t}>" for t in p ] for p in rule.bodies]
+    fb_dict[f"<{key}>"] = [[t[1:-1] if t.startswith('"') else f"<{t}>" for t in p ] for p in rule.bodies]
   with open(args.output, "w") as f:
     json.dump(fb_dict, f)
 
