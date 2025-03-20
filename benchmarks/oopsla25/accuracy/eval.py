@@ -67,34 +67,50 @@ def compute_results(method):
 
 def aggregate_results(results, subjects_by_category):
   results_agg = {}
-
+  num_subjects = {}
+  time_ms_list = {}
+  precision_list = {}
+  recall_list = {}
+  num_errors = {}
   for category in subjects_by_category:
-    num_subjects = len(subjects_by_category[category])
-    time_ms_list = []
-    precision_list = []
-    recall_list = []
-    num_errors = 0
+    num_subjects[category] = len(subjects_by_category[category])
+    time_ms_list[category] = []
+    precision_list[category] = []
+    recall_list[category] = []
+    num_errors[category] = 0
     for subject in subjects_by_category[category]:
       if subject not in results:
         continue
       result = results[subject]
-      time_ms_list.append(result['time_ms'])
+      time_ms_list[category].append(result['time_ms'])
       if result['status'] == 0:
-        precision_list.append(result['precision'])
-        recall_list.append(result['recall'])
+        precision_list[category].append(result['precision'])
+        recall_list[category].append(result['recall'])
       else:
-        num_errors += 1
-    assert len(precision_list) == len(recall_list)
-    if len(precision_list) > 0:
+        num_errors[category] += 1
+    assert len(precision_list[category]) == len(recall_list[category])
+    if len(precision_list[category]) > 0:
       results_agg[category] = {
-        'num_subjects': num_subjects,
-        'num_errors': num_errors,
-        'success_rate': (num_subjects - num_errors) / num_subjects,
-        'precision_mean': statistics.mean(precision_list),
-        'recall_mean': statistics.mean(recall_list),
-        'time_ms_mean': statistics.mean(time_ms_list),
-        'time_ms_stdev': statistics.stdev(time_ms_list)
+        'num_subjects': num_subjects[category],
+        'num_errors': num_errors[category],
+        'success_rate': (num_subjects[category] - num_errors[category]) / num_subjects[category],
+        'precision_mean': statistics.mean(precision_list[category]),
+        'recall_mean': statistics.mean(recall_list[category]),
+        'time_ms_mean': statistics.mean(time_ms_list[category]),
+        'time_ms_stdev': statistics.stdev(time_ms_list[category])
       }
+  
+  total_num_subjects = sum(num_subjects.values())
+  total_num_errors = sum(num_errors.values())
+  results_agg["total"] = {
+    'num_subjects': total_num_subjects,
+    'num_errors': total_num_errors,
+    'success_rate': (total_num_subjects - total_num_errors) / total_num_subjects,
+    'precision_mean': statistics.mean(sum(precision_list.values(), [])),
+    'recall_mean': statistics.mean(sum(recall_list.values(), [])),
+    'time_ms_mean': statistics.mean(sum(time_ms_list.values(), [])),
+    'time_ms_stdev': statistics.stdev(sum(time_ms_list.values(), []))
+  }
 
   return results_agg
 
