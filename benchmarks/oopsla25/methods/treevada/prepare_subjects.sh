@@ -15,7 +15,6 @@ for file in "$subjects_dir"/*.py; do
     echo "Prepare $filename"
     dest_file="$dest_dir/$subject.py"
     cp "$file" "$dest_file"
-    echo -e "#!/usr/bin/env python3\n\n$(cat "$dest_file")" > "$dest_file"
     chmod +x "$dest_file"
     sample_dir="${dest_dir}/${subject}_samples"
     mkdir -p $sample_dir

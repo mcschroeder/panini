@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 
 def f291(s: str):

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 
 def f001(s: str):

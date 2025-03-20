@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Parse (absolute and relative) URLs.
 
 urlparse module is based upon the following RFC specifications.
