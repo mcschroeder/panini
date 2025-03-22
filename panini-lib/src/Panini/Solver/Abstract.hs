@@ -18,6 +18,7 @@ import Data.Hashable
 import Data.HashSet (HashSet)
 import Data.HashSet qualified as HashSet
 import Data.List qualified as List
+import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.Ord
@@ -170,7 +171,7 @@ abstractVarToValue x b r = do
 valueMeets :: Base -> [AValue] -> Pan Error AValue
 valueMeets b vs0 = do  
   logMessage "Meet values"
-  let vs = List.sortBy (comparing Down) vs0
+  let vs = map NE.head $ NE.group $ List.sortBy (comparing Down) vs0
   logData $ "⋀" <> pretty vs
   v <- foldrM meet' (topValue b) vs
   logData $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
@@ -182,7 +183,7 @@ valueMeets b vs0 = do
 valueJoins :: Base -> [AValue] -> Pan Error AValue
 valueJoins b vs0 = do
   logMessage "Join values"
-  let vs = List.sortBy (comparing Down) vs0
+  let vs = map NE.head $ NE.group $ List.sortBy (comparing Down) vs0
   logData $ "⋁" <> pretty vs
   v <- foldrM join' (botValue b) vs
   logData $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
