@@ -14,15 +14,16 @@ inline = rewrite $ \case
   -- inline atomic values
   Let x (Val v) e2 _ -> Just $ subst v x e2
 
+  -- remove unused rec bindings (artifact of transpiling return statements)
+  -- and inline constants
+  Rec x (TBase _ _ _ _) (Val (Con c)) e2 _
+    -> Just $ subst (Con c) x e2
+
   -- inline nullary rec bindings that occur as an artifact of transpilation
   Rec x (TBase _ _ _ _) e1 e2 _ 
     | x `notElem` freeVars e1
     , let e2' = inlineTailCall x e1 e2, e2' /= e2 -> Just e2'
 
-  -- remove unused rec bindings (artifact of transpiling return statements)
-  Rec x (TBase _ _ _ _) (Val (Con _)) e2 _
-    | x `notElem` freeVars e2 -> Just e2
-  
   -- reorder let bindings whose RHS is immediately another let-binding
   Let x (Let y ey1 ey2 pvy) ex2 pvx 
     -> Just $ Let y ey1 (Let x ey2 ex2 pvx) pvy
