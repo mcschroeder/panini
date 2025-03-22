@@ -1,2 +1,1 @@
-/benchmark/subjects/500.py:3:10-11: error: abstraction to value impossible: ⟦{i1:ℤ | s[i1] = Σ∖{b}} + [-∞,+∞] ≠ {i1:ℤ | s[i1] = Σ∖{c}}⟧↑s ≐ {s:𝕊 | {i1:ℤ | s[i1] = Σ∖{b}} + [-∞,+∞] ≠ {i1:ℤ | s[i1] = Σ∖{c}}}
-
+f500 : {s:𝕊 | s ∈ [ab]?c*} → 𝟙  -- UNVERIFIED (timeout)
