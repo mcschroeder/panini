@@ -167,6 +167,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   x :∈: EReg r -> normRelA $ x :=: EStrA (AString.fromRegex $ Regex.POSIX.ERE.toRegex r)
   x :∉: EReg r -> normRelA $ x :≠: EStrA (AString.fromRegex $ Regex.POSIX.ERE.toRegex r)
   -----------------------------------------------------------------------------
+  [ρ| ¬x = true  |] -> normRelA [ρ| x = false |]
+  [ρ| ¬x = false |] -> normRelA [ρ| x = true  |]
+  -----------------------------------------------------------------------------
   x :=: _ | anyBot x -> Left False
   _ :=: x | anyBot x -> Left False
   x :≠: _ | anyBot x -> Left True
@@ -218,6 +221,12 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , [i] <- î
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ s ⋅ star Σ)
   -----------------------------------------------------------------------------
+  [ρ| str.indexof(x,y,î) = n |]
+    | [i] <- î
+    , let n' = (n ∧ AIntFrom i) ∨ (if AInt.member (-1) n then [-1] else [])
+    , n' /= n
+    -> normRelA [ρ| str.indexof(x,y,î) = n' |]
+  -----------------------------------------------------------------------------
   [ρ| x[str.indexof(x,s,î)+ĵ..|x|-1] = t |]
     | [j] <- ĵ
     , Just n <- strLen1 s
@@ -248,6 +257,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | [0,1] <- n
     , let c̄ = lit (neg c)
     -> normRelA $ x :=: EStrA (star Σ ⋅ opt c̄)
+  -----------------------------------------------------------------------------
+  [ρ| str.indexof(x,y,z) = |x| |] 
+    -> normRelA [ρ| str.indexof(x,y,z) = -1 |] 
   -----------------------------------------------------------------------------
   [ρ| z = str.indexof(x,y,z) |] -> normRelA [ρ| x[z..z+|y|-1] = y |]
   -----------------------------------------------------------------------------
@@ -438,9 +450,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let n̂ = AInt.eq n
     -> normRelA [ρ| |x| + i = n̂ |]
   -----------------------------------------------------------------------------
-  [ρ| x[0..str.indexof(x,s,0)-1] = t |]
-    -- TODO: assert that t does not contain s
-    -> normRelA $ x :=: EStrA (t ⋅ s ⋅ star Σ)
+  -- TODO: assert that t does not contain s
+  [ρ| x[î..str.indexof(x,s,î)-1] = t |]
+    | [i] <- î    
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ t ⋅ s ⋅ star Σ)
   -----------------------------------------------------------------------------
   [ρ| |x| = i |] | let i' = i ∧ AInt.ge 0, i' /= i -> normRelA [ρ| |x| = i' |]
   ----------------------------------------------------------------------------
