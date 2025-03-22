@@ -469,6 +469,12 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄ ⋅ t)
   -----------------------------------------------------------------------------
+  [ρ| x[|x|-î..|x|-ĵ] = s |]
+    | [i] <- î
+    , [j] <- ĵ, j >= 1, j <= i
+    , let s' = s ∧ rep Σ (i - j + 1)
+    -> normRelA $ x :=: EStrA (star Σ ⋅ s' ⋅ rep Σ (j - 1))
+  -----------------------------------------------------------------------------
   [ρ| |x| = i |] | let i' = i ∧ AInt.ge 0, i' /= i -> normRelA [ρ| |x| = i' |]
   ----------------------------------------------------------------------------
   x :=: ERelA v _ r | concreteish x -> normRelA $ subst x v r
