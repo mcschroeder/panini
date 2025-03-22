@@ -1,6 +1,7 @@
 module Regex.Simplify.Lookup where
 
 import Data.List qualified as List
+import Data.List (partition)
 import Prelude hiding (lookup)
 import Regex.CharSet qualified as CS
 import Regex.Simplify.Common
@@ -46,7 +47,28 @@ lookup Starred = \case
 
 lookup Optional = lookup Free
 
-lookup _ = \case  
+lookup _ = \case
+
+  -- (x + y(z + .*a)).*  =  (x + yz).*
+  -- (x + y(.*a)?).*     =  (x + y).*
+  -- (y(z + .*a))?.*     =  (yz)?.*
+  -- (y(.*a)?)?.*        =  y?.*
+  Times1 r All
+    | Plus (partition is_yza -> ([get_yz -> Just yz], xs')) <- r -> Plus (yz:xs') <> All
+    | Opt yza <- r, is_yza yza, Just yz <- get_yz yza -> (Opt yz) <> All
+   where
+    is_yza (TimesN _ (Plus (partition is_a -> ([_], _)))) = True
+    is_yza (TimesN _ (Opt (is_a -> True)))                = True
+    is_yza _                                              = False
+
+    get_yz (TimesN y (Plus (partition is_a -> ([_], zs)))) = Just (y <> (Plus zs))
+    get_yz (TimesN y (Opt (is_a -> True)))                 = Just y
+    get_yz _                                               = Nothing
+
+    is_a (Times1 All (Lit _)) = True
+    is_a _                    = False
+
+
   Times xs0 -> Times $ go xs0
    where
     -- x*⋅y⋅(x*⋅y)*  =  (x + y)* ⋅ y
