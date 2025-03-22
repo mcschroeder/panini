@@ -21,8 +21,9 @@ void f400(const char *s) {
             }
             i += 1;
         }
-        assert(i == strlen(s));
     }
+    
+    assert(i == strlen(s));
 }
 
 int main(int argc, char *argv[]) {

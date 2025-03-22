@@ -13,7 +13,7 @@ def f400(s: str):
       if s[i] != "b":
         break
       i += 1
-    assert i == len(s)
+  assert i == len(s)
 
 if __name__ == '__main__':
   my_string = ""
