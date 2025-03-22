@@ -132,6 +132,8 @@ normExprA = rewrite $ \case
   -----------------------------------------------------------------------------
   [ω| str.contains(s,t) |] -> Just $ EBoolA [t ⊑ s]
   -----------------------------------------------------------------------------
+  [ω| |x[0..str.indexof(x,s,0)-1]| |] -> Just [ω| str.indexof(x,s,0) |]
+  -----------------------------------------------------------------------------
   _ -> Nothing
 
 -- | Normalize an abstract relation by (partial) evaluation; see 'normRel'.
@@ -442,18 +444,30 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EIntA (AIntFrom 1) :=: Relℤ y [ρ| x[0..y-1] = s |]
     -> normRelA $ x :=: EStrA (s ⋅ star Σ)
   -----------------------------------------------------------------------------
-  EIntA (AIntFrom k) :=: Relℤ y [ρ| x[y+1..|x|-1] = s |]
+  EIntA (AIntFrom k) :=: Relℤ y [ρ| x[y..|x|-1] = s |]
     -> normRelA $ x :=: EStrA (rep Σ k ⋅ star Σ ⋅ s)
+  -----------------------------------------------------------------------------
+  EIntA (AIntFrom k) :=: Relℤ y [ρ| x[y+1..|x|-1] = s |]
+    -> normRelA $ x :=: EStrA (rep Σ (k + 1) ⋅ star Σ ⋅ s)
+  -----------------------------------------------------------------------------
+  EIntA (AIntFrom 0) :=: Relℤ y [ρ| x[0..y-1] = s |]
+    -> normRelA $ x :=: EStrA (s ⋅ star Σ)
   -----------------------------------------------------------------------------
   [ω| |x| + i |] :=: Relℤ y [ρ| x[0..y-1] = s |]
     | Just n <- strLen1 s
     , let n̂ = AInt.eq n
     -> normRelA [ρ| |x| + i = n̂ |]
   -----------------------------------------------------------------------------
-  -- TODO: assert that t does not contain s
   [ρ| x[î..str.indexof(x,s,î)-1] = t |]
-    | [i] <- î    
-    -> normRelA $ x :=: EStrA (rep Σ i ⋅ t ⋅ s ⋅ star Σ)
+    | [i] <- î
+    , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
+    , let t' = t ∧ s̄
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ t' ⋅ s ⋅ star Σ)
+  -----------------------------------------------------------------------------
+  [ρ| x[str.indexof(x,s,î)..|x|-1] = t |]
+    | [i] <- î
+    , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄ ⋅ t)
   -----------------------------------------------------------------------------
   [ρ| |x| = i |] | let i' = i ∧ AInt.ge 0, i' /= i -> normRelA [ρ| |x| = i' |]
   ----------------------------------------------------------------------------
