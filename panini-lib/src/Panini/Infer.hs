@@ -112,11 +112,12 @@ infer g = \case
     infer g $ Rec x' t̃₁ e₁' e₂' pv
 
   Rec x t̃₁ e₁ e₂ pv -> do
-    t̂₁      <- fresh g t̃₁
+    let g'   = Map.restrictKeys g (freeVars e₁)
+    t̂₁      <- fresh g' t̃₁
     (t₁,c₁) <- infer (Map.insert x t̂₁ g) e₁
     ĉ₁      <- sub t₁ t̂₁
     (t₂,c₂) <- infer (Map.insert x t₁ g) e₂
-    t̂₂      <- fresh g (shape t₂)
+    t̂₂      <- fresh g' (shape t₂)
     ĉ₂      <- sub t₂ t̂₂
     let c    = (cImpl x t̂₁ (c₁ ∧ ĉ₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return   $ (t̂₂,c) `withPV` pv
