@@ -371,12 +371,32 @@ withTerm :: HasProvenance a => Typed Py.Expr a -> (Term -> Transpiler Term) -> T
 withTerm expr k = case expr of
   _ | isAtomic expr -> k =<< Val <$> transpileAtom expr
 
+  -- all (c in "abc" for c in s)  ⇝   s ∈ [abc]*
+  Call { call_fun = IsVar "all", call_args = ArgExprs [ 
+    Generator { gen_comprehension = Comprehension 
+      { comprehension_expr = ComprehensionExpr 
+          (BinaryOp (Py.In {}) (IsVar c) (IsString abc) _)
+      , comprehension_for = CompFor False [IsVar c2] sExpr Nothing _
+      }}]
+  } | c == c2, not (null abc) -> do
+    let cs  = fromList abc
+    let re  = fromJust $ AString.toPOSIX $ AString.star (AString.lit cs)
+    let p1  = PRel (EVar "b" TBool :=: EBool True NoPV)
+    let p2  = PRel (EVar "s" TString :∈: EReg re)
+    let sTy = TBase "s" TString (Known PTrue) NoPV
+    let bTy = TBase "b" TBool (Known (PIff p1 p2)) NoPV
+    let fTy = TFun "s" sTy bTy NoPV
+    fun@(Name fn _) <- newVar
+    let ax  = (Text.unpack fn, fTy)
+    addAxiom ax
+    withAtoms [sExpr] $ k . mkApp fun
+
   -- any (not c in "abc" for c in s)  ⇝   s ∉ [abc]*
   Call { call_fun = IsVar "any", call_args = ArgExprs [ 
     Generator { gen_comprehension = Comprehension 
       { comprehension_expr = ComprehensionExpr 
           (UnaryOp (Not {}) (BinaryOp (Py.In {}) (IsVar c) (IsString abc) _) _)
-      , comprehension_for = CompFor False [IsVar c2] (Py.Var s _) Nothing _
+      , comprehension_for = CompFor False [IsVar c2] sExpr Nothing _
       }}]
   } | c == c2, not (null abc) -> do
     let cs  = fromList abc
@@ -389,7 +409,7 @@ withTerm expr k = case expr of
     fun@(Name fn _) <- newVar
     let ax  = (Text.unpack fn, fTy)
     addAxiom ax
-    k (mkApp fun [Var (mangle s)])
+    withAtoms [sExpr] $ k . mkApp fun
 
   Call { call_fun = Py.Var fun _, call_args = ArgExprs args } -> do
     let tyArgs = map typeOf args
