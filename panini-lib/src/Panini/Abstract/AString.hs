@@ -120,6 +120,9 @@ toChar (MkAString r) = case Regex.simplify r of
 toRegex :: AString -> Regex
 toRegex (MkAString r) = r
 
+toPOSIX :: AString -> Maybe Regex.POSIX.ERE.ERE
+toPOSIX (MkAString r) = Regex.POSIX.ERE.fromRegex r
+
 fromRegex :: Regex -> AString
 fromRegex = MkAString
 
