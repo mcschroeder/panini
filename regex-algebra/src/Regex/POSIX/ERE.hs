@@ -35,7 +35,6 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 
--- TODO: escaping
 -- TODO: how to deal with ERE 'Per' excluding \NUL vs. Regex 'AnyChar' ?
 -- TODO: figure out how to deal with anchors (should unanchored EREs convert to Σ*(r)Σ* ?)
 
@@ -84,7 +83,7 @@ printERE (Alt xs) = concat $ List.intersperse "|" $ map printCon $ NE.toList xs
  where
   printCon (Con ys) = concatMap printExp $ NE.toList ys
   printExp = \case
-    Chr '[' -> "\\["
+    Chr c | c `elem` "^.[$()|*+?{\\" -> '\\' : [c]
     Chr c   -> [c]
     Per     -> "."
     Bra b   -> BE.printBE b
@@ -123,7 +122,7 @@ ere = Alt <$> NE.sepBy1 con (char '|')
   exa = Exa <$ char '{' <*> L.decimal                           <* char '}'
   min = Min <$ char '{' <*> L.decimal <* char ','               <* char '}'
   inv = Inv <$ char '{' <*> L.decimal <* char ',' <*> L.decimal <* char '}'
-  esc = Chr '[' <$ char '\\' <* char '['
+  esc = char '\\' *> (Chr <$> satisfy (`elem` ("^.[$()|*+?{\\" :: [Char])))
 
 ------------------------------------------------------------------------------
 
