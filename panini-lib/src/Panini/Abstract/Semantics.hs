@@ -117,7 +117,7 @@ normExprA = rewrite $ \case
     , i >= 0, i <= j, m >= 0, m <= n, n - m <= j - i
     -> Just [ω| x[î+m̂..î+m̂+(n̂-m̂)] |]
   -----------------------------------------------------------------------------
-  [ω| str.comp(str.comp(x)) |] -> Just x
+  [ω| re.comp(re.comp(x)) |] -> Just x
   -- NOTE: We want to defer resolution of EStrComp as long as possible,
   -- in order to exploit opportunities for double-negation cancellation!
   -----------------------------------------------------------------------------
@@ -347,9 +347,9 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   -----------------------------------------------------------------------------
   [ρ| x[y] ≠ c |] -> normRelA [ρ| x[y] = c̄ |] where c̄ = neg c
   -----------------------------------------------------------------------------
-  [ρ| str.comp(x) = str.comp(y) |] -> normRelA $ x :=: y
-  [ρ| str.comp(x) ≠ str.comp(y) |] -> normRelA $ x :≠: y
-  [ρ| str.comp(x) = y           |] -> normRelA $ x :≠: y
+  [ρ| re.comp(x) = re.comp(y) |] -> normRelA $ x :=: y
+  [ρ| re.comp(x) ≠ re.comp(y) |] -> normRelA $ x :≠: y
+  [ρ| re.comp(x) = y          |] -> normRelA $ x :≠: y
   -----------------------------------------------------------------------------
   Relℤ y [ρ| x[y] = a |] :=: Relℤ z [ρ| x[z] = b |]
     -> normRelA $ x :=: EStrA (strWithCharGapChar a 0 b)
@@ -631,9 +631,9 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   [ρ| x̲ ≠ e |]
     | τ == TBool   -> abstract x τ [ρ| x̲ = not(e)      |]               
     | τ == TInt    -> let k = AInt.ne 0 in abstract x τ [ρ| x̲ = e + k |]
-    | τ == TString -> abstract x τ [ρ| x̲ = str.comp(e) |]
+    | τ == TString -> abstract x τ [ρ| x̲ = re.comp(e) |]
   -----------------------------------------------------------------------------
-  [ρ| x̲ = str.comp(s) |] -> AString (neg s)
+  [ρ| x̲ = re.comp(s) |] -> AString (neg s)
   -- NOTE: String complement is resolved here instead of during normalization,
   -- in order to exploit opportunities for double-negation elimination.
   -----------------------------------------------------------------------------
@@ -678,7 +678,7 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   -----------------------------------------------------------------------------
   [ρ| str.contains(x̲,s) = p̂ |]
     | [True]  <- p̂ -> AString t
-    | [False] <- p̂ -> abstract x τ [ρ| x̲ = str.comp(t) |]
+    | [False] <- p̂ -> abstract x τ [ρ| x̲ = re.comp(t) |]
    where
     t = star Σ ⋅ s ⋅ star Σ
   -----------------------------------------------------------------------------
