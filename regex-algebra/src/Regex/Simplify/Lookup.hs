@@ -170,6 +170,11 @@ lookup _ = \case
         , CS.size ab == 2, a `CS.isSubsetOf` ab
         -> Just All
 
+      -- [^a]*a.* + [^a]*  =  .*
+      (Times [Star (Lit ā), Lit a, All], Star (Lit ā1))
+        | ā == ā1, ā == CS.complement a
+        -> Just All
+
       -- x* + x⋅Σ*  =  (x⋅Σ*)?
       (Star x1, Times [x2, All])
         | x1 == x2 
