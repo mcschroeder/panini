@@ -143,13 +143,13 @@ exprVars f = \case
   Tuple      {..} -> exprVarsN f tuple_exprs
   Yield      {..} -> maybe [] (exprVars f . yieldArgExpr) yield_arg  
   Await      {..} -> exprVars f await_expr
-  Generator  {}   -> undefined  -- TODO
-  ListComp   {}   -> undefined  -- TODO
+  Generator  {..} -> comprehensionVars f gen_comprehension
+  ListComp   {..} -> comprehensionVars f list_comprehension
   List       {..} -> exprVarsN f list_exprs
   Dictionary {..} -> exprVarsN f (dictKeyDatumListExprs dict_mappings)
-  DictComp   {}   -> undefined  -- TODO
+  DictComp   {..} -> comprehensionVars f dict_comprehension
   Set        {..} -> exprVarsN f set_exprs
-  SetComp    {}   -> undefined  -- TODO
+  SetComp    {..} -> comprehensionVars f set_comprehension
   Starred    {..} -> exprVars f starred_expr
   Paren      {..} -> exprVars f paren_expr
   StringConversion {..} -> exprVars f backquoted_expr
@@ -157,6 +157,20 @@ exprVars f = \case
 
 exprVarsN :: Ord v => (Ident a -> v) -> [Expr a] -> Set v
 exprVarsN f = Set.unions . map (exprVars f)
+
+comprehensionVars :: Ord v => (Ident a -> v) -> Comprehension a -> Set v
+comprehensionVars f (Comprehension {..})
+  | CompFor 
+    { comp_for_exprs = [for_expr]
+    , comp_for_iter = Nothing
+    , ..
+    } <- comprehension_for
+  , let eVars = exprVarsN f (comprehensionExprExprs comprehension_expr)
+  , let forVars = exprVars f for_expr
+  , let inVars = exprVars f comp_in_expr
+  = (eVars \\ forVars) <> inVars
+  
+  | otherwise = undefined -- TODO 
 
 paramNames :: Ord v => (Ident a -> v) -> [Parameter a] -> Set v
 paramNames f = Set.fromList . concatMap go
@@ -210,6 +224,10 @@ dictKeyDatumListExprs = concatMap go
   go (DictMappingPair e1 e2) = [e1,e2]
   go (DictUnpacking e)       = [e]
 
+comprehensionExprExprs :: ComprehensionExpr a -> [Expr a]
+comprehensionExprExprs = \case
+  ComprehensionExpr e -> [e]
+  ComprehensionDict d -> dictKeyDatumListExprs [d]
 
 unwrap2 :: Maybe (a, Maybe a) -> [a]
 unwrap2 = \case
