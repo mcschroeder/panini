@@ -164,6 +164,12 @@ lookup _ = \case
   Plus xs0 -> Plus $ go g xs0
    where
     g = \case
+      -- .*[ab].* + [^a]*  =  .*
+      (Times [All, Lit ab, All], Star (Lit ā))
+        | let a = CS.complement ā
+        , CS.size ab == 2, a `CS.isSubsetOf` ab
+        -> Just All
+
       -- x* + x⋅Σ*  =  (x⋅Σ*)?
       (Star x1, Times [x2, All])
         | x1 == x2 
