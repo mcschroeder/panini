@@ -99,13 +99,13 @@ instance PartialOrder AValue where
 --   AString a ∧? AString b = Just $ AString (a ∧ b)
 --   a         ∧? b         = if a == b then Just a else Nothing
 
-instance PartialJoinSemilattice AValue where
-  AUnit   a ∨? AUnit   b = Just $ AUnit   (a ∨ b)
-  ABool   a ∨? ABool   b = Just $ ABool   (a ∨ b)
-  AInt    a ∨? AInt    b = Just $ AInt    (a ∨ b)
-  AChar   a ∨? AChar   b = Just $ AChar   (a ∨ b)
-  AString a ∨? AString b = Just $ AString (a ∨ b)
-  a         ∨? b         = if a == b then Just a else Nothing
+-- instance PartialJoinSemilattice AValue where
+--   AUnit   a ∨? AUnit   b = Just $ AUnit   (a ∨ b)
+--   ABool   a ∨? ABool   b = Just $ ABool   (a ∨ b)
+--   AInt    a ∨? AInt    b = Just $ AInt    (a ∨ b)
+--   AChar   a ∨? AChar   b = Just $ AChar   (a ∨ b)
+--   AString a ∨? AString b = Just $ AString (a ∨ b)
+--   a         ∨? b         = if a == b then Just a else Nothing
 
 hasTop :: AValue -> Bool
 hasTop = \case

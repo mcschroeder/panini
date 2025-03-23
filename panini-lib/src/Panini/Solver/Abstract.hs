@@ -121,6 +121,7 @@ concretizeVar x b v = logAndReturn $ case (b,v) of
   (TInt   , AInt    a) -> concretizeInt    x a
   (TChar  , AChar   a) -> concretizeChar   x a
   (TString, AString a) -> concretizeString x a
+  (TString, ARel y TString (EVar y1 _ :=: EStrComp (EStrA s))) | y == y1 -> concretizeString x (neg s)
   _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
  where
   logAndReturn p = do
@@ -164,7 +165,7 @@ abstractVarToValue :: Name -> Base -> ARel -> Pan Error AValue
 abstractVarToValue x b r = do
   let a = abstract x b r
   logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
-  if groundValue a 
+  if groundValue a || isDeferredStrComp a
     then return a 
     else throwError $ AbstractionToValueImpossible x r a
 

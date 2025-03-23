@@ -10,6 +10,7 @@ module Panini.Abstract.Semantics
   , concretizeInt
   , concretizeChar
   , concretizeString
+  , isDeferredStrComp
   ) where
 
 import Algebra.Lattice
@@ -503,9 +504,14 @@ isolate x r = flip rewrite r $ \case
   Rel o (ω₁ :-: ω₂) ω₃ | x `freeIn` ω₂ -> Just $ Rel o ω₂ (ω₁ :-: ω₃)
   _                                    -> Nothing
 
+pattern ARel𝕊 :: AExpr -> ARel -> AValue
+pattern ARel𝕊 x r <- (matchARel TString -> Just (x,r)) where
+  ARel𝕊 (EVar x _) r = ARel x TString r
+  ARel𝕊 _ _ = undefined
 
-
-
+isDeferredStrComp :: AValue -> Bool
+isDeferredStrComp (ARel𝕊 x [ρ| x = re.comp(s) |]) | _ <- s = True
+isDeferredStrComp _ = False
 
 pattern ARelℤ :: AExpr -> ARel -> AValue
 pattern ARelℤ x r <- (matchARel TInt -> Just (x,r)) where
@@ -522,6 +528,15 @@ instance PartialMeetSemilattice AValue where
   AInt    a ∧? AInt    b = Just $ AInt    (a ∧ b)
   AChar   a ∧? AChar   b = Just $ AChar   (a ∧ b)
   AString a ∧? AString b = Just $ AString (a ∧ b)
+  -----------------------------------------------------------------------------
+  ARel𝕊 x [ρ| x = re.comp(s) |] ∧? ARel𝕊 y [ρ| y = re.comp(t) |]
+    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∨ t)))
+  -----------------------------------------------------------------------------
+  ARel𝕊 x [ρ| x = re.comp(s) |] ∧? AString t
+    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∨ neg t)))
+  -----------------------------------------------------------------------------
+  AString t ∧? ARel𝕊 x [ρ| x = re.comp(s) |]
+    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∨ neg t)))
   -----------------------------------------------------------------------------
   ARelℤ y [ρ| y = x + i |] ∧? ARelℤ z [ρ| z = x + j |]
     | isBot k   = Just $ AInt bot
@@ -565,10 +580,23 @@ instance PartialMeetSemilattice AValue where
   -----------------------------------------------------------------------------
   a ∧? b = if a == b then Just a else Nothing
 
-
-
-
-
+instance PartialJoinSemilattice AValue where
+  AUnit   a ∨? AUnit   b = Just $ AUnit   (a ∨ b)
+  ABool   a ∨? ABool   b = Just $ ABool   (a ∨ b)
+  AInt    a ∨? AInt    b = Just $ AInt    (a ∨ b)
+  AChar   a ∨? AChar   b = Just $ AChar   (a ∨ b)
+  AString a ∨? AString b = Just $ AString (a ∨ b)
+  -----------------------------------------------------------------------------
+  ARel𝕊 x [ρ| x = re.comp(s) |] ∨? ARel𝕊 y [ρ| y = re.comp(t) |]
+    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ t)))
+  -----------------------------------------------------------------------------
+  ARel𝕊 x [ρ| x = re.comp(s) |] ∨? AString t
+    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ neg t)))
+  -----------------------------------------------------------------------------
+  AString t ∨? ARel𝕊 x [ρ| x = re.comp(s) |]
+    = Just $ ARel𝕊 x (x :=: EStrComp (EStrA (s ∧ neg t)))
+  -----------------------------------------------------------------------------
+  a         ∨? b         = if a == b then Just a else Nothing
 
 -- | Variable-focused abstract semantics function ⟦ρ⟧↑x.
 --
@@ -625,7 +653,7 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   [ρ| x̲ ≠ _1 |] -> AUnit (neg _1)
   [ρ| x̲ ≠ p  |] -> ABool (neg p)
   [ρ| x̲ ≠ n  |] -> AInt (neg n)
-  [ρ| x̲ ≠ s  |] -> AString (neg s)
+  [ρ| x̲ ≠ s  |] -> ARel x τ [ρ| x̲ = re.comp(s) |] --AString (neg s)
   [ρ| x̲ ≠ c  |] -> AChar (neg c)  -- see note above
   -----------------------------------------------------------------------------  
   [ρ| x̲ ≠ e |]
