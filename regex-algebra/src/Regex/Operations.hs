@@ -60,22 +60,21 @@ import Regex.Type
 -- (Keil and Thiemann 2014) to partition the alphabet into equivalence classes;
 -- see the 'next' function below.
 intersection :: Regex -> Regex -> Regex
-intersection All r = r
-intersection r All = r
-intersection r1 r2 | r1 == r2 = r1
-intersection r1 r2 = intersection' r1 r2
- where
-  intersection' = curry $ solve $ \(x1,x2) ->
-    let
+intersection = curry $ solve $ \case
+  (All, x2) -> (x2, mempty)
+  (x1, All) -> (x1, mempty)
+  (x1, x2)
+    | x1 == x2  -> (x1, mempty)
+    | otherwise -> (c0, Map.fromListWith plus cx)
+    where
       c0 | nullable x1, nullable x2 = One
          | otherwise                = Zero
 
-      cx = [ (x, Lit p) | p <- Set.toList $ next x1 ⋈ next x2
-                        , Just c <- [CS.choose p]
-                        , let x = (derivative c x1, derivative c x2)
-          ]
-
-    in (c0, Map.fromListWith plus cx)
+      cx = [ (x, Lit p) 
+           | p <- Set.toList $ next x1 ⋈ next x2
+           , Just c <- [CS.choose p]
+           , let x = (derivative c x1, derivative c x2) 
+           ]
 
 -- | Compute the complement of a regex.
 --
@@ -86,22 +85,20 @@ intersection r1 r2 = intersection' r1 r2
 --
 -- where c₀ is ε if r is not nullable and otherwise ε.
 complement :: Regex -> Regex
-complement r0 = fromMaybe (complement' r0) (lookupComplement r0)
- where
-  complement' = solve $ \x1 ->
-    let 
+complement = solve $ \x1 -> case lookupComplement x1 of
+  Just x2 -> (x2, mempty)
+  Nothing -> (c0 `plus` c1, Map.fromListWith plus cx)
+    where
       c0 | nullable x1 = Zero 
          | otherwise  = One
-    
-      c1 = Lit (CS.complement $ CS.unions $ next x1) <> All
-    
-      cx = [ (x, Lit p) 
-           | p      <- Set.toList $ next x1
-           , Just c <- [CS.choose p]
-           , let x   = derivative c x1
-           ]
 
-    in (c0 `plus` c1, Map.fromListWith plus cx)
+      c1 = Lit (CS.complement $ CS.unions $ next x1) <> All
+
+      cx = [ (x, Lit p) 
+           | p <- Set.toList $ next x1
+           , Just c <- [CS.choose p]
+           , let x = derivative c x1
+           ]
 
 -------------------------------------------------------------------------------
 
