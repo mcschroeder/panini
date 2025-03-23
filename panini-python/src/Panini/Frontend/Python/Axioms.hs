@@ -47,6 +47,7 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("assert" , [Bool]      , None) -> Just $ assertWithType TUnit
   ("len"    , _           , _   ) -> axiomForFunction "__len__" args ret
   ("not"    , [Bool], Bool) -> Just ("not", [panType| (a:𝔹) → {b:𝔹 | b = ¬a} |])
+  ("not"    , [Str], Bool) -> Just ("empty", [panType| (s:𝕊) → {b:𝔹 | b = true ⟺ s = ""} |])
   ("or"     , [Bool, Bool], Bool) -> Just ("or", [panType| (a:𝔹) → (b:𝔹) → {c:𝔹 | c = true ⟺ (a = true ∨ b = true)} |])
   ("chr"    , [Int], Str) -> Just ("chr", [panType| (i:ℤ) -> {c:𝕊 | c = str.from_code(i)} |])
   
