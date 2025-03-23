@@ -444,6 +444,10 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   EIntA (AIntFrom 1) :=: Relℤ y [ρ| x[0..y-1] = s |]
     -> normRelA $ x :=: EStrA (s ⋅ star Σ)
   -----------------------------------------------------------------------------
+  EIntA (AIntFrom 0) :=: Relℤ y [ρ| x[î..y-1] = s |]
+    | [i] <- î
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s ⋅ star Σ)
+  -----------------------------------------------------------------------------
   EIntA (AIntFrom k) :=: Relℤ y [ρ| x[y..|x|-1] = s |]
     -> normRelA $ x :=: EStrA (rep Σ k ⋅ star Σ ⋅ s)
   -----------------------------------------------------------------------------
