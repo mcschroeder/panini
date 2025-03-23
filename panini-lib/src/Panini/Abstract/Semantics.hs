@@ -11,6 +11,7 @@ module Panini.Abstract.Semantics
   , concretizeChar
   , concretizeString
   , isDeferredStrComp
+  , pattern AStringComp
   ) where
 
 import Algebra.Lattice
@@ -510,8 +511,13 @@ pattern ARel𝕊 x r <- (matchARel TString -> Just (x,r)) where
   ARel𝕊 _ _ = undefined
 
 isDeferredStrComp :: AValue -> Bool
-isDeferredStrComp (ARel𝕊 x [ρ| x = re.comp(s) |]) | _ <- s = True
+isDeferredStrComp (AStringComp _) = True
 isDeferredStrComp _ = False
+
+pattern AStringComp :: AString -> AValue
+pattern AStringComp s <- ARel𝕊 x [ρ| x = re.comp(s) |] where
+  AStringComp s = ARel𝕊 x [ρ| x = re.comp(s) |] 
+                    where x = EVar "x" TString
 
 pattern ARelℤ :: AExpr -> ARel -> AValue
 pattern ARelℤ x r <- (matchARel TInt -> Just (x,r)) where

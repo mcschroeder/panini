@@ -116,15 +116,16 @@ topoSortPreCons pcs =
 
 concretizeVar :: Name -> Base -> AValue -> Pan Error Pred
 concretizeVar x b v = logAndReturn $ case (b,v) of
-  (TUnit  , AUnit   a) -> concretizeUnit   x a
-  (TBool  , ABool   a) -> concretizeBool   x a
-  (TInt   , AInt    a) -> concretizeInt    x a
-  (TChar  , AChar   a) -> concretizeChar   x a
-  (TString, AString a) -> concretizeString x a
-  (TString, ARel y TString (EVar y1 _ :=: EStrComp (EStrA s))) | y == y1 -> concretizeString x (neg s)
+  (TUnit  , AUnit   a) -> pure $ concretizeUnit   x a
+  (TBool  , ABool   a) -> pure $ concretizeBool   x a
+  (TInt   , AInt    a) -> pure $ concretizeInt    x a
+  (TChar  , AChar   a) -> pure $ concretizeChar   x a
+  (TString, AString a) -> pure $ concretizeString x a
+  (TString, AStringComp s) -> concretizeString x <$> simplifyRegex (neg s)
   _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
  where
-  logAndReturn p = do
+  logAndReturn pm = do
+    p <- pm
     logMessage $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
     return p
 
@@ -312,6 +313,7 @@ normRels = go []
 simplifyAValue :: AValue -> Pan Error AValue
 simplifyAValue = \case
   AString s -> AString <$> simplifyRegex s
+  AStringComp s -> AStringComp <$> simplifyRegex s
   a         -> pure a
 
 simplifyRegex :: AString -> Pan Error AString
