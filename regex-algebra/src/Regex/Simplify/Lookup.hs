@@ -43,6 +43,17 @@ lookup Starred = \case
         -> b2
       x -> x
   
+  -- ((a⋅(b⋅a*)*)*⋅c)*  =  ((a⋅b*)*⋅c)*
+  Times1 (Star (TimesN a1 (Star (TimesN b (Star a2))))) c
+    | a1 == a2
+    -> Star (Star (a1 <> Star b) <> c)
+
+  -- ([ab] + c⋅((a⋅b*)*⋅c)*⋅a)*  =  (b + c*a)*
+  Plus [Lit ab, Times [c1, Star (Times1 (Star (TimesN (Lit a1) (Star (Lit b)))) c2), Lit a2]]
+    | a1 == a2, c1 == c2
+    , ab == CS.union a1 b
+    -> Star (Lit b `plus` ((Star c1) <> Lit a1))
+  
   r -> lookup Optional r
 
 lookup Optional = lookup Free
@@ -174,6 +185,13 @@ lookup _ = \case
       (Times [Star (Lit ā), Lit a, All], Star (Lit ā1))
         | ā == ā1, ā == CS.complement a
         -> Just All
+
+      -- a*b(b+aa*b)*(c+aa*c) + a*c  =  (a+b)*c
+      (Times [Star a1, b1, Star (Plus [b2, Times [a2, Star a3, b3]]), Plus [c1, Times [a4, Star a5, c2]]], Times1 (Star a6) c3)
+        | a1 == a2, a2 == a3, a3 == a4, a4 == a5, a5 == a6
+        , b1 == b2, b2 == b3
+        , c1 == c2, c2 == c3
+        -> Just $ Star (a1 `plus` b1) `times` c1
 
       -- x* + x⋅Σ*  =  (x⋅Σ*)?
       (Star x1, Times [x2, All])
