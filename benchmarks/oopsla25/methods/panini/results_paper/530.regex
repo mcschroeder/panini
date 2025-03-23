@@ -1,1 +1,1 @@
-([^a]|ab)*
+([^ab](b*[^ab][^a]*(ab([^a]|ab)*)?|b*(ab([^a]|ab)*)?)|ab(b*[^ab]([^a]|ab)*|b*ab([^a]|ab)*|b*)|bb*([^ab][^a]*(ab([^a]|ab)*)?|ab([^a]|ab)*)?)?

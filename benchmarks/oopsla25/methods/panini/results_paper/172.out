@@ -1,1 +1,1 @@
-f172 : {s:𝕊 | s ∈ [^a]*} → 𝟙  -- UNVERIFIED (timeout)
+f172 : {s:𝕊 | s ∈ ([^a]([^a][^a]*)?)?} → 𝟙  -- UNVERIFIED (timeout)

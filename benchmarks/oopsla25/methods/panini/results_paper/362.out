@@ -1,1 +1,1 @@
-f362 : {s:𝕊 | s ∈ a.*b} → 𝟙
+f362 : {s:𝕊 | s ∈ a([^b][^b]*b(b|[^b][^b]*b)*|bb*([^b][^b]*b(b|[^b][^b]*b)*)?)} → 𝟙  -- UNVERIFIED (timeout)

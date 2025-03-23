@@ -1,1 +1,1 @@
-f410 : {s:𝕊 | s ∈ aa*b[ab]*|b((a(ba*)*)*|(ba*)*)|a*} → 𝟙  -- UNVERIFIED (timeout)
+f410 : {s:𝕊 | s ∈ (a(aa*(b[ab]*)?|bb*(a[ab]*)?)?|b(a(a*b[ab]*|a*)|bb*(a[ab]*)?)?)?} → 𝟙  -- UNVERIFIED (timeout)

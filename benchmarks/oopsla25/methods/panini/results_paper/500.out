@@ -1,1 +1,1 @@
-f500 : {s:𝕊 | s ∈ [ab]?c*} → 𝟙  -- UNVERIFIED (timeout)
+f500 : {s:𝕊 | s ∈ (a(cc*)?|b(cc*)?|c(cc*)?)?} → 𝟙  -- UNVERIFIED (timeout)

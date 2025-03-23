@@ -1,1 +1,1 @@
-f240 : {s:𝕊 | s ∈ a?b*} → 𝟙  -- UNVERIFIED (timeout)
+f240 : {s:𝕊 | s ∈ (a(bb*)?|b(bb*)?)?} → 𝟙  -- UNVERIFIED (timeout)
