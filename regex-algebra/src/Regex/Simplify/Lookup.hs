@@ -53,6 +53,15 @@ lookup Starred = \case
     | a1 == a2, c1 == c2
     , ab == CS.union a1 b
     -> Star (Lit b `plus` ((Star c1) <> Lit a1))
+
+  -- (([^b]|bb*a)[^b]*b)*   =   (([^ab]|b*a)[^b]*b)*
+  Times [Plus [Lit b̄1, Times [Lit b1, Star (Lit b2), Lit a]], Star (Lit b̄2), Lit b3]
+    | b1 == b2, b2 == b3
+    , b̄1 == b̄2
+    , b̄1 == CS.complement b1
+    , CS.null $ CS.intersection a b1
+    , let ab' = CS.complement $ CS.union a b1
+    -> Star ((Lit ab' `plus` (Star (Lit b1) <> Lit a)) <> Star (Lit b̄1) <> Lit b1)
   
   r -> lookup Optional r
 
@@ -156,6 +165,13 @@ lookup _ = \case
       , nab == CS.complement (CS.union a b)
       = go $ Star (Lit b) : Star (Lit a `plus` r) : xs
 
+    -- [^a]*a([^a][^a]*a)*  =  (a?[^a])*a
+    go (Star (Lit ā1) : Lit a1 : Star (Times [Lit ā2, Star (Lit ā3), Lit a2]) : xs)
+      | a1 == a2
+      , ā1 == ā2, ā2 == ā3
+      , ā1 == CS.complement a1
+      = go $ Star (Opt (Lit a1) <> Lit ā1) : Lit a1 : xs
+
     go (y:ys) = y : go ys
     go [] = []
   
@@ -171,6 +187,14 @@ lookup _ = \case
     , Lit b' <- b̄1, b' == CS.complement b
     , let x = Plus [Times [a1, Plus [b̄1, Times [Star a1, b1]]], Times [b1, Star b̄1]]
     -> Plus [Times [Star ā1, Opt (Times [a1, (Plus [Times [ā1, Star x, Star a1], Star (Times [a1, Star (Times [b1, Star x])])])])], Star (Times [ā1, Star a1])]
+
+  -- [^b] + b(y?b)*a   =   [^ab] + (b(yb)*)*a
+  Plus [Lit b̄, Times [Lit b1, Star (Times [Opt y, Lit b2]), Lit a]]
+    | b1 == b2
+    , b̄ == CS.complement b1
+    , CS.null $ CS.intersection a b1
+    , let ab' = CS.complement (CS.union a b1)
+    -> Plus [Lit ab', Star (Lit b1 <> Star (y <> Lit b1)) <> Lit a]
 
   Plus xs0 -> Plus $ go g xs0
    where
@@ -298,6 +322,12 @@ lookup _ = \case
     , Lit a <- a1
     , let ā = Lit (CS.complement a)
     -> Opt (Star (Star ā <> a1) <> a1)
+
+  -- (a(b?a)*b)?  =  (aa*b)*
+  Opt (Times [Lit a1, Star (Times [Opt (Lit b1), Lit a2]), Lit b2])
+    | a1 == a2, b1 == b2
+    , a1 == CS.complement b1
+    -> Star (Lit a1 <> Star (Lit a1) <> Lit b1)
 
   -- (x + y⋅x?)*  = (x + y)*
   Star (Plus1 x1 (TimesN y (Opt x2)))
