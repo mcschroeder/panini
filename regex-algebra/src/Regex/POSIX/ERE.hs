@@ -83,7 +83,7 @@ printERE (Alt xs) = concat $ List.intersperse "|" $ map printCon $ NE.toList xs
  where
   printCon (Con ys) = concatMap printExp $ NE.toList ys
   printExp = \case
-    Chr c | c `elem` "^.[$()|*+?{\\" -> '\\' : [c]
+    Chr c | c `elem` ("^.[$()|*+?{\\" :: [Char]) -> '\\' : [c]
     Chr c   -> [c]
     Per     -> "."
     Bra b   -> BE.printBE b
