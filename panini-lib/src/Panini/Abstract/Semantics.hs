@@ -244,10 +244,13 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let n' = AInt.fromTo 0 (Prelude.negate i)
     -> normRelA $ [ρ| str.indexof(x,y,|x|-n') = z |]
   -----------------------------------------------------------------------------
-  [ρ| str.indexof(x,c,n) = -1 |] 
+  [ρ| str.indexof(x,s,n) = -1 |]
     | AIntFrom i <- n
-    , let c̄ = lit (neg c)
-    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ star c̄)
+    , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ star Σ ⋅ s̄)
+    | [i] <- n
+    , let s̄ = neg (star Σ ⋅ s ⋅ star Σ)
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄)
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,c,|x|-1) = -1 |] 
     -> normRelA $ x :=: EStrA (star Σ ⋅ lit (neg c))
