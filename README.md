@@ -59,12 +59,6 @@ Static Grammar Inference for Ad Hoc Parsers
   ...
   ```
 
-* **To reproduce the evaluation from the OOPSLA paper:**
-
-  ```console
-  > panini --test tests/eval_py
-  ```
-
 * The `--trace` flag, available in all modes, outputs (very) detailed internal
   diagnostics and debugging information to `stderr`. The `--trace-file` flag
   writes the same information quietly to a log file.
