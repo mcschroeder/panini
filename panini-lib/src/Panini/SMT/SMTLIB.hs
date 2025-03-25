@@ -74,6 +74,7 @@ instance SMTLIB Rel where
     e1 :>: e2 -> sexpr [">", encode e1, encode e2]
     e1 :≥: e2 -> sexpr [">=", encode e1, encode e2]
     e1 :∈: e2@(EReg _) -> sexpr ["str.in_re", encode e1, encode e2]
+    e1 :∉: e2@(EReg _) -> sexpr ["not", sexpr ["str.in_re", encode e1, encode e2]]
     r -> panic $ "SMTLIB: unencondable relation:" <+> pretty r
 
 instance SMTLIB RegLan where
