@@ -497,6 +497,11 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , let s̄ = neg s
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ s̄ ⋅ star Σ)
   -----------------------------------------------------------------------------
+  [ω| |x| + ĵ |] :=: Relℤ y [ρ| x[î..y-1] = s |]
+    | [i] <- î
+    , [-1,0] <- ĵ ∧ AIntTo 0
+    -> normRelA $ x :=: EStrA (rep Σ i ⋅ s ⋅ opt Σ)
+  -----------------------------------------------------------------------------
   [ω| |x| + i |] :=: Relℤ y [ρ| x[0..y-1] = s |]
     | Just n <- strLen1 s
     , let n̂ = AInt.eq n
