@@ -97,7 +97,8 @@ printBE = \case
     Cls Graph -> "[:graph:]"
     Cls Print -> "[:print:]"
 
-  fixup xs | Ord ']' `elem` xs = Ord ']' : filter (/= Ord ']') xs
+  fixup xs | Ord ']' `elem` xs = Ord ']' : fixup (filter (/= Ord ']') xs)
+  fixup xs | Ord '-' `elem` xs = fixup (filter (/= Ord '-') xs) ++ [Ord '-']
   fixup xs = xs
 
 parseBE :: String -> Maybe BE
