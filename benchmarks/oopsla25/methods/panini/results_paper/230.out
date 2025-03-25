@@ -1,1 +1,1 @@
-f230 : {s:𝕊 | s ∈ a(b(bb*)?)?} → 𝟙  -- UNVERIFIED (timeout)
+f230 : {s:𝕊 | s ∈ ab*} → 𝟙  -- UNVERIFIED (timeout)

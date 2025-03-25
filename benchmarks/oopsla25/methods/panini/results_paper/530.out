@@ -1,1 +1,1 @@
-f530 : {s:𝕊 | s ∈ ([^ab](b*[^ab][^a]*(ab([^a]|ab)*)?|b*(ab([^a]|ab)*)?)|ab(b*[^ab]([^a]|ab)*|b*ab([^a]|ab)*|b*)|bb*([^ab][^a]*(ab([^a]|ab)*)?|ab([^a]|ab)*)?)?} → 𝟙  -- UNVERIFIED (timeout)
+f530 : {s:𝕊 | s ∈ b([^a]|ab)*|([^ab]b*|ab[^a]*)*} → 𝟙  -- UNVERIFIED (timeout)

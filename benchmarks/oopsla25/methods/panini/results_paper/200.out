@@ -1,1 +1,1 @@
-f200 : {s:𝕊 | s ∈ [^a]|a([^a]|a([^a]|aa*[^a]))} → 𝟙  -- UNVERIFIED (timeout)
+f200 : {s:𝕊 | s ∈ a*[^a]} → 𝟙  -- UNVERIFIED (timeout)

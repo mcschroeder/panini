@@ -1,1 +1,1 @@
-f380 : {s:𝕊 | s ∈ (b|aa*)?} → 𝟙  -- UNVERIFIED (timeout)
+f380 : {s:𝕊 | s ∈ b|a*} → 𝟙  -- UNVERIFIED (timeout)

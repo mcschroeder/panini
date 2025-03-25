@@ -1,1 +1,1 @@
-f381 : {s:𝕊 | s ∈ (b|a(aa*)?)?} → 𝟙  -- UNVERIFIED (timeout)
+f381 : {s:𝕊 | s ∈ b|a*} → 𝟙  -- UNVERIFIED (timeout)

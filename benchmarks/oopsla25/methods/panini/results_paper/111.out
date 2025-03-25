@@ -1,1 +1,1 @@
-f111 : {s:𝕊 | s ∈ (a(aa*)?)?} → 𝟙  -- UNVERIFIED (timeout)
+f111 : {s:𝕊 | s ∈ a*} → 𝟙  -- UNVERIFIED (timeout)

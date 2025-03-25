@@ -1,1 +1,1 @@
-f222 : {s:𝕊 | s ∈ b|a(b|a(b|aa*b))} → 𝟙  -- UNVERIFIED (timeout)
+f222 : {s:𝕊 | s ∈ a*b} → 𝟙  -- UNVERIFIED (timeout)
