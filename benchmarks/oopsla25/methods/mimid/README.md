@@ -42,6 +42,16 @@ This will take about 1-2 hours. The mined grammars will be in the `results` dire
 
 Note that Mimid requires a golden grammar for each evaluation subject to derive the positive sample inputs required by the approach. By default, the Mimid artifact generates up to 100 sample inputs from each golden grammar (in Fuzzing Book format) as part of the mining process.
 
+## Bonus: Run `urlparse.py` in Mimid Python notebook
+
+As we do not have a C version of the `urlparse` benchmark, you need to run it from the Jupyter notebook included with the Mimid artifact. To reproduce the results with the correct golden grammar, you first need to edit the notebook, located at `/home/vagrant/mimid/src/PymimiBook.ipynb`:
+
+1. Under section 2.2.1.1, change the `urlparse_golden` variable to point to the correct grammar, pasted from this project's `benchmarks/oopsla25/subjects/urlparse.grammar` file. Be sure to uppercase the `"<start>"` key to `"<START>"`.
+2. In the first cell of section 2.2.1.2, replace  `canonical(urlparse_golden)` with `urlparse_golden`.
+3. In section 2.1.1, in the definition of the `check_recall` function, replace `canonical(golden_grammar)` with `golden_grammar`.
+
+You can now start the notebook as per the instructions in the artifact's README and execute all cells up to and including the last one in section 2.2.1.3. Should you experience an error, you might first want to try to re-run section 2.2.1.2 to generate new samples. To get the benchmark runtime, it suffices to execute only the last cell in section 2.3 and then the command `to_sec(Mimid_t)`.
+
 ## References
 
 * Rahul Gopinath, Björn Mathis, and Andreas Zeller. 2020. Mining input grammars from dynamic control flow. ESEC/FSE 2020. <https://doi.org/10.1145/3368089.3409679>
