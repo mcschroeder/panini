@@ -1,0 +1,67 @@
+x < y   →   x = y - [1,∞]
+x ≤ y   →   x = y - [0,∞]
+x > y   →   x = y + [1,∞]
+x ≥ y   →   x = y + [0,∞]
+
+¬x = true     →   x = false
+¬x = false    →   x = true
+
+x = x   →   ⊤
+x = x + n  →   ⊤    if 0 ∈ n
+x = x + n  →   ⊥    otherwise
+
+k + x = n       →   x = n - k
+x + k = n       →   x = n - k
+k + x = n + y   →   x = y + (n - k)
+x + k = n + y   →   x = y + (n - k)
+k + x = y + n   →   x = y + (n - k)
+x + k = y + n   →   x = y + (n - k)
+k + x = n - y   →   x = (n - k) - y
+x + k = n - y   →   x = (n - k) - y
+k + x = y - n   →   x = y - (k + n)
+x + k = y - n   →   x = y - (k + n)
+k - x = n       →   x = k - n
+x - k = n       →   x = k + n
+k - x = n + y   →   x = (k - n) - y
+x - k = n + y   →   x = y + (k + n)
+k - x = y + n   →   x = (k - n) - y
+x - k = y + n   →   x = y + (k + n)
+k - x = n - y   →   x = y + (k - n)
+x - k = n - y   →   x = (k + n) - y
+k - x = y - n   →   x = (k + n) - y
+x - k = y - n   →   x = y + (k - n)
+
+k + x > n       →   x > n - k
+x + k > n       →   x > n - k
+k + x > n + y   →   x > y + (n - k)
+x + k > n + y   →   x > y + (n - k)
+k + x > y + n   →   x > y + (n - k)
+x + k > y + n   →   x > y + (n - k)
+k + x > n - y   →   x > (n - k) - y
+x + k > n - y   →   x > (n - k) - y
+k + x > y - n   →   x > y - (k + n)
+x + k > y - n   →   x > y - (k + n)
+k - x > n       →   x > k - n
+x - k > n       →   x > k + n
+k - x > n + y   →   x > (k - n) - y
+x - k > n + y   →   x > y + (k + n)
+k - x > y + n   →   x > (k - n) - y
+x - k > y + n   →   x > y + (k + n)
+k - x > n - y   →   x > y + (k - n)
+x - k > n - y   →   x > (k + n) - y
+k - x > y - n   →   x > (k + n) - y
+x - k > y - n   →   x > y + (k - n)
+
+
+str.indexof(x,y,z) = n    →     str.indexof(x,y,z) = n ∧ [-1,∞]
+str.indexof(x,c,0) = n    →     x = ⟦strWithFirstIndexOfChar c n⟧
+
+str.indexof(x,y,[i]) = n    if -1 ∈ n    → str.indexof(x,y,[i]) = (n ∧ [i,∞]) ∨ [-1]
+str.indexof(x,y,[i]) = n                 → str.indexof(x,y,[i]) = (n ∧ [i,∞]) 
+
+
+str.indexof(x,c,|x|-1)     = -1   →   x = .*c̅
+str.indexof(x,c,|x|-[i,∞]) = -1   →   x = .*c̅ⁱc̅*
+str.indexof(x,c,|x|-[0,1]) = -1   →   x = .*c̅?
+
+str.indexof(x,y,z) = |x|    →     str.indexof(x,y,z) = -1
