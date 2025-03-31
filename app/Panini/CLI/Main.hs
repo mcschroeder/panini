@@ -73,6 +73,7 @@ batchMain panOpts = do
         , Panini.Monad.smtTimeout = panOpts.smtTimeout 
         , Panini.Monad.regexTimeout = panOpts.regexTimeout
         , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
+        , Panini.Monad.debugInjectRegex = panOpts.debugInjectRegex
         }
 
   -- TODO: add source lines for <stdin>

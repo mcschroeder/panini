@@ -28,6 +28,7 @@ data PanOptions = PanOptions
   , savePanFile :: Bool
   , milliseconds :: Bool
   , dumpSMT :: Bool
+  , debugInjectRegex :: Maybe String
   }
   deriving stock (Show, Read)
 
@@ -127,4 +128,8 @@ opts = info
       <*> (switch $
             long "dump-smt" <>
             help "Dump SMT queries"
+          )
+      <*> (optional $ strOption $ 
+            long "debug-inject-regex" <> 
+            hidden
           )

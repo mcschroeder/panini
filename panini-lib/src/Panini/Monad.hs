@@ -74,6 +74,7 @@ data PanState = PanState {
   , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
   
   , debugTraceFrontendGraph :: Bool
+  , debugInjectRegex :: Maybe String
   }
 
 defaultState :: PanState
@@ -85,6 +86,7 @@ defaultState = PanState
   , smtTimeout = 1
   , regexTimeout = 5
   , debugTraceFrontendGraph = False
+  , debugInjectRegex = Nothing
   }
 
 -------------------------------------------------------------------------------

@@ -28,6 +28,7 @@ import Panini.Solver.Assignment
 import Panini.Solver.Simplifier
 import Panini.Syntax
 import Prelude
+import Regex.POSIX.ERE qualified
 import System.Directory
 import System.FilePath
 
@@ -92,17 +93,25 @@ define x e = do
     Left err -> do
       envExtend x $ Rejected x t0m e (TypeError err)
 
-    Right (t1,vc) -> do
+    Right (t1,vc00) -> do
       logData t1
       t2 <- simplify t1 § "Simplify type"      
-      envExtend x $ Inferred x t0m e t2 vc
+      envExtend x $ Inferred x t0m e t2 vc00
             
       -- TODO: less brittle way of identifying user holes
       -- TODO: move into solver; this is pretty much just for Fusion
       let isUserHole k | Derived _ "shape" <- getPV k = False
                        | otherwise                    = True
-      ks_ex <- Set.filter isUserHole (kvars vc) § "Find user-defined type holes"
+      ks_ex <- Set.filter isUserHole (kvars vc00) § "Find user-defined type holes"
       --ks_ex <- kvars t2 § "Find top-level type holes"
+
+      -- TODO: more systematic way of checking grammars / filling type holes
+      vc <- gets debugInjectRegex >>= \case        
+        Just regex 
+          | [k@(KVar _ [TString] _)] <- Set.toList (kvars t2)
+          , Just re <- Regex.POSIX.ERE.parseERE regex
+          -> pure $ apply [(k,PRel $ EVar "z0" TString :∈: EReg re)] vc00
+        _ -> pure vc00
 
       logMessage "Solve VC"
       logData vc
