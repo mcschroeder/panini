@@ -68,7 +68,7 @@ batchMain panOpts = do
 
   -- TODO: add source lines for <stdin>
   result <- runPan panState0 $ do
-    smtInit ?? (ElabError . SolverError . SmtError)
+    smtInit ?? (ElabError . SolverError . SmtEvent)
     logRegexInfo
     moduleOrigin <- case panOpts.inputFile of
       Nothing -> Stdin <$> tryIO Text.getContents ?? AppIOError

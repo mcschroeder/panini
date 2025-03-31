@@ -69,7 +69,7 @@ replMain panOpts = do
         }
 
   void $ runPan panState0 $ runInputT replConf $ do
-    lift (smtInit ?? (ElabError . SolverError . SmtError))
+    lift (smtInit ?? (ElabError . SolverError . SmtEvent))
     lift logRegexInfo
     repl panOpts
 

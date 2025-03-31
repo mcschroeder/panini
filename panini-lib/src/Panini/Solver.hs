@@ -49,7 +49,7 @@ solve kst c0 = do
   cs5 <- flat c5                         § "Flatten constraint"
   csk <- filter horny cs5                § "Gather Horn-headed constraints"
   s0  <- solution0 qs (kvars csk)        § "Construct initial solution"
-  sl  <- Liquid.fixpoint csk s0 ?? SmtError
+  sl  <- Liquid.fixpoint csk s0 ?? SmtEvent
   c6  <- c3                              § "Restore grammar variables"
   c7  <- apply sl c6                     § "Apply Liquid solution"
   c8  <- simplify c7                     § "Simplify constraint"
@@ -63,7 +63,7 @@ solve kst c0 = do
 
   logMessage "Phase 4: VERIFY — Validate final verification condition"
   vcs <- flat vc                         § "Flatten constraint"
-  res <- Z3.smtCheck vcs ?? SmtError
+  res <- Z3.smtCheck vcs ?? SmtEvent
   case res of
     Z3.Sat       -> return (Valid s)
     Z3.Unknown u -> return (Unverified s u)

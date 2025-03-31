@@ -1,14 +1,24 @@
 {-# LANGUAGE RecordWildCards #-}
-module Panini.SMT.Error where
+module Panini.SMT.Event where
 
 import Prelude
 import Panini.Diagnostic
 import Panini.Pretty
 
-data Error 
-  = InitError 
+data Event 
+  = Init { _version  :: String }
+  | InitError
       { _exitCode :: Maybe Int
       , _output   :: String 
+      }
+  | Query
+      { _args     :: [String]
+      , _query    :: String
+      }
+  | QueryResult
+      { _args     :: [String]
+      , _query    :: String
+      , _output   :: String
       }
   | QueryError
       { _args     :: [String]
@@ -17,8 +27,9 @@ data Error
       , _output   :: String
       }
 
-instance Diagnostic Error where
+instance Diagnostic Event where
   diagnosticMessage = \case
+    Init{..} -> pretty _version
     InitError{..} -> bulletpoints [errMsg]
      where
       errMsg =
@@ -26,6 +37,8 @@ instance Diagnostic Error where
         parens ("exit code" <+> maybe "n/a" pretty _exitCode) <> colon <\>
         pretty _output
 
+    Query{..} -> pretty _query
+    QueryResult{..} -> pretty _output
     QueryError{..} -> bulletpoints [errMsg, queryMsg]
      where
       errMsg = 

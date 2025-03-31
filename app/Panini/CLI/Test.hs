@@ -78,7 +78,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
           }
 
     (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
-      smtInit ?? (ElabError . SolverError . SmtError)
+      smtInit ?? (ElabError . SolverError . SmtEvent)
       logRegexInfo
       module_ <- loadModule panOpts (File inFile)
       maybeSavePanFile panOpts module_
