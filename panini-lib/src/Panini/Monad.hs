@@ -34,6 +34,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Function
 import Data.List qualified as List
 import Data.Maybe
+import Data.Typeable
 import GHC.Stack
 import Panini.Diagnostic
 import Panini.Elab.Environment
@@ -52,7 +53,7 @@ type Pan e = StateT PanState (ExceptT e IO)
 -- either an unrecoverable error or the result of the computation and the final
 -- state (which might contain other kinds of errors and warnings).
 runPan 
-  :: (Diagnostic e, HasProvenance e) 
+  :: (Diagnostic e, HasProvenance e, Typeable e) 
   => PanState -> Pan e a -> IO (Either e (a, PanState))
 runPan s0 m = runExceptT $ runStateT m' s0
   where
@@ -67,7 +68,7 @@ data PanState = PanState {
 
   -- | Function for handling diagnostic events. Called synchronously whenever an
   -- event occurs. Default is @const (return ())@.
-  , diagnosticHandler :: forall a. Diagnostic a => DiagnosticEnvelope a -> IO ()
+  , diagnosticHandler :: forall a. (Diagnostic a, Typeable a) => DiagnosticEnvelope a -> IO ()
 
   , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
   , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
@@ -101,7 +102,7 @@ tryError :: Pan e1 a -> Pan e2 (Either e1 a)
 tryError m = catchError (Right <$> m) (return . Left)
 
 -- | Try an action; if an error occurs, report it but don't propagate it further.
-continueOnError :: (Diagnostic e1, HasProvenance e1) => Pan e1 () -> Pan e2 ()
+continueOnError :: (Diagnostic e1, HasProvenance e1, Typeable e1) => Pan e1 () -> Pan e2 ()
 continueOnError m = m `catchError` \e -> report SevError (getPV e) e
 
 -- | Lift an 'Either' into the Panini monad, treating 'Left' as an error.
@@ -129,7 +130,7 @@ tryIO m = either throwError return =<< liftIO (try @IOError m)
 
 -------------------------------------------------------------------------------
 
-report :: (HasCallStack, Diagnostic a) => Severity -> PV -> a -> Pan e ()
+report :: (HasCallStack, Diagnostic a, Typeable a) => Severity -> PV -> a -> Pan e ()
 report severity provenance diagnostic = do
   let rapporteur = getPaniniModuleName callStack
   PanState{diagnosticHandler} <- get
@@ -140,14 +141,14 @@ getPaniniModuleName cs =
   let loc = srcLocModule $ snd $ head $ getCallStack cs
   in fromMaybe loc $ List.stripPrefix "Panini." loc
 
-warn :: (HasCallStack, Diagnostic e, HasProvenance e) => e -> Pan e ()
+warn :: (HasCallStack, Diagnostic e, HasProvenance e, Typeable e) => e -> Pan e ()
 warn w = withFrozenCallStack $ report SevWarning (getPV w) w
 -- TODO: if treatWarningsAsErrors then throwError w else ...
 
-info :: (HasCallStack, Diagnostic a) => a -> Pan e ()
+info :: (HasCallStack, Diagnostic a, Typeable a) => a -> Pan e ()
 info = withFrozenCallStack $ report SevInfo NoPV
 
-trace :: (HasCallStack, Diagnostic a) => a -> Pan e ()
+trace :: (HasCallStack, Diagnostic a, Typeable a) => a -> Pan e ()
 trace = withFrozenCallStack $ report SevTrace NoPV
 
 (§) :: (HasCallStack, Pretty a) => a -> Doc -> Pan e a
