@@ -5,6 +5,7 @@ import Control.Monad.Extra
 import Data.Function
 import Data.Maybe
 import Data.Text.IO qualified as Text
+import Data.Typeable
 import Options.Applicative
 import Panini.CLI.Common
 import Panini.CLI.Error
@@ -19,12 +20,14 @@ import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty as PP
 import Panini.Provenance
+import Panini.SMT.Event qualified as SMT
 import Panini.SMT.Z3
 import Panini.Solver.Error
 import Prelude
 import System.Console.Terminal.Size
 import System.Environment
 import System.Exit
+import System.FilePath
 import System.IO
 
 -------------------------------------------------------------------------------
@@ -58,6 +61,12 @@ batchMain panOpts = do
         let ev = ev0 { provenance = pv' }
         whenJust traceFile (putDiagnosticFile panOpts ev)
         when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
+        when (panOpts.dumpSMT) $ whenJust (cast (diagnostic ev0)) $ \case
+          SMT.Query{..} -> do
+            -- TODO: this effectively only dumps the very last SMT query
+            let dumpFile = (fromMaybe "stdin" panOpts.inputFile) -<.> "smt"
+            writeFile dumpFile _query
+          _ -> pure ()
 
   let panState0 = defaultState 
         { diagnosticHandler

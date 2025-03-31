@@ -27,6 +27,7 @@ data PanOptions = PanOptions
   , debugTraceFrontendGraph :: Bool
   , savePanFile :: Bool
   , milliseconds :: Bool
+  , dumpSMT :: Bool
   }
   deriving stock (Show, Read)
 
@@ -122,4 +123,8 @@ opts = info
       <*> (switch $
             long "milliseconds" <>
             help "Show timings in milliseconds"
+          )
+      <*> (switch $
+            long "dump-smt" <>
+            help "Dump SMT queries"
           )
