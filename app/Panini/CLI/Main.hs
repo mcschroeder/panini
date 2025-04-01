@@ -18,7 +18,6 @@ import Panini.Elab.Error
 import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty as PP
-import Panini.Provenance
 import Panini.SMT.Z3
 import Panini.Solver.Error
 import Prelude
@@ -50,35 +49,24 @@ main = do
 
 batchMain :: PanOptions -> IO ()
 batchMain panOpts = do
-  traceFile <- whenMaybe panOpts.traceToFile 
-                (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)
-      
-  let diagnosticHandler ev0 = do
-        pv' <- addSourceLines ev0.provenance
-        let ev = ev0 { provenance = pv' }
-        whenJust traceFile (putDiagnosticFile panOpts ev)
-        when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
-
-  let panState0 = defaultState 
-        { diagnosticHandler
-        , Panini.Monad.smtTimeout = panOpts.smtTimeout 
-        , Panini.Monad.regexTimeout = panOpts.regexTimeout
-        , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
-        }
-
-  -- TODO: add source lines for <stdin>
-  result <- runPan panState0 $ do
-    smtInit ?? (ElabError . SolverError . SmtEvent)
-    logRegexInfo
-    moduleOrigin <- case panOpts.inputFile of
-      Nothing -> Stdin <$> tryIO Text.getContents ?? AppIOError
-      Just fp -> return $ File fp
-    module_ <- loadModule panOpts moduleOrigin
-    maybeSavePanFile panOpts module_
-    elaborate module_ ?? ElabError
-    vsep . map pretty . getSolvedTypes <$> gets environment
-
-  whenJust traceFile hClose
+  result <- withDiagnosticLogger panOpts $ \logger -> do
+    let panState0 = defaultState 
+          { diagnosticHandler = logger
+          , Panini.Monad.smtTimeout = panOpts.smtTimeout 
+          , Panini.Monad.regexTimeout = panOpts.regexTimeout
+          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
+          }
+    -- TODO: add source lines for <stdin>
+    runPan panState0 $ do
+      smtInit ?? (ElabError . SolverError . SmtEvent)
+      logRegexInfo
+      moduleOrigin <- case panOpts.inputFile of
+        Nothing -> Stdin <$> tryIO Text.getContents ?? AppIOError
+        Just fp -> return $ File fp
+      module_ <- loadModule panOpts moduleOrigin
+      maybeSavePanFile panOpts module_
+      elaborate module_ ?? ElabError
+      vsep . map pretty . getSolvedTypes <$> gets environment
 
   case result of
     Left _ -> exitFailure

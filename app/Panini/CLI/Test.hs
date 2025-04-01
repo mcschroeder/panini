@@ -64,29 +64,24 @@ testMain globalOpts = assert globalOpts.testMode $ do
   -- TODO: read local options from inFile header comment
   execPan :: PanOptions -> FilePath -> IO (Seconds, Text)
   execPan panOpts inFile = do
-    traceFile <- whenMaybe globalOpts.traceToFile (openLogFileFor inFile)
     when globalOpts.trace $ putDoc "\n"
-    let panState0 = defaultState 
-          { diagnosticHandler = \ev -> do
-              whenJust traceFile (putDiagnosticFile globalOpts ev)
-              when globalOpts.trace (putDiagnosticStderr globalOpts ev)
-              -- note how we don't log errors to stderr by default here
-          
-          , Panini.Monad.smtTimeout = globalOpts.smtTimeout
-          , Panini.Monad.regexTimeout = globalOpts.regexTimeout
-          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
-          }
 
-    (time, result) <- duration $ try @SomeException $ runPan panState0 $ do
-      smtInit ?? (ElabError . SolverError . SmtEvent)
-      logRegexInfo
-      module_ <- loadModule panOpts (File inFile)
-      maybeSavePanFile panOpts module_
-      elaborate module_ ?? ElabError
-      (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
-      return $ vsep $ (map prettyError es) ++ (map pretty ts)
+    (time, result) <- withDiagnosticLogger globalOpts $ \logger -> do
+      let panState0 = defaultState 
+            { diagnosticHandler = logger
+            , Panini.Monad.smtTimeout = globalOpts.smtTimeout
+            , Panini.Monad.regexTimeout = globalOpts.regexTimeout
+            , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
+            }
+      duration $ try @SomeException $ runPan panState0 $ do
+        smtInit ?? (ElabError . SolverError . SmtEvent)
+        logRegexInfo
+        module_ <- loadModule panOpts (File inFile)
+        maybeSavePanFile panOpts module_
+        elaborate module_ ?? ElabError
+        (es,ts) <- liftM2 (,) getTypeErrors getSolvedTypes <$> gets environment
+        return $ vsep $ (map prettyError es) ++ (map pretty ts)
 
-    whenJust traceFile hClose
     when globalOpts.trace $ putDoc $ testName inFile
 
     case result of

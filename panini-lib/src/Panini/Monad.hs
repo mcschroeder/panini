@@ -3,6 +3,7 @@ module Panini.Monad
   ( Pan
   , runPan
   , PanState(..)
+  , DiagnosticHandler
   , defaultState
   , gets
   , throwError
@@ -68,13 +69,15 @@ data PanState = PanState {
 
   -- | Function for handling diagnostic events. Called synchronously whenever an
   -- event occurs. Default is @const (return ())@.
-  , diagnosticHandler :: forall a. (Diagnostic a, Typeable a) => DiagnosticEnvelope a -> IO ()
+  , diagnosticHandler :: DiagnosticHandler
 
   , smtTimeout :: Int  -- ^ SMT solver timeout, in seconds
   , regexTimeout :: Double  -- ^ regex simplifier timeout, in seconds
   
   , debugTraceFrontendGraph :: Bool
   }
+
+type DiagnosticHandler = forall a. (Diagnostic a, Typeable a) => DiagnosticEnvelope a -> IO ()
 
 defaultState :: PanState
 defaultState = PanState

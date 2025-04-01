@@ -26,7 +26,6 @@ import Panini.Elab.Error
 import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty
-import Panini.Provenance
 import Panini.SMT.Z3
 import Panini.Solver.Error
 import Panini.Version
@@ -35,7 +34,6 @@ import System.Console.Haskeline
 import System.Directory
 import System.Exit
 import System.FilePath
-import System.IO
 
 -- TODO: add source lines to PV for <repl> module sources
 
@@ -51,30 +49,18 @@ replMain panOpts = do
   let historyFile = configDir </> "repl_history"
   let replConf = replSettings (Just historyFile)
 
-  traceFile <- whenMaybe panOpts.traceToFile (openLogFileFor "repl")
+  withDiagnosticLogger panOpts $ \logger -> do
+    let panState0 = defaultState 
+          { diagnosticHandler = logger
+          , Panini.Monad.smtTimeout = panOpts.smtTimeout
+          , Panini.Monad.regexTimeout = panOpts.regexTimeout
+          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
+          }
+    void $ runPan panState0 $ runInputT replConf $ do
+      lift (smtInit ?? (ElabError . SolverError . SmtEvent))
+      lift logRegexInfo
+      repl panOpts
 
-  let diagnosticHandler :: Diagnostic a => DiagnosticEnvelope a -> IO ()
-      diagnosticHandler ev0 = do
-        pv' <- addSourceLines ev0.provenance
-        let ev = ev0 { provenance = pv' }
-        whenJust traceFile (putDiagnosticFile panOpts ev)
-        when (panOpts.trace || isError ev) (putDiagnosticStderr panOpts ev)
-        -- TODO: consider logging with getExternalPrint instead of to stderr
-
-  let panState0 = defaultState 
-        { diagnosticHandler
-        , Panini.Monad.smtTimeout = panOpts.smtTimeout
-        , Panini.Monad.regexTimeout = panOpts.regexTimeout
-        , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
-        }
-
-  void $ runPan panState0 $ runInputT replConf $ do
-    lift (smtInit ?? (ElabError . SolverError . SmtEvent))
-    lift logRegexInfo
-    repl panOpts
-
-  whenJust traceFile hClose
-  
   exitSuccess
 
 -- | Panini REPL.
