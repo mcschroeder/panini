@@ -51,13 +51,8 @@ replMain panOpts = do
   let replConf = replSettings (Just historyFile)
 
   withDiagnosticLogger panOpts $ \logger -> do
-    let panState0 = defaultState 
-          { diagnosticHandler = logger
-          , Panini.Monad.smtTimeout = panOpts.smtTimeout
-          , Panini.Monad.regexTimeout = panOpts.regexTimeout
-          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
-          }
-    void $ runPan panState0 $ runInputT replConf $ do
+    let s0 = (panStateWithOptions panOpts) { diagnosticHandler = logger }
+    void $ runPan s0 $ runInputT replConf $ do
       lift (smtInit ?? (ElabError . SolverError . SmtEvent))
       lift logRegexInfo
       repl panOpts

@@ -7,16 +7,16 @@ import Panini.CLI.Error
 import Panini.CLI.Options
 import Panini.Diagnostic
 import Panini.Elab.Module
+import Panini.Frontend.Python
 import Panini.Monad
 import Panini.Parser (parseProgram)
 import Panini.Pretty as PP
+import Panini.Provenance
 import Prelude
 import System.Console.ANSI
 import System.FilePath
 import System.IO
 import Text.Printf
-import Panini.Frontend.Python
-import Panini.Provenance
 
 -------------------------------------------------------------------------------
 
@@ -133,3 +133,12 @@ renderOptionsForHandle panOpts h = do
     , PP.unicode = panOpts.unicode
     , fixedWidth = if isTerm then panOpts.termWidth else Nothing
     }
+
+-------------------------------------------------------------------------------
+
+panStateWithOptions :: PanOptions -> PanState
+panStateWithOptions o = defaultState
+  { Panini.Monad.smtTimeout = o.smtTimeout 
+  , Panini.Monad.regexTimeout = o.regexTimeout
+  , Panini.Monad.debugTraceFrontendGraph = o.debugTraceFrontendGraph
+  }

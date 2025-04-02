@@ -26,14 +26,9 @@ import System.IO
 batchMain :: PanOptions -> IO ()
 batchMain panOpts = do
   result <- withDiagnosticLogger panOpts $ \logger -> do
-    let panState0 = defaultState 
-          { diagnosticHandler = logger
-          , Panini.Monad.smtTimeout = panOpts.smtTimeout 
-          , Panini.Monad.regexTimeout = panOpts.regexTimeout
-          , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
-          }
+    let s0 = (panStateWithOptions panOpts) { diagnosticHandler = logger }
     -- TODO: add source lines for <stdin>
-    runPan panState0 $ do
+    runPan s0 $ do
       smtInit ?? (ElabError . SolverError . SmtEvent)
       logRegexInfo
       moduleOrigin <- case panOpts.inputFile of

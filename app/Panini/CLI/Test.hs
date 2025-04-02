@@ -67,13 +67,8 @@ testMain globalOpts = assert globalOpts.testMode $ do
     when globalOpts.trace $ putDoc "\n"
 
     (time, result) <- withDiagnosticLogger globalOpts $ \logger -> do
-      let panState0 = defaultState 
-            { diagnosticHandler = logger
-            , Panini.Monad.smtTimeout = globalOpts.smtTimeout
-            , Panini.Monad.regexTimeout = globalOpts.regexTimeout
-            , Panini.Monad.debugTraceFrontendGraph = panOpts.debugTraceFrontendGraph
-            }
-      duration $ try @SomeException $ runPan panState0 $ do
+      let s0 = (panStateWithOptions globalOpts) { diagnosticHandler = logger }
+      duration $ try @SomeException $ runPan s0 $ do
         smtInit ?? (ElabError . SolverError . SmtEvent)
         logRegexInfo
         module_ <- loadModule panOpts (File inFile)
