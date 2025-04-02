@@ -11,6 +11,7 @@ import Panini.Monad
 import Panini.Parser (parseProgram)
 import Panini.Pretty as PP
 import Prelude
+import System.Console.ANSI
 import System.FilePath
 import System.IO
 import Text.Printf
@@ -71,9 +72,9 @@ withDiagnosticLogger panOpts m
       
       putFile <- case traceFile of
         Nothing -> return $ \_ -> pure ()
-        Just h -> getPrettyPrint panOpts h
+        Just h -> getPutDoc panOpts h
       
-      putTerm <- getPrettyPrint panOpts stderr
+      putTerm <- getPutDoc panOpts stderr
 
       when panOpts.traceToFile $ putFile (logSourceCeiling <> "\n")
       when panOpts.trace       $ putTerm (logSourceCeiling <> "\n")
@@ -115,35 +116,20 @@ withDiagnosticLogger panOpts m
 
 -------------------------------------------------------------------------------
 
-getPrettyPrint :: PanOptions -> Handle -> IO (Doc -> IO ())
-getPrettyPrint panOpts h = do
+getPutDoc :: PanOptions -> Handle -> IO (Doc -> IO ())
+getPutDoc panOpts h = do
+  o <- renderOptionsForHandle panOpts h
+  return $ \d -> Text.hPutStr h (renderDoc o d)
+
+hPutDoc :: PanOptions -> Handle -> Doc -> IO ()
+hPutDoc o h d = getPutDoc o h >>= ($ d)
+
+renderOptionsForHandle :: PanOptions -> Handle -> IO RenderOptions
+renderOptionsForHandle panOpts h = do
   isTerm <- hIsTerminalDevice h
-  let renderOpts | isTerm = termRenderOptions panOpts 
-                 | otherwise = fileRenderOptions panOpts
-  return $ \d -> hPutDoc renderOpts d h
-
-putDocFile :: PanOptions -> Doc -> Handle -> IO ()
-putDocFile o d h = hPutDoc (fileRenderOptions o) d h
-
-putDocStderr :: PanOptions -> Doc -> IO ()
-putDocStderr o d = hPutDoc (termRenderOptions o) d stderr
-
-putDocStdout :: PanOptions -> Doc -> IO ()
-putDocStdout o d = hPutDoc (termRenderOptions o) d stdout
-
-hPutDoc :: RenderOptions -> Doc -> Handle -> IO ()
-hPutDoc o d h = Text.hPutStr h $ renderDoc o d
-
-fileRenderOptions :: PanOptions -> RenderOptions
-fileRenderOptions o = RenderOptions 
-  { styling = Nothing
-  , PP.unicode = o.unicode
-  , fixedWidth = Nothing 
-  }
-
-termRenderOptions :: PanOptions -> RenderOptions
-termRenderOptions o = RenderOptions
-  { styling = pureIf o.color defaultStyling
-  , PP.unicode = o.unicode
-  , fixedWidth = o.termWidth
-  }
+  supportsColor <- if isTerm then hSupportsANSIColor h else pure False
+  return RenderOptions
+    { styling    = pureIf (panOpts.color && supportsColor) defaultStyling
+    , PP.unicode = panOpts.unicode
+    , fixedWidth = if isTerm then panOpts.termWidth else Nothing
+    }

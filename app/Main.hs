@@ -13,8 +13,7 @@ import System.IO
 
 main :: IO ()
 main = do
-  panOpts0 <- execParser opts
-  -- TODO: check if terminal/stderr supports colors
+  panOpts0 <- execParser opts  
   noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
   termWidth <- fmap width <$> size
   let panOpts = panOpts0 

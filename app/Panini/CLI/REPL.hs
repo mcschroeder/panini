@@ -34,6 +34,7 @@ import System.Console.Haskeline
 import System.Directory
 import System.Exit
 import System.FilePath
+import System.IO
 
 -- TODO: add source lines to PV for <repl> module sources
 
@@ -141,11 +142,11 @@ loadFile panOpts f = lift $ continueOnError $ do
 showEnv :: PanOptions -> String -> InputT (Pan AppError) ()
 showEnv panOpts "modules" = do
   env <- lift get
-  liftIO $ putDocStdout panOpts $ prettyList env.loadedModules <> "\n"
+  liftIO $ hPutDoc panOpts stdout $ prettyList env.loadedModules <> "\n"
 showEnv panOpts _ = do
   env <- lift $ gets environment
   let doc = vsep $ map prettyDef $ sortedDefinitions env
-  liftIO $ putDocStdout panOpts (doc <> "\n")
+  liftIO $ hPutDoc panOpts stdout (doc <> "\n")
  where
   prettyDef = \case
     Assumed{_name,_type} -> 

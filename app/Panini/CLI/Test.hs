@@ -89,8 +89,15 @@ testMain globalOpts = assert globalOpts.testMode $ do
       _ -> return ()
 
     let output = either viaShow (either prettyError fst) result
-    let actual = renderDoc (fileRenderOptions globalOpts) output
+    let actual = renderDoc testOutputRenderOptions output
     return (time, actual)
+  
+  testOutputRenderOptions :: RenderOptions
+  testOutputRenderOptions = RenderOptions 
+    { styling = Nothing
+    , unicode = globalOpts.unicode
+    , fixedWidth = Nothing 
+    }
   
   compareResult :: PanOptions -> FilePath -> (Seconds, Text) -> IO Bool
   compareResult panOpts inFile (time, actual) = do
@@ -138,7 +145,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
   outFileFor = flip addExtension ".out"
 
   putDoc :: Doc -> IO ()
-  putDoc = putDocStdout globalOpts
+  putDoc = hPutDoc globalOpts stdout
   
   putDocLn :: Doc -> IO ()
   putDocLn d = putDoc $ d <> "\n"

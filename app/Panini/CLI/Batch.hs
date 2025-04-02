@@ -48,10 +48,10 @@ batchMain panOpts = do
     Left _ -> exitFailure
     Right (doc,panState1) -> do
       case panOpts.outputFile of
-        Just outFile -> withFile outFile WriteMode $ putDocFile panOpts doc
-        Nothing -> putDocStdout panOpts $ doc <> "\n"
+        Just fp -> withFile fp WriteMode $ \h -> hPutDoc panOpts h doc
+        Nothing -> hPutDoc panOpts stdout $ doc <> "\n"
       case getTypeErrors panState1.environment of
         [] -> exitSuccess
         xs -> do
-          putDocStderr panOpts (vsep (map prettyError xs) <> "\n")
+          hPutDoc panOpts stderr $ vsep (map prettyError xs) <> "\n"
           exitFailure
