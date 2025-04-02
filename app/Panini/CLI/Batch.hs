@@ -1,5 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
-module Panini.CLI.Main where
+module Panini.CLI.Batch where
 
 import Control.Monad.Extra
 import Data.Function
@@ -9,8 +8,6 @@ import Options.Applicative
 import Panini.CLI.Common
 import Panini.CLI.Error
 import Panini.CLI.Options
-import Panini.CLI.REPL
-import Panini.CLI.Test
 import Panini.Diagnostic
 import Panini.Elab
 import Panini.Elab.Environment
@@ -21,31 +18,10 @@ import Panini.Pretty as PP
 import Panini.SMT.Z3
 import Panini.Solver.Error
 import Prelude
-import System.Console.Terminal.Size
-import System.Environment
 import System.Exit
 import System.IO
 
 -------------------------------------------------------------------------------
-
-main :: IO ()
-main = do
-  panOpts0 <- execParser opts
-  -- TODO: check if terminal/stderr supports colors
-  noColor <- maybe False (not . null) <$> lookupEnv "NO_COLOR"
-  termWidth <- fmap width <$> size
-  let panOpts = panOpts0 
-        { color = panOpts0.color && not noColor
-        , termWidth = panOpts0.termWidth <|> termWidth
-        }
-  
-  if panOpts.testMode 
-    then testMain panOpts
-    else do
-      isTerm <- hIsTerminalDevice stdin
-      if isNothing panOpts.inputFile && isTerm && not panOpts.noInput
-        then replMain panOpts
-        else batchMain panOpts
 
 batchMain :: PanOptions -> IO ()
 batchMain panOpts = do

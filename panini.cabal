@@ -48,9 +48,9 @@ executable panini
     , text
     , transformers
   other-modules:
+    Panini.CLI.Batch
     Panini.CLI.Common
     Panini.CLI.Error
-    Panini.CLI.Main
     Panini.CLI.Options
     Panini.CLI.REPL
     Panini.CLI.Test
