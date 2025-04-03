@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-orphans #-}  -- TODO: remove
 module Panini.Diagnostic 
   ( Diagnostic(..)  
   , DiagnosticEnvelope(..)
