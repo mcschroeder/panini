@@ -67,55 +67,43 @@ withDiagnosticLogger panOpts m = do
   -- TODO: get trace file as CLI option
   traceFile <- whenMaybe panOpts.traceToFile
                 (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)            
-      
-  putFile <- case traceFile of
-    Nothing -> return $ \_ -> pure ()
-    Just h -> getPutDoc panOpts h
-      
+
+  putFile <- maybe (return $ \_ -> pure ()) (getPutDoc panOpts) traceFile  
   putTerm <- getPutDoc panOpts stderr
 
-  when panOpts.traceToFile $ putFile (logSourceCeiling <> "\n")
-  when panOpts.trace       $ putTerm (logSourceCeiling <> "\n")
+  let putLog d = do putFile (d <> "\n")
+                    when panOpts.trace $ putTerm (d <> "\n")
+  
+  let putErr d = do putFile (d <> "\n")
+                    unless suppressErrors $ putTerm (d <> "\n")
+  
+  putLog traceTop
 
-  x <- m $ \ev0 -> when (logToFile ev0 || logToTerm ev0) $ do
+  x <- m $ \ev0 -> do
     pv' <- addSourceLines ev0.provenance
     let ev = ev0 { provenance = pv' }
-    let doc = prettyDiagnostic ev <> "\n"
-    when (logToFile ev) $ putFile doc
-    when (logToTerm ev) $ putTerm doc
-      
-  when panOpts.traceToFile $ putFile (logSourceFloor <> "\n")
-  when panOpts.trace       $ putTerm (logSourceFloor <> "\n")
+    let src = ann Margin $ pretty @String $ printf "│ %-16s │" ev.rapporteur
+    let msg = diagnosticMessage ev.diagnostic
+    let errMsg = prettyErrorDiagnostic msg ev.provenance
+    case ev.severity of
+      SevInfo    -> putLog $ src <+> msg
+      SevTrace   -> putLog $ src <\\> traceBot <\\> msg <\\> traceTop
+      SevWarning -> putLog warnBot >> putErr msg    >> putLog warnTop
+      SevError   -> putLog errBot  >> putErr errMsg >> putLog errTop
 
+  putLog traceBot
   whenJust traceFile hClose
-
   return x
  
  where
-  logToFile, logToTerm :: DiagnosticEnvelope a -> Bool
-  logToFile _  = panOpts.traceToFile
-  logToTerm ev = panOpts.trace || (isError ev && not panOpts.testMode)
-
-  prettyDiagnostic :: Diagnostic a => DiagnosticEnvelope a -> Doc
-  prettyDiagnostic diagEnv = 
-    let msg = diagnosticMessage diagEnv.diagnostic
-    in case diagEnv.severity of
-      SevError -> prettyErrorDiagnostic msg diagEnv.provenance
-      SevWarning -> ann Error "warning:" <+> align msg
-      SevInfo -> logSource diagEnv.rapporteur <+> align msg
-      SevTrace ->
-        logSource diagEnv.rapporteur <\\>
-        logSourceFloor <\\>
-        msg <\\>
-        logSourceCeiling
-
-  logSource :: String -> Doc
-  logSource src = ann Margin $ pretty @String $ printf "│ %-16s │" src
- 
-  logSourceCeiling, logSourceFloor :: Doc
-  logSourceCeiling = ann Margin ("╭──────────────────╮")
-  logSourceFloor   = ann Margin ("╰──────────────────╯")
-
+  suppressErrors = panOpts.testMode && not panOpts.trace
+  traceTop = ann Margin "╭──────────────────╮"
+  traceBot = ann Margin "╰──────────────────╯"
+  warnTop  = ann Margin "┌──────────────────┐"  
+  warnBot  = ann Margin "└──────────────────┘"
+  errTop   = ann Margin "╒══════════════════╕"
+  errBot   = ann Margin "╘══════════════════╛"
+  
 -------------------------------------------------------------------------------
 
 getPutDoc :: PanOptions -> Handle -> IO (Doc -> IO ())
