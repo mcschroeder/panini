@@ -63,37 +63,39 @@ openLogFileFor f = do
   return h
 
 withDiagnosticLogger :: PanOptions -> (DiagnosticHandler -> IO a) -> IO a
-withDiagnosticLogger panOpts m
-  | not (panOpts.trace || panOpts.traceToFile) = m (\_ -> pure ())
-  | otherwise = do
-      -- TODO: get trace file as CLI option
-      traceFile <- whenMaybe panOpts.traceToFile
-                    (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)            
+withDiagnosticLogger panOpts m = do
+  -- TODO: get trace file as CLI option
+  traceFile <- whenMaybe panOpts.traceToFile
+                (openLogFileFor $ fromMaybe "stdin" panOpts.inputFile)            
       
-      putFile <- case traceFile of
-        Nothing -> return $ \_ -> pure ()
-        Just h -> getPutDoc panOpts h
+  putFile <- case traceFile of
+    Nothing -> return $ \_ -> pure ()
+    Just h -> getPutDoc panOpts h
       
-      putTerm <- getPutDoc panOpts stderr
+  putTerm <- getPutDoc panOpts stderr
 
-      when panOpts.traceToFile $ putFile (logSourceCeiling <> "\n")
-      when panOpts.trace       $ putTerm (logSourceCeiling <> "\n")
+  when panOpts.traceToFile $ putFile (logSourceCeiling <> "\n")
+  when panOpts.trace       $ putTerm (logSourceCeiling <> "\n")
 
-      x <- m $ \ev0 -> do
-        pv' <- addSourceLines ev0.provenance
-        let ev = ev0 { provenance = pv' }
-        let doc = prettyDiagnostic ev <> "\n"
-        when panOpts.traceToFile $ putFile doc
-        when (panOpts.trace || (isError ev && not panOpts.testMode)) $ putTerm doc
+  x <- m $ \ev0 -> when (logToFile ev0 || logToTerm ev0) $ do
+    pv' <- addSourceLines ev0.provenance
+    let ev = ev0 { provenance = pv' }
+    let doc = prettyDiagnostic ev <> "\n"
+    when (logToFile ev) $ putFile doc
+    when (logToTerm ev) $ putTerm doc
       
-      when panOpts.traceToFile $ putFile (logSourceFloor <> "\n")
-      when panOpts.trace       $ putTerm (logSourceFloor <> "\n")
+  when panOpts.traceToFile $ putFile (logSourceFloor <> "\n")
+  when panOpts.trace       $ putTerm (logSourceFloor <> "\n")
 
-      whenJust traceFile hClose
+  whenJust traceFile hClose
 
-      return x
+  return x
  
  where
+  logToFile, logToTerm :: DiagnosticEnvelope a -> Bool
+  logToFile _  = panOpts.traceToFile
+  logToTerm ev = panOpts.trace || (isError ev && not panOpts.testMode)
+
   prettyDiagnostic :: Diagnostic a => DiagnosticEnvelope a -> Doc
   prettyDiagnostic diagEnv = 
     let msg = diagnosticMessage diagEnv.diagnostic
