@@ -26,7 +26,7 @@ import Text.Printf
 
 initialize :: Pan AppError ()
 initialize = do
-  smtInit ?? (ElabError . Elab.SolverError . Solver.SmtEvent)
+  smtInit ?? (ElabError . Elab.SolverError . Solver.SmtError)
   t <- showDuration <$> gets Panini.Monad.regexTimeout
   info $ "Regex simplifier timeout:" <+> pretty t
 

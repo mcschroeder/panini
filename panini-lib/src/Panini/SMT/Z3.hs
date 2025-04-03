@@ -13,7 +13,8 @@ import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
 import Data.Text qualified as Text
 import Panini.Monad
-import Panini.SMT.Event
+import Panini.Pretty
+import Panini.SMT.Error
 import Panini.SMT.SMTLIB
 import Prelude
 import System.Exit
@@ -23,16 +24,14 @@ import System.Process
 
 -------------------------------------------------------------------------------
 
-smtInit :: Pan Event ()
+smtInit :: Pan Error ()
 smtInit = do
   r <- liftIO $ try @IOException $ readProcessWithExitCode "z3" ["-version"] ""
   case r of
     Left err -> throwError $ InitError Nothing (show err)
     Right (code, output, _) -> case code of
       ExitFailure c -> throwError $ InitError (Just c) output
-      ExitSuccess -> do
-        let version = dropWhileEnd isSpace output
-        info $ Init version
+      ExitSuccess -> info $ pretty $ dropWhileEnd isSpace output
 
 -------------------------------------------------------------------------------
 
@@ -42,7 +41,7 @@ isSat :: Result -> Bool
 isSat Sat = True
 isSat _   = False
 
-smtCheck :: SMTLIB a => [a] -> Pan Event Result
+smtCheck :: SMTLIB a => [a] -> Pan Error Result
 smtCheck cs = do
   let foralls = map (Text.unpack . toSMTLIB) cs
   let declares = []
@@ -51,9 +50,11 @@ smtCheck cs = do
   timeout <- gets smtTimeout
   let args = ["-T:" ++ show timeout]
   
-  trace $ Query args query
+  info @Doc "Query SMT solver"
+  trace $ pretty query
   (code, output, _) <- liftIO $ readProcessWithExitCode "z3" (["-smt2", "-in"] ++ args) query
-  trace $ QueryResult args query output
+  info @Doc "Received SMT solver response"
+  trace $ pretty output
 
   case code of
     ExitSuccess -> case dropWhileEnd isSpace output of
