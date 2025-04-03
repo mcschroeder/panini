@@ -23,8 +23,6 @@ module Panini.Monad
   , (§)
   , (§§)
   , logRegexInfo
-  , logMessage
-  , logData
   ) where
 
 import Control.Exception
@@ -174,11 +172,3 @@ logRegexInfo :: Pan e ()
 logRegexInfo = do
   t <- showDuration <$> gets regexTimeout
   info $ "Simplifier timeout:" <+> pretty t
-
--- TODO: get rid of this synonym
-logMessage :: HasCallStack => Doc -> Pan e ()
-logMessage = withFrozenCallStack info
-
--- TODO: get rid of this synonym
-logData :: (HasCallStack, Pretty a) => a -> Pan e ()
-logData = withFrozenCallStack $ trace . pretty 

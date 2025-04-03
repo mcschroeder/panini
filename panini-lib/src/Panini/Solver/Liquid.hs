@@ -31,29 +31,29 @@ import Prelude
 -- Returns 'Nothing' if no solution could be found.
 solve :: [FlatCon] -> Map [Base] [Pred] -> Pan SMT.Event (Maybe Assignment)
 solve cs qs = do
-  logMessage $ "Find Horn-headed constraints" <+> sym_csk
+  info $ "Find Horn-headed constraints" <+> sym_csk
   let (csk,csp) = partition horny cs
-  logData $ sym_csk <+> symEq <+> pretty csk
+  trace $ sym_csk <+> symEq <+> pretty csk
 
-  logMessage $ "Construct initial solution" <+> sigma <> subscript 0
+  info $ "Construct initial solution" <+> sigma <> subscript 0
   -- TODO: we still assume free vars in qs to match the k param names (z0,...,zn)
   let s0 = Map.fromList
          [ (k, q) | k@(KVar _ ts _) <- Set.toList (kvars cs)
          , let q = maybe PTrue meets (Map.lookup ts qs)
          ]
-  logData $ sigma <> subscript 0 <+> symEq <+> pretty s0
+  trace $ sigma <> subscript 0 <+> symEq <+> pretty s0
 
-  logMessage $ "Iteratively weaken" <+> sigma <+> 
+  info $ "Iteratively weaken" <+> sigma <+> 
                "until all" <+> sym_csk <+> "are satisfied"
   s <- fixpoint csk s0
-  logMessage "Found fixpoint"
-  logData $ sigma <+> symEq <+> pretty s
+  info @Doc "Found fixpoint"
+  trace $ sigma <+> symEq <+> pretty s
 
-  logMessage $ "Apply" <+> sigma <+> "to concrete constraints" <+> sym_csp
+  info $ "Apply" <+> sigma <+> "to concrete constraints" <+> sym_csp
   let csp2 = map (apply s) csp
-  logData $ sigma <> parens sym_csp <+> symEq <+> pretty csp2
+  trace $ sigma <> parens sym_csp <+> symEq <+> pretty csp2
 
-  logMessage $ "Validate" <+> sigma <> parens sym_csp
+  info $ "Validate" <+> sigma <> parens sym_csp
   smtCheck csp2 >>= \case
     Sat -> return $ Just s
     _   -> return Nothing
@@ -66,7 +66,7 @@ solve cs qs = do
 -- given constraints is found.
 fixpoint :: [FlatCon] -> Assignment -> Pan SMT.Event Assignment
 fixpoint cs s = do
-  logData $ sigma <+> symEq <+> pretty s
+  trace $ sigma <+> symEq <+> pretty s
   r <- filterM ((not . isSat <$>) . smtCheck . pure . apply s) cs
   case r of
     []  -> return s
@@ -79,7 +79,7 @@ weaken s (FAll xs p (PAppK k ys)) =
     Nothing -> panic $ "missing Horn assignment for" <+> pretty k
     Just q0 -> do
       let p' = apply s p
-      let keep q = do logMessage $ "Keep" <+> pretty q <+> "?"
+      let keep q = do info $ "Keep" <+> pretty q <+> "?"
                       isSat <$> smtCheck [FAll xs p' (substN ys (kparams k) q)]
       qs' <- meets <$> filterM keep (explode q0)
       return $ Map.insert k qs' s

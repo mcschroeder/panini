@@ -10,6 +10,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Panini.Monad
+import Panini.Pretty
 import Panini.SMT.Z3 qualified as Z3
 import Panini.Solver.Abstract (allPreCons, preConKVar)
 import Panini.Solver.Abstract qualified as Abstract
@@ -36,12 +37,12 @@ data Result
 
 solve :: Set KVar -> Con -> Pan Error Result
 solve kst c0 = do
-  logMessage "Phase 1: FUSION — Eliminate local acyclic variables"
+  info @Doc "Phase 1: FUSION — Eliminate local acyclic variables"
   c1  <- simplify c0                     § "Simplify constraint"
   c2  <- Fusion.solve kst c1
   c3  <- simplify c2                     § "Simplify constraint"
 
-  logMessage "Phase 2: LIQUID — Solve residual non-grammar variables"
+  info @Doc "Phase 2: LIQUID — Solve residual non-grammar variables"
   ksp <- allGrammarVars c3               § "Identify grammar variables"
   c4  <- apply (allTrue ksp) c3          § "Hide grammar variables"
   c5  <- simplify c4                     § "Simplify constraint"
@@ -54,14 +55,14 @@ solve kst c0 = do
   c7  <- apply sl c6                     § "Apply Liquid solution"
   c8  <- simplify c7                     § "Simplify constraint"
 
-  logMessage "Phase 3: ABSTRACT — Infer grammars using abstract interpretation"
+  info @Doc "Phase 3: ABSTRACT — Infer grammars using abstract interpretation"
   sa  <- Abstract.solve c8
   c9  <- apply sa c8                     § "Apply abstract solution"
   c10 <- simplify c9                     § "Simplify constraint"
   s   <- sa <> sl <> allTrue (kvars c0)  § "Construct final solution"
   vc  <- apply s c10                     § "Apply final solution"
 
-  logMessage "Phase 4: VERIFY — Validate final verification condition"
+  info @Doc "Phase 4: VERIFY — Validate final verification condition"
   vcs <- flat vc                         § "Flatten constraint"
   res <- Z3.smtCheck vcs ?? SmtEvent
   case res of

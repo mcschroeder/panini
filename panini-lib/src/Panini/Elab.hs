@@ -71,7 +71,7 @@ elaborate thisModule = do
 -- | Add an assumed type to the environment.
 assume :: Name -> Type -> Pan ElabError ()
 assume x t = do
-  logMessage $ "Assume" <+> pretty x <+> ":" <+> pretty t
+  info $ "Assume" <+> pretty x <+> ":" <+> pretty t
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
   envExtend x (Assumed x t)
 
@@ -80,20 +80,20 @@ assume x t = do
 -- same name.
 define :: Name -> Term -> Pan ElabError ()
 define x e = do
-  logMessage $ "Define" <+> pretty x <+> "= ..."
+  info $ "Define" <+> pretty x <+> "= ..."
   t0m <- envLookup x >>= \case
     Nothing                -> return Nothing
     Just (Assumed {_type}) -> return $ Just _type
     Just _                 -> throwError $ AlreadyDefined x
 
-  logMessage $ "Infer type of" <+> pretty x
+  info $ "Infer type of" <+> pretty x
   let syn = maybe (infer mempty e) (check mempty e) t0m
   (tryError syn ?? TypeError) >>= \case
     Left err -> do
       envExtend x $ Rejected x t0m e (TypeError err)
 
     Right (t1,vc) -> do
-      logData t1
+      trace $ pretty t1
       t2 <- simplify t1 § "Simplify type"      
       envExtend x $ Inferred x t0m e t2 vc
             
@@ -104,8 +104,8 @@ define x e = do
       ks_ex <- Set.filter isUserHole (kvars vc) § "Find user-defined type holes"
       --ks_ex <- kvars t2 § "Find top-level type holes"
 
-      logMessage "Solve VC"
-      logData vc
+      info @Doc "Solve VC"
+      trace $ pretty vc
       (tryError (Solver.solve ks_ex vc) ?? SolverError) >>= \case
         Left err -> do
           envExtend x $ Invalid x t0m e t2 vc (SolverError err)
@@ -128,10 +128,10 @@ makeFinalType s t1 t0m = do
   case t0m of
     Nothing -> pure t3
     Just t0 -> do
-      logMessage "Match inferred type against signature"
+      info @Doc "Match inferred type against signature"
       let (t4,w) = matchTypeSig t3 t0
-      logData t4
-      when w $ logMessage $ warning t0 t3 t4
+      trace $ pretty t4
+      when w $ info $ warning t0 t3 t4
       return t4
  where
   -- TODO: attach proper warning type to definition in environment
@@ -169,7 +169,7 @@ matchTypeSig = go
 -- | Resolve an import relative to the current module.
 import_ :: Module -> FilePath -> PV -> Pan ElabError ()
 import_ thisModule relPath _ = do
-  logMessage $ "Import" <+> pretty relPath
+  info $ "Import" <+> pretty relPath
   parentDir <- case thisModule.moduleOrigin of
     File  f -> return $ normalise $ takeDirectory f
     Stdin _ -> tryIO (makeAbsolute =<< getCurrentDirectory) ?? IOError

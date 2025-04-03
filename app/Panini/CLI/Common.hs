@@ -40,12 +40,12 @@ loadModule panOpts origin = do
 maybeSavePanFile :: PanOptions -> Module -> Pan AppError ()
 maybeSavePanFile panOpts module_
   | not panOpts.savePanFile = return ()
-  | inputIsPan = logMessage $ "Warning:" <+> warnIgnore
+  | inputIsPan = info @Doc $ "Warning:" <+> warnIgnore
   | otherwise = do
       let pan = mkPanFile module_.moduleOrigin
       let opt = RenderOptions Nothing True Nothing
       let src = renderDoc opt $ pretty module_.program
-      logMessage $ "Writing transpiled source to" <+> pretty pan
+      info $ "Writing transpiled source to" <+> pretty pan
       liftIO $ Text.writeFile pan src
  where
   inputIsPan = module_.sourceType == "panini"

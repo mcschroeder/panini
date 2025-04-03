@@ -92,7 +92,7 @@ solve c0 = do
   --   return $ Map.insert k (AInt bot, PTrue) s -- TODO
 
   solve' s (PreCon x b k c) = do
-    logMessage $ "Solve" <+> pretty @Pred (PAppK k [EVar x b])
+    info $ "Solve" <+> pretty @Pred (PAppK k [EVar x b])
     c' <- apply (Map.map snd s) c   § "Apply partial solution"
     a1 <- solve1 (PreCon x b k c')
     a2 <- meet' a1 (Map.lookup k s) § "Meet with previous abstract solution"
@@ -126,7 +126,7 @@ concretizeVar x b v = logAndReturn $ case (b,v) of
  where
   logAndReturn pm = do
     p <- pm
-    logMessage $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
+    info $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
     return p
 
 -- | Solve a single precondition constraint, resulting in an abstract value.
@@ -165,18 +165,18 @@ abstractNNF x b = \case
 abstractVarToValue :: Name -> Base -> ARel -> Pan Error AValue
 abstractVarToValue x b r = do
   let a = abstract x b r
-  logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
+  info $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
   if groundValue a || isDeferredStrComp a
     then return a 
     else throwError $ AbstractionToValueImpossible x r a
 
 valueMeets :: Base -> [AValue] -> Pan Error AValue
 valueMeets b vs0 = do  
-  logMessage "Meet values"
+  info @Doc "Meet values"
   let vs = map NE.head $ NE.group $ List.sortBy (comparing Down) vs0
-  logData $ "⋀" <> pretty vs
+  trace $ "⋀" <> pretty vs
   v <- foldrM meet' (topValue b) vs
-  logData $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
+  trace $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
   return v
  where
   meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
@@ -184,11 +184,11 @@ valueMeets b vs0 = do
 
 valueJoins :: Base -> [AValue] -> Pan Error AValue
 valueJoins b vs0 = do
-  logMessage "Join values"
+  info @Doc "Join values"
   let vs = map NE.head $ NE.group $ List.sortBy (comparing Down) vs0
-  logData $ "⋁" <> pretty vs
+  trace $ "⋁" <> pretty vs
   v <- foldrM join' (botValue b) vs
-  logData $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
+  trace $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
   return v
  where
   join' x y = simplifyAValue $ fromMaybe err (partialJoin x y)
@@ -222,10 +222,10 @@ qelim c0 = do
     POr xs        -> POr   <$> mapM elimExists xs
     PAppK _ _     -> impossible
     PExists x t p -> do p' <- elimExists p
-                        logMessage $ "Eliminate ∃" <> pretty x
-                        logData $ PExists x t p'
+                        info $ "Eliminate ∃" <> pretty x
+                        trace $ pretty $ PExists x t p'
                         q <- joins <$> mapM (qelim1 x t) (dnf p')
-                        logData q
+                        trace $ pretty q
                         return q
 
 nnf :: Pred' v -> Pred' v
@@ -266,30 +266,30 @@ dnf p0 = case nnf p0 of
 --
 qelim1 :: Name -> Base -> [ARel] -> Pan Error APred
 qelim1 x b φ = do
-  logMessage $ divider symDivH Nothing
-  logMessage $ "qelim1" <+> pretty x <+> pretty b
-  logMessage $ "φ ←" <+> pretty φ  
+  info $ divider symDivH Nothing
+  info $ "qelim1" <+> pretty x <+> pretty b
+  info $ "φ ←" <+> pretty φ  
   let rs = [r | r <- φ, x `elem` freeVars r]
   ξ <- partialMeets <$> mapM (simplifyAValue <=< abstractVar x b) rs
-  logMessage $ "ξ ←" <+> pretty ξ
+  info $ "ξ ←" <+> pretty ξ
   if any hasBot ξ then do
-    logMessage "↯"
+    info @Doc "↯"
     return PFalse
   else do
     let ψ₁ = [EAbs e₁ :=: EAbs e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
     let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
     normRels (ψ₁ ++ ψ₂) >>= \case
       Nothing -> do
-        logMessage "↯"
+        info @Doc "↯"
         return PFalse
       Just ψ -> do 
-        logMessage $ "ψ ←" <+> pretty ψ
+        info $ "ψ ←" <+> pretty ψ
         return $ meets $ map PRel ψ
 
 abstractVar :: Name -> Base -> ARel -> Pan Error AValue
 abstractVar x b r = do
   let a = abstract x b r
-  logMessage $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
+  info $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
   return a
 
 normRels :: [ARel] -> Pan Error (Maybe [ARel])
@@ -299,9 +299,9 @@ normRels = go []
   go ys (r:rs) = do
     let r' = normRelA r
     case r' of
-      Left False          -> logMessage $ pretty r <+> " ⇝  ⊥"
-      Left True           -> logMessage $ pretty r <+> " ⇝  ⊤"
-      Right y | y /= r    -> logMessage $ pretty r <+> " ⇝ " <+> pretty y
+      Left False          -> info $ pretty r <+> " ⇝  ⊥"
+      Left True           -> info $ pretty r <+> " ⇝  ⊤"
+      Right y | y /= r    -> info $ pretty r <+> " ⇝ " <+> pretty y
               | otherwise -> return ()
     case r' of
       Left False -> return Nothing
@@ -318,17 +318,17 @@ simplifyAValue = \case
 
 simplifyRegex :: AString -> Pan Error AString
 simplifyRegex s = do
-  logMessage "Simplify regular expression"
+  info @Doc "Simplify regular expression"
   t <- gets regexTimeout
   r <- liftIO $ timeout t $ return $! AString.simplify s
   case r of
     Nothing -> do
-      logMessage "Timeout trying to simplify regular expression"
-      logData $ safePretty s
+      info @Doc "Timeout trying to simplify regular expression"
+      trace $ safePretty s
       return s    
     Just s' -> do
       unless (s == s') $ do
-        logData $ group $ safePretty s <\> "  ⇝  " <\> safePretty s'
+        trace $ group $ safePretty s <\> "  ⇝  " <\> safePretty s'
       return s'
  where
   safePretty r = 

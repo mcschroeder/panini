@@ -38,7 +38,7 @@ transpilePythonProgram src fp = do
 
   debugTraceGraph dom = whenM (gets debugTraceFrontendGraph) $ do
     let graphFile = fp <> ".dom.svg"
-    logMessage $ "Render dominator tree / CFG to" <+> pretty graphFile
+    info $ "Render dominator tree / CFG to" <+> pretty graphFile
     liftIO $ renderGraph graphFile dom
 
 
