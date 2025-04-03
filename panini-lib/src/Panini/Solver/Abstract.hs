@@ -125,8 +125,9 @@ concretizeVar x b v = logAndReturn $ case (b,v) of
   _ -> panic $ "concretizeVar:" <+> pretty x <+> pretty b <+> pretty v      
  where
   logAndReturn pm = do
+    info $ "Concretize" <+> pretty x <+> pretty b
     p <- pm
-    info $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
+    trace $ "⟦" <> pretty v <> "⟧↓" <> pretty x <+> "≐" <+> pretty p
     return p
 
 -- | Solve a single precondition constraint, resulting in an abstract value.
@@ -150,7 +151,10 @@ solve1 = \case
     c1 <- qelim c
     c2 <- nnf c1               § "Convert to NNF"
     c3 <- simplify c2          § "Simplify predicate"
-    q  <- abstractNNF x b c3  §§ "Abstract" <+> pretty x <+> pretty b
+    info $ "Abstract" <+> pretty x <+> pretty b
+    q  <- abstractNNF x b c3
+    info $ "Abstracted" <+> pretty x <+> pretty b
+    trace $ pretty q
     return q
 
 abstractNNF :: Name -> Base -> APred -> Pan Error AValue
@@ -165,18 +169,19 @@ abstractNNF x b = \case
 abstractVarToValue :: Name -> Base -> ARel -> Pan Error AValue
 abstractVarToValue x b r = do
   let a = abstract x b r
-  info $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
+  trace $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
   if groundValue a || isDeferredStrComp a
     then return a 
     else throwError $ AbstractionToValueImpossible x r a
 
 valueMeets :: Base -> [AValue] -> Pan Error AValue
-valueMeets b vs0 = do  
+valueMeets b vs0 = do
   info @Doc "Meet values"
   let vs = map NE.head $ NE.group $ List.sortBy (comparing Down) vs0
   trace $ "⋀" <> pretty vs
   v <- foldrM meet' (topValue b) vs
-  trace $ group $ "⋀" <> pretty vs <\> symEq <\> pretty v
+  info @Doc "Met values"
+  trace $ pretty v
   return v
  where
   meet' x y = simplifyAValue $ fromMaybe err (partialMeet x y)
@@ -188,7 +193,8 @@ valueJoins b vs0 = do
   let vs = map NE.head $ NE.group $ List.sortBy (comparing Down) vs0
   trace $ "⋁" <> pretty vs
   v <- foldrM join' (botValue b) vs
-  trace $ group $ "⋁" <> pretty vs <\> symEq <\> pretty v
+  info @Doc "Joined values"
+  trace $ pretty v
   return v
  where
   join' x y = simplifyAValue $ fromMaybe err (partialJoin x y)
@@ -199,7 +205,10 @@ valueJoins b vs0 = do
 qelim :: ACon -> Pan Error APred
 qelim c0 = do
   c1 <- elimAll c0      § "Eliminate ∀"
-  c2 <- elimExists c1  §§ "Eliminate ∃"
+  info @Doc "Eliminate all ∃"
+  c2 <- elimExists c1
+  info @Doc "Eliminated all ∃"
+  trace $ pretty c2
   return c2
  where
   elimAll :: ACon -> APred
@@ -225,6 +234,7 @@ qelim c0 = do
                         info $ "Eliminate ∃" <> pretty x
                         trace $ pretty $ PExists x t p'
                         q <- joins <$> mapM (qelim1 x t) (dnf p')
+                        info $ "Eliminated ∃" <> pretty x
                         trace $ pretty q
                         return q
 
@@ -266,30 +276,29 @@ dnf p0 = case nnf p0 of
 --
 qelim1 :: Name -> Base -> [ARel] -> Pan Error APred
 qelim1 x b φ = do
-  info $ divider symDivH Nothing
   info $ "qelim1" <+> pretty x <+> pretty b
-  info $ "φ ←" <+> pretty φ  
+  trace $ "φ ←" <+> pretty φ
   let rs = [r | r <- φ, x `elem` freeVars r]
   ξ <- partialMeets <$> mapM (simplifyAValue <=< abstractVar x b) rs
-  info $ "ξ ←" <+> pretty ξ
+  trace $ "ξ ←" <+> pretty ξ
   if any hasBot ξ then do
-    info @Doc "↯"
+    trace @Doc "↯"
     return PFalse
   else do
     let ψ₁ = [EAbs e₁ :=: EAbs e₂ | (e₁:es) <- List.tails ξ, e₂ <- es]
     let ψ₂ = [r | r <- φ, x `notElem` freeVars r]
     normRels (ψ₁ ++ ψ₂) >>= \case
       Nothing -> do
-        info @Doc "↯"
+        trace @Doc "↯"
         return PFalse
       Just ψ -> do 
-        info $ "ψ ←" <+> pretty ψ
+        trace $ "ψ ←" <+> pretty ψ
         return $ meets $ map PRel ψ
 
 abstractVar :: Name -> Base -> ARel -> Pan Error AValue
 abstractVar x b r = do
   let a = abstract x b r
-  info $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
+  trace $ "⟦" <> pretty r <> "⟧↑" <> pretty x <+> "≐" <+> pretty a
   return a
 
 normRels :: [ARel] -> Pan Error (Maybe [ARel])
@@ -299,9 +308,9 @@ normRels = go []
   go ys (r:rs) = do
     let r' = normRelA r
     case r' of
-      Left False          -> info $ pretty r <+> " ⇝  ⊥"
-      Left True           -> info $ pretty r <+> " ⇝  ⊤"
-      Right y | y /= r    -> info $ pretty r <+> " ⇝ " <+> pretty y
+      Left False          -> trace $ pretty r <+> " ⇝  ⊥"
+      Left True           -> trace $ pretty r <+> " ⇝  ⊤"
+      Right y | y /= r    -> trace $ pretty r <+> " ⇝ " <+> pretty y
               | otherwise -> return ()
     case r' of
       Left False -> return Nothing
@@ -318,14 +327,13 @@ simplifyAValue = \case
 
 simplifyRegex :: AString -> Pan Error AString
 simplifyRegex s = do
-  info @Doc "Simplify regular expression"
   t <- gets regexTimeout
   r <- liftIO $ timeout t $ return $! AString.simplify s
   case r of
     Nothing -> do
       info @Doc "Timeout trying to simplify regular expression"
       trace $ safePretty s
-      return s    
+      return s
     Just s' -> do
       unless (s == s') $ do
         trace $ group $ safePretty s <\> "  ⇝  " <\> safePretty s'

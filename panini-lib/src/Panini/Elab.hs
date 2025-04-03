@@ -71,7 +71,7 @@ elaborate thisModule = do
 -- | Add an assumed type to the environment.
 assume :: Name -> Type -> Pan ElabError ()
 assume x t = do
-  info $ "Assume" <+> pretty x <+> ":" <+> pretty t
+  info $ "Assume" <+> pretty x <+> align (":" <+> pretty t)
   whenJustM (envLookup x) $ \_ -> throwError $ AlreadyDefined x
   envExtend x (Assumed x t)
 
@@ -80,7 +80,7 @@ assume x t = do
 -- same name.
 define :: Name -> Term -> Pan ElabError ()
 define x e = do
-  info $ "Define" <+> pretty x <+> "= ..."
+  info $ "Define" <+> pretty x
   t0m <- envLookup x >>= \case
     Nothing                -> return Nothing
     Just (Assumed {_type}) -> return $ Just _type

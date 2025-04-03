@@ -20,7 +20,6 @@ import System.Console.ANSI
 import System.FilePath
 import System.IO
 import System.Time.Extra
-import Text.Printf
 
 -------------------------------------------------------------------------------
 
@@ -86,36 +85,26 @@ withDiagnosticLogger panOpts m = do
   let putLog d = do putFile (d <> "\n")
                     when panOpts.trace $ putTerm (d <> "\n")
   
+  let suppressErrors = panOpts.testMode && not panOpts.trace
+
   let putErr d = do putFile (d <> "\n")
                     unless suppressErrors $ putTerm (d <> "\n")
   
-  putLog traceTop
-
   x <- m $ \ev0 -> do
     pv' <- addSourceLines ev0.provenance
     let ev = ev0 { provenance = pv' }
-    let src = ann Margin $ pretty @String $ printf "│ %-16s │" ev.rapporteur
+    let src = ann Margin $ "(" <> pretty ev.rapporteur <> ")"
     let msg = diagnosticMessage ev.diagnostic
     let errMsg = prettyErrorDiagnostic msg ev.provenance
     case ev.severity of
       SevInfo    -> putLog $ src <+> msg
-      SevTrace   -> putLog $ src <\\> traceBot <\\> msg <\\> traceTop
-      SevWarning -> putLog warnBot >> putErr msg    >> putLog warnTop
-      SevError   -> putLog errBot  >> putErr errMsg >> putLog errTop
+      SevTrace   -> putLog msg
+      SevWarning -> putErr msg
+      SevError   -> putErr errMsg
 
-  putLog traceBot
   whenJust traceFile hClose
   return x
- 
- where
-  suppressErrors = panOpts.testMode && not panOpts.trace
-  traceTop = ann Margin "╭──────────────────╮"
-  traceBot = ann Margin "╰──────────────────╯"
-  warnTop  = ann Margin "┌──────────────────┐"  
-  warnBot  = ann Margin "└──────────────────┘"
-  errTop   = ann Margin "╒══════════════════╕"
-  errBot   = ann Margin "╘══════════════════╛"
-  
+   
 -------------------------------------------------------------------------------
 
 getPutDoc :: PanOptions -> Handle -> IO (Doc -> IO ())
