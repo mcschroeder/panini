@@ -11,12 +11,9 @@ import Panini.CLI.Options
 import Panini.Diagnostic
 import Panini.Elab
 import Panini.Elab.Environment
-import Panini.Elab.Error
 import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty as PP
-import Panini.SMT.Z3
-import Panini.Solver.Error
 import Prelude
 import System.Exit
 import System.IO
@@ -29,8 +26,7 @@ batchMain panOpts = do
     let s0 = (panStateWithOptions panOpts) { diagnosticHandler = logger }
     -- TODO: add source lines for <stdin>
     runPan s0 $ do
-      smtInit ?? (ElabError . SolverError . SmtEvent)
-      logRegexInfo
+      initialize
       moduleOrigin <- case panOpts.inputFile of
         Nothing -> Stdin <$> tryIO Text.getContents ?? AppIOError
         Just fp -> return $ File fp

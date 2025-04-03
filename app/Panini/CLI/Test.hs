@@ -15,12 +15,9 @@ import Panini.CLI.Options
 import Panini.Diagnostic
 import Panini.Elab
 import Panini.Elab.Environment
-import Panini.Elab.Error
 import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty
-import Panini.SMT.Z3
-import Panini.Solver.Error
 import Prelude
 import System.Directory
 import System.Exit
@@ -69,8 +66,7 @@ testMain globalOpts = assert globalOpts.testMode $ do
     (time, result) <- withDiagnosticLogger globalOpts $ \logger -> do
       let s0 = (panStateWithOptions globalOpts) { diagnosticHandler = logger }
       duration $ try @SomeException $ runPan s0 $ do
-        smtInit ?? (ElabError . SolverError . SmtEvent)
-        logRegexInfo
+        initialize
         module_ <- loadModule panOpts (File inFile)
         maybeSavePanFile panOpts module_
         elaborate module_ ?? ElabError

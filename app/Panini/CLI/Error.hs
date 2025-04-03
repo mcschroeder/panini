@@ -16,7 +16,7 @@ data AppError where
   -- | An error from the Panini parser.
   ParseError  :: Parser.Error -> AppError
   -- | Some I/O error from the CLI app.
-  AppIOError  :: IOError -> AppError
+  AppIOError  :: IOError -> AppError  
 
 instance Diagnostic AppError where
   diagnosticMessage = \case

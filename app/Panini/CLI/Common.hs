@@ -6,17 +6,29 @@ import Data.Text.IO qualified as Text
 import Panini.CLI.Error
 import Panini.CLI.Options
 import Panini.Diagnostic
+import Panini.Elab.Error qualified as Elab
 import Panini.Elab.Module
 import Panini.Frontend.Python
 import Panini.Monad
 import Panini.Parser (parseProgram)
 import Panini.Pretty as PP
 import Panini.Provenance
+import Panini.SMT.Z3
+import Panini.Solver.Error qualified as Solver
 import Prelude
 import System.Console.ANSI
 import System.FilePath
 import System.IO
+import System.Time.Extra
 import Text.Printf
+
+-------------------------------------------------------------------------------
+
+initialize :: Pan AppError ()
+initialize = do
+  smtInit ?? (ElabError . Elab.SolverError . Solver.SmtEvent)
+  t <- showDuration <$> gets Panini.Monad.regexTimeout
+  info $ "Regex simplifier timeout:" <+> pretty t
 
 -------------------------------------------------------------------------------
 

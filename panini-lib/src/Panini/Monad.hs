@@ -22,7 +22,6 @@ module Panini.Monad
   , trace
   , (§)
   , (§§)
-  , logRegexInfo
   ) where
 
 import Control.Exception
@@ -41,7 +40,6 @@ import Panini.Elab.Module
 import Panini.Pretty
 import Panini.Provenance
 import Prelude
-import System.Time.Extra
 
 -------------------------------------------------------------------------------
 
@@ -166,9 +164,3 @@ m §§ msg = withFrozenCallStack $ do
   trace (pretty x)
   return x
 infix 0 §§
-
--- TODO: move somewhere else
-logRegexInfo :: Pan e ()
-logRegexInfo = do
-  t <- showDuration <$> gets regexTimeout
-  info $ "Simplifier timeout:" <+> pretty t

@@ -22,12 +22,9 @@ import Panini.Diagnostic
 import Panini.Elab
 import Panini.Elab.Definition
 import Panini.Elab.Environment
-import Panini.Elab.Error
 import Panini.Elab.Module
 import Panini.Monad
 import Panini.Pretty
-import Panini.SMT.Z3
-import Panini.Solver.Error
 import Panini.Version
 import Prelude
 import System.Console.Haskeline
@@ -53,8 +50,7 @@ replMain panOpts = do
   withDiagnosticLogger panOpts $ \logger -> do
     let s0 = (panStateWithOptions panOpts) { diagnosticHandler = logger }
     void $ runPan s0 $ runInputT replConf $ do
-      lift (smtInit ?? (ElabError . SolverError . SmtEvent))
-      lift logRegexInfo
+      lift initialize
       repl panOpts
 
   exitSuccess
