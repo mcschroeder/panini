@@ -28,6 +28,13 @@ Static Grammar Inference for Ad Hoc Parsers
   the `panini` executable in one step, but this is currently not recommended due
   to arcane technical issues related to out-of-place builds.)
 
+* You can also build and run Panini using [Docker](https://docker.com).
+
+  ```shell
+  docker build -t panini .
+  docker run panini --version
+  ```  
+
 ## Usage
 
 * `panini <FILE>` will run type and grammar inference on `<FILE>` and report all
