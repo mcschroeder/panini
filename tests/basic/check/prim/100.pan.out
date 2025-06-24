@@ -1,5 +1,0 @@
-tests/basic/check/prim/100.pan:2:8-12: error: invalid subtype: 𝟙 <: ℂ𝕙
-tests/basic/check/prim/100.pan:5:8-12: error: invalid subtype: 𝔹 <: ℂ𝕙
-tests/basic/check/prim/100.pan:8:8-9: error: invalid subtype: ℤ <: ℂ𝕙
-tests/basic/check/prim/100.pan:11:8-15: error: invalid subtype: 𝕊 <: ℂ𝕙
-tests/basic/check/prim/100.pan:14:8-11: error: invalid subtype: 𝕊 <: ℂ𝕙

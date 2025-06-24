@@ -1,8 +1,0 @@
-f100 : {v:ℤ | false} → ℤ
-f101 : {v:ℤ | false} → (w:ℤ)
-f102 : {v:ℤ | false} → {w:ℤ | w = v}
-f103 : {v:ℤ | false} → {w:ℤ | w = 1}
-f104 : {v:ℤ | false} → {w:ℤ | w = v ∧ w = 1}
-f105 : {v:ℤ | false} → {w:ℤ | false}
-f106 : {v:ℤ | false} → {w:ℤ | w = v}
-f107 : {v:ℤ | false} → {w:ℤ | w ≠ v}

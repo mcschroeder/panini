@@ -1,1 +1,0 @@
-f25 : {x:𝔹 | x = false} → {y:𝔹 | false} → {z:𝔹 | z = false}

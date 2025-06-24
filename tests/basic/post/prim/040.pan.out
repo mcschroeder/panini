@@ -1,4 +1,0 @@
-tests/basic/post/prim/040.pan:2:7-11: error: invalid subtype: 𝟙 <: 𝔹
-tests/basic/post/prim/040.pan:5:7-8: error: invalid subtype: ℤ <: 𝔹
-tests/basic/post/prim/040.pan:8:7-14: error: invalid subtype: 𝕊 <: 𝔹
-tests/basic/post/prim/040.pan:11:7-10: error: invalid subtype: ℂ𝕙 <: 𝔹

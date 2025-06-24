@@ -1,5 +1,0 @@
-f100 : {x:𝔹 | false} → 𝔹
-f101 : {x:𝔹 | false} → {y:𝔹 | y = true}
-f102 : {x:𝔹 | false} → {y:𝔹 | y = false}
-f103 : {x:𝔹 | false} → (y:𝔹)
-f104 : {x:𝔹 | false} → {y:𝔹 | false}

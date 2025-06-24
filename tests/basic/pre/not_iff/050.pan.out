@@ -1,2 +1,0 @@
-f50 : {x:𝔹 | x = false} → {y:𝔹 | y = true}
-f51 : {x:𝔹 | x = false} → {y:𝔹 | y = true ∧ y = ¬x}

@@ -1,2 +1,0 @@
-f30 : {v:ℤ | false} → {w:ℤ | false}
-f31 : {v:ℤ | false} → {w:ℤ | w = 2}

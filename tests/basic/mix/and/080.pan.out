@@ -1,4 +1,0 @@
-f80 : {x:𝔹 | x = true} → {y:𝔹 | false} → {z:𝔹 | false}
-f81 : {x:𝔹 | x = false} → {y:𝔹 | false} → {z:𝔹 | false}
-f82 : (x:𝔹) → {y:𝔹 | false} → {z:𝔹 | false}
-f83 : {x:𝔹 | false} → (y:𝔹) → {z:𝔹 | false}

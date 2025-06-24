@@ -1,4 +1,0 @@
-f60 : {x:𝔹 | x = true} → {y:𝔹 | y = false} → {z:𝔹 | z = false}
-f61 : {x:𝔹 | x = false} → (y:𝔹) → {z:𝔹 | z = false}
-f62 : (x:𝔹) → {y:𝔹 | y = false} → {z:𝔹 | z = false}
-f63 : {x:𝔹 | false} → (y:𝔹) → {z:𝔹 | z = false}

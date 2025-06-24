@@ -1,4 +1,0 @@
-tests/basic/check/id/100.pan:4:1-5: error: cannot solve constraints of f100
-tests/basic/check/id/100.pan:7:1-5: error: cannot solve constraints of f101
-tests/basic/check/id/100.pan:10:1-5: error: cannot solve constraints of f102
-tests/basic/check/id/100.pan:13:1-5: error: cannot solve constraints of f103

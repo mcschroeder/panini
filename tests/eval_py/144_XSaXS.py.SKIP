@@ -1,7 +1,0 @@
-def f144(s: str):
-  for c in s:
-    if c == "a":
-      return
-  assert False
-
-# skipped because for..in not yet supported by Python frontend

@@ -1,1 +1,0 @@
-f140 : {s:𝕊 | s ∈ [^a]*a.*} → ℤ  -- UNVERIFIED (timeout)

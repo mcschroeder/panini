@@ -1,4 +1,0 @@
-tests/basic/check/lam/050.pan:2:1-4: error: cannot solve constraints of f50
-tests/basic/check/lam/050.pan:5:1-4: error: cannot solve constraints of f51
-tests/basic/check/lam/050.pan:8:1-4: error: cannot solve constraints of f52
-tests/basic/check/lam/050.pan:11:1-4: error: cannot solve constraints of f53

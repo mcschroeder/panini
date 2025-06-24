@@ -34,7 +34,7 @@ Static Grammar Inference for Ad Hoc Parsers
   inferred type signatures:
 
   ```console
-  > panini tests/eval_py/980_paper_example.py
+  > panini benchmarks/oopsla25/subjects/980_parser.py
   parser : {s:𝕊 | s ∈ a|[^a]b.*} → 𝟙
   ```
 
@@ -44,19 +44,9 @@ Static Grammar Inference for Ad Hoc Parsers
 
   ```console
   > panini
+  Panini 0.1 (bd4bf70)
+  Type :help for more information.
   Panini> 
-  ```
-
-* `panini --test` runs Panini in test mode: by default, all files matching
-  `tests/*.{pan,py}` will be processed and their outputs compared against the
-  corresponding `tests/*.{pan,py}.out` files.
-
-  ```console
-  > panini --test
-  tests/basic/check/and/010.pan                      OK (0.04s)
-  tests/basic/check/and/020.pan                      OK (0.01s)
-  tests/basic/check/and/030.pan                      OK (0.02s)
-  ...
   ```
 
 * The `--trace` flag, available in all modes, outputs (very) detailed internal

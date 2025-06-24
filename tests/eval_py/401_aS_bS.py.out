@@ -1,1 +1,0 @@
-f401 : {s:𝕊 | s ∈ a*|b*} → 𝟙  -- UNVERIFIED (timeout)

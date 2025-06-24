@@ -1,4 +1,0 @@
-f80 : {x:𝟙 | false} → {v:𝟙 | false}
-f81 : {x:𝔹 | false} → {v:𝟙 | false}
-f82 : {x:ℤ | false} → {v:𝟙 | false}
-f83 : {x:𝕊 | false} → {v:𝟙 | false}

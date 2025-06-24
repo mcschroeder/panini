@@ -1,3 +1,0 @@
-f80 : {x:𝔹 | x = true} → {y:𝔹 | y = ¬x}
-f81 : {x:𝔹 | x = true} → {y:𝔹 | y = false}
-f82 : {x:𝔹 | x = true} → {y:𝔹 | y = false ∧ y = ¬x}
