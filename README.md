@@ -19,14 +19,16 @@ Static Grammar Inference for Ad Hoc Parsers
 * To start an interactive development session in GHCi, use `cabal repl`. You can
   then use `:main` as if invoking the `panini` executable (e.g., `:main --help`).
 
-* To build a standalone `panini` executable, run `cabal build exe:panini`. This
-  will put the binary somewhere in the `dist-newstyle` directory. You can use
-  `cabal exec which panini` to find out exactly where and copy the `panini`
-  binary to somewhere on your `PATH`.
+* To build a standalone `panini` executable, run `cabal build panini`. This will
+  put the binary somewhere in the `dist-newstyle` directory. To find out where,
+  use `cabal exec which panini`.
 
-  (Alternatively, you could run `cabal install exe:panini` to build and install
-  the `panini` executable in one step, but this is currently not recommended due
-  to arcane technical issues related to out-of-place builds.)
+* To build and install `panini` on your `PATH`, run
+
+  ```shell
+  cabal clean
+  export GIT_ROOT=$(pwd); cabal install panini
+  ```
 
 * You can also build and run Panini using [Docker](https://docker.com).
 

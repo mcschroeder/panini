@@ -38,7 +38,6 @@ library
     , directory
     , extra
     , filepath
-    , githash
     , hashable
     , megaparsec == 9.2.*
     , parser-combinators
@@ -103,3 +102,4 @@ library
     Panini.Syntax.Relations
     Panini.Syntax.Substitution
     Panini.Version
+    Panini.Version.Git

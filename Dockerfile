@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /panini
 
-COPY .git .git
 COPY app app
 COPY panini-lib panini-lib
 COPY panini-python panini-python
