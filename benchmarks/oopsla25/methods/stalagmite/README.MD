@@ -2,13 +2,11 @@
 
 This is a step-by-step guide on how to evaluate the Stalagmite grammar mining system (Bettscheider and Zeller 2024) on the Panini benchmark dataset. The Stalagmite artifact runs inside a Docker container (<https://www.docker.com>).
 
-## 1. Download and unpack Stalagmite artifact
-
-Download the artifact from <https://doi.org/10.5281/zenodo.11186613> and unpack it into a subdirectory named `stalagmite`.
+## 1. Download and unpack Stalagmite
 
 ```shell
-curl -o stalagmite.zip https://zenodo.org/api/records/11186613/files/stalagmite.zip/content
-unzip stalagmite.zip -d .
+git clone https://github.com/leonbett/stalagmite stalagmite.tmp
+cd stalagmite.tmp && git checkout b7d97faa43f093e9c2c12569348a4b30b6131a9c && cd ..
 ```
 
 ## 2. Prepare evaluation subjects for Stalagmite
@@ -26,7 +24,7 @@ This patch ensures that Stalagmite's grammar refinement step does not run into a
 You can apply it by running the following command:
 
 ```shell
-patch -d stalagmite -p1 < patch.diff
+patch -d stalagmite.tmp -p1 < patch.diff
 ```
 
 ## 4. Run evaluation and collect results
@@ -34,11 +32,12 @@ patch -d stalagmite -p1 < patch.diff
 The evaluation is run inside a Docker container using the following commands:
 
 ```shell
-cd stalagmite
+cd stalagmite.tmp
 sudo chmod -R 777 .
-docker build . --platform linux/amd64 -t symbolic-grammar-mining
+git rev-parse HEAD > klee-examples.commit
+docker build . -t symbolic-grammar-mining --platform linux/amd64
 mkdir output
-docker run --platform linux/amd64 -it -v $(pwd)/output:/staminag/data symbolic-grammar-mining
+docker run -it -v $(pwd)/output:/stalagmite/data --platform linux/amd64 symbolic-grammar-mining
 ```
 
 This will take about 3-4 hours. To collect all the results in one place, continue with the following commands:

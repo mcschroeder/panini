@@ -50,6 +50,8 @@ def compare_grammars(source_grammar, target_grammar, max_depth: int, max_count: 
             break
     except SyntaxError:
       pass
+    except AssertionError:
+      pass
     if parsed:
       valid.append(inp)
     else:
