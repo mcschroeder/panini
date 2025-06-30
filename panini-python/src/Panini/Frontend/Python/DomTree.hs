@@ -15,8 +15,6 @@ import Panini.Frontend.Common.Dom
 import Panini.Frontend.Common.SSA
 import Panini.Frontend.Python.AST
 import Panini.Frontend.Python.CFG
-import Panini.Frontend.Python.Typing.PyType (PyType)
-import Panini.Frontend.Python.Typing.TypeInfo
 import Panini.Pretty
 import Panini.Pretty.Graphviz as Graphviz
 import Prelude hiding (succ)
@@ -27,11 +25,11 @@ data DomTree a = DomTree
   { root     :: Label
   , nodes    :: IntMap (Node a)
   , children :: IntMap [Label]
-  , phiVars  :: IntMap [(String, PyType)]
+  , phiVars  :: IntMap [(String, a)]
   }
   deriving stock (Show)
 
-domTree :: Typed CFG a -> Typed DomTree a
+domTree :: Ord a => CFG a -> DomTree a
 domTree cfg = DomTree {..}
  where
   root     = cfg.entry
@@ -60,23 +58,23 @@ domTree cfg = DomTree {..}
 
 ------------------------------------------------------------------------------
 
-variableAssignments :: Typed CFG a -> Map (String,PyType) LabelSet
+variableAssignments :: Ord a => CFG a -> Map (String, a) LabelSet
 variableAssignments cfg = Map.fromListWith (<>) 
   [ (v, IntSet.singleton l) | (l,n) <- IntMap.assocs cfg.nodeMap
                             , Assigned v <- Set.toList (variables f n)
   ]
  where
-  f ident = (ident_string ident, typeOf ident)
+  f ident = (ident_string ident, annot ident)
 
 -- TODO: improve performance
-liveVariables :: Typed CFG a -> [(String,PyType)] -> Map (String,PyType) LabelSet
+liveVariables :: Ord a => CFG a -> [(String, a)] -> Map (String, a) LabelSet
 liveVariables cfg allVars = Map.fromListWith (<>) 
   [ (v, IntSet.singleton l) | l <- IntMap.keys cfg.nodeMap
                             , v <- allVars
                             , live [] v l
   ]
  where
-  f ident = (ident_string ident, typeOf ident)
+  f ident = (ident_string ident, annot ident)
 
   live ls v l | l `elem` ls         = False
               | useBeforeAssign v n = True
@@ -103,7 +101,7 @@ liveVariables cfg allVars = Map.fromListWith (<>)
 ------------------------------------------------------------------------------
 
 -- for debug purposes only
-instance Graphviz (Typed DomTree a) where
+instance Ord a => Graphviz (DomTree a) where
   dot dom0 = Digraph $ go dom0 "_" dom0.root
    where
     go dom p k = case dom.nodes IntMap.! k of

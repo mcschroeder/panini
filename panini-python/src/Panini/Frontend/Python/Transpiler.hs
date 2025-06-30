@@ -6,6 +6,7 @@ import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Strict
+import Data.Bifunctor
 import Data.Foldable
 import Data.IntMap.Strict ((!))
 import Data.Maybe
@@ -38,7 +39,7 @@ import Prelude
 -- TODO: language-python needs to be updated to support newer Python syntax
 -- TODO: be explicit about the Python version that is supported (semantics!)
 
-transpile :: HasProvenance a => Typed DomTree a -> Either Error Program
+transpile :: (Ord a, HasProvenance a) => Typed DomTree a -> Either Error Program
 transpile dom = runExcept $ do
   let env0 = TranspilerEnv 0 mempty
   (prog, env) <- runStateT (transpileTopLevel dom) env0
@@ -93,7 +94,7 @@ finalBaseReturnType = \case
 ------------------------------------------------------------------------------
 
 -- TODO
-transpileTopLevel :: HasProvenance a => Typed DomTree a -> Transpiler Program
+transpileTopLevel :: (Ord a, HasProvenance a) => Typed DomTree a -> Transpiler Program
 transpileTopLevel dom = go dom.root
  where
   go l = ensureNoExcept (dom.nodes ! l) >>= \case
@@ -209,7 +210,7 @@ transpileFun returnType dom = go dom.root (mkCall dom.root)
     BranchFor {} -> lift $ throwE $ OtherError "unsupported: for..in" NoPV -- TODO
   
   mkRec l k recBody = do
-    let phis  = dom.phiVars ! l
+    let phis  = map (second (fromMaybe PyType.Any . fst)) $ dom.phiVars ! l
     recType  <- mkPhiFunType phis returnType
     recLams  <- mkPhiLambdas phis recBody
     return    $ Rec (blockName l) recType recLams k NoPV
