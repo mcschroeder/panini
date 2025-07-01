@@ -1,30 +1,22 @@
 {
- "<f110_loop_0>": [
+ "<start>": [
   [
-   "<f110_loop_0_exit>"
-  ],
-  [
-   "aa",
-   "<f110_loop_0>"
+   "<__external_strlen@0>"
   ]
  ],
- "<f110_loop_0_exit>": [
+ "<__external_strlen@0>": [
+  [],
+  [
+   "a",
+   "a"
+  ],
   [
    "a"
   ],
-  []
- ],
- "<start>": [
   [
-   "<opt_f110_loop_0>"
-  ]
- ],
- "<opt_f110_loop_0>": [
-  [
-   ""
-  ],
-  [
-   "<f110_loop_0>"
+   "a",
+   "a",
+   "a"
   ]
  ]
 }

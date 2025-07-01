@@ -1,11 +1,13 @@
 {
- "<printable_str>": [
+ "<start>": [
   [
-   "<printable_char>",
-   "<opt_printable_str>"
+   "<opt_printable_str_1>",
+   "a",
+   "<printable_char_1>",
+   "<opt_printable_str_1>"
   ]
  ],
- "<printable_char>": [
+ "<printable_char_1>": [
   [
    " "
   ],
@@ -289,118 +291,13 @@
    "~"
   ]
  ],
- "<ws2_char>": [
-  [
-   "\u0007"
-  ],
-  [
-   "\u001f"
-  ],
-  [
-   "\u001b"
-  ],
-  [
-   "\u0004"
-  ],
-  [
-   "\u001e"
-  ],
-  [
-   "\u000b"
-  ],
-  [
-   "\u0015"
-  ],
-  [
-   " "
-  ],
-  [
-   "\u0010"
-  ],
-  [
-   "\r"
-  ],
-  [
-   "\u001c"
-  ],
-  [
-   "\u001d"
-  ],
-  [
-   "\u0012"
-  ],
-  [
-   "\u0013"
-  ],
-  [
-   "\n"
-  ],
-  [
-   "\u0018"
-  ],
-  [
-   "\u0014"
-  ],
-  [
-   "\u0003"
-  ],
-  [
-   "\u000f"
-  ],
-  [
-   "\u0005"
-  ],
-  [
-   "\b"
-  ],
-  [
-   "\u000e"
-  ]
- ],
- "<f192_loop_0>": [
-  [
-   "<f192_loop_0_exit>"
-  ],
-  [
-   "<opt_ws2_str>",
-   "<printable_str>",
-   "<f192_loop_0>"
-  ]
- ],
- "<f192_loop_0_exit>": [
-  [
-   "a"
-  ]
- ],
- "<start>": [
-  [
-   "<f192_loop_0>"
-  ]
- ],
- "<opt_printable_str>": [
+ "<opt_printable_str_1>": [
   [
    ""
   ],
   [
-   "<printable_str>"
-  ]
- ],
- "<opt_ws2_str>": [
-  [
-   ""
-  ],
-  [
-   "<ws2_char>",
-   "<opt_ws2_str>"
-  ]
- ],
- "<opt_pre_ws_printable_str>": [
-  [
-   ""
-  ],
-  [
-   "<opt_ws2_str>",
-   "<printable_str>"
+   "<printable_char_1>",
+   "<opt_printable_str_1>"
   ]
  ]
 }

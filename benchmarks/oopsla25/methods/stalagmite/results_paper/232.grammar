@@ -1,32 +1,27 @@
 {
- "<f232_loop_0>": [
-  [
-   "<f232_loop_0_exit>"
-  ]
- ],
- "<f232_loop_0_exit>": [
-  []
- ],
  "<start>": [
   [
-   "<f232_loop_0_refined_0>"
+   "<__external_strlen@0>"
   ]
  ],
- "<f232_loop_0_exit_refined_0>": [
+ "<__external_strlen@0>": [
   [
    "a"
   ],
   [
-   "ab"
-  ]
- ],
- "<f232_loop_0_refined_0>": [
-  [
-   "<f232_loop_0_exit_refined_0>"
+   "a",
+   "b",
+   "b"
   ],
   [
-   "abb",
-   "<f232_loop_0>"
+   "a",
+   "b"
+  ],
+  [
+   "a",
+   "b",
+   "b",
+   "b"
   ]
  ]
 }

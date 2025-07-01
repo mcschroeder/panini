@@ -1,104 +1,21 @@
 {
- "<lower_ascii_str>": [
-  [
-   "<lower_ascii_char>",
-   "<opt_lower_ascii_str>"
-  ]
- ],
- "<lower_ascii_char>": [
-  [
-   "a"
-  ],
-  [
-   "b"
-  ],
-  [
-   "c"
-  ],
-  [
-   "d"
-  ],
-  [
-   "e"
-  ],
-  [
-   "f"
-  ],
-  [
-   "g"
-  ],
-  [
-   "h"
-  ],
-  [
-   "i"
-  ],
-  [
-   "j"
-  ],
-  [
-   "k"
-  ],
-  [
-   "l"
-  ],
-  [
-   "m"
-  ],
-  [
-   "n"
-  ],
-  [
-   "o"
-  ],
-  [
-   "p"
-  ],
-  [
-   "q"
-  ],
-  [
-   "r"
-  ],
-  [
-   "s"
-  ],
-  [
-   "t"
-  ],
-  [
-   "u"
-  ],
-  [
-   "v"
-  ],
-  [
-   "w"
-  ],
-  [
-   "x"
-  ],
-  [
-   "y"
-  ],
-  [
-   "z"
-  ]
- ],
- "<f333>": [
-  [
-   "a"
-  ],
-  [
-   "<opt_lower_ascii_str>"
-  ]
- ],
  "<start>": [
   [
-   "<f333>"
+   "<printable_str>"
   ]
  ],
- "<opt_lower_ascii_str>": [
+ "<printable_str>": [
+  [
+   "<printable_char>",
+   "<opt_printable_str>"
+  ]
+ ],
+ "<printable_char>": [
+  [
+   "a"
+  ]
+ ],
+ "<opt_printable_str>": [
   [
    ""
   ]

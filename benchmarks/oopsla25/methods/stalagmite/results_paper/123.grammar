@@ -1,11 +1,211 @@
 {
- "<lower_ascii_str>": [
+ "<start>": [
   [
-   "<lower_ascii_char>",
-   "<opt_lower_ascii_str>"
+   "<printable_str_refined_0>"
   ]
  ],
- "<lower_ascii_char>": [
+ "<printable_str>": [
+  [
+   "<printable_char>",
+   "<opt_printable_str>"
+  ]
+ ],
+ "<printable_char>": [
+  [
+   " "
+  ],
+  [
+   "!"
+  ],
+  [
+   "\""
+  ],
+  [
+   "#"
+  ],
+  [
+   "$"
+  ],
+  [
+   "%"
+  ],
+  [
+   "&"
+  ],
+  [
+   "'"
+  ],
+  [
+   "("
+  ],
+  [
+   ")"
+  ],
+  [
+   "*"
+  ],
+  [
+   "+"
+  ],
+  [
+   ","
+  ],
+  [
+   "-"
+  ],
+  [
+   "."
+  ],
+  [
+   "/"
+  ],
+  [
+   "0"
+  ],
+  [
+   "1"
+  ],
+  [
+   "2"
+  ],
+  [
+   "3"
+  ],
+  [
+   "4"
+  ],
+  [
+   "5"
+  ],
+  [
+   "6"
+  ],
+  [
+   "7"
+  ],
+  [
+   "8"
+  ],
+  [
+   "9"
+  ],
+  [
+   ":"
+  ],
+  [
+   ";"
+  ],
+  [
+   "<"
+  ],
+  [
+   "="
+  ],
+  [
+   ">"
+  ],
+  [
+   "?"
+  ],
+  [
+   "@"
+  ],
+  [
+   "A"
+  ],
+  [
+   "B"
+  ],
+  [
+   "C"
+  ],
+  [
+   "D"
+  ],
+  [
+   "E"
+  ],
+  [
+   "F"
+  ],
+  [
+   "G"
+  ],
+  [
+   "H"
+  ],
+  [
+   "I"
+  ],
+  [
+   "J"
+  ],
+  [
+   "K"
+  ],
+  [
+   "L"
+  ],
+  [
+   "M"
+  ],
+  [
+   "N"
+  ],
+  [
+   "O"
+  ],
+  [
+   "P"
+  ],
+  [
+   "Q"
+  ],
+  [
+   "R"
+  ],
+  [
+   "S"
+  ],
+  [
+   "T"
+  ],
+  [
+   "U"
+  ],
+  [
+   "V"
+  ],
+  [
+   "W"
+  ],
+  [
+   "X"
+  ],
+  [
+   "Y"
+  ],
+  [
+   "Z"
+  ],
+  [
+   "["
+  ],
+  [
+   "\\"
+  ],
+  [
+   "]"
+  ],
+  [
+   "^"
+  ],
+  [
+   "_"
+  ],
+  [
+   "`"
+  ],
   [
    "a"
   ],
@@ -83,48 +283,37 @@
   ],
   [
    "z"
-  ]
- ],
- "<f123>": [
-  [
-   "a",
-   "<opt_f123_loop_0>"
   ],
   [
-   "<lower_ascii_str_refined_2>",
-   "<opt_f123_loop_0>"
-  ]
- ],
- "<start>": [
+   "{"
+  ],
   [
-   "<f123>"
+   "|"
+  ],
+  [
+   "}"
+  ],
+  [
+   "~"
   ]
  ],
- "<opt_lower_ascii_str>": [
+ "<opt_printable_str>": [
   [
    ""
   ],
   [
-   "<lower_ascii_str>"
+   "<printable_str>"
   ]
  ],
- "<opt_f123_loop_0>": [
-  [
-   ""
-  ],
-  [
-   "<opt_f123_loop_0>"
-  ]
- ],
- "<lower_ascii_char_refined_3>": [
+ "<printable_char_refined_0>": [
   [
    "a"
   ]
  ],
- "<lower_ascii_str_refined_2>": [
+ "<printable_str_refined_0>": [
   [
-   "<lower_ascii_char_refined_3>",
-   "<opt_lower_ascii_str>"
+   "<printable_char_refined_0>",
+   "<opt_printable_str>"
   ]
  ]
 }
