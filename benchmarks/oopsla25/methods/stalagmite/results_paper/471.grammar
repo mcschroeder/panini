@@ -1,41 +1,48 @@
 {
- "<f471>": [
-  [],
+ "<start>": [
   [
-   "010",
-   "<opt_f471_loop_0>"
+   "<f471@0>"
+  ]
+ ],
+ "<f471@0>": [
+  [
+   "<opt___external_strlen@0>",
+   "0",
+   "1"
   ],
   [
-   "000",
-   "<opt_f471_loop_0>"
+   "<__external_strlen@0>",
+   "1",
+   "0"
   ],
+  [
+   "<opt___external_strlen@0>"
+  ],
+  [
+   "<opt___external_strlen@0>",
+   "0",
+   "0"
+  ]
+ ],
+ "<__external_strlen@0>": [
   [
    "0"
   ],
   [
-   "01",
-   "<opt_f471_loop_0>"
+   "0",
+   "0"
   ],
   [
-   "00",
-   "<opt_f471_loop_0>"
-  ],
-  [
-   "001",
-   "<opt_f471_loop_0>"
+   "0",
+   "1"
   ]
  ],
- "<start>": [
-  [
-   "<f471>"
-  ]
- ],
- "<opt_f471_loop_0>": [
+ "<opt___external_strlen@0>": [
   [
    ""
   ],
   [
-   "<opt_f471_loop_0>"
+   "<__external_strlen@0>"
   ]
  ]
 }

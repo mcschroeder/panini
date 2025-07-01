@@ -1,33 +1,35 @@
 {
- "<f990_lsb_check_loop_0>": [
-  [
-   "<f990_lsb_check_loop_0_exit>"
-  ],
-  [
-   "001",
-   "<f990_lsb_check_loop_0_refined_1>"
-  ]
- ],
- "<f990_lsb_check_loop_0_exit>": [
-  [
-   "01"
-  ],
-  [],
-  [
-   "1"
-  ]
- ],
  "<start>": [
   [
-   "<f990_lsb_check_loop_0>"
+   "<opt___external_strlen@0>",
+   "1",
+   "<__external_strlen@0_refined_0>"
   ]
  ],
- "<f990_lsb_check_loop_0_exit_refined_1>": [
-  []
- ],
- "<f990_lsb_check_loop_0_refined_1>": [
+ "<__external_strlen@0>": [
+  [],
   [
-   "<f990_lsb_check_loop_0_exit_refined_1>"
+   "0",
+   "0"
+  ],
+  [
+   "0"
+  ],
+  [
+   "0",
+   "0",
+   "0"
   ]
+ ],
+ "<opt___external_strlen@0>": [
+  [
+   ""
+  ],
+  [
+   "<__external_strlen@0>"
+  ]
+ ],
+ "<__external_strlen@0_refined_0>": [
+  []
  ]
 }

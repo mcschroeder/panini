@@ -1,7 +1,12 @@
 {
+ "<start>": [
+  [
+   "<printable_str_refined_10>"
+  ]
+ ],
  "<printable_str>": [
   [
-   "<printable_char>",
+   "<printable_char_refined_12>",
    "<opt_printable_str>"
   ]
  ],
@@ -202,9 +207,6 @@
    "`"
   ],
   [
-   "a"
-  ],
-  [
    "b"
   ],
   [
@@ -292,77 +294,25 @@
    "~"
   ]
  ],
- "<ws1_char>": [
-  [
-   "\u0002"
-  ],
-  [
-   "\u001c"
-  ],
-  [
-   "\u0007"
-  ],
-  [
-   "\u0014"
-  ],
-  [
-   "\u0006"
-  ],
-  [
-   "\u000f"
-  ],
-  [
-   "\n"
-  ],
-  [
-   "\u000e"
-  ],
-  [
-   "\u001a"
-  ],
-  [
-   "\u0012"
-  ],
-  [
-   "\u0017"
-  ],
-  [
-   "\u0003"
-  ],
-  [
-   "\u0016"
-  ],
-  [
-   "\u0018"
-  ],
-  [
-   "\u0011"
-  ],
-  [
-   "\b"
-  ]
- ],
- "<start>": [
-  [
-   "<opt_ws1_str>",
-   "<printable_str>"
-  ]
- ],
  "<opt_printable_str>": [
   [
    ""
-  ],
+  ]
+ ],
+ "<opt_printable_str_refined_10>": [
   [
    "<printable_str>"
   ]
  ],
- "<opt_ws1_str>": [
+ "<printable_str_refined_10>": [
   [
-   ""
-  ],
+   "<printable_char>",
+   "<opt_printable_str_refined_10>"
+  ]
+ ],
+ "<printable_char_refined_12>": [
   [
-   "<ws1_char>",
-   "<opt_ws1_str>"
+   "a"
   ]
  ]
 }

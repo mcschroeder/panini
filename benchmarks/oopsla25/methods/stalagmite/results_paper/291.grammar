@@ -1,19 +1,30 @@
 {
- "<f291>": [
+ "<start>": [
+  [
+   "<f291@0>"
+  ]
+ ],
+ "<f291@0>": [
   [],
+  [
+   "b"
+  ],
   [
    "a"
   ],
   [
-   "ab"
-  ],
-  [
-   "b"
+   "<__external_strlen@3>",
+   "b",
+   "<__external_strlen@3_refined_1>"
   ]
  ],
- "<start>": [
+ "<__external_strlen@3>": [
   [
-   "<f291>"
-  ]
+   "a"
+  ],
+  []
+ ],
+ "<__external_strlen@3_refined_1>": [
+  []
  ]
 }

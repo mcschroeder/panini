@@ -1,30 +1,28 @@
 {
- "<f251_loop_0>": [
-  [
-   "<f251_loop_0_exit>"
-  ],
-  [
-   "abab",
-   "<f251_loop_0>"
-  ]
- ],
- "<f251_loop_0_exit>": [
-  [],
-  [
-   "ab"
-  ]
- ],
  "<start>": [
   [
-   "<opt_f251_loop_0>"
+   "<__external_strlen@0>"
   ]
  ],
- "<opt_f251_loop_0>": [
+ "<__external_strlen@0>": [
+  [],
   [
-   ""
+   "a",
+   "b",
+   "a",
+   "b"
   ],
   [
-   "<f251_loop_0>"
+   "a",
+   "b"
+  ],
+  [
+   "a",
+   "b",
+   "a",
+   "b",
+   "a",
+   "b"
   ]
  ]
 }

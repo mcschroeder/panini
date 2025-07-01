@@ -1,33 +1,35 @@
 {
- "<f223_loop_0>": [
-  [
-   "<f223_loop_0_exit>"
-  ],
-  [
-   "aab",
-   "<f223_loop_0_refined_1>"
-  ]
- ],
- "<f223_loop_0_exit>": [
-  [
-   "ab"
-  ],
-  [],
-  [
-   "b"
-  ]
- ],
  "<start>": [
   [
-   "<f223_loop_0>"
+   "<opt___external_strlen@0>",
+   "b",
+   "<__external_strlen@0_refined_0>"
   ]
  ],
- "<f223_loop_0_exit_refined_1>": [
-  []
- ],
- "<f223_loop_0_refined_1>": [
+ "<__external_strlen@0>": [
+  [],
   [
-   "<f223_loop_0_exit_refined_1>"
+   "a",
+   "a"
+  ],
+  [
+   "a"
+  ],
+  [
+   "a",
+   "a",
+   "a"
   ]
+ ],
+ "<opt___external_strlen@0>": [
+  [
+   ""
+  ],
+  [
+   "<__external_strlen@0>"
+  ]
+ ],
+ "<__external_strlen@0_refined_0>": [
+  []
  ]
 }

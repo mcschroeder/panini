@@ -1,33 +1,27 @@
 {
- "<f233_loop_0>": [
+ "<start>": [
   [
-   "<f233_loop_0_exit>"
-  ],
-  [
-   "abb",
-   "<f233_loop_0_refined_1>"
+   "<__external_strlen@0>"
   ]
  ],
- "<f233_loop_0_exit>": [
+ "<__external_strlen@0>": [
   [
    "a"
   ],
-  [],
   [
-   "ab"
-  ]
- ],
- "<start>": [
+   "a",
+   "b",
+   "b"
+  ],
   [
-   "<f233_loop_0>"
-  ]
- ],
- "<f233_loop_0_exit_refined_1>": [
-  []
- ],
- "<f233_loop_0_refined_1>": [
+   "a",
+   "b"
+  ],
   [
-   "<f233_loop_0_exit_refined_1>"
+   "a",
+   "b",
+   "b",
+   "b"
   ]
  ]
 }

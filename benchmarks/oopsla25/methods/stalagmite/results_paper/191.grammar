@@ -1,11 +1,13 @@
 {
- "<printable_str>": [
+ "<start>": [
   [
-   "<printable_char>",
-   "<opt_printable_str>"
+   "<opt_printable_str_1>",
+   "a",
+   "<printable_char_1>",
+   "<opt_printable_str_1>"
   ]
  ],
- "<printable_char>": [
+ "<printable_char_1>": [
   [
    " "
   ],
@@ -202,9 +204,6 @@
    "`"
   ],
   [
-   "a"
-  ],
-  [
    "b"
   ],
   [
@@ -292,136 +291,13 @@
    "~"
   ]
  ],
- "<ws2_char>": [
-  [
-   "\u001a"
-  ],
-  [
-   "\b"
-  ],
-  [
-   "\u0012"
-  ],
-  [
-   "\u000e"
-  ],
-  [
-   "\u0013"
-  ],
-  [
-   "\u0011"
-  ],
-  [
-   "\u0016"
-  ],
-  [
-   "\u000b"
-  ],
-  [
-   "\f"
-  ],
-  [
-   "\u0007"
-  ],
-  [
-   "\u0002"
-  ],
-  [
-   "\u0014"
-  ],
-  [
-   "\u0005"
-  ],
-  [
-   "\u0017"
-  ],
-  [
-   "\u001d"
-  ],
-  [
-   "\u001f"
-  ],
-  [
-   "\u0003"
-  ],
-  [
-   "\u001c"
-  ],
-  [
-   "\u0010"
-  ],
-  [
-   "\u0004"
-  ],
-  [
-   "\u0018"
-  ],
-  [
-   " "
-  ]
- ],
- "<f191_loop_0>": [
-  [
-   "<f191_loop_0_exit>"
-  ],
-  [
-   "<opt_ws2_str>",
-   "<printable_str>",
-   "<f191_loop_0>"
-  ]
- ],
- "<f191_loop_0_exit>": [
-  [
-   "a"
-  ],
-  [
-   "<opt_pre_ws_printable_str>"
-  ]
- ],
- "<start>": [
-  [
-   "<f191_loop_0_refined_0>"
-  ]
- ],
- "<opt_printable_str>": [
+ "<opt_printable_str_1>": [
   [
    ""
   ],
   [
-   "<printable_str>"
-  ]
- ],
- "<opt_ws2_str>": [
-  [
-   ""
-  ],
-  [
-   "<ws2_char>",
-   "<opt_ws2_str>"
-  ]
- ],
- "<opt_pre_ws_printable_str>": [
-  [
-   ""
-  ],
-  [
-   "<opt_ws2_str>",
-   "<printable_str>"
-  ]
- ],
- "<f191_loop_0_exit_refined_0>": [
-  [
-   "a"
-  ]
- ],
- "<f191_loop_0_refined_0>": [
-  [
-   "<f191_loop_0_exit_refined_0>"
-  ],
-  [
-   "<opt_ws2_str>",
-   "<printable_str>",
-   "<f191_loop_0>"
+   "<printable_char_1>",
+   "<opt_printable_str_1>"
   ]
  ]
 }

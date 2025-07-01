@@ -1,0 +1,15 @@
+{
+ "<start>": [
+  [
+   "<f341@0_L0_exit>"
+  ]
+ ],
+ "<f341@0_L0_exit>": [
+  [
+   "<__external_strlen@0>"
+  ]
+ ],
+ "<__external_strlen@0>": [
+  []
+ ]
+}
