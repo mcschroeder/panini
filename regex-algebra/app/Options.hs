@@ -21,6 +21,7 @@ data Options = Options
   , inputFormat   :: Maybe Format
   , outputFormat  :: Maybe Format
   , simplify      :: Bool
+  , complement    :: Bool
   }
   deriving stock (Show)
 
@@ -40,3 +41,5 @@ optionsParser = info
           help "Specify output format")
     <*> (switch $ long "simplify" <>
           help "Simplify regular expression")
+    <*> (switch $ long "complement" <>
+          help "Complement regular expression")

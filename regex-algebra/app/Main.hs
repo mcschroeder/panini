@@ -30,8 +30,11 @@ main = do
     Nothing    -> fromPOSIX inputPath inputString
     _          -> error "unsupported input format"
   
-  let outputRegex | opts.simplify = Regex.simplify inputRegex
-                  | otherwise     = inputRegex
+  let regex1 | opts.complement = Regex.complement inputRegex
+             | otherwise       = inputRegex
+
+  let outputRegex | opts.simplify = Regex.simplify regex1
+                  | otherwise     = regex1
 
   outputString <- case opts.outputFormat of
     Nothing           -> pure $ toPOSIX outputRegex
