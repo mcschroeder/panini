@@ -22,6 +22,7 @@ data Options = Options
   , outputFormat  :: Maybe Format
   , simplify      :: Bool
   , complement    :: Bool
+  , readAll       :: Bool
   }
   deriving stock (Show)
 
@@ -43,3 +44,6 @@ optionsParser = info
           help "Simplify regular expression")
     <*> (switch $ long "complement" <>
           help "Complement regular expression")
+    <*> (switch $ long "read-all" <>
+          help "Read the entire input stream until EOF (instead of EOL).\
+              \ Note that file inputs are always read to the end.")

@@ -17,12 +17,10 @@ import FuzzingBook as FB
 main :: IO ()
 main = do
   opts <- execParser optionsParser
-  
-  hSetBuffering stdin LineBuffering
 
   (inputPath, inputString) <- case opts.inputFile of
-    Nothing   -> ("<stdin>",) <$> getLine
-    Just "-"  -> ("<stdin>",) <$> getLine
+    Nothing   -> ("<stdin>",) <$> readInput opts
+    Just "-"  -> ("<stdin>",) <$> readInput opts
     Just file -> (     file,) <$> readFile' file
   
   inputRegex <- case opts.inputFormat of
@@ -45,6 +43,11 @@ main = do
     Nothing   -> putStr outputString
     Just "-"  -> putStr outputString
     Just file -> writeFile file outputString
+
+readInput :: Options -> IO String
+readInput opts
+  | opts.readAll = hSetBuffering stdin   NoBuffering >> getContents'
+  | otherwise    = hSetBuffering stdin LineBuffering >> getLine
 
 -------------------------------------------------------------------------------
 
