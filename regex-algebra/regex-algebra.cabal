@@ -78,6 +78,7 @@ executable regex
     , megaparsec
     , optparse-applicative
     , parser-combinators
+    , prettyprinter
     , text
     , transformers
 

@@ -4,11 +4,15 @@ import Data.Void
 import Options
 import Options.Applicative (execParser)
 import Prelude
+import Prettyprinter
+import Prettyprinter.Render.Text
 import Regex
+import Regex.Type (prettyRegex)
 import Regex.POSIX.ERE as ERE
 import System.Exit (exitFailure)
 import System.IO
 import Text.Megaparsec
+import Text.Printf
 import Text.Read
 import FuzzingBook as FB
 
@@ -35,8 +39,8 @@ main = do
                   | otherwise     = regex1
 
   outputString <- case opts.outputFormat of
-    Nothing           -> pure $ toPOSIX outputRegex
-    Just POSIX        -> pure $ toPOSIX outputRegex
+    Nothing           -> toPOSIX inputPath outputRegex
+    Just POSIX        -> toPOSIX inputPath outputRegex
     Just FuzzingBook  -> pure $ toFuzzingBook outputRegex
 
   case opts.outputFile of
@@ -54,15 +58,20 @@ readInput opts
 fromPOSIX :: FilePath -> String -> IO Regex
 fromPOSIX _ "" = return One
 fromPOSIX fp str = case parse (ere @Void) fp str of
-  Left err -> putStr (errorBundlePretty err) >> exitFailure
+  Left err -> hPutStr stderr (errorBundlePretty err) >> exitFailure
   Right ere -> return $ ERE.toRegex ere 
 
 -------------------------------------------------------------------------------
 
-toPOSIX :: Regex -> String
-toPOSIX r = case ERE.fromRegex r of
-  Just ere -> printERE ere
-  Nothing  -> error "cannot convert regex to POSIX"
+toPOSIX :: FilePath -> Regex -> IO String
+toPOSIX fp r = case ERE.fromRegex r of
+  Just ere -> return $ printERE ere
+  Nothing -> do
+    let msg = "cannot convert regular expression to POSIX"
+    let doc = pretty fp <> colon <+> pretty msg <> colon <> line <> pretty r
+    hPutDoc stderr (group doc)
+    hPutStrLn stderr ""
+    exitFailure
 
 toFuzzingBook :: Regex -> String
 toFuzzingBook = printGrammar . FB.fromRegex
