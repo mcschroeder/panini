@@ -14,9 +14,6 @@ import Panini.Solver.Constraints
 import Panini.Syntax
 import Prelude
 
--- TODO: update type rules in paper; in particular: template generation / hole
--- instantiation, which has gotten more complicated since the OOPSLA submission
-
 ------------------------------------------------------------------------------
 
 withPV :: (Type,Con) -> PV -> (Type,Con)
@@ -46,7 +43,7 @@ check g e t̃ = do
 infer :: Context -> Term -> Pan TypeError (Type, Con)
 infer g = \case
   
-  -- inf/var ----------------------------------------------
+  -- syn/var ----------------------------------------------
   Val (Var x) -> do
     t <- case Map.lookup x g of
       Just t  -> return $ self x t
@@ -56,7 +53,7 @@ infer g = \case
         _                           -> throwError $ UnknownVar x    
     return $ (t, CTrue) `withPV` getPV x
   
-  -- inf/con ----------------------------------------------
+  -- syn/con ----------------------------------------------
   Val (Con c) -> do
     let v = dummyName
     let b = typeOfValue c
@@ -64,7 +61,7 @@ infer g = \case
     let t = TBase v b (Known p) (getPV c)
     return (t, CTrue)
   
-  -- inf/app ----------------------------------------------
+  -- syn/app ----------------------------------------------
   App e x pv -> do
     (tₑ, cₑ) <- infer g e
     case tₑ of
@@ -77,7 +74,7 @@ infer g = \case
         let c = cₑ ∧ cₓ
         return $ (t, c) `withPV` pv
   
-  -- inf/lam ----------------------------------------------
+  -- syn/lam ----------------------------------------------
   Lam x t̃₁ e pv | x `elem` Map.keys g -> do
     let x' = freshName x (Map.keys g)
     let e' = subst (Var x') x e
@@ -90,7 +87,7 @@ infer g = \case
     let c = cImpl x t̂₁ c₂
     return (t, c)
   
-  -- inf/let ----------------------------------------------
+  -- syn/let ----------------------------------------------
   Let x e₁ e₂ pv | x `elem` Map.keys g -> do
     let x' = freshName x (Map.keys g)
     let e₂' = subst (Var x') x e₂
@@ -104,7 +101,7 @@ infer g = \case
     let c = c₁ ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return $ (t̂₂, c) `withPV` pv
 
-  -- inf/rec ----------------------------------------------
+  -- syn/rec ----------------------------------------------
   Rec x t̃₁ e₁ e₂ pv | x `elem` Map.keys g -> do
     let x' = freshName x (Map.keys g)
     let e₁' = subst (Var x') x e₁
@@ -122,7 +119,7 @@ infer g = \case
     let c    = (cImpl x t̂₁ (c₁ ∧ ĉ₁)) ∧ (cImpl x t₁ (c₂ ∧ ĉ₂))
     return   $ (t̂₂,c) `withPV` pv
 
-  -- inf/if -----------------------------------------------
+  -- syn/if -----------------------------------------------
   If v e₁ e₂ pv -> do
     checkBool g v
     (t₁,c₁) <- infer g e₁
@@ -159,22 +156,22 @@ self x = \case
 fresh :: Context -> Type -> Pan e Type
 fresh g0 = go (Map.toList g0)
   where
-    -- ins/hole -------------------------------------------
+    -- kap/base -------------------------------------------
     go g (TBase v b Unknown pv) = do
       let (xs,ts) = unzip [(x,t) | (x, TBase _ t _ _) <- g]
       κ <- freshK (b:ts) pv
       let v' = if v `elem` xs then freshName v xs else v
       let p = PAppK κ (zipWith EVar (v':xs) (b:ts))
-      return $ TBase v' b (Known p) (Derived pv "ins/hole")
+      return $ TBase v' b (Known p) (Derived pv "kap/base")
     
-    -- ins/conc -------------------------------------------
+    -- kap/conc -------------------------------------------
     go _ t@(TBase _ _ (Known _) _) = return t
 
-    -- ins/fun --------------------------------------------
+    -- kap/fun --------------------------------------------
     go g (TFun x s t pv) = do
       ŝ <- go g s
       t̂ <- go ((x,s):g) t
-      return $ TFun x ŝ t̂ (Derived pv "ins/fun")
+      return $ TFun x ŝ t̂ (Derived pv "kap/fun")
 
 freshK :: [Base] -> PV -> Pan e KVar
 freshK ts pv = do
@@ -187,7 +184,7 @@ shape :: Type -> Type
 shape (TBase v b _ pv) = TBase v b Unknown (Derived pv "shape")
 shape (TFun x t1 t2 pv) = TFun x (shape t1) (shape t2) (Derived pv "shape")
 
--- | Subtyping (⩽).
+-- | Subtyping (<:).
 sub :: Type -> Type -> Pan TypeError Con
 sub lhs rhs = case (lhs, rhs) of
   
