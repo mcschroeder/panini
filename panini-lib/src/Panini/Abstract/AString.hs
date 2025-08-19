@@ -91,6 +91,12 @@ rep2 a m n
   | 0 <= m, m <= n = rep a m <> mconcat (replicate (fromIntegral $ n - m) (opt anyChar))
   | otherwise      = bot
 
+repA :: AString -> AInt -> AString
+repA s (meet (AInt.ge 0) -> n̂) = joins $ AInt.intervals n̂ >>= \case
+  Fin a :… Fin b  -> [rep s n | n <- [a..b]]
+  Fin a :… PosInf -> [rep s a ⋅ star Σ]
+  _               -> impossible
+
 anyChar :: AString
 anyChar = MkAString AnyChar
 
@@ -188,71 +194,31 @@ strSub s a b =
 ------------------------------------------------------------------------------
 
 strOfLen :: AInt -> AString
-strOfLen (meet (AInt.ge 0) -> n̂)
-  | isBot n̂ = bot
-  | otherwise = joins $ AInt.intervals n̂ >>= \case
-      Fin a :… Fin b  -> [rep Σ n | n <- [a..b]]
-      Fin a :… PosInf -> [rep Σ a ⋅ star Σ]
-      _               -> impossible
-
-strNotOfLen :: AInt -> AString
-strNotOfLen (meet (AInt.ge 0) -> n̂)
-  | isBot n̂ = top
-  | otherwise = meets $ AInt.intervals n̂ >>= \case
-      Fin a :… Fin b  -> [ joins $ [rep Σ i | i <- [0..n-1]] ++
-                                   [rep Σ (n + 1) ⋅ star Σ]
-                         | n <- [a..b] ]
-      Fin a :… PosInf -> [ joins $ [rep Σ i | i <- [0..a-1]] ]
-      _               -> impossible
+strOfLen n̂ = repA Σ n̂
 
 strWithCharAt :: AInt -> AChar -> AString
-strWithCharAt (meet (AInt.ge 0) -> î) ĉ
-  | isBot ĉ = strOfLen î  -- TODO: should this be min î ?
-  | otherwise = joins $ AInt.intervals î >>= \case
-      Fin a :… Fin b  -> [rep Σ i ⋅ lit ĉ ⋅ star Σ | i <- [a..b]]
-      Fin a :… PosInf -> [rep Σ a ⋅ star Σ ⋅ lit ĉ ⋅ star Σ]
-      _               -> impossible
+strWithCharAt î BOT = strOfLen î
+strWithCharAt î ĉ   = repA Σ î ⋅ lit ĉ ⋅ star Σ
 
 strWithCharAtRev :: AInt -> AChar -> AString
-strWithCharAtRev (meet (AInt.ge 1) -> î) ĉ
-  | isBot ĉ = bot
-  | otherwise = joins $ AInt.intervals î >>= \case
-      Fin a :… Fin b  -> [star Σ ⋅ lit ĉ ⋅ rep2 Σ (a - 1) (b - 1)]
-      Fin a :… PosInf -> [star Σ ⋅ lit ĉ ⋅ rep Σ (a - 1) ⋅ star Σ]
-      _               -> impossible
+strWithCharAtRev _ BOT = BOT
+strWithCharAtRev î ĉ   = star Σ ⋅ lit ĉ ⋅ repA Σ (AInt.subI î 1)
 
 strWithSubstr :: AInt -> AInt -> AString -> AString
-strWithSubstr (meet (AInt.ge 0) -> î) (meet (AInt.geA î) -> ĵ) t̂
-  | isBot î = bot
-  | isBot ĵ = strOfLen î
-  | otherwise = joins $ AInt.intervals î >>= \case
-      Fin a :… Fin b -> AInt.intervals ĵ >>= \case
-        Fin c :… Fin d  -> [str  i j | i <- [a..b], j <- [c..d]]
-        Fin c :… PosInf -> [str' i c | i <- [a..b]]
-        _               -> impossible
-      Fin a :… PosInf -> AInt.intervals ĵ >>= \case
-        Fin c :… Fin d  -> [str  a j | j <- [c..d], a <= j]
-        Fin c :… PosInf -> [str' a c]
-        _               -> impossible
-      _ -> impossible
- where
-  str  i j = rep Σ i ⋅  (rep Σ (j - i + 1)            ∧ t̂) ⋅ star Σ
-  str' i j = rep Σ i ⋅ ((rep Σ (j - i + 1) ⋅ star Σ) ∧ t̂) ⋅ star Σ
+strWithSubstr î _ BOT = strOfLen î
+strWithSubstr î ĵ t̂   = repA Σ î ⋅ (repA Σ n ∧ t̂) ⋅ star Σ
+                          where n = ĵ `AInt.sub` î `AInt.addI` 1
 
-strWithoutSubstr :: AInt -> AInt -> AString -> AString
-strWithoutSubstr î ĵ t̂ = neg $ strWithSubstr î ĵ t̂
-
-strWithFirstIndexOfChar :: AChar -> AInt -> AString
-strWithFirstIndexOfChar ĉ î
-  | isBot ĉ = strOfLen î -- TODO: should this be min î ?
-  | Just m <- AInt.minimum î, m < Fin 0 
-      = (star c̄) ∨ strWithFirstIndexOfChar ĉ (î ∧ AInt.ge 0)
-  | otherwise = joins $ AInt.intervals î >>= \case
-      Fin a :… Fin b  -> [rep c̄ i ⋅ lit ĉ ⋅ star Σ | i <- [a..b]]
-      Fin a :… PosInf -> [rep c̄ a ⋅ star c̄ ⋅ lit ĉ ⋅ star Σ]
-      _               -> impossible
+strWithIndexOfChar :: AChar -> AInt -> AInt -> AString
+strWithIndexOfChar BOT k̂ î        = repA Σ k̂ ⋅ repA Σ î
+strWithIndexOfChar ĉ   k̂ î 
+  | AInt.minimum î < Just (Fin 0) = (repA Σ k̂ ⋅ star c̄) ∨ t
+  | otherwise                     = t
  where
+  t = repA Σ k̂ ⋅ repA c̄ (î `AInt.sub` k̂) ⋅ lit ĉ ⋅ star Σ
   c̄ = lit (neg ĉ)
+
+-- TODO: simplify all below
 
 strWithFirstIndexOfCharRev :: AChar -> AInt -> AString
 strWithFirstIndexOfCharRev ĉ î
@@ -266,6 +232,7 @@ strWithFirstIndexOfCharRev ĉ î
  where
   c̄ = lit (neg ĉ)
 
+-- TODO: possible bug in rep2
 strWithFirstIndexOfCharFollowedByFirstIndexOfChar :: AChar -> AChar -> AInt -> AString
 strWithFirstIndexOfCharFollowedByFirstIndexOfChar ĉ1 ĉ2 (meet (AInt.ge 1) -> î) -- TODO
   | not (isBot (ĉ1 ∧ ĉ2)) = undefined -- TODO

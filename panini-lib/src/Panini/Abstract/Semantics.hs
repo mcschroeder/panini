@@ -218,7 +218,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     -> normRelA $ [ρ| str.indexof(x,y,z) = n' |]
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,c,0) = n |] 
-    -> normRelA $ x :=: EStrA (strWithFirstIndexOfChar c n)
+    -> normRelA $ x :=: EStrA (strWithIndexOfChar c n AInt0)
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,s,î) = n |]
     | AIntFrom 0 <- n
@@ -729,18 +729,18 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   [ρ| x̲ - n = e |] -> abstract x τ [ρ| x̲ = e + n |]
   -----------------------------------------------------------------------------
   [ρ| |x̲| = n |] -> AString $ strOfLen n
-  [ρ| |x̲| ≠ n |] -> AString $ strNotOfLen n
+  [ρ| |x̲| ≠ n |] -> AString $ neg $ strOfLen n
   -----------------------------------------------------------------------------
   [ρ| x̲[i] = c |] -> AString $ strWithCharAt i c
-  [ρ| x̲[i] ≠ c |] -> AString $ strWithCharAt i (neg c)
+  [ρ| x̲[i] ≠ c |] -> AString $ neg $ strWithCharAt i c
   -----------------------------------------------------------------------------
   [ρ| x̲[|x̲|-i] = c |] -> AString $ strWithCharAtRev i c
-  [ρ| x̲[|x̲|-i] ≠ c |] -> AString $ strWithCharAtRev i (neg c)
+  [ρ| x̲[|x̲|-i] ≠ c |] -> AString $ neg $ strWithCharAtRev i c
   -----------------------------------------------------------------------------
   [ρ| x̲[i..j] = t |] -> AString $ strWithSubstr i j t
-  [ρ| x̲[i..j] ≠ t |] -> AString $ strWithoutSubstr i j t
+  [ρ| x̲[i..j] ≠ t |] -> AString $ neg $ strWithSubstr i j t
   -----------------------------------------------------------------------------
-  [ρ| str.indexof(x̲,c,0) = i |] -> AString $ strWithFirstIndexOfChar c i
+  [ρ| str.indexof(x̲,c,k) = i |] -> AString $ strWithIndexOfChar c k i
   -----------------------------------------------------------------------------
   [ρ| x̲[î..str.indexof(x̲,c,0)-ĵ] = t |]
     | [i] <- î, [j] <- ĵ
@@ -750,8 +750,6 @@ abstract x τ r0 = trace ("abstract " ++ showPretty x ++ " " ++ showPretty r0 ++
   [ρ| x̲[str.indexof(x̲,c,0)-î..|x̲|-ĵ] = t |]
     | [i] <- î, [j] <- ĵ
     -> AString $ strWithSubstrFromFirstIndexOfCharToEnd c i j t
-  -----------------------------------------------------------------------------
-  [ρ| str.indexof(x̲,c,0) = i |] -> AString $ strWithFirstIndexOfChar c i
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x̲,a,str.indexof(x̲,b,0)+1) = i |]
     -> AString $ strWithFirstIndexOfCharFollowedByFirstIndexOfChar b a i

@@ -28,7 +28,9 @@ module Panini.Abstract.AInt
   , ltA
   , leA
   , add
+  , addI
   , sub
+  , subI
   , negate
   , IntervalSequence
   , holes
@@ -239,11 +241,17 @@ leA (AInt xs) = case xs of
 add :: AInt -> AInt -> AInt
 add (AInt xs) (AInt ys) = AInt $ joins $ [[addIn x y] | x <- xs, y <- ys]
 
+addI :: AInt -> Integer -> AInt
+addI a = add a . eq
+
 -- | Subtract one abstract integer from another, i.e., form the union of
 -- subtracting every value represented by the second abstract integer from every
 -- value represented by the first abstract integer.
 sub :: AInt -> AInt -> AInt
 sub (AInt xs) (AInt ys) = AInt $ joins $ [[subIn x y] | x <- xs, y <- ys]
+
+subI :: AInt -> Integer -> AInt
+subI a = sub a . eq
 
 -- | Negate all values represented by the abstract integer.
 negate :: AInt -> AInt
