@@ -5,20 +5,22 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libgmp-dev \
     && rm -rf /var/lib/apt/lists/*
+RUN cabal update
 
 WORKDIR /panini
 
-COPY app app
-COPY panini-lib panini-lib
-COPY panini-python panini-python
-COPY regex-algebra regex-algebra
 COPY cabal.project cabal.project
+COPY regex-algebra/regex-algebra.cabal regex-algebra/regex-algebra.cabal
+COPY panini-lib/panini-lib.cabal panini-lib/panini-lib.cabal
+COPY panini-python/panini-python.cabal panini-python/panini-python.cabal
 COPY panini.cabal panini.cabal
 
-RUN cabal update
-RUN cabal install --only-dependencies
-
-RUN cabal build panini
+COPY regex-algebra regex-algebra
 RUN cabal build regex
+
+COPY panini-lib panini-lib
+COPY panini-python panini-python
+COPY app app
+RUN cabal build panini
 
 ENTRYPOINT ["cabal", "run", "panini", "--"]
