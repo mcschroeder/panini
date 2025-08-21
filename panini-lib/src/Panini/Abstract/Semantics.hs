@@ -184,6 +184,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
   [ρ| x = x - n |] -> Left (AInt.member 0 n)
   [ρ| x + n = x |] -> Left (AInt.member 0 n)
   [ρ| x - n = x |] -> Left (AInt.member 0 n)
+  [ρ| 0 - x = x |] -> normRelA [ρ| x = 0 |]
   -----------------------------------------------------------------------------
   [ρ| x ≠ x     |] -> Left False
   [ρ| x ≠ x + n |] -> Left (not $ AInt.member 0 n)
@@ -344,6 +345,8 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     | [i] <- î
     , i >= 0
     -> normRelA $ x :=: EStrA (rep Σ i ⋅ neg s)
+  -----------------------------------------------------------------------------
+  [ρ| u[x..x] = v[y..y] |] -> normRelA $ [ρ| u[x] = v[y] |]
   -----------------------------------------------------------------------------
   [ρ| x[î] = c |] 
     | [i] <- î
@@ -534,6 +537,11 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     , [j] <- ĵ, j >= 1, j <= i
     , let s' = s ∧ rep Σ (i - j + 1)
     -> normRelA $ x :=: EStrA (star Σ ⋅ s' ⋅ rep Σ (j - 1))
+  ----------------------------------------------------------------------------
+  [ρ| n - |x| = |x| |] 
+    | [0,1]      <- n -> Left False
+    | AIntFrom 0 <- n -> normRelA $ [ρ| |x| >= 0 |]
+    | let n' = n ∧ AInt.ge 0, n' /= n -> normRelA [ρ| n' - |x| = |x| |]
   -----------------------------------------------------------------------------
   [ρ| |x| = i |] | let i' = i ∧ AInt.ge 0, i' /= i -> normRelA [ρ| |x| = i' |]
   ----------------------------------------------------------------------------

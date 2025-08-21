@@ -97,6 +97,9 @@ simplifyPredA = \case
   PNot PFalse -> Just PTrue
   PNot (PRel r) -> Just $ PRel $ inverse r 
 
+  PImpl PFalse _ -> Just PTrue
+  PImpl PTrue  p -> Just p
+
   PIff p PTrue -> Just p
   PIff PTrue p -> Just p
   PIff p PFalse -> Just $ PNot p
@@ -182,6 +185,9 @@ simplifyPred = \case
     Right r'
        | r' /= r -> Just $ PRel r'
        | otherwise -> Nothing
+
+  PImpl PFalse _ -> Just PTrue
+  PImpl PTrue  p -> Just p
 
   PIff p PTrue -> Just p
   PIff PTrue p -> Just p

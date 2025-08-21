@@ -65,12 +65,12 @@ axiomForFunction fun args ret = case (fun,args,ret) of
   ("__ge__", [Int, Int], Bool) -> Just ("ge", [panType| (a:ℤ) → (b:ℤ) → {c:𝔹 | c = true ⟺ a ≥ b} |])
 
   -- container methods; see Note [Slicing via __getitem__] and Note [Slice bounds]
-  ("__getitem__", [Str, Int]          , Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..i]} |])
+  ("__getitem__", [Str, Int]          , Str) -> Just ("slice1", [panType| (s:𝕊) → {i:ℤ | i ≥ 0-|s| ∧ i < |s|} → {t:𝕊 | (i >= 0 ==> t = s[i..i]) /\ (i < 0 ==> t = s[|s|+i..|s|+i])} |])
   ("__getitem__", [Str, Int, Int]     , Str) -> Just ("slice", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {j:ℤ | i ≤ j  ∧ j <= |s|} → {t:𝕊 | t = s[i..j-1]} |])
   ("__getitem__", [Str, Int, None]    , Str) -> Just ("sliceFrom", [panType| (s:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {t:𝕊 | t = s[i..|s|-1]} |])
   ("__getitem__", [Str, None, Int]    , Str) -> Just ("sliceTo", [panType| (s:𝕊) → {j:ℤ | j ≥ 0 ∧ j <= |s|} → {t:𝕊 | t = s[0..j-1]} |])
   ("__getitem__", [Str, None, None]   , Str) -> Just ("strId", [panType| (s:𝕊) → {t:𝕊 | t = s} |])
-  ("__len__"    , [Str]               , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n = |s|} |])  
+  ("__len__"    , [Str]               , Int) -> Just ("length", [panType| (s:𝕊) → {n:ℤ | n >= 0 /\ n = |s|} |])  
   ("index"      , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {k:ℤ | k = str.indexof(s,t,0)}|])
   ("index"      , [Str, Str, Int]     , Int) -> Just ("indexFrom", [panType| (s:𝕊) → (t:𝕊) → {i:ℤ | i ≥ 0 ∧ i < |s|} → {k:ℤ | k = str.indexof(s,t,i)} |])
   ("find"       , [Str, Str]          , Int) -> Just ("index", [panType| (s:𝕊) → (t:𝕊) → {k:ℤ | k = str.indexof(s,t,0)}|])
