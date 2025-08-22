@@ -148,3 +148,18 @@ Alternatively, you can use the following ASCII equivalents for common symbols:
 | `∌`     | `\notni` | N/A       | does not include
 
 Panini also has a `--no-unicode` flag which outputs only ASCII (but still permits Unicode input).
+
+## Citation
+
+If you want to cite Panini, please use the following reference:
+```
+@article{schroeder:panini,
+  author = {Michael Schr\"{o}der and J\"{u}rgen Cito},
+  title = {Static Inference of Regular Grammars for Ad Hoc Parsers},
+  journal = {Proceedings of the ACM on Programming Languages},
+  volume = {9},
+  number = {OOPSLA2},  
+  date = {2025-10},
+  doi = {10.1145/3763054}
+}
+```
