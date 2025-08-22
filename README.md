@@ -158,8 +158,9 @@ If you want to cite Panini, please use the following reference:
   title = {Static Inference of Regular Grammars for Ad Hoc Parsers},
   journal = {Proceedings of the ACM on Programming Languages},
   volume = {9},
-  number = {OOPSLA2},  
+  number = {OOPSLA2},
   date = {2025-10},
+  articleno = {276},
   doi = {10.1145/3763054}
 }
 ```
