@@ -28,6 +28,9 @@ simplifyCon = \case
   CAnd c1 (CHead PTrue) -> Just c1
   CAll _ _ _ (CHead PTrue) -> Just (CHead PTrue)
 
+  CAnd (CHead PFalse) _ -> Just CFalse
+  CAnd _ (CHead PFalse) -> Just CFalse
+
   CAnd (CHead p1) (CAnd (CHead p2) c) -> Just $ CHead (p1 ∧ p2) ∧ c
   CAnd (CHead p1) (CHead p2)          -> Just $ CHead (p1 ∧ p2)
 
@@ -52,6 +55,13 @@ simplifyCon = \case
     , x `notElem` freeVars q
     , x `notElem` maybe mempty freeVars c
     -> Just $ CAnd (CHead q) (fromMaybe CTrue c)
+  
+  -- (∀x:𝔹. x = false ⇒ x = true)   ≡   false
+  CAll x TBool p (CHead q)
+    | PRel (EVar x1 TBool :=: EBool v1 _) <- p
+    , PRel (EVar x2 TBool :=: EBool v2 _) <- q
+    , x == x1, x1 == x2, v1 /= v2
+    -> Just CFalse
 
   CAll x b p c | p' <- simplify p, p' /= p -> Just $ CAll x b p' c
   CHead p      | p' <- simplify p, p' /= p -> Just $ CHead p'
@@ -212,6 +222,10 @@ simplifyPred = \case
   -- ∃x:b. x = y   ≡   ⊤
   PExists x1 _ (PRel (EVar x2 _ :=: y))
     | x1 == x2, x1 `notElem` freeVars y
+    -> Just PTrue
+
+  POr [PRel (EVar x1 TBool :=: EBool True _), PRel (EVar x2 TBool :=: EBool False _)]
+    | x1 == x2
     -> Just PTrue
 
   _ -> Nothing
