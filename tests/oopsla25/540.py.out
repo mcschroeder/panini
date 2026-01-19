@@ -1,0 +1,1 @@
+f540 : {s:𝕊 | s ∈ ([^a]|([^a]([^a]|abb)|abb)(b|[^ab]([^a]|abb)*|abb[^a]*)*)?} → 𝟙  -- UNVERIFIED (timeout)

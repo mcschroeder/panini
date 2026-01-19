@@ -1,0 +1,1 @@
+tests/oopsla25/241.py:5:10-11: error: abstraction to value impossible: ⟦{i:ℤ | s[i] = Σ∖{b}} - [0,+∞] ≠ str.indexof(s, b, 0)⟧↑s ≐ {s:𝕊 | {i:ℤ | s[i] = Σ∖{b}} - [0,+∞] ≠ str.indexof(s, b, 0)}

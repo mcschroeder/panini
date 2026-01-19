@@ -1,0 +1,1 @@
+tests/oopsla25/526.py:5:10-11: error: abstraction to value impossible: ⟦[^a][^a].* ≠ {v0:𝕊 | v0[0..0] = v0[1..1]}⟧↑s ≐ {s:𝕊 | [^a][^a].* ≠ {v0:𝕊 | v0[0..0] = v0[1..1]}}

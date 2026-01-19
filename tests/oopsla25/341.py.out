@@ -1,0 +1,1 @@
+tests/oopsla25/341.py:5:10-11: error: abstraction to value impossible: ⟦|s| - [1,+∞] ≠ {i:ℤ | s[i..i + 2] = (.(.(...*)?)?)?}⟧↑s ≐ {s:𝕊 | |s| - [1,+∞] ≠ {i:ℤ | s[i..i + 2] = (.(.(...*)?)?)?}}

@@ -1,0 +1,1 @@
+<unknown location>: error: abstraction to value impossible: ⟦a ≠ a1⟧↑a1 ≐ {a1:𝕊 | a1 = re.comp(a)}

@@ -1,0 +1,1 @@
+tests/oopsla25/490.py:5:10-11: error: abstraction to value impossible: ⟦s[-3..|s| - 1] = 011⟧↑s ≐ {s:𝕊 | s[-3..|s| - 1] = 011}

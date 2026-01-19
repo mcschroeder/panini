@@ -1,0 +1,1 @@
+tests/oopsla25/233.py:5:10-11: error: abstraction to value impossible: ⟦|s| - [1,+∞] ≠ {i1:ℤ | str.indexof(s, b, i1) = -1}⟧↑s ≐ {s:𝕊 | |s| - [1,+∞] ≠ {i1:ℤ | str.indexof(s, b, i1) = -1}}
