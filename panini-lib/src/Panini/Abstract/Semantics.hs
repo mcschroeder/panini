@@ -218,7 +218,7 @@ normRelA r0 = trace ("normRelA " ++ showPretty r0 ++ " --> " ++ either show show
     -> normRelA $ [ρ| str.indexof(x,y,z) = n' |]
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,c,0) = n |] 
-    -> normRelA $ x :=: EStrA (strWithIndexOfChar c n AInt0)
+    -> normRelA $ x :=: EStrA (strWithIndexOfChar c AInt0 n)
   -----------------------------------------------------------------------------
   [ρ| str.indexof(x,s,î) = n |]
     | AIntFrom 0 <- n
